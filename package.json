@@ -1,0 +1,21 @@
+{
+  "name": "tinycloud-sdk",
+  "version": "0.0.1",
+  "description": "",
+  "private": true,
+  "workspaces": [],
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev": "pnpm -r dev",
+    "test": "pnpm -r test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "ts-loader": "^9.5.1"
+  },
+  "dependencies": {
+    "typescript": "^4.9.5"
+  }
+}
