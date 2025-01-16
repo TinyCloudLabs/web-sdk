@@ -2,7 +2,6 @@ import {
   SSXRPCProviders,
   SSXEnsData,
   SSXEnsResolveOptions,
-  SSXLensProfilesResponse,
 } from '@spruceid/ssx-core';
 import {
   Credentials,
@@ -153,28 +152,6 @@ export class SSX {
     }
   ): Promise<SSXEnsData> {
     return this.userAuthorization.resolveEns(address, resolveEnsOpts);
-  }
-
-  /**
-   * Resolves Lens profiles owned by the given Ethereum Address. Each request is
-   * limited by 10. To get other pages you must to pass the pageCursor parameter.
-   *
-   * Lens profiles can be resolved on the Polygon Mainnet (matic) or Mumbai Testnet
-   * (maticmum). Visit https://docs.lens.xyz/docs/api-links for more information.
-   *
-   * @param address - Ethereum User address.
-   * @param pageCursor - Page cursor used to paginate the request. Default to
-   * first page. Visit https://docs.lens.xyz/docs/get-profiles#api-details for more
-   * information.
-   * @returns Object containing Lens profiles items and pagination info.
-   */
-  async resolveLens(
-    /* Ethereum User Address. */
-    address: string,
-    /* Page cursor used to paginate the request. Default to first page. */
-    pageCursor = '{}'
-  ): Promise<string | SSXLensProfilesResponse> {
-    return this.userAuthorization.resolveLens(address, pageCursor);
   }
 
   /**

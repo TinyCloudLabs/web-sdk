@@ -5,23 +5,18 @@ import { ethers } from 'ethers';
 import {
   SSXEnsData,
   SSXEnsResolveOptions,
-  SSXLensProfilesResponse,
   SSXRPCProvider,
   SSXServerRoutes,
 } from '../types';
 
 /** Core config for SSX. */
 export interface SSXClientConfig {
-  /** Whether or not daoLogin is enabled. */
-  enableDaoLogin?: boolean;
   /** Connection to a cryptographic keypair and/or network. */
   providers?: SSXClientProviders;
   /** Optional session configuration for the SIWE message. */
   siweConfig?: SiweConfig;
   /** Whether or not ENS resolution is enabled. True means resolve all on client. */
   resolveEns?: boolean | SSXEnsConfig;
-  /** Whether or not Lens resolution is enabled. True means resolve on client. */
-  resolveLens?: boolean | 'onServer';
 }
 
 /** Representation of an active SSXSession. */
@@ -39,8 +34,6 @@ export type SSXClientSession = {
   signature: string;
   /** ENS data supported by SSX */
   ens?: SSXEnsData;
-  /** Lens Profiles */
-  lens?: string | SSXLensProfilesResponse;
 };
 
 /** The URL of the server running ssx-server. Providing this field enables SIWE server communication */

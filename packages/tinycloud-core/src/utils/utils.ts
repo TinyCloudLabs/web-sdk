@@ -11,7 +11,6 @@ import {
   SSXEnsData,
   SSXEtherscanProviderNetworks,
   SSXInfuraProviderNetworks,
-  SSXLensProfilesResponse,
   SSXPocketProviderNetworks,
   SSXRPCProvider,
 } from '../types';
@@ -116,62 +115,4 @@ export const ssxResolveEns = async (
     .catch(console.error);
 
   return ens;
-};
-
-const LENS_API_LINKS = {
-  matic: 'https://api.lens.dev',
-  maticmum: 'https://api-mumbai.lens.dev',
-};
-
-/**
- * Resolves Lens profiles owned by the given Ethereum Address. Each request is
- * limited by 10. To get other pages you must to pass the pageCursor parameter.
- *
- * Lens profiles can be resolved on the Polygon Mainnet (matic) or Mumbai Testnet
- * (maticmum). Visit https://docs.lens.xyz/docs/api-links for more information.
- *
- * @param address - Ethereum User address.
- * @param pageCursor - Page cursor used to paginate the request. Default to
- * first page. Visit https://docs.lens.xyz/docs/get-profiles#api-details for more
- * information.
- * @returns Object containing Lens profiles items and pagination info.
- */
-export const ssxResolveLens = async (
-  provider: ethers.providers.BaseProvider,
-  /* Ethereum User Address. */
-  address: string,
-  /* Page cursor used to paginate the request. Default to first page. */
-  pageCursor = '{}'
-): Promise<SSXLensProfilesResponse | string> => {
-  if (!address) {
-    throw new Error('Missing address.');
-  }
-
-  const networkName = (await provider.getNetwork()).name;
-  const apiURL: string | null = LENS_API_LINKS[networkName];
-
-  if (!apiURL) {
-    return `Can't resolve Lens to ${address} on network '${networkName}'. Use 'matic' (Polygon) or 'maticmum' (Mumbai) instead.`;
-  }
-
-  let lens: { data: { profiles: SSXLensProfilesResponse } };
-  try {
-    lens = (
-      await axios({
-        url: apiURL,
-        method: 'post',
-        data: {
-          operationName: 'Profiles',
-          query: getProfilesQuery,
-          variables: {
-            addresses: [address],
-            cursor: pageCursor,
-          },
-        },
-      })
-    ).data;
-  } catch (err) {
-    throw new Error(err?.response?.data?.errors ?? err);
-  }
-  return lens.data.profiles;
 };

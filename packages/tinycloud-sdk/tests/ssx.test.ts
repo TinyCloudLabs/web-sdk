@@ -151,33 +151,3 @@ test('Should accept axios request config options successfully', async () => {
     });
   }).not.toThrowError();
 });
-
-test('Should accept extensions successfully', async () => {
-  jest.setTimeout(30000);
-  const GnosisDelegation = (await import('@spruceid/ssx-core/client'))
-    .GnosisDelegation;
-  const testingUtils = generateTestingUtils({ providerType: 'MetaMask' });
-  testingUtils.mockChainId('0x1');
-  testingUtils.mockConnectedWallet([
-    '0x456c1182DecC365DCFb5F981dCaef671C539AD44',
-  ]);
-  const abi = [
-    'event SetDelegate(address indexed delegator, bytes32 indexed id, address indexed delegate)',
-    'event ClearDelegate(address indexed delegator, bytes32 indexed id, address indexed delegate)',
-  ] as const;
-  const contractTestingUtils = testingUtils.generateContractUtils(abi);
-  contractTestingUtils.mockGetLogs('SetDelegate', []);
-  contractTestingUtils.mockGetLogs('ClearDelegate', []);
-  const ssxConfig = {
-    providers: {
-      web3: {
-        driver: new ethers.providers.Web3Provider(testingUtils.getProvider()),
-      },
-    },
-  };
-  const ssx = new SSX(ssxConfig);
-  const gnosis = new GnosisDelegation();
-  ssx.extend(gnosis);
-
-  await expect(ssx.signIn()).resolves.not.toThrowError();
-});

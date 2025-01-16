@@ -46,55 +46,6 @@ const AccountInfo = ({ address, session }: IAccountInfo) => {
           </div> :
           null
       }
-      {
-        session?.lens ?
-          typeof session.lens !== 'string' ?
-            session.lens.items.length > 0 ?
-              (
-                <div>
-                  <b className='AccountInfo-label'>
-                    Lens
-                    {session.lens.pageInfo.totalCount > 10 ? <small>&nbsp;(listing first 10)</small> : null}
-                  </b>
-                  <br />
-                  {
-                    session.lens.items.map((profile: Record<string, any>, i: number) => (
-                      <div key={i} className='AccountInfo-container'>
-                        {
-                          profile.picture?.original?.url ?
-                            <img
-                              className='AccountInfo-avatar'
-                              src={profile.picture?.original?.url}
-                              alt='Lens avatar'
-                            /> :
-                            null
-                        }
-                        {
-                          profile.handle ?
-                            <code className='AccountInfo-value'>
-                              {profile.handle}
-                            </code> :
-                            null
-                        }
-                      </div>
-                    ))
-                  }
-                </div>
-              ) :
-              null :
-            <div>
-              <b className='AccountInfo-label'>
-                Lens
-              </b>
-              <div className='AccountInfo-container'>
-                <code className='AccountInfo-value'>
-                  {session.lens}
-                </code>
-              </div>
-            </div>
-          :
-          null
-      }
       <p>
         <b className='AccountInfo-label'>
           Address

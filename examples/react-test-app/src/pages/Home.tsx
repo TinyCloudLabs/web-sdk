@@ -31,7 +31,6 @@ function Home() {
   const [enableDaoLogin, setDaoLogin] = useState<string>('Off');
   const [server, setServer] = useState<string>('Off');
   const [resolveEns, setResolveEns] = useState<string>('Off');
-  const [resolveLens, setResolveLens] = useState<string>('Off');
   const [siweConfig, setSiweConfig] = useState<string>('Off');
   const [host, setHost] = useState<string>('');
   const [resolveOnServer, setResolveOnServer] = useState<string>('Off');
@@ -97,13 +96,6 @@ function Home() {
             avatar: resolveEnsAvatar === 'On'
           }
         }
-      }
-    }
-
-    if (resolveLens === 'On' || resolveLens === 'onServer') {
-      ssxConfig = {
-        ...ssxConfig,
-        resolveLens: resolveLens === 'On' ? true : resolveLens
       }
     }
 
@@ -278,19 +270,6 @@ function Home() {
                   options={['On', 'Off']}
                   value={resolveEns}
                   onChange={setResolveEns}
-                />
-              </div>
-            </div>
-            <div className='Dropdown-item'>
-              <span className='Dropdown-item-name'>
-                resolveLens
-              </span>
-              <div className='Dropdown-item-options'>
-                <RadioGroup
-                  name='resolveLens'
-                  options={['On', 'Off', 'onServer']}
-                  value={resolveLens}
-                  onChange={setResolveLens}
                 />
               </div>
             </div>

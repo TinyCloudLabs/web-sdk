@@ -128,7 +128,6 @@ export abstract class SSXServerBaseClass extends EventEmitter {
    * If the message is verified, a session token is generated and returned.
    * @param siwe - SIWE Message.
    * @param signature - The signature of the SIWE message.
-   * @param daoLogin - Whether or not daoLogin is enabled.
    * @param resolveEns - Resolve ENS settings.
    * @param nonce - nonce string.
    * @returns Request data with SSX Server Session.
@@ -136,10 +135,8 @@ export abstract class SSXServerBaseClass extends EventEmitter {
   public login: (
     siwe: Partial<SiweMessage> | string,
     signature: string,
-    daoLogin: boolean,
     resolveEns: boolean | SSXEnsResolveOptions,
     nonce: string,
-    resolveLens?: boolean
   ) => Promise<{
     success: boolean;
     error: SiweError;

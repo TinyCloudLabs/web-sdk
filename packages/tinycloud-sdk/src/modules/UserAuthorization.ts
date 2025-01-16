@@ -6,8 +6,6 @@ import { generateNonce } from 'siwe';
 import {
   SSXEnsData,
   ssxResolveEns,
-  ssxResolveLens,
-  SSXLensProfilesResponse,
   SSXEnsResolveOptions,
   isSSXRouteConfig,
 } from '@spruceid/ssx-core';
@@ -16,7 +14,6 @@ import {
   SSXClientConfig,
   ISSXConnected,
   SSXExtension,
-  GnosisDelegation,
 } from '@spruceid/ssx-core/client';
 
 /** UserAuthorization Module
@@ -49,26 +46,6 @@ interface IUserAuthorization {
     address: string,
     resolveEnsOpts: SSXEnsResolveOptions
   ): Promise<SSXEnsData>;
-  /**
-   * Resolves Lens profiles owned by the given Ethereum Address. Each request is
-   * limited by 10. To get other pages you must pass the pageCursor parameter.
-   *
-   * Lens profiles can be resolved on the Polygon Mainnet (matic) or Mumbai
-   * Testnet (maticmum). Visit https://docs.lens.xyz/docs/api-links for more
-   * information.
-   *
-   * @param address - Ethereum User address.
-   * @param pageCursor - Page cursor used to paginate the request. Default to
-   * first page. Visit https://docs.lens.xyz/docs/get-profiles#api-details for
-   * more information.
-   * @returns Object containing Lens profiles items and pagination info.
-   */
-  resolveLens(
-    /* Ethereum User Address. */
-    address: string,
-    /* Page cursor used to paginate the request. Default to first page. */
-    pageCursor: string
-  ): Promise<string | SSXLensProfilesResponse>;
   address(): string | undefined;
   chainId(): number | undefined;
   /**
@@ -321,8 +298,6 @@ class UserAuthorizationConnected implements ISSXConnected {
         resolveEns = this.config.resolveEns.resolve;
       }
 
-      const resolveLens: boolean = this.config.resolveLens === 'onServer';
-
       try {
         const data = {
           signature: session.signature,
@@ -332,7 +307,6 @@ class UserAuthorizationConnected implements ISSXConnected {
           chainId: session.chainId,
           daoLogin: this.isExtensionEnabled('delegationRegistry'),
           resolveEns,
-          resolveLens,
         };
         // @TODO(w4ll3): figure out how to send a custom sessionKey
         return this.api
@@ -476,11 +450,6 @@ class UserAuthorization implements IUserAuthorization {
         ...this.config?.providers,
       },
     });
-
-    if (this.config.enableDaoLogin) {
-      const gnosis = new GnosisDelegation();
-      this.init.extend(gnosis);
-    }
   }
 
   /**
@@ -531,20 +500,10 @@ class UserAuthorization implements IUserAuthorization {
       }
     }
 
-    const resolveLensOnClient = this.config.resolveLens === true;
-    if (resolveLensOnClient) {
-      promises.push(this.resolveLens(this.session.address));
-    }
-
-    await Promise.all(promises).then(([ens, lens]) => {
-      if (!resolveEnsOnClient && resolveLensOnClient) {
-        [ens, lens] = [undefined, ens];
-      }
+    // refactor: only resolve ens
+    await Promise.all(promises).then(([ens]) => {
       if (ens) {
         this.session.ens = ens;
-      }
-      if (lens) {
-        this.session.lens = lens;
       }
     });
 
@@ -566,28 +525,6 @@ class UserAuthorization implements IUserAuthorization {
     }
   ): Promise<SSXEnsData> {
     return ssxResolveEns(this.connection.provider, address, resolveEnsOpts);
-  }
-
-  /**
-   * Resolves Lens profiles owned by the given Ethereum Address. Each request is
-   * limited by 10. To get other pages you must to pass the pageCursor parameter.
-   *
-   * Lens profiles can be resolved on the Polygon Mainnet (matic) or Mumbai Testnet
-   * (maticmum). Visit https://docs.lens.xyz/docs/api-links for more information.
-   *
-   * @param address - Ethereum User address.
-   * @param pageCursor - Page cursor used to paginate the request. Default to
-   * first page. Visit https://docs.lens.xyz/docs/get-profiles#api-details for more
-   * information.
-   * @returns Object containing Lens profiles items and pagination info.
-   */
-  public async resolveLens(
-    /* Ethereum User Address. */
-    address: string,
-    /* Page cursor used to paginate the request. Default to first page. */
-    pageCursor = '{}'
-  ): Promise<string | SSXLensProfilesResponse> {
-    return ssxResolveLens(this.connection.provider, address, pageCursor);
   }
 
   /**
