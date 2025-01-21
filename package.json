@@ -1,11 +1,12 @@
 {
-  "name": "tinycloud-sdk",
+  "name": "tinycloud-web-sdk",
   "version": "0.0.1",
   "description": "",
   "private": true,
   "workspaces": [],
   "scripts": {
     "build": "pnpm -r build",
+    "build:wasm": "pnpm --filter packages/web-sdk-rs build",
     "dev": "pnpm -r dev",
     "test": "pnpm -r test"
   },

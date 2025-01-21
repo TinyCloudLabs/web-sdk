@@ -1,0 +1,9 @@
+[workspace]
+resolver = "2"
+members = [
+  "packages/web-sdk-rs",
+]
+
+[profile.release]
+lto = true
+

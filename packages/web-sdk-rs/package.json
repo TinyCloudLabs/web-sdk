@@ -1,0 +1,33 @@
+{
+  "name": "@tinycloud/web-sdk-wasm",
+  "version": "0.1.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "author": "TinyCloud, Inc.",
+  "license": "Apache-2.0 OR MIT",
+  "scripts": {
+    "build": "pnpm build-dev",
+    "build-dev": "wasm-pack build --dev --target web",
+    "build-release": "wasm-pack build --release --target web",
+    "bundle": "rollup -c && $PWD/fixup-types.sh",
+    "clean": "rm -rf dist pkg",
+    "dev": "yarn build-dev && yarn bundle",
+    "release": "yarn build-release && yarn bundle",
+    "fmt": "prettier -w src package.json rollup.config.js tsconfig.json",
+    "publish-gh": "npm config set @tinycloud:registry=https://npm.pkg.github.com && npm publish",
+    "publish-npm": "npm config set @tinycloud:registry=https://registry.npmjs.org && npm publish --access public"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.26.1",
+    "@rollup/plugin-wasm": "^5.2.0",
+    "prettier": "^2.7.1",
+    "rollup": "^2.75.6",
+    "rollup-plugin-typescript2": "^0.32.1",
+    "tslib": "^2.4.0",
+    "typescript": "^4.7.4"
+  },
+  "files": [
+    "tsconfig.json",
+    "dist"
+  ]
+}

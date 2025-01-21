@@ -1,4 +1,4 @@
 packages:
   # all packages in packages directory
   - 'packages/*'
-  - 'examples/*'
+  # - 'examples/*'

@@ -1,0 +1,27 @@
+import init from "../pkg/ssx_sdk_rs.js";
+// @ts-ignore
+import wasm from "../pkg/ssx_sdk_rs_bg.wasm";
+
+import * as lib from "../pkg/ssx_sdk_rs.js";
+
+export const initialized: Promise<void> = init(wasm()).then(() =>
+  lib.initPanicHook()
+);
+
+export namespace ssxSession {
+  export import TCWSessionManager = lib.TCWSessionManager;
+  export import SiweConfig = lib.SiweConfig;
+  export import ExtraFields = lib.ExtraFields;
+}
+
+export namespace kepler {
+  export import completeSessionSetup = lib.completeSessionSetup;
+  export import generateHostSIWEMessage = lib.generateHostSIWEMessage;
+  export import siweToDelegationHeaders = lib.siweToDelegationHeaders;
+  export import invoke = lib.invoke;
+  export import makeOrbitId = lib.makeOrbitId;
+  export import prepareSession = lib.prepareSession;
+  export import Session = lib.Session;
+  export import SessionConfig = lib.SessionConfig;
+  export import HostConfig = lib.HostConfig;
+}
