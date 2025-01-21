@@ -1,4 +1,6 @@
 packages:
   # all packages in packages directory
-  - 'packages/*'
+  - 'packages/web-core'
+  # - 'packages/web-sdk'
+  - 'packages/web-sdk-rs'
   # - 'examples/*'

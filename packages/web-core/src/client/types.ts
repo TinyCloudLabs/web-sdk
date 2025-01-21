@@ -1,5 +1,5 @@
 /* eslint-disable no-shadow */
-import { ssxSession } from '@spruceid/ssx-sdk-wasm';
+import { tcwSession } from '@tinycloudlabs/web-sdk-wasm';
 import { AxiosInstance } from 'axios';
 import { ethers } from 'ethers';
 import {
@@ -68,10 +68,10 @@ export interface TCWClientProviders {
 }
 
 /** Optional session configuration for the SIWE message. */
-export interface SiweConfig extends Partial<ssxSession.SiweConfig> {}
+export interface SiweConfig extends Partial<tcwSession.SiweConfig> {}
 
 /** Extra SIWE fields. */
-export type ExtraFields = ssxSession.ExtraFields;
+export type ExtraFields = tcwSession.ExtraFields;
 
 /** Overrides for the session configuration. */
 export type ConfigOverrides = {
@@ -89,7 +89,7 @@ export interface TCWEnsConfig {
 /** Interface to an intermediate TCW state: connected, but not signed-in. */
 export interface ITCWConnected {
   /** Instance of SSXSessionManager. */
-  builder: ssxSession.SSXSessionManager;
+  builder: tcwSession.SSXSessionManager;
   /** TCWConfig object. */
   config: TCWClientConfig;
   /** List of enabled extensions. */

@@ -55,6 +55,7 @@
   },
   "dependencies": {
     "@spruceid/ssx-sdk-wasm": "0.3.0",
+    "@tinycloudlabs/web-sdk-wasm": "workspace:^0.0.1",
     "@types/axios": "^0.14.4",
     "axios": "^1.6.7",
     "ethers": "^5.7.2",

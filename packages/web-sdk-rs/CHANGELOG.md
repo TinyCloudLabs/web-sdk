@@ -1,4 +1,4 @@
-# @spruceid/ssx-sdk-wasm
+# @tinycloudlabs/web-sdk-wasm
 
 ## 0.3.0
 

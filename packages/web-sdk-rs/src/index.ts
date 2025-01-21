@@ -8,7 +8,7 @@ export const initialized: Promise<void> = init(wasm()).then(() =>
   lib.initPanicHook()
 );
 
-export namespace ssxSession {
+export namespace tcwSession {
   export import TCWSessionManager = lib.TCWSessionManager;
   export import SiweConfig = lib.SiweConfig;
   export import ExtraFields = lib.ExtraFields;
