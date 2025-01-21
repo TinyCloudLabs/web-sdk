@@ -4,25 +4,17 @@
   "description": "",
   "private": true,
   "workspaces": [
+    "packages/web-sdk-rs",
     "packages/web-core",
     "packages/web-sdk",
-    "packages/web-sdk-rs"
+    "examples/react-test-app"
   ],
   "scripts": {
-    "build": "pnpm -r build",
-    "build:wasm": "pnpm --filter packages/web-sdk-rs build",
+    "build": "./scripts/build.sh",
     "github-pub": "./scripts/switch-registry.sh github",
-    "npm-pub": "./scripts/switch-registry.sh npm",
-    "dev": "pnpm -r dev",
-    "test": "pnpm -r test"
+    "npm-pub": "./scripts/switch-registry.sh npm"
   },
   "keywords": [],
-  "author": "",
-  "license": "MIT",
-  "devDependencies": {
-    "ts-loader": "^9.5.1"
-  },
-  "dependencies": {
-    "typescript": "^4.9.5"
-  }
+  "author": "TinyCloud, Inc.",
+  "license": "MIT"
 }

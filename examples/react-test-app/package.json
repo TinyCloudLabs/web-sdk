@@ -1,5 +1,5 @@
 {
-  "name": "ssx-test-app",
+  "name": "tinycloud-test-app",
   "version": "0.0.1",
   "private": true,
   "repository": {
@@ -38,9 +38,9 @@
     "react-app-rewired": "^2.2.1"
   },
   "scripts": {
-    "start": "react-app-rewired start",
-    "build": "react-app-rewired build",
-    "eject": "react-app-rewired eject",
+    "start": "npx react-app-rewired start",
+    "build": "npx react-app-rewired build",
+    "eject": "npx react-app-rewired eject",
     "clean": "rimraf build"
   },
   "eslintConfig": {
