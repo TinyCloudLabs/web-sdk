@@ -2,7 +2,7 @@ import {
   TCWRPCProviders,
   TCWEnsData,
   TCWEnsResolveOptions,
-} from '@spruceid/ssx-core';
+} from '@tinycloudlabs/web-core';
 import {
   Credentials,
   ICredentials,
@@ -14,7 +14,7 @@ import {
   TCWClientConfig,
   TCWClientSession,
   TCWExtension,
-} from '@spruceid/ssx-core/client';
+} from '@tinycloudlabs/web-core/client';
 import type { providers, Signer } from 'ethers';
 
 declare global {
@@ -31,7 +31,7 @@ interface TCWModuleConfig {
   credentials?: boolean;
 }
 
-// temporary: will move to ssx-core
+// temporary: will move to tcw-core
 interface TCWConfig extends TCWClientConfig {
   modules?: TCWModuleConfig;
 }
@@ -96,7 +96,7 @@ export class TCW {
         // storage == true or undefined
         // Initialize storage with default config when no other condition is met
         this.storage = new KeplerStorage(
-          { prefix: 'ssx', credentialsModule: credentialsConfig },
+          { prefix: 'tcw', credentialsModule: credentialsConfig },
           this.userAuthorization
         );
       }

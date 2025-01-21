@@ -1,7 +1,7 @@
 export * from './tcw';
 export * from './modules';
-export * from '@tinycloud/web-core/client';
-export * from '@tinycloud/web-core';
+export * from '@tinycloudlabs/web-core/client';
+export * from '@tinycloudlabs/web-core';
 export {
   /** @deprecated use TCWClientConfig field instead */
   TCWClientConfig as TCWConfig,
@@ -9,5 +9,5 @@ export {
   TCWClientProviders as TCWProviders,
   /** @deprecated use TCWClientSession field instead */
   TCWClientSession as TCWSession,
-} from '@tinycloud/web-core/client';
+} from '@tinycloudlabs/web-core/client';
 export { SiweMessage } from 'siwe';

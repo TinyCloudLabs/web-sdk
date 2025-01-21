@@ -1,4 +1,4 @@
-import { SSXExtension } from "@spruceid/ssx-core/client";
+import { TCWExtension } from "@tinycloudlabs/tcw-sdk-wasm";
 import { IStorage } from "./Storage";
 import { Response, Request } from './Storage/kepler';
 
@@ -9,7 +9,7 @@ export interface ICredentialsList {
   removePrefix?: boolean
 }
 
-export interface ICredentials extends SSXExtension {
+export interface ICredentials extends TCWExtension {
   /**
    * Retrieves the stored value associated with the specified credential key.
    * @param credential - The unique identifier for the stored value.

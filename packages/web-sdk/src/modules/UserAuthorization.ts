@@ -1,20 +1,20 @@
 import { providers, Signer } from 'ethers';
-import { initialized, ssxSession } from '@spruceid/ssx-sdk-wasm';
+import { initialized, tcwSession } from '@tinycloudlabs/tcw-sdk-wasm';
 import merge from 'lodash.merge';
 import axios, { AxiosInstance } from 'axios';
 import { generateNonce } from 'siwe';
 import {
   TCWEnsData,
-  ssxResolveEns,
+  tcwResolveEns,
   TCWEnsResolveOptions,
   isTCWRouteConfig,
-} from '@tinycloud/web-core';
+} from '@tinycloudlabs/web-core';
 import {
   TCWClientSession,
   TCWClientConfig,
   ITCWConnected,
   TCWExtension,
-} from '@tinycloud/web-core/client';
+} from '@tinycloudlabs/web-core/client';
 
 /** UserAuthorization Module
  *
@@ -122,7 +122,7 @@ class UserAuthorizationInit {
     let builder;
     try {
       builder = await initialized.then(
-        () => new ssxSession.SSXSessionManager()
+        () => new tcwSession.TCWSessionManager()
       );
     } catch (err) {
       // TCW wasm related error
@@ -157,8 +157,8 @@ class UserAuthorizationConnected implements ITCWConnected {
   /** Ethereum Provider */
 
   constructor(
-    /** Instance of SSXSessionManager */
-    public builder: ssxSession.SSXSessionManager,
+    /** Instance of TCWSessionManager */
+    public builder: tcwSession.TCWSessionManager,
     /** TCWConfig object. */
     public config: TCWClientConfig,
     /** Enabled extensions. */
@@ -227,8 +227,8 @@ class UserAuthorizationConnected implements ITCWConnected {
    * @param params - Request params.
    * @returns Promise with nonce.
    */
-  public async ssxServerNonce(params: Record<string, any>): Promise<string> {
-    const route = this.config.providers?.server?.routes?.nonce ?? '/ssx-nonce';
+  public async tcwServerNonce(params: Record<string, any>): Promise<string> {
+    const route = this.config.providers?.server?.routes?.nonce ?? '/tcw-nonce';
     const requestConfig = isTCWRouteConfig(route)
       ? {
           customAPIOperation: undefined,
@@ -251,7 +251,7 @@ class UserAuthorizationConnected implements ITCWConnected {
         nonce = (
           await this.api.request({
             method: 'get',
-            url: '/ssx-nonce',
+            url: '/tcw-nonce',
             ...requestConfig,
             params,
           })
@@ -272,8 +272,8 @@ class UserAuthorizationConnected implements ITCWConnected {
    * @param session - TCWClientSession object.
    * @returns Promise with server session data.
    */
-  public async ssxServerLogin(session: TCWClientSession): Promise<any> {
-    const route = this.config.providers?.server?.routes?.login ?? '/ssx-login';
+  public async tcwServerLogin(session: TCWClientSession): Promise<any> {
+    const route = this.config.providers?.server?.routes?.login ?? '/tcw-login';
     const requestConfig = isTCWRouteConfig(route)
       ? {
           customAPIOperation: undefined,
@@ -312,7 +312,7 @@ class UserAuthorizationConnected implements ITCWConnected {
         return this.api
           .request({
             method: 'post',
-            url: '/ssx-login',
+            url: '/tcw-login',
             ...requestConfig,
             data,
           })
@@ -348,7 +348,7 @@ class UserAuthorizationConnected implements ITCWConnected {
       nonce: generateNonce(),
     };
 
-    const serverNonce = await this.ssxServerNonce(defaults);
+    const serverNonce = await this.tcwServerNonce(defaults);
     if (serverNonce) defaults.nonce = serverNonce;
 
     const siweConfig = merge(defaults, this.config.siweConfig);
@@ -364,7 +364,7 @@ class UserAuthorizationConnected implements ITCWConnected {
       signature,
     };
 
-    const response = await this.ssxServerLogin(session);
+    const response = await this.tcwServerLogin(session);
 
     session = {
       ...session,
@@ -383,7 +383,7 @@ class UserAuthorizationConnected implements ITCWConnected {
   async signOut(session: TCWClientSession): Promise<void> {
     // get request configuration
     const route =
-      this.config.providers?.server?.routes?.logout ?? '/ssx-logout';
+      this.config.providers?.server?.routes?.logout ?? '/tcw-logout';
     const requestConfig = isTCWRouteConfig(route)
       ? {
           customAPIOperation: undefined,
@@ -406,7 +406,7 @@ class UserAuthorizationConnected implements ITCWConnected {
 
         await this.api.request({
           method: 'post',
-          url: '/ssx-logout',
+          url: '/tcw-logout',
           ...requestConfig,
           data,
         });
@@ -480,7 +480,7 @@ class UserAuthorization implements IUserAuthorization {
     try {
       this.session = await this.connection.signIn();
     } catch (err) {
-      // Request to /ssx-login went wrong
+      // Request to /tcw-login went wrong
       console.error(err);
       throw err;
     }
@@ -524,7 +524,7 @@ class UserAuthorization implements IUserAuthorization {
       avatar: true,
     }
   ): Promise<TCWEnsData> {
-    return ssxResolveEns(this.connection.provider, address, resolveEnsOpts);
+    return tcwResolveEns(this.connection.provider, address, resolveEnsOpts);
   }
 
   /**
@@ -534,7 +534,7 @@ class UserAuthorization implements IUserAuthorization {
     try {
       await this.connection.signOut(this.session);
     } catch (err) {
-      // request to /ssx-logout went wrong
+      // request to /tcw-logout went wrong
       console.error(err);
       throw err;
     }

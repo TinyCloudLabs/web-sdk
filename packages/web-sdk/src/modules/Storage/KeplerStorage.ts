@@ -1,5 +1,5 @@
-import { initialized, kepler, ssxSession } from '@spruceid/ssx-sdk-wasm';
-import { ConfigOverrides, SSXClientSession } from '@spruceid/ssx-core/client';
+import { initialized, kepler, tcwSession } from '@tinycloudlabs/tcw-sdk-wasm';
+import { ConfigOverrides, TCWClientSession } from '@tinycloudlabs/tcw-sdk-wasm';
 import { generateNonce } from 'siwe';
 import {
   OrbitConnection,
@@ -78,7 +78,7 @@ export class KeplerStorage implements IStorage, IKepler {
   ): Promise<ConfigOverrides> {
     await initialized;
     this.keplerModule = await kepler;
-    this.sessionManager = new (await ssxSession).SSXSessionManager();
+    this.sessionManager = new (await tcwSession).TCWSessionManager();
     (global as any).keplerModule = this.keplerModule;
 
     const address = await ssx.provider.getSigner().getAddress();
@@ -111,15 +111,15 @@ export class KeplerStorage implements IStorage, IKepler {
   }
 
   public async generateKeplerSession(
-    ssxSession: SSXClientSession
+    tcwSession: TCWClientSession
   ): Promise<Session> {
     return await Promise.resolve({
-      jwk: JSON.parse(ssxSession.sessionKey),
+      jwk: JSON.parse(tcwSession.sessionKey),
       orbitId: this.orbitId,
       service: 'kv',
-      siwe: ssxSession.siwe,
-      signature: ssxSession.signature,
-      verificationMethod: new SiweMessage(ssxSession.siwe).uri,
+      siwe: tcwSession.siwe,
+      signature: tcwSession.signature,
+      verificationMethod: new SiweMessage(tcwSession.siwe).uri,
     })
       .then(JSON.stringify)
       // @TODO: figure out unit test issue
@@ -127,9 +127,9 @@ export class KeplerStorage implements IStorage, IKepler {
       .then(JSON.parse);
   }
 
-  public async afterSignIn(ssxSession: SSXClientSession): Promise<void> {
+  public async afterSignIn(tcwSession: TCWClientSession): Promise<void> {
     const keplerHost = this.hosts[0];
-    const session = await this.generateKeplerSession(ssxSession);
+    const session = await this.generateKeplerSession(tcwSession);
 
     let authn;
     try {
@@ -142,7 +142,7 @@ export class KeplerStorage implements IStorage, IKepler {
       }
 
       if (this.autoCreateNewOrbit === true) {
-        await this.hostOrbit(ssxSession);
+        await this.hostOrbit(tcwSession);
         return;
       }
     }
@@ -218,15 +218,15 @@ export class KeplerStorage implements IStorage, IKepler {
   }
 
   public async activateSession(
-    ssxSession?: SSXClientSession,
+    tcwSession?: TCWClientSession,
     onError?: () => void
   ): Promise<boolean> {
     try {
-      if (!ssxSession) {
-        ({ session: ssxSession } = this.userAuth);
+      if (!tcwSession) {
+        ({ session: tcwSession } = this.userAuth);
       }
 
-      const session = await this.generateKeplerSession(ssxSession);
+      const session = await this.generateKeplerSession(tcwSession);
 
       const keplerHost = this.hosts[0];
       await activateSession(session, keplerHost).then(authn => {
@@ -239,7 +239,7 @@ export class KeplerStorage implements IStorage, IKepler {
     }
   }
 
-  public async hostOrbit(ssxSession?: SSXClientSession): Promise<void> {
+  public async hostOrbit(tcwSession?: TCWClientSession): Promise<void> {
     const keplerHost = this.hosts[0];
     const { status: hostStatus, statusText } = await hostOrbit(
       this.userAuth.getSigner(),
@@ -252,7 +252,7 @@ export class KeplerStorage implements IStorage, IKepler {
       throw new Error(`Failed to open new Kepler Orbit: ${statusText}`);
     }
 
-    await this.activateSession(ssxSession, () => {
+    await this.activateSession(tcwSession, () => {
       throw new Error(
         'Session not found. You must be signed in to host an orbit'
       );
@@ -322,7 +322,7 @@ export class KeplerStorage implements IStorage, IKepler {
     });
 
     // create ssx + kepler session
-    const sessionData: SSXClientSession = {
+    const sessionData: TCWClientSession = {
       address: this.userAuth.address(),
       walletAddress: this.userAuth.address(),
       chainId: this.userAuth.chainId(),

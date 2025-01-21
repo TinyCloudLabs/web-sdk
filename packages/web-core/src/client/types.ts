@@ -89,7 +89,7 @@ export interface TCWEnsConfig {
 /** Interface to an intermediate TCW state: connected, but not signed-in. */
 export interface ITCWConnected {
   /** Instance of SSXSessionManager. */
-  builder: tcwSession.SSXSessionManager;
+  builder: tcwSession.TCWSessionManager;
   /** TCWConfig object. */
   config: TCWClientConfig;
   /** List of enabled extensions. */

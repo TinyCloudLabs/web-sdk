@@ -1,4 +1,4 @@
-import { SSXClientSession, SSXExtension } from '@spruceid/ssx-core/client';
+import { TCWClientSession, TCWExtension } from '@tinycloudlabs/tcw-sdk-wasm';
 import type { Request, Response, Session } from './kepler';
 
 /**
@@ -47,7 +47,7 @@ export interface IStorageListOptions extends IStorageBaseOptions {
 /**
  * Represents a storage interface that defines basic storage operations.
  */
-interface IStorage extends SSXExtension {
+interface IStorage extends TCWExtension {
   /**
    * Retrieves the stored value associated with the specified key.
    * @param key - The unique identifier for the stored value.
@@ -96,14 +96,14 @@ interface IStorage extends SSXExtension {
 
 // TODO: Document this interface
 export interface IKepler extends IStorage {
-  hostOrbit(ssxSession?: SSXClientSession): Promise<void>;
+  hostOrbit(ssxSession?: TCWClientSession): Promise<void>;
   activateSession(
-    ssxSession?: SSXClientSession,
+    ssxSession?: TCWClientSession,
     onError?: () => void
   ): Promise<boolean>;
   generateSharingLink(key: string, params?: any): Promise<string>;
   retrieveSharingLink(link: string): Promise<Response>;
-  generateKeplerSession(ssxSession: SSXClientSession): Promise<Session>;
+  generateKeplerSession(ssxSession: TCWClientSession): Promise<Session>;
 }
 
 /**

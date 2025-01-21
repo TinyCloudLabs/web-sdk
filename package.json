@@ -3,7 +3,11 @@
   "version": "0.0.1",
   "description": "",
   "private": true,
-  "workspaces": [],
+  "workspaces": [
+    "packages/web-core",
+    "packages/web-sdk",
+    "packages/web-sdk-rs"
+  ],
   "scripts": {
     "build": "pnpm -r build",
     "build:wasm": "pnpm --filter packages/web-sdk-rs build",

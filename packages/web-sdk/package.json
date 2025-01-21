@@ -25,7 +25,8 @@
   },
   "dependencies": {
     "@metamask/detect-provider": "^1.2.0",
-    "@tinycloud/web-core": "*",
+    "@tinycloudlabs/web-core": "workspace:*",
+    "@tinycloudlabs/web-sdk-wasm": "workspace:*",
     "@spruceid/ssx-sdk-wasm": "0.3.0",
     "assert": "^2.1.0",
     "axios": "^1.6.7",
