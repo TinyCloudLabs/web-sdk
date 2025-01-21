@@ -1,14 +1,14 @@
 {
-  "name": "@spruceid/ssx-core",
-  "version": "2.1.0",
-  "description": "SSX core library",
-  "author": "Spruce Systems Inc.",
+  "name": "@tinycloud/web-core",
+  "version": "0.1.0",
+  "description": "TinyCloud Web Core library",
+  "author": "TinyCloud, Inc.",
   "license": "Apache-2.0 OR MIT",
-  "homepage": "https://github.com/spruceid/ssx/packages/ssx-core#readme",
+  "homepage": "https://github.com/TinyCloudLabs/web-sdk#readme",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bugs": {
-    "url": "https://github.com/spruceid/ssx/issues"
+    "url": "https://github.com/TinyCloudLabs/web-sdk/issues"
   },
   "directories": {
     "src": "src"
@@ -51,7 +51,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/spruceid/ssx.git"
+    "url": "ssh://git@github.com:TinyCloudLabs/web-sdk.git"
   },
   "dependencies": {
     "@spruceid/ssx-sdk-wasm": "0.3.0",

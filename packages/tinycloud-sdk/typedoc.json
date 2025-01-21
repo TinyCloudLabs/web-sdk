@@ -1,6 +1,0 @@
-{
-    "entryPoints": ["src/index.ts"],
-    "out": "../../documentation/reference/ssx-sdk",
-    "plugin": ["typedoc-plugin-markdown"],
-    "theme": "markdown"
-}

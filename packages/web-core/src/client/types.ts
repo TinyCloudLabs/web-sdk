@@ -3,24 +3,24 @@ import { ssxSession } from '@spruceid/ssx-sdk-wasm';
 import { AxiosInstance } from 'axios';
 import { ethers } from 'ethers';
 import {
-  SSXEnsData,
-  SSXEnsResolveOptions,
-  SSXRPCProvider,
-  SSXServerRoutes,
+  TCWEnsData,
+  TCWEnsResolveOptions,
+  TCWRPCProvider,
+  TCWServerRoutes,
 } from '../types';
 
-/** Core config for SSX. */
-export interface SSXClientConfig {
+/** Core config for TCW. */
+export interface TCWClientConfig {
   /** Connection to a cryptographic keypair and/or network. */
-  providers?: SSXClientProviders;
+  providers?: TCWClientProviders;
   /** Optional session configuration for the SIWE message. */
   siweConfig?: SiweConfig;
   /** Whether or not ENS resolution is enabled. True means resolve all on client. */
-  resolveEns?: boolean | SSXEnsConfig;
+  resolveEns?: boolean | TCWEnsConfig;
 }
 
-/** Representation of an active SSXSession. */
-export type SSXClientSession = {
+/** Representation of an active TCWSession. */
+export type TCWClientSession = {
   /** User address */
   address: string;
   /** User address without delegation */
@@ -32,22 +32,22 @@ export type SSXClientSession = {
   siwe: string;
   /** The signature of the siwe message */
   signature: string;
-  /** ENS data supported by SSX */
-  ens?: SSXEnsData;
+  /** ENS data supported by TCW */
+  ens?: TCWEnsData;
 };
 
-/** The URL of the server running ssx-server. Providing this field enables SIWE server communication */
-export type SSXServerHost = string;
+/** The URL of the server running tcw-server. Providing this field enables SIWE server communication */
+export type TCWServerHost = string;
 
-/** The ssx-powered server configuration settings */
-export type SSXProviderServer = {
-  host: SSXServerHost;
+/** The tcw-powered server configuration settings */
+export type TCWProviderServer = {
+  host: TCWServerHost;
   /** Optional configuration for the server's routes. */
-  routes?: SSXServerRoutes;
+  routes?: TCWServerRoutes;
 };
 
 /** Web3 provider configuration settings */
-export interface SSXProviderWeb3 {
+export interface TCWProviderWeb3 {
   /**
    * window.ethereum for Metamask;
    * web3modal.connect() for Web3Modal;
@@ -56,15 +56,15 @@ export interface SSXProviderWeb3 {
   driver: any;
 }
 
-/** SSX web3 configuration settings */
-export interface SSXClientProviders {
+/** TCW web3 configuration settings */
+export interface TCWClientProviders {
   /** Web3 wallet provider */
-  web3?: SSXProviderWeb3;
+  web3?: TCWProviderWeb3;
   /** JSON RPC provider configurations */
-  rpc?: SSXRPCProvider;
-  /** Optional reference to server running ssx-server.
-   * Providing this field enables communication with ssx-server */
-  server?: SSXProviderServer;
+  rpc?: TCWRPCProvider;
+  /** Optional reference to server running tcw-server.
+   * Providing this field enables communication with tcw-server */
+  server?: TCWProviderServer;
 }
 
 /** Optional session configuration for the SIWE message. */
@@ -78,22 +78,22 @@ export type ConfigOverrides = {
   siwe?: SiweConfig;
 };
 
-/** ENS options supported by SSX. */
-export interface SSXEnsConfig {
+/** ENS options supported by TCW. */
+export interface TCWEnsConfig {
   /** Enable the ENS resolution on server instead of on client. */
   resolveOnServer?: boolean;
   /** ENS resolution options. True means resolve all. */
-  resolve: SSXEnsResolveOptions;
+  resolve: TCWEnsResolveOptions;
 }
 
-/** Interface to an intermediate SSX state: connected, but not signed-in. */
-export interface ISSXConnected {
+/** Interface to an intermediate TCW state: connected, but not signed-in. */
+export interface ITCWConnected {
   /** Instance of SSXSessionManager. */
   builder: ssxSession.SSXSessionManager;
-  /** SSXConfig object. */
-  config: SSXClientConfig;
+  /** TCWConfig object. */
+  config: TCWClientConfig;
   /** List of enabled extensions. */
-  extensions: SSXExtension[];
+  extensions: TCWExtension[];
   /** Web3 provider. */
   provider: ethers.providers.Web3Provider;
   /** Promise that is initialized on construction to run the "afterConnect" methods of extensions. */
@@ -105,19 +105,19 @@ export interface ISSXConnected {
   /** Method to apply the "afterConnect" methods and the delegated capabilities of the extensions. */
   applyExtensions: () => Promise<void>;
   /** Method to apply the "afterSignIn" methods of the extensions. */
-  afterSignIn: (session: SSXClientSession) => Promise<void>;
+  afterSignIn: (session: TCWClientSession) => Promise<void>;
   /** Method to request nonce from server. */
-  ssxServerNonce: (params: Record<string, any>) => Promise<string>;
+  tcwServerNonce: (params: Record<string, any>) => Promise<string>;
   /** Method to request sign in from server and return session. */
-  ssxServerLogin: (session: SSXClientSession) => Promise<any>;
+  tcwServerLogin: (session: TCWClientSession) => Promise<any>;
   /** Method to request the user to sign in. */
-  signIn: () => Promise<SSXClientSession>;
+  signIn: () => Promise<TCWClientSession>;
   /** Method to request the user to sign out. */
-  signOut: (session: SSXClientSession) => Promise<void>;
+  signOut: (session: TCWClientSession) => Promise<void>;
 }
 
-/** Interface for an extension to SSX. */
-export interface SSXExtension {
+/** Interface for an extension to TCW. */
+export interface TCWExtension {
   /** [recap] Capability namespace. */
   namespace?: string;
   /** [recap] Default delegated actions in capability namespace. */
@@ -126,10 +126,10 @@ export interface SSXExtension {
   targetedActions?(): Promise<{ [target: string]: string[] }>;
   /** [recap] Extra metadata to help validate the capability. */
   extraFields?(): Promise<ExtraFields>;
-  /** Hook to run after SSX has connected to the user's wallet.
+  /** Hook to run after TCW has connected to the user's wallet.
    * This can return an object literal to override the session configuration before the user
    * signs in. */
-  afterConnect?(ssx: ISSXConnected): Promise<ConfigOverrides>;
-  /** Hook to run after SSX has signed in. */
-  afterSignIn?(session: SSXClientSession): Promise<void>;
+  afterConnect?(tcw: ITCWConnected): Promise<ConfigOverrides>;
+  /** Hook to run after TCW has signed in. */
+  afterSignIn?(session: TCWClientSession): Promise<void>;
 }

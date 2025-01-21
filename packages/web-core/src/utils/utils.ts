@@ -1,74 +1,72 @@
 import {
-  isSSXAlchemyProvider,
-  isSSXAnkrProvider,
-  isSSXCloudflareProvider,
-  isSSXCustomProvider,
-  isSSXEtherscanProvider,
-  isSSXInfuraProvider,
-  isSSXPocketProvider,
-  SSXAlchemyProviderNetworks,
-  SSXAnkrProviderNetworks,
-  SSXEnsData,
-  SSXEtherscanProviderNetworks,
-  SSXInfuraProviderNetworks,
-  SSXPocketProviderNetworks,
-  SSXRPCProvider,
+  isTCWAlchemyProvider,
+  isTCWAnkrProvider,
+  isTCWCloudflareProvider,
+  isTCWCustomProvider,
+  isTCWEtherscanProvider,
+  isTCWInfuraProvider,
+  isTCWPocketProvider,
+  TCWAlchemyProviderNetworks,
+  TCWAnkrProviderNetworks,
+  TCWEnsData,
+  TCWEtherscanProviderNetworks,
+  TCWInfuraProviderNetworks,
+  TCWPocketProviderNetworks,
+  TCWRPCProvider,
 } from '../types';
 import { ethers, getDefaultProvider } from 'ethers';
-import axios from 'axios';
-import { getProfilesQuery } from './queries';
 
 /**
- * @param rpc - SSXRPCProvider
+ * @param rpc - TCWRPCProvider
  * @returns an ethers provider based on the RPC configuration.
  */
 export const getProvider = (
-  rpc?: SSXRPCProvider
+  rpc?: TCWRPCProvider
 ): ethers.providers.BaseProvider => {
   if (!rpc) {
     return getDefaultProvider();
   }
-  if (isSSXEtherscanProvider(rpc)) {
+  if (isTCWEtherscanProvider(rpc)) {
     return new ethers.providers.EtherscanProvider(
-      rpc.network ?? SSXEtherscanProviderNetworks.MAINNET,
+      rpc.network ?? TCWEtherscanProviderNetworks.MAINNET,
       rpc.apiKey
     );
   }
-  if (isSSXInfuraProvider(rpc)) {
+  if (isTCWInfuraProvider(rpc)) {
     return new ethers.providers.InfuraProvider(
-      rpc.network ?? SSXInfuraProviderNetworks.MAINNET,
+      rpc.network ?? TCWInfuraProviderNetworks.MAINNET,
       rpc.apiKey
     );
   }
-  if (isSSXAlchemyProvider(rpc)) {
+  if (isTCWAlchemyProvider(rpc)) {
     return new ethers.providers.AlchemyProvider(
-      rpc.network ?? SSXAlchemyProviderNetworks.MAINNET,
+      rpc.network ?? TCWAlchemyProviderNetworks.MAINNET,
       rpc.apiKey
     );
   }
-  if (isSSXCloudflareProvider(rpc)) {
+  if (isTCWCloudflareProvider(rpc)) {
     return new ethers.providers.CloudflareProvider();
   }
-  if (isSSXPocketProvider(rpc)) {
+  if (isTCWPocketProvider(rpc)) {
     return new ethers.providers.PocketProvider(
-      rpc.network ?? SSXPocketProviderNetworks.MAINNET,
+      rpc.network ?? TCWPocketProviderNetworks.MAINNET,
       rpc.apiKey
     );
   }
-  if (isSSXAnkrProvider(rpc)) {
+  if (isTCWAnkrProvider(rpc)) {
     return new ethers.providers.AnkrProvider(
-      rpc.network ?? SSXAnkrProviderNetworks.MAINNET,
+      rpc.network ?? TCWAnkrProviderNetworks.MAINNET,
       rpc.apiKey
     );
   }
-  if (isSSXCustomProvider(rpc)) {
+  if (isTCWCustomProvider(rpc)) {
     return new ethers.providers.JsonRpcProvider(rpc.url, rpc.network);
   }
   return getDefaultProvider();
 };
 
 /**
- * Resolves ENS data supported by SSX.
+ * Resolves ENS data supported by TCW.
  * @param provider - Ethers provider.
  * @param address - User address.
  * @param resolveEnsOpts - Options to resolve ENS.
@@ -87,11 +85,11 @@ export const ssxResolveEns = async (
     domain: true,
     avatar: true,
   }
-): Promise<SSXEnsData> => {
+): Promise<TCWEnsData> => {
   if (!address) {
     throw new Error('Missing address.');
   }
-  const ens: SSXEnsData = {};
+  const ens: TCWEnsData = {};
   const promises: Array<Promise<any>> = [];
   if (resolveEnsOpts?.domain) {
     promises.push(provider.lookupAddress(address));

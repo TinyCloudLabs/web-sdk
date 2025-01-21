@@ -1,5 +1,5 @@
 import { AxiosInstance } from 'axios';
-import { SSXLogFields } from './types';
+import { TCWLogFields } from './types';
 
 /**
  * Abstracts the fetch API to append correct headers, host and parse
@@ -9,7 +9,7 @@ import { SSXLogFields } from './types';
  * @param body - Request body.
  * @returns True (success) or false (error).
  */
-export const ssxPost = (
+export const tcwPost = (
   api: AxiosInstance,
   route: string,
   body: any
@@ -26,15 +26,15 @@ export const ssxPost = (
 /**
  * Registers a new event to the API.
  * @param api - Axios Instance.
- * @param apiKey - SSX Platform API Key.
- * @param data - SSXLogFields to log.
+ * @param apiKey - TCW Platform API Key.
+ * @param data - TCWLogFields to log.
  * @returns True (success) or false (error).
  */
-export const ssxLog = async (
+export const tcwLog = async (
   api: AxiosInstance,
   apiKey: string,
-  data: SSXLogFields
+  data: TCWLogFields
 ): Promise<boolean> => {
   if (!data.timestamp) data.timestamp = new Date().toISOString();
-  return Boolean(apiKey) && ssxPost(api, '/events', data);
+  return Boolean(apiKey) && tcwPost(api, '/events', data);
 };
