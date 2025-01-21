@@ -102,7 +102,7 @@ function Home() {
     const modules: Record<string, any> = {};
 
     if (storageEnabled === "On") {
-      modules.storage = true;
+      modules.storage = { hosts: ["https://node.tinycloud.xyz/"]  };
     }
 
     if (credentialsEnabled === "On") {
