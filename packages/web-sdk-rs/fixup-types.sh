@@ -1,5 +1,5 @@
 #!/bin/sh
-cp pkg/ssx_sdk_rs.d.ts dist/ && ( echo '
+cp pkg/tinycloud_web_sdk_rs.d.ts dist/ && ( echo '
 var fs = require("fs");
 const re = new RegExp("../pkg", "g");
 const dist = fs.opendirSync("./dist");

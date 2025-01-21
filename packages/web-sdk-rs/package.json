@@ -14,8 +14,8 @@
     "dev": "yarn build-dev && yarn bundle",
     "release": "yarn build-release && yarn bundle",
     "fmt": "prettier -w src package.json rollup.config.js tsconfig.json",
-    "publish-gh": "npm config set @tinycloud:registry=https://npm.pkg.github.com && npm publish",
-    "publish-npm": "npm config set @tinycloud:registry=https://registry.npmjs.org && npm publish --access public"
+    "publish-gh": "npm config set @tinycloudlabs:registry=https://npm.pkg.github.com && npm publish",
+    "publish-npm": "npm config set @tinycloudlabs:registry=https://registry.npmjs.org && npm publish --access public"
   },
   "devDependencies": {
     "@changesets/cli": "^2.26.1",
