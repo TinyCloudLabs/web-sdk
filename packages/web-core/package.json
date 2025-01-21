@@ -54,7 +54,6 @@
     "url": "ssh://git@github.com:TinyCloudLabs/web-sdk.git"
   },
   "dependencies": {
-    "@spruceid/ssx-sdk-wasm": "0.3.0",
     "@tinycloudlabs/web-sdk-wasm": "workspace:*",
     "@types/axios": "^0.14.4",
     "axios": "^1.6.7",

@@ -1,4 +1,4 @@
-import { kepler } from '@spruceid/ssx-sdk-wasm';
+import { kepler } from '@tinycloudlabs/web-sdk-wasm';
 
 type KeplerModule = typeof kepler;
 const msg =

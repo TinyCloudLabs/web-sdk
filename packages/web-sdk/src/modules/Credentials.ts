@@ -1,4 +1,4 @@
-import { TCWExtension } from "@tinycloudlabs/tcw-sdk-wasm";
+import { TCWExtension } from "@tinycloudlabs/web-core/client";
 import { IStorage } from "./Storage";
 import { Response, Request } from './Storage/kepler';
 

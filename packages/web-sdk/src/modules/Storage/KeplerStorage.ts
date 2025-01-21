@@ -1,5 +1,5 @@
-import { initialized, kepler, tcwSession } from '@tinycloudlabs/tcw-sdk-wasm';
-import { ConfigOverrides, TCWClientSession } from '@tinycloudlabs/tcw-sdk-wasm';
+import { initialized, kepler, tcwSession } from '@tinycloudlabs/web-sdk-wasm';
+import { ConfigOverrides, TCWClientSession } from '@tinycloudlabs/web-core/client';
 import { generateNonce } from 'siwe';
 import {
   OrbitConnection,
@@ -333,7 +333,6 @@ export class KeplerStorage implements IStorage, IKepler {
 
     const session = await this.generateKeplerSession(sessionData);
     /* activate session */
-    // is this required? only for revocation? @chunningham
     const keplerHost = this.hosts[0];
     await activateSession(session, keplerHost).catch(({ status, msg }) => {
       if (status !== 404) {

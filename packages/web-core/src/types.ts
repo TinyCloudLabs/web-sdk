@@ -16,7 +16,7 @@ export interface TCWRouteConfig {
   /** Endpoint request method. */
   method?: 'get' | 'post' | 'put' | 'delete';
   /** Custom Operation.
-   * Replace the ssx function called with a function of your own
+   * Replace the tcw function called with a function of your own
    **/
   customAPIOperation?(
     params: TCWClientSession | Record<string, any> | any
@@ -48,21 +48,21 @@ export type TCWServerRouteEndpointType =
 
 /** Server endpoints configuration. */
 export interface TCWServerRoutes {
-  /** Get nonce endpoint path. /ssx-nonce as default. */
+  /** Get nonce endpoint path. /tcw-nonce as default. */
   nonce?: TCWServerRouteEndpointType;
-  /** Post login endpoint path. /ssx-login as default. */
+  /** Post login endpoint path. /tcw-login as default. */
   login?: TCWServerRouteEndpointType;
-  /** Post logout endpoint path. /ssx-logout as default. */
+  /** Post logout endpoint path. /tcw-logout as default. */
   logout?: TCWServerRouteEndpointType;
 }
 
 /** Server endpoints name configuration. */
 export interface TCWServerRouteNames {
-  /** Get nonce endpoint path. /ssx-nonce as default. */
+  /** Get nonce endpoint path. /tcw-nonce as default. */
   nonce?: string;
-  /** Post login endpoint path. /ssx-login as default. */
+  /** Post login endpoint path. /tcw-login as default. */
   login?: string;
-  /** Post logout endpoint path. /ssx-logout as default. */
+  /** Post logout endpoint path. /tcw-logout as default. */
   logout?: string;
 }
 

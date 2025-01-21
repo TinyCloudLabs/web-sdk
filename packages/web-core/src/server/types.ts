@@ -5,7 +5,7 @@ import { EventEmitter } from 'events';
 import { ethers } from 'ethers';
 import { SiweMessage, SiweError } from 'siwe';
 
-/** Configuration interface for ssx-server */
+/** Configuration interface for tcw-server */
 export interface TCWServerConfig {
   /** A key used for signing cookies coming from the server. Providing this key enables signed cookies. */
   signingKey?: string;
@@ -22,8 +22,6 @@ export interface TCWServerProviders {
   rpc?: TCWRPCProvider;
   /** TCW Session Store configuration settings. */
   sessionConfig?: Partial<TCWSessionStoreConfig>;
-  /** Metrics service configurations. */
-  metrics?: TCWMetricsProvider;
 }
 
 /** TCW Session Store configuration settings */
@@ -46,13 +44,7 @@ export type TCWExpressSessionStoreProvider = {
   config?: SessionOptions;
 };
 
-/** TCW Metrics Provider settings. */
-export type TCWMetricsProvider = {
-  service: 'ssx';
-  apiKey: string;
-};
-
-/** Configuration interface for cookies issued by ssx-server */
+/** Configuration interface for cookies issued by tcw-server */
 export interface TCWCookieOptions extends CookieOptions {
   /** Prevents client-side javascript from accessing cookies. Should always be true. */
   httpOnly: true;
@@ -83,9 +75,9 @@ export interface TCWLogFields {
 /** Available TCW Log Types. */
 export enum TCWEventLogTypes {
   /** Login type definition. */
-  LOGIN = 'ssx-login',
+  LOGIN = 'tcw-login',
   /** Logout type definition. */
-  // LOGOUT = "ssx-logout",
+  // LOGOUT = "tcw-logout",
   /** Logging type definition. */
   // LOG = "LOG",
   /** Event type definition. */

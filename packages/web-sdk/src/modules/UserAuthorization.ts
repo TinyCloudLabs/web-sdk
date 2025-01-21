@@ -1,5 +1,5 @@
 import { providers, Signer } from 'ethers';
-import { initialized, tcwSession } from '@tinycloudlabs/tcw-sdk-wasm';
+import { initialized, tcwSession } from '@tinycloudlabs/web-sdk-wasm';
 import merge from 'lodash.merge';
 import axios, { AxiosInstance } from 'axios';
 import { generateNonce } from 'siwe';

@@ -1,4 +1,4 @@
-import { TCWClientSession, TCWExtension } from '@tinycloudlabs/tcw-sdk-wasm';
+import { TCWClientSession, TCWExtension } from '@tinycloudlabs/web-core/client';
 import type { Request, Response, Session } from './kepler';
 
 /**
@@ -119,7 +119,7 @@ interface IStorageConfig {
 interface IKeplerStorageConfig extends IStorageConfig {
   /**
    * The Kepler Peer to connect to
-   * @default 'https://kepler.spruceid.xyz'
+   * @default 'https://node.tinycloud.xyz'
    */
   hosts?: string[];
   /**

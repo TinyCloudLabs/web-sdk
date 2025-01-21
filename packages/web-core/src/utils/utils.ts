@@ -72,7 +72,7 @@ export const getProvider = (
  * @param resolveEnsOpts - Options to resolve ENS.
  * @returns Object containing ENS data.
  */
-export const ssxResolveEns = async (
+export const tcwResolveEns = async (
   provider: ethers.providers.BaseProvider,
   /* User Address */
   address: string,
