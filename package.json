@@ -7,6 +7,8 @@
   "scripts": {
     "build": "pnpm -r build",
     "build:wasm": "pnpm --filter packages/web-sdk-rs build",
+    "github-pub": "./scripts/switch-registry.sh github",
+    "npm-pub": "./scripts/switch-registry.sh npm",
     "dev": "pnpm -r dev",
     "test": "pnpm -r test"
   },
