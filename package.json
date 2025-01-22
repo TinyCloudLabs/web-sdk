@@ -11,6 +11,7 @@
   ],
   "scripts": {
     "build": "./scripts/build.sh",
+    "clean-docs": "./scripts/clean-docs.sh",
     "github-pub": "./scripts/switch-registry.sh github",
     "npm-pub": "./scripts/switch-registry.sh npm"
   },

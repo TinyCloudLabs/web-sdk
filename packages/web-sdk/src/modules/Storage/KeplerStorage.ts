@@ -74,19 +74,19 @@ export class KeplerStorage implements IStorage, IKepler {
   }
 
   public async afterConnect(
-    ssx: UserAuthorizationConnected
+    tcw: UserAuthorizationConnected
   ): Promise<ConfigOverrides> {
     await initialized;
     this.keplerModule = await kepler;
     this.sessionManager = new (await tcwSession).TCWSessionManager();
     (global as any).keplerModule = this.keplerModule;
 
-    const address = await ssx.provider.getSigner().getAddress();
-    const chain = await ssx.provider.getSigner().getChainId();
+    const address = await tcw.provider.getSigner().getAddress();
+    const chain = await tcw.provider.getSigner().getChainId();
 
     this.orbitId = `kepler:pkh:eip155:${chain}:${address}://default`;
 
-    this.domain = ssx.config.siweConfig?.domain;
+    this.domain = tcw.config.siweConfig?.domain;
     return {};
   }
 
@@ -321,7 +321,7 @@ export class KeplerStorage implements IStorage, IKepler {
       statement: 'I am giving permission to read this data.',
     });
 
-    // create ssx + kepler session
+    // create tcw + kepler session
     const sessionData: TCWClientSession = {
       address: this.userAuth.address(),
       walletAddress: this.userAuth.address(),

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { SSX } from '@spruceid/ssx';
+import { SSX } from '@tinycloudlabs/web-sdk";
 import Header from '../components/Header';
 import Title from '../components/Title';
 import Dropdown from '../components/Dropdown';
