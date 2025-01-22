@@ -96,14 +96,14 @@ interface IStorage extends TCWExtension {
 
 // TODO: Document this interface
 export interface IKepler extends IStorage {
-  hostOrbit(ssxSession?: TCWClientSession): Promise<void>;
+  hostOrbit(tcwSession?: TCWClientSession): Promise<void>;
   activateSession(
-    ssxSession?: TCWClientSession,
+    tcwSession?: TCWClientSession,
     onError?: () => void
   ): Promise<boolean>;
   generateSharingLink(key: string, params?: any): Promise<string>;
   retrieveSharingLink(link: string): Promise<Response>;
-  generateKeplerSession(ssxSession: TCWClientSession): Promise<Session>;
+  generateKeplerSession(tcwSession: TCWClientSession): Promise<Session>;
 }
 
 /**

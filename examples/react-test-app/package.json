@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "repository": {
-    "url": "ssh://git@github.com:spruceid/ssx.git"
+    "url": "ssh://git@github.com:TinyCloudLabs/web-sdk.git"
   },
   "dependencies": {
     "@spruceid/ssx": "*",

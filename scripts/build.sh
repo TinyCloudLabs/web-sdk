@@ -7,6 +7,7 @@ echo "Building packages..."
 echo "Building web-sdk-rs..."
 cd packages/web-sdk-rs
 bun run build
+bun run bundle
 cd ../..
 
 # Build web-core
