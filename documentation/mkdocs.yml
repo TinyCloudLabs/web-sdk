@@ -1,0 +1,9 @@
+site_name: TinyCloud Web SDK Documentation
+site_url: https://tinycloudlabs.github.io/web-sdk/
+theme:
+  name: material
+  features:
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+
