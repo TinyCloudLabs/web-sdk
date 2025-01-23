@@ -48,7 +48,7 @@ const TCW_DEFAULT_CONFIG: TCWClientConfig = {
  *
  * A toolbox for user-controlled identity, credentials, storage and more.
  */
-export class TCW {
+export class TinyCloudWeb {
   /** The Ethereum provider */
   public provider: providers.Web3Provider;
 

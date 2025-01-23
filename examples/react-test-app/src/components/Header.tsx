@@ -8,7 +8,7 @@ const Header = () => {
             alt='logo'
         />
         <span className='Header-span'>
-            SSX
+            TinyCloud Test App
         </span>
     </div>
 };

@@ -1,6 +1,6 @@
 {
-  "short_name": "SSX test app",
-  "name": "SSX test app",
+  "short_name": "TinyCloud App",
+  "name": "TinyCloud Test App",
   "icons": [
     {
       "src": "favicon.ico",

@@ -7,15 +7,15 @@ jest.mock('axios');
 global.TextEncoder = TE;
 global.TextDecoder = TD;
 
-const { SSX } = require('../src');
+const { TinyCloudWeb } = require('../src');
 
-test('Instantiate SSX with window.ethereum', () => {
+test('Instantiate TinyCloudWeb with window.ethereum', () => {
   expect(() => {
-    const ssx = new SSX();
+    const tcw = new TinyCloudWeb();
   }).not.toThrowError();
 });
 
-test('Instantiate SSX with providers.web3.driver and successfully sign in and sign out', async () => {
+test('Instantiate TinyCloudWeb with providers.web3.driver and successfully sign in and sign out', async () => {
   const testingUtils = generateTestingUtils({ providerType: 'MetaMask' });
   testingUtils.mockChainId('0x5');
   testingUtils.mockConnectedWallet([
@@ -28,12 +28,12 @@ test('Instantiate SSX with providers.web3.driver and successfully sign in and si
       },
     },
   };
-  const ssx = new SSX(config);
-  await expect(ssx.signIn()).resolves.not.toThrowError();
-  await expect(ssx.signOut()).resolves.not.toThrowError();
+  const tcw = new TinyCloudWeb(config);
+  await expect(tcw.signIn()).resolves.not.toThrowError();
+  await expect(tcw.signOut()).resolves.not.toThrowError();
 });
 
-test('Instantiate SSX with providers.web3.driver and daoLogin', async () => {
+test('Instantiate TinyCloudWeb with providers.web3.driver and daoLogin', async () => {
   const testingUtils = generateTestingUtils({ providerType: 'MetaMask' });
   testingUtils.mockChainId('0x1');
   testingUtils.mockConnectedWallet([
@@ -54,11 +54,11 @@ test('Instantiate SSX with providers.web3.driver and daoLogin', async () => {
     },
     enableDaoLogin: true,
   };
-  const ssx = new SSX(config);
-  await expect(ssx.signIn()).resolves.not.toThrowError();
+  const tcw = new TinyCloudWeb(config);
+  await expect(tcw.signIn()).resolves.not.toThrowError();
 });
 
-test('Instantiate SSX with providers.web3.driver and server and successfully sign in and sign out', async () => {
+test('Instantiate TinyCloudWeb with providers.web3.driver and server and successfully sign in and sign out', async () => {
   const testingUtils = generateTestingUtils({ providerType: 'MetaMask' });
   testingUtils.mockChainId('0x5');
   testingUtils.mockConnectedWallet([
@@ -74,13 +74,13 @@ test('Instantiate SSX with providers.web3.driver and server and successfully sig
       },
     },
   };
-  const ssx = new SSX(config);
+  const tcw = new TinyCloudWeb(config);
 
   const mockAxios = jest.requireMock('axios');
   mockAxios.default.create = jest.fn().mockImplementation(() => ({
     request: async (props: { url: string }) => {
       switch (props.url) {
-        case '/ssx-nonce':
+        case '/tcw-nonce':
           return { data: 'ZH54GNgkQWB887iJU' };
         default:
           return { data: {} };
@@ -88,20 +88,20 @@ test('Instantiate SSX with providers.web3.driver and server and successfully sig
     },
   }));
 
-  await expect(ssx.signIn()).resolves.not.toThrowError();
-  await expect(ssx.signOut()).resolves.not.toThrowError();
+  await expect(tcw.signIn()).resolves.not.toThrowError();
+  await expect(tcw.signOut()).resolves.not.toThrowError();
 });
 
 test('Should override paths successfully', async () => {
   expect(() => {
-    const ssx = new SSX({
+    const tcw = new TinyCloudWeb({
       providers: {
         server: {
           host: 'http://localhost:3001',
           endpoints: {
-            nonce: '/ssx-custom-nonce',
-            login: '/ssx-custom-login',
-            logout: '/ssx-custom-logout',
+            nonce: '/tcw-custom-nonce',
+            login: '/tcw-custom-login',
+            logout: '/tcw-custom-logout',
           },
         },
       },
@@ -109,16 +109,16 @@ test('Should override paths successfully', async () => {
   }).not.toThrowError();
 });
 
-test('Should override paths with SSXRouteConfig successfully', async () => {
+test('Should override paths with TCWRouteConfig successfully', async () => {
   expect(() => {
-    const ssx = new SSX({
+    const tcw = new TinyCloudWeb({
       providers: {
         server: {
           host: 'http://localhost:3001',
           endpoints: {
-            nonce: { url: '/ssx-custom-nonce', method: 'post' },
-            login: { url: '/ssx-custom-login', method: 'post' },
-            logout: { url: '/ssx-custom-logout', method: 'post' },
+            nonce: { url: '/tcw-custom-nonce', method: 'post' },
+            login: { url: '/tcw-custom-login', method: 'post' },
+            logout: { url: '/tcw-custom-logout', method: 'post' },
           },
         },
       },
@@ -128,13 +128,13 @@ test('Should override paths with SSXRouteConfig successfully', async () => {
 
 test('Should accept axios request config options successfully', async () => {
   expect(() => {
-    const ssx = new SSX({
+    const tcw = new TinyCloudWeb({
       providers: {
         server: {
           host: 'http://localhost:3001',
           endpoints: {
             nonce: {
-              url: '/ssx-custom-nonce',
+              url: '/tcw-custom-nonce',
               method: 'post',
               headers: { 'X-Requested-With': 'XMLHttpRequest' },
               transformRequest: [

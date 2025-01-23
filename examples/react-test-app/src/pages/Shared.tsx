@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { SSX } from '@spruceid/ssx';
+import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
 import Header from '../components/Header';
 import Button from '../components/Button';
 import Title from '../components/Title';
@@ -16,8 +16,8 @@ const Shared = () => {
 
   const fetchShareData = async () => {
     setIsLoading(true);
-    const ssx = new SSX({ modules: { storage: true } });
-    const data = await ssx.storage.retrieveSharingLink(shareData);
+    const tcw = new TinyCloudWeb({ modules: { storage: true } });
+    const data = await tcw.storage.retrieveSharingLink(shareData);
     setFetchedData(data);
     setIsLoading(false);
   };

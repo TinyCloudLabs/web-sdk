@@ -1,40 +1,38 @@
 import {
   getProvider,
-  SSXRPCProvider,
-  SSXRPCProviders,
-  ssxResolveEns,
-  ssxResolveLens,
-  SSXInfuraProviderNetworks,
+  TCWRPCProvider,
+  TCWRPCProviders,
+  tcwResolveEns,
 } from '../src';
 
-const ssxRPCProviders: Record<string, SSXRPCProvider> = {
+const tcwRPCProviders: Record<string, TCWRPCProvider> = {
   etherscan: {
-    service: SSXRPCProviders.SSXEtherscanProvider,
+    service: TCWRPCProviders.TCWEtherscanProvider,
   },
   infura: {
-    service: SSXRPCProviders.SSXInfuraProvider,
+    service: TCWRPCProviders.TCWInfuraProvider,
   },
   alchemy: {
-    service: SSXRPCProviders.SSXAlchemyProvider,
+    service: TCWRPCProviders.TCWAlchemyProvider,
   },
   cloudflare: {
-    service: SSXRPCProviders.SSXCloudflareProvider,
+    service: TCWRPCProviders.TCWCloudflareProvider,
   },
   pocket: {
-    service: SSXRPCProviders.SSXPocketProvider,
+    service: TCWRPCProviders.TCWPocketProvider,
   },
   ankr: {
-    service: SSXRPCProviders.SSXAnkrProvider,
+    service: TCWRPCProviders.TCWAnkrProvider,
   },
   custom: {
-    service: SSXRPCProviders.SSXCustomProvider,
+    service: TCWRPCProviders.TCWCustomProvider,
   },
 };
 
 test('Should get Etherscan Provider successfully', () => {
   let provider;
   expect(() => {
-    provider = getProvider(ssxRPCProviders.etherscan);
+    provider = getProvider(tcwRPCProviders.etherscan);
   }).not.toThrowError();
 
   expect(provider.baseUrl).toEqual('https://api.etherscan.io');
@@ -43,7 +41,7 @@ test('Should get Etherscan Provider successfully', () => {
 test('Should get Infura Provider successfully', () => {
   let provider;
   expect(() => {
-    provider = getProvider(ssxRPCProviders.infura);
+    provider = getProvider(tcwRPCProviders.infura);
   }).not.toThrowError();
 
   expect(provider.connection).toEqual(
@@ -56,7 +54,7 @@ test('Should get Infura Provider successfully', () => {
 test('Should get Alchemy Provider successfully', () => {
   let provider;
   expect(() => {
-    provider = getProvider(ssxRPCProviders.alchemy);
+    provider = getProvider(tcwRPCProviders.alchemy);
   }).not.toThrowError();
 
   expect(provider.connection).toEqual(
@@ -69,7 +67,7 @@ test('Should get Alchemy Provider successfully', () => {
 test('Should get Cloudflare Provider successfully', () => {
   let provider;
   expect(() => {
-    provider = getProvider(ssxRPCProviders.cloudflare);
+    provider = getProvider(tcwRPCProviders.cloudflare);
   }).not.toThrowError();
 
   expect(provider.connection).toEqual(
@@ -82,7 +80,7 @@ test('Should get Cloudflare Provider successfully', () => {
 test('Should get Poket Provider successfully', () => {
   let provider;
   expect(() => {
-    provider = getProvider(ssxRPCProviders.pocket);
+    provider = getProvider(tcwRPCProviders.pocket);
   }).not.toThrowError();
 
   expect(provider.connection).toEqual(
@@ -95,7 +93,7 @@ test('Should get Poket Provider successfully', () => {
 test('Should get Ankr Provider successfully', () => {
   let provider;
   expect(() => {
-    provider = getProvider(ssxRPCProviders.ankr);
+    provider = getProvider(tcwRPCProviders.ankr);
   }).not.toThrowError();
 
   expect(provider.connection).toEqual(
@@ -108,7 +106,7 @@ test('Should get Ankr Provider successfully', () => {
 test('Should get Custom Provider successfully', () => {
   let provider;
   expect(() => {
-    provider = getProvider(ssxRPCProviders.custom);
+    provider = getProvider(tcwRPCProviders.custom);
   }).not.toThrowError();
 
   expect(provider.connection).toEqual(
@@ -126,14 +124,14 @@ test('Should get default Provider successfully', () => {
 });
 
 test('Should fail to resolve ENS domain', async () => {
-  const provider = getProvider(ssxRPCProviders.goerli);
-  await expect(ssxResolveEns(provider, '')).rejects.toThrow();
+  const provider = getProvider(tcwRPCProviders.goerli);
+  await expect(tcwResolveEns(provider, '')).rejects.toThrow();
 }, 30000);
 
 test('Should resolve ENS domain successfully', async () => {
-  const provider = getProvider(ssxRPCProviders.goerli);
+  const provider = getProvider(tcwRPCProviders.goerli);
   await expect(
-    ssxResolveEns(provider, '0x96F7fB7ed32640d9D3a982f67CD6c09fc53EBEF1', {
+    tcwResolveEns(provider, '0x96F7fB7ed32640d9D3a982f67CD6c09fc53EBEF1', {
       domain: true,
       avatar: false,
     })
@@ -141,9 +139,9 @@ test('Should resolve ENS domain successfully', async () => {
 }, 30000);
 
 test('Should resolve ENS avatar successfully', async () => {
-  const provider = getProvider(ssxRPCProviders.goerli);
+  const provider = getProvider(tcwRPCProviders.goerli);
   await expect(
-    ssxResolveEns(provider, '0x96F7fB7ed32640d9D3a982f67CD6c09fc53EBEF1', {
+    tcwResolveEns(provider, '0x96F7fB7ed32640d9D3a982f67CD6c09fc53EBEF1', {
       domain: false,
       avatar: true,
     })
@@ -151,69 +149,11 @@ test('Should resolve ENS avatar successfully', async () => {
 }, 30000);
 
 test('Should resolve ENS domain and avatar successfully', async () => {
-  const provider = getProvider(ssxRPCProviders.goerli);
+  const provider = getProvider(tcwRPCProviders.goerli);
   await expect(
-    ssxResolveEns(provider, '0x96F7fB7ed32640d9D3a982f67CD6c09fc53EBEF1', {
+    tcwResolveEns(provider, '0x96F7fB7ed32640d9D3a982f67CD6c09fc53EBEF1', {
       domain: true,
       avatar: true,
     })
   ).resolves.not.toThrow();
-}, 30000);
-
-test('Should fail requesting Lens profile', async () => {
-  const provider = getProvider({
-    service: SSXRPCProviders.SSXInfuraProvider,
-    network: SSXInfuraProviderNetworks.POLYGON,
-  });
-
-  await expect(
-    ssxResolveLens(provider, '0x96F7fB7ed32640d9D3a982f67CD6c09fc53EBEF111')
-  ).rejects.toThrow();
-});
-
-test('Should resolve Lens profile on Mainnet with a message advertising about the network', async () => {
-  const provider = getProvider(ssxRPCProviders.infura);
-
-  await expect(
-    ssxResolveLens(provider, '0x96F7fB7ed32640d9D3a982f67CD6c09fc53EBEF1')
-  ).resolves.toEqual(
-    `Can't resolve Lens to 0x96F7fB7ed32640d9D3a982f67CD6c09fc53EBEF1 on network 'homestead'. Use 'matic' (Polygon) or 'maticmum' (Mumbai) instead.`
-  );
-}, 30000);
-
-test('Should resolve Lens profile on Polygon Mainnet successfully', async () => {
-  const provider = getProvider({
-    service: SSXRPCProviders.SSXInfuraProvider,
-    network: SSXInfuraProviderNetworks.POLYGON,
-  });
-
-  await expect(
-    ssxResolveLens(provider, '0x96F7fB7ed32640d9D3a982f67CD6c09fc53EBEF1')
-  ).resolves.toEqual(
-    expect.objectContaining({
-      pageInfo: expect.objectContaining({
-        prev: '{"offset":0}',
-        next: '{"offset":1}',
-      }),
-    })
-  );
-}, 30000);
-
-// api-mumbai.lens.dev isn't available anymore (there is now a v2 version)
-test.skip('Should resolve Lens profile on Mumbai Testnet successfully', async () => {
-  const provider = getProvider({
-    service: SSXRPCProviders.SSXInfuraProvider,
-    network: SSXInfuraProviderNetworks.POLYGON_MUMBAI,
-  });
-
-  await expect(
-    ssxResolveLens(provider, '0x96F7fB7ed32640d9D3a982f67CD6c09fc53EBEF1')
-  ).resolves.toEqual(
-    expect.objectContaining({
-      pageInfo: expect.objectContaining({
-        prev: '{"offset":0}',
-        next: null,
-      }),
-    })
-  );
 }, 30000);

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { SSX } from '@tinycloudlabs/web-sdk";
+import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
 import Header from '../components/Header';
 import Title from '../components/Title';
 import Dropdown from '../components/Dropdown';
@@ -15,7 +15,7 @@ import { useWalletClient } from 'wagmi';
 
 declare global {
   interface Window {
-    ssx: SSX;
+    tcw: TinyCloudWeb;
   }
 }
 
@@ -26,7 +26,7 @@ function Home() {
 
   const [loading, setLoading] = useState(false);
 
-  const [ssx, setSSX] = useState<SSX | null>(null);
+  const [tcw, setTinyCloudWeb] = useState<TinyCloudWeb | null>(null);
   const [provider, setProvider] = useState<string>('MetaMask');
   const [enableDaoLogin, setDaoLogin] = useState<string>('Off');
   const [server, setServer] = useState<string>('Off');
@@ -47,15 +47,15 @@ function Home() {
   const [notBefore, setNotBefore] = useState<string>('');
   const [resources, setResources] = useState<string>('');
   const [statement, setStatement] = useState<string>('');
-  // ssx module config
+  // tcw module config
   const [storageEnabled, setStorageEnabled] = useState<string>('Off');
   const [credentialsEnabled, setCredentialsEnabled] = useState('Off');
 
-  const getSSXConfig = (ssxConfig: Record<string, any> = {}) => {
+  const getTinyCloudWebConfig = (tcwConfig: Record<string, any> = {}) => {
     if (server === 'On') {
-      ssxConfig = {
+      tcwConfig = {
         providers: {
-          ...ssxConfig?.provider,
+          ...tcwConfig?.provider,
           server: {
             host
           },
@@ -75,20 +75,20 @@ function Home() {
       if (notBefore) siweConfig.notBefore = notBefore;
       if (resources) siweConfig.resources = resources.split(',').map(r => r.trim());
       if (statement) siweConfig.statement = statement;
-      ssxConfig = {
-        ...ssxConfig,
+      tcwConfig = {
+        ...tcwConfig,
         ...(siweConfig && { siweConfig })
       }
     }
 
-    ssxConfig = {
-      ...ssxConfig,
+    tcwConfig = {
+      ...tcwConfig,
       enableDaoLogin: enableDaoLogin === 'On'
     }
 
     if (resolveEns === 'On') {
-      ssxConfig = {
-        ...ssxConfig,
+      tcwConfig = {
+        ...tcwConfig,
         resolveEns: {
           resolveOnServer: resolveOnServer === 'On',
           resolve: {
@@ -110,23 +110,23 @@ function Home() {
     }
 
     if (modules) {
-      ssxConfig = {
-        ...ssxConfig,
+      tcwConfig = {
+        ...tcwConfig,
         modules
       }
     }
 
-    return ssxConfig;
+    return tcwConfig;
   };
 
   const signInUsingWeb3Modal = async (walletClient: any) => {
     const chainId = await walletClient.getChainId();
     const newWalletClient = await getWalletClient({ chainId });
     const signer = walletClientToEthers5Signer(newWalletClient as any);
-    if (ssx) return;
+    if (tcw) return;
 
     setLoading(true);
-    const ssxConfig = getSSXConfig({
+    const tcwConfig = getTinyCloudWebConfig({
       provider: {
         web3: {
           driver: signer.provider
@@ -134,11 +134,11 @@ function Home() {
       }
     });
 
-    const ssxProvider = new SSX(ssxConfig);
+    const tcwProvider = new TinyCloudWeb(tcwConfig);
 
     try {
-      await ssxProvider.signIn();
-      setSSX(ssxProvider);
+      await tcwProvider.signIn();
+      setTinyCloudWeb(tcwProvider);
     } catch (err) {
       console.error(err);
     }
@@ -149,25 +149,25 @@ function Home() {
     if (walletClient) {
       signInUsingWeb3Modal(walletClient);
     } else {
-      ssx?.signOut?.();
-      setSSX(null);
+      tcw?.signOut?.();
+      setTinyCloudWeb(null);
     }
     // eslint-disable-next-line
   }, [walletClient]);
 
-  const ssxHandler = async () => {
+  const tcwHandler = async () => {
     if (provider === 'Web3Modal v2') {
       return openWeb3Modal();
     } else {
       setLoading(true);
-      let ssxConfig = getSSXConfig();
+      let tcwConfig = getTinyCloudWebConfig();
 
-      const ssx = new SSX(ssxConfig);
-      window.ssx = ssx;
+      const tcw = new TinyCloudWeb(tcwConfig);
+      window.tcw = tcw;
 
       try {
-        await ssx.signIn();
-        setSSX(ssx);
+        await tcw.signIn();
+        setTinyCloudWeb(tcw);
       } catch (err) {
         console.error(err);
       }
@@ -175,13 +175,13 @@ function Home() {
     }
   };
 
-  const ssxLogoutHandler = async () => {
+  const tcwLogoutHandler = async () => {
     if (provider === 'Web3Modal v2') {
       return openWeb3Modal();
     }
 
-    ssx?.signOut?.();
-    setSSX(null);
+    tcw?.signOut?.();
+    setTinyCloudWeb(null);
   };
 
   return (
@@ -192,24 +192,24 @@ function Home() {
       <div className='Content'>
         <div className='Content-container'>
           {
-            ssx ?
+            tcw ?
               <>
                 <Button
                   id='signOutButton'
-                  onClick={ssxLogoutHandler}
+                  onClick={tcwLogoutHandler}
                   loading={loading}
                 >
                   SIGN-OUT
                 </Button>
                 <AccountInfo
-                  address={ssx?.address()}
-                  session={ssx?.session()}
+                  address={tcw?.address()}
+                  session={tcw?.session()}
                 />
               </> :
               <>
                 <Button
                   id='signInButton'
-                  onClick={ssxHandler}
+                  onClick={tcwHandler}
                   loading={loading}
                 >
                   SIGN-IN WITH ETHEREUM
@@ -408,8 +408,8 @@ function Home() {
         </div>
         {
           storageEnabled === "On"
-          && ssx
-          && <StorageModule ssx={ssx} />
+          && tcw
+          && <StorageModule tcw={tcw} />
         }
       </div>
 

@@ -11,6 +11,9 @@
   ],
   "scripts": {
     "build": "./scripts/build.sh",
+    "web-core": "bun --cwd packages/web-core -c",
+    "web-sdk": "bun --cwd packages/web-sdk -c",
+    "web-sdk-rs": "bun --cwd packages/web-sdk-rs -c",
     "clean-docs": "./scripts/clean-docs.sh",
     "github-pub": "./scripts/switch-registry.sh github",
     "npm-pub": "./scripts/switch-registry.sh npm"

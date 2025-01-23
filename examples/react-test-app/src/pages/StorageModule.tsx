@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import Input from '../components/Input';
 import Button from '../components/Button';
-import { SSX } from '@spruceid/ssx';
+import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
 
 interface IStorageModule {
-  ssx: SSX;
+  tcw: TinyCloudWeb;
 }
 
-function StorageModule({ ssx }: IStorageModule) {
+function StorageModule({ tcw }: IStorageModule) {
   const [contentList, setContentList] = useState<Array<string>>([]);
   const [credentialsList, setCredentialsList] = useState<Array<string>>([]);
   const [selectedContent, setSelectedContent] = useState<string | null>(null);
@@ -18,20 +18,20 @@ function StorageModule({ ssx }: IStorageModule) {
 
   useEffect(() => {
     const getContentList = async () => {
-      const { data } = await ssx.storage.list({ removePrefix: true });
+      const { data } = await tcw.storage.list({ removePrefix: true });
       setContentList(data);
     };
     const getCredentialList = async () => {
-      const { data } = await ssx.credentials?.list?.({ removePrefix: true });
+      const { data } = await tcw.credentials?.list?.({ removePrefix: true });
       setCredentialsList(data);
     };
     getContentList();
     getCredentialList();
-  }, [ssx]);
+  }, [tcw]);
 
   const handleShareContent = async (content: string) => {
-    const prefix = ssx.storage.prefix;
-    const base64Content = await ssx.storage.generateSharingLink(
+    const prefix = tcw.storage.prefix;
+    const base64Content = await tcw.storage.generateSharingLink(
       `${prefix}/${content}`
     );
     const sharingLink = `${window.location.origin}/share?data=${base64Content}`;
@@ -39,7 +39,7 @@ function StorageModule({ ssx }: IStorageModule) {
   };
 
   const handleGetContent = async (content: string) => {
-    const { data } = await ssx.storage.get(content);
+    const { data } = await tcw.storage.get(content);
     setAllowPost(true);
     setSelectedContent(content);
     setName(content);
@@ -48,7 +48,7 @@ function StorageModule({ ssx }: IStorageModule) {
   };
 
   const handleDeleteContent = async (content: string) => {
-    await ssx.storage.delete(content);
+    await tcw.storage.delete(content);
     setContentList(prevList => prevList.filter(c => c !== content));
     setSelectedContent(null);
     setName('');
@@ -61,7 +61,7 @@ function StorageModule({ ssx }: IStorageModule) {
       alert('Invalid key or text');
       return;
     }
-    await ssx.storage.put(name, text);
+    await tcw.storage.put(name, text);
     if (selectedContent) {
       setContentList(prevList =>
         prevList.map(c => (c === selectedContent ? name : c))
@@ -84,7 +84,7 @@ function StorageModule({ ssx }: IStorageModule) {
   };
 
   const handleGetCredential = async (content: string) => {
-    const { data } = await ssx.credentials.get(content);
+    const { data } = await tcw.credentials.get(content);
     setAllowPost(false);
     setSelectedContent(content);
     setName(content);
