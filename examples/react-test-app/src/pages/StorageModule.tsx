@@ -9,7 +9,6 @@ interface IStorageModule {
 
 function StorageModule({ tcw }: IStorageModule) {
   const [contentList, setContentList] = useState<Array<string>>([]);
-  const [credentialsList, setCredentialsList] = useState<Array<string>>([]);
   const [selectedContent, setSelectedContent] = useState<string | null>(null);
   const [name, setName] = useState<string>('');
   const [text, setText] = useState<string>('');
@@ -18,22 +17,24 @@ function StorageModule({ tcw }: IStorageModule) {
 
   useEffect(() => {
     const getContentList = async () => {
-      const { data } = await tcw.storage.list({ removePrefix: true });
+      const { data } = await tcw.storage.list({ removePrefix: false });
       setContentList(data);
     };
-    const getCredentialList = async () => {
-      const { data } = await tcw.credentials?.list?.({ removePrefix: true });
-      setCredentialsList(data);
-    };
     getContentList();
-    getCredentialList();
   }, [tcw]);
 
   const handleShareContent = async (content: string) => {
     const prefix = tcw.storage.prefix;
-    const base64Content = await tcw.storage.generateSharingLink(
-      `${prefix}/${content}`
-    );
+    let base64Content;
+    try {
+      base64Content = await tcw.storage.generateSharingLink(
+        prefix ? `${prefix}/${content}` : content
+      );
+    } catch (err) {
+      console.error(err);
+      alert('Failed to generate sharing link. Please refresh the page and try again.');
+      return;
+    }
     const sharingLink = `${window.location.origin}/share?data=${base64Content}`;
     await navigator.clipboard.writeText(sharingLink);
   };
@@ -77,18 +78,10 @@ function StorageModule({ tcw }: IStorageModule) {
 
   const handlePostNewContent = (e: any) => {
     e.preventDefault();
+    setAllowPost(true);
     setSelectedContent(null);
     setName('');
     setText('');
-    setViewingList(false);
-  };
-
-  const handleGetCredential = async (content: string) => {
-    const { data } = await tcw.credentials.get(content);
-    setAllowPost(false);
-    setSelectedContent(content);
-    setName(content);
-    setText(data);
     setViewingList(false);
   };
 
@@ -119,17 +112,6 @@ function StorageModule({ tcw }: IStorageModule) {
               </div>
             ))}
             <Button onClick={handlePostNewContent}>Post new content</Button>
-            <h3>Credentials List</h3>
-            {credentialsList.map(content => (
-              <div className="item-container" key={content}>
-                <span>{content}</span>
-                <Button
-                  className="smallButton"
-                  onClick={() => handleGetCredential(content)}>
-                  Get
-                </Button>
-              </div>
-            ))}
           </div>
         ) : (
           <div className="View-pane">

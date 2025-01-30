@@ -1,22 +1,55 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { createAppKit } from '@reown/appkit/react'
+import { WagmiProvider } from 'wagmi'
+import { AppKitNetwork, arbitrum, mainnet } from '@reown/appkit/networks'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { WagmiAdapter } from '@reown/appkit-adapter-wagmi'
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
-import { WagmiConfig } from 'wagmi';
-import { ethereumClient, projectId, wagmiConfig } from './utils/web3modalV2Settings';
-import { Web3Modal as Web3ModalV2 } from '@web3modal/react';
+
+import { wagmiAdapter, networks } from './wagmi'
+
+// 0. Setup queryClient
+const queryClient = new QueryClient()
+
+// 1. Get projectId from https://cloud.reown.com
+const projectId = process.env.REACT_APP_PROJECT_ID || '';
+
+// 2. Create a metadata object - optional
+const metadata = {
+  name: 'TinyCloud Example App',
+  description: 'AppKit Example',
+  url: 'https://reown.com/appkit', // origin must match your domain & subdomain
+  icons: ['https://assets.reown.com/reown-profile-pic.png']
+}
+
+// Create modal
+createAppKit({
+  adapters: [wagmiAdapter],
+  networks: networks as any,
+  projectId,
+  metadata,
+  features: {
+    analytics: true // Optional - defaults to your Cloud configuration
+  }
+})
+
+    
 
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
 root.render(
   <React.StrictMode>
-    <WagmiConfig config={wagmiConfig}>
-      <App />
-    </WagmiConfig>
-    <Web3ModalV2
+    <WagmiProvider config={wagmiAdapter.wagmiConfig}>
+      <QueryClientProvider client={queryClient}>
+        <App />
+      </QueryClientProvider>
+    </WagmiProvider>
+    {/* <Web3ModalV2
       projectId={projectId}
       ethereumClient={ethereumClient}
-    />
+    /> */}
   </React.StrictMode>
 );
 
