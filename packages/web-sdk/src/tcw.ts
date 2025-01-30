@@ -4,8 +4,6 @@ import {
   TCWEnsResolveOptions,
 } from '@tinycloudlabs/web-core';
 import {
-  Credentials,
-  ICredentials,
   IUserAuthorization,
   KeplerStorage,
   UserAuthorization,
@@ -28,7 +26,6 @@ declare global {
  */
 interface TCWModuleConfig {
   storage?: boolean | { [key: string]: any };
-  credentials?: boolean;
 }
 
 // temporary: will move to tcw-core
@@ -44,9 +41,9 @@ const TCW_DEFAULT_CONFIG: TCWClientConfig = {
   },
 };
 
-/** TCW: Self-sovereign anything.
+/** TCW: TinyCloud Web SDK
  *
- * A toolbox for user-controlled identity, credentials, storage and more.
+ * An SDK for building user-controlled web apps.
  */
 export class TinyCloudWeb {
   /** The Ethereum provider */
@@ -70,48 +67,30 @@ export class TinyCloudWeb {
   /** Storage Module */
   public storage: KeplerStorage;
 
-  /** Credentials Module */
-  public credentials: ICredentials;
-
   constructor(private config: TCWConfig = TCW_DEFAULT_CONFIG) {
     // TODO: pull out config validation into separate function
     // TODO: pull out userAuthorization config
     this.userAuthorization = new UserAuthorization(config);
 
     // initialize storage module
-    // assume credentials is **disabled** if config.credentials is not defined
-    const credentialsConfig =
-      config?.modules?.credentials === undefined ? false : config.modules.credentials;
 
-    // assume storage module is **disabled** if config.storage is not defined
+    // assume storage module default 
     const storageConfig =
-      config?.modules?.storage === undefined ? false : config.modules.storage;
+      config?.modules?.storage === undefined ? true : config.modules.storage;
 
     if (storageConfig !== false) {
       if (typeof storageConfig === 'object') {
-        storageConfig.credentialsModule = credentialsConfig;
         // Initialize storage with the provided config
         this.storage = new KeplerStorage(storageConfig, this.userAuthorization);
       } else {
         // storage == true or undefined
         // Initialize storage with default config when no other condition is met
         this.storage = new KeplerStorage(
-          { prefix: 'tcw', credentialsModule: credentialsConfig },
+          { prefix: 'default' },
           this.userAuthorization
         );
       }
       this.extend(this.storage);
-    }
-
-    if (credentialsConfig) {
-      // Credentials module depends on the storage module. If it isn't enabled
-      // we won't initialize the credentials module.
-      if (!storageConfig) {
-        throw new Error('You must enable the storage module to use the credentials module.')
-      } else {
-        this.credentials = new Credentials(this.storage);
-        this.extend(this.credentials);
-      }
     }
   }
 
