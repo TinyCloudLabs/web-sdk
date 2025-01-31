@@ -23,12 +23,6 @@ export interface TCWRouteConfig {
   ): Promise<any>;
 }
 
-/** Type-Guard for TCWRouteConfig. */
-export const isTCWRouteConfig = (
-  config: TCWServerRouteEndpointType
-): config is TCWRouteConfig | AxiosRequestConfig | TCWServerMiddlewareConfig =>
-  typeof config === 'object';
-
 export interface TCWServerMiddlewareConfig {
   path: string;
   callback?: (req: any, body?: Record<string, any>) => Promise<void> | void;
@@ -244,14 +238,6 @@ export type TCWGenericProvider = {
   network?: providers.Networkish;
   apiKey?: string | TCWInfuraProviderProjectSettings;
 };
-
-/** ENS options supported by TCW. */
-export interface TCWEnsResolveOptions {
-  /** Enable ENS name/domain resolution. */
-  domain?: boolean;
-  /** Enable ENS avatar resolution. */
-  avatar?: boolean;
-}
 
 /** ENS data supported by TCW. */
 export interface TCWEnsData {

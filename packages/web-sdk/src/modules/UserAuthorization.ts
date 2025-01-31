@@ -7,7 +7,6 @@ import {
   TCWEnsData,
   tcwResolveEns,
   TCWEnsResolveOptions,
-  isTCWRouteConfig,
 } from '@tinycloudlabs/web-core';
 import {
   TCWClientSession,
@@ -167,12 +166,6 @@ class UserAuthorizationConnected implements ITCWConnected {
     public provider: providers.Web3Provider
   ) {
     this.afterConnectHooksPromise = this.applyExtensions();
-    if (this.config.providers?.server?.host) {
-      this.api = axios.create({
-        baseURL: this.config.providers.server.host,
-        withCredentials: true,
-      });
-    }
     // this.provider = provider;
   }
 
@@ -223,108 +216,6 @@ class UserAuthorizationConnected implements ITCWConnected {
   }
 
   /**
-   * Requests nonce from server.
-   * @param params - Request params.
-   * @returns Promise with nonce.
-   */
-  public async tcwServerNonce(params: Record<string, any>): Promise<string> {
-    const route = this.config.providers?.server?.routes?.nonce ?? '/tcw-nonce';
-    const requestConfig = isTCWRouteConfig(route)
-      ? {
-          customAPIOperation: undefined,
-          ...route,
-        }
-      : {
-          customAPIOperation: undefined,
-          url: route,
-        };
-
-    const { customAPIOperation } = requestConfig;
-    if (customAPIOperation) {
-      return customAPIOperation(params);
-    }
-
-    if (this.api) {
-      let nonce;
-
-      try {
-        nonce = (
-          await this.api.request({
-            method: 'get',
-            url: '/tcw-nonce',
-            ...requestConfig,
-            params,
-          })
-        ).data;
-      } catch (error) {
-        console.error(error);
-        throw error;
-      }
-      if (!nonce) {
-        throw new Error('Unable to retrieve nonce from server.');
-      }
-      return nonce;
-    }
-  }
-
-  /**
-   * Requests sign in from server and returns session.
-   * @param session - TCWClientSession object.
-   * @returns Promise with server session data.
-   */
-  public async tcwServerLogin(session: TCWClientSession): Promise<any> {
-    const route = this.config.providers?.server?.routes?.login ?? '/tcw-login';
-    const requestConfig = isTCWRouteConfig(route)
-      ? {
-          customAPIOperation: undefined,
-          ...route,
-        }
-      : {
-          customAPIOperation: undefined,
-          url: route,
-        };
-    const { customAPIOperation } = requestConfig;
-
-    if (customAPIOperation) {
-      return customAPIOperation(session);
-    }
-
-    if (this.api) {
-      let resolveEns: boolean | TCWEnsResolveOptions = false;
-      if (
-        typeof this.config.resolveEns === 'object' &&
-        this.config.resolveEns.resolveOnServer
-      ) {
-        resolveEns = this.config.resolveEns.resolve;
-      }
-
-      try {
-        const data = {
-          signature: session.signature,
-          siwe: session.siwe,
-          address: session.address,
-          walletAddress: session.walletAddress,
-          chainId: session.chainId,
-          daoLogin: this.isExtensionEnabled('delegationRegistry'),
-          resolveEns,
-        };
-        // @TODO(w4ll3): figure out how to send a custom sessionKey
-        return this.api
-          .request({
-            method: 'post',
-            url: '/tcw-login',
-            ...requestConfig,
-            data,
-          })
-          .then(response => response.data);
-      } catch (error) {
-        console.error(error);
-        throw error;
-      }
-    }
-  }
-
-  /**
    * Requests the user to sign in.
    * Generates the SIWE message for this session, requests the configured
    * Signer to sign the message, calls the "afterSignIn" methods of the
@@ -348,9 +239,6 @@ class UserAuthorizationConnected implements ITCWConnected {
       nonce: generateNonce(),
     };
 
-    const serverNonce = await this.tcwServerNonce(defaults);
-    if (serverNonce) defaults.nonce = serverNonce;
-
     const siweConfig = merge(defaults, this.config.siweConfig);
     const siwe = await this.builder.build(siweConfig);
     const signature = await signer.signMessage(siwe);
@@ -364,13 +252,6 @@ class UserAuthorizationConnected implements ITCWConnected {
       signature,
     };
 
-    const response = await this.tcwServerLogin(session);
-
-    session = {
-      ...session,
-      ...response,
-    };
-
     await this.afterSignIn(session);
 
     return session;
@@ -381,40 +262,7 @@ class UserAuthorizationConnected implements ITCWConnected {
    * @param session - TCWClientSession object.
    */
   async signOut(session: TCWClientSession): Promise<void> {
-    // get request configuration
-    const route =
-      this.config.providers?.server?.routes?.logout ?? '/tcw-logout';
-    const requestConfig = isTCWRouteConfig(route)
-      ? {
-          customAPIOperation: undefined,
-          ...route,
-        }
-      : {
-          customAPIOperation: undefined,
-          url: route,
-        };
-    // check if we should run a custom operation instead
-    const { customAPIOperation } = requestConfig;
-
-    if (customAPIOperation) {
-      return customAPIOperation(session);
-    }
-
-    if (this.api) {
-      try {
-        const data = { ...session };
-
-        await this.api.request({
-          method: 'post',
-          url: '/tcw-logout',
-          ...requestConfig,
-          data,
-        });
-      } catch (error) {
-        console.error(error);
-        throw error;
-      }
-    }
+    // TODO: kill sessions
   }
 }
 const TCW_DEFAULT_CONFIG: TCWClientConfig = {
@@ -480,24 +328,13 @@ class UserAuthorization implements IUserAuthorization {
     try {
       this.session = await this.connection.signIn();
     } catch (err) {
-      // Request to /tcw-login went wrong
       console.error(err);
       throw err;
     }
     const promises = [];
 
-    let resolveEnsOnClient = false;
     if (this.config.resolveEns) {
-      if (this.config.resolveEns === true) {
-        resolveEnsOnClient = true;
-        promises.push(this.resolveEns(this.session.address));
-      } else if (!this.config.resolveEns.resolveOnServer) {
-        resolveEnsOnClient = true;
-
-        promises.push(
-          this.resolveEns(this.session.address, this.config.resolveEns.resolve)
-        );
-      }
+      promises.push(this.resolveEns(this.session.address));
     }
 
     // refactor: only resolve ens

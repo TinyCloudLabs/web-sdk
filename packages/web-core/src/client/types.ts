@@ -4,7 +4,6 @@ import { AxiosInstance } from 'axios';
 import { ethers } from 'ethers';
 import {
   TCWEnsData,
-  TCWEnsResolveOptions,
   TCWRPCProvider,
   TCWServerRoutes,
 } from '../types';
@@ -16,7 +15,7 @@ export interface TCWClientConfig {
   /** Optional session configuration for the SIWE message. */
   siweConfig?: SiweConfig;
   /** Whether or not ENS resolution is enabled. True means resolve all on client. */
-  resolveEns?: boolean | TCWEnsConfig;
+  resolveEns?: boolean;
 }
 
 /** Representation of an active TCWSession. */
@@ -78,13 +77,6 @@ export type ConfigOverrides = {
   siwe?: SiweConfig;
 };
 
-/** ENS options supported by TCW. */
-export interface TCWEnsConfig {
-  /** Enable the ENS resolution on server instead of on client. */
-  resolveOnServer?: boolean;
-  /** ENS resolution options. True means resolve all. */
-  resolve: TCWEnsResolveOptions;
-}
 
 /** Interface to an intermediate TCW state: connected, but not signed-in. */
 export interface ITCWConnected {
@@ -106,10 +98,6 @@ export interface ITCWConnected {
   applyExtensions: () => Promise<void>;
   /** Method to apply the "afterSignIn" methods of the extensions. */
   afterSignIn: (session: TCWClientSession) => Promise<void>;
-  /** Method to request nonce from server. */
-  tcwServerNonce: (params: Record<string, any>) => Promise<string>;
-  /** Method to request sign in from server and return session. */
-  tcwServerLogin: (session: TCWClientSession) => Promise<any>;
   /** Method to request the user to sign in. */
   signIn: () => Promise<TCWClientSession>;
   /** Method to request the user to sign out. */
