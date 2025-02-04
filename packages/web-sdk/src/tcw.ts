@@ -1,7 +1,6 @@
 import {
   TCWRPCProviders,
   TCWEnsData,
-  TCWEnsResolveOptions,
 } from '@tinycloudlabs/web-core';
 import {
   IUserAuthorization,
@@ -125,12 +124,8 @@ export class TinyCloudWeb {
   public async resolveEns(
     /** User address */
     address: string,
-    resolveEnsOpts: TCWEnsResolveOptions = {
-      domain: true,
-      avatar: true,
-    }
   ): Promise<TCWEnsData> {
-    return this.userAuthorization.resolveEns(address, resolveEnsOpts);
+    return this.userAuthorization.resolveEns(address);
   }
 
   /**

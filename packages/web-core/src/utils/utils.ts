@@ -69,40 +69,23 @@ export const getProvider = (
  * Resolves ENS data supported by TCW.
  * @param provider - Ethers provider.
  * @param address - User address.
- * @param resolveEnsOpts - Options to resolve ENS.
  * @returns Object containing ENS data.
  */
 export const tcwResolveEns = async (
   provider: ethers.providers.BaseProvider,
   /* User Address */
-  address: string,
-  resolveEnsOpts: {
-    /* Enables ENS domain/name resolution */
-    domain?: boolean;
-    /* Enables ENS avatar resolution */
-    avatar?: boolean;
-  } = {
-    domain: true,
-    avatar: true,
-  }
+  address: string
 ): Promise<TCWEnsData> => {
   if (!address) {
     throw new Error('Missing address.');
   }
   const ens: TCWEnsData = {};
   const promises: Array<Promise<any>> = [];
-  if (resolveEnsOpts?.domain) {
-    promises.push(provider.lookupAddress(address));
-  }
-  if (resolveEnsOpts?.avatar) {
-    promises.push(provider.getAvatar(address));
-  }
+  promises.push(provider.lookupAddress(address));
+  promises.push(provider.getAvatar(address));
 
   await Promise.all(promises)
     .then(([domain, avatarUrl]) => {
-      if (!resolveEnsOpts.domain && resolveEnsOpts.avatar) {
-        [domain, avatarUrl] = [undefined, domain];
-      }
       if (domain) {
         ens['domain'] = domain;
       }

@@ -1,12 +1,11 @@
 import { providers, Signer } from 'ethers';
 import { initialized, tcwSession } from '@tinycloudlabs/web-sdk-wasm';
 import merge from 'lodash.merge';
-import axios, { AxiosInstance } from 'axios';
+import { AxiosInstance } from 'axios';
 import { generateNonce } from 'siwe';
 import {
   TCWEnsData,
   tcwResolveEns,
-  TCWEnsResolveOptions,
 } from '@tinycloudlabs/web-core';
 import {
   TCWClientSession,
@@ -43,7 +42,6 @@ interface IUserAuthorization {
   resolveEns(
     /** User address */
     address: string,
-    resolveEnsOpts: TCWEnsResolveOptions
   ): Promise<TCWEnsData>;
   address(): string | undefined;
   chainId(): number | undefined;
@@ -356,12 +354,8 @@ class UserAuthorization implements IUserAuthorization {
   public async resolveEns(
     /** User address */
     address: string,
-    resolveEnsOpts: TCWEnsResolveOptions = {
-      domain: true,
-      avatar: true,
-    }
   ): Promise<TCWEnsData> {
-    return tcwResolveEns(this.connection.provider, address, resolveEnsOpts);
+    return tcwResolveEns(this.connection.provider, address);
   }
 
   /**

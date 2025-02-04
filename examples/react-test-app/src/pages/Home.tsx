@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
-import Header from '../components/Header';
 import Title from '../components/Title';
 import Dropdown from '../components/Dropdown';
 import RadioGroup from '../components/RadioGroup';
@@ -28,13 +27,8 @@ function Home() {
 
   const [tcw, setTinyCloudWeb] = useState<TinyCloudWeb | null>(null);
   const [provider, setProvider] = useState<string>('MetaMask');
-  const [enableDaoLogin, setDaoLogin] = useState<string>('Off');
-  const [server, setServer] = useState<string>('Off');
   const [resolveEns, setResolveEns] = useState<string>('Off');
   const [siweConfig, setSiweConfig] = useState<string>('Off');
-  const [host, setHost] = useState<string>('');
-  const [resolveEnsDomain, setResolveEnsDomain] = useState<string>('On');
-  const [resolveEnsAvatar, setResolveEnsAvatar] = useState<string>('On');
   // siweConfig Fields
   const [address, setAddress] = useState<string>('');
   const [chainId, setChainId] = useState<string>('');
@@ -48,19 +42,8 @@ function Home() {
   const [statement, setStatement] = useState<string>('');
   // tcw module config
   const [storageEnabled, setStorageEnabled] = useState<string>('On');
-  const [credentialsEnabled, setCredentialsEnabled] = useState('Off');
 
   const getTinyCloudWebConfig = (tcwConfig: Record<string, any> = {}) => {
-    if (server === 'On') {
-      tcwConfig = {
-        providers: {
-          ...tcwConfig?.provider,
-          server: {
-            host
-          },
-        }
-      }
-    }
 
     if (siweConfig === 'On') {
       const siweConfig: Record<string, any> = {};
@@ -80,28 +63,17 @@ function Home() {
       }
     }
 
-    tcwConfig = {
-      ...tcwConfig,
-      enableDaoLogin: enableDaoLogin === 'On'
-    }
-
     if (resolveEns === 'On') {
       tcwConfig = {
         ...tcwConfig,
-        resolveEns: {
-          resolve: {
-            domain: resolveEnsDomain === 'On',
-            avatar: resolveEnsAvatar === 'On'
-          }
-        }
+        resolveEns: true
       }
     }
 
     const modules: Record<string, any> = {};
 
-    if (storageEnabled === "On") {
-      modules.storage = { hosts: ["https://node.tinycloud.xyz/"]  };
-      // modules.storage = true;
+    if (storageEnabled === "Off") {
+      modules.storage = false;
     }
 
     if (modules) {
@@ -180,7 +152,6 @@ function Home() {
   return (
     <div className='App'>
 
-      <Header />
       <Title />
       <div className='Content'>
         <div className='Content-container'>
@@ -230,19 +201,7 @@ function Home() {
                   />
                 </div>
               </div>
-              <div className='Dropdown-item'>
-                <span className='Dropdown-item-name'>
-                  daoLogin
-                </span>
-                <div className='Dropdown-item-options'>
-                  <RadioGroup
-                    name='enableDaoLogin'
-                    options={['On', 'Off']}
-                    value={enableDaoLogin}
-                    onChange={setDaoLogin}
-                  />
-                </div>
-              </div>
+              
               <div className='Dropdown-item'>
                 <span className='Dropdown-item-name'>
                   resolveEns
@@ -283,35 +242,6 @@ function Home() {
                 </div>
               </div>
             </Dropdown>
-            {
-              server === 'On' ?
-                <Input
-                  label='Host'
-                  value={host}
-                  onChange={setHost}
-                /> :
-                null
-            }
-            {
-              resolveEns === 'On' ?
-                <>
-                  <RadioGroup
-                    label='Resolve ENS Domain'
-                    name='resolveEnsDomain'
-                    options={['On', 'Off']}
-                    value={resolveEnsDomain}
-                    onChange={setResolveEnsDomain}
-                  />
-                  <RadioGroup
-                    label='Resolve ENS Avatar'
-                    name='resolveEnsAvatar'
-                    options={['On', 'Off']}
-                    value={resolveEnsAvatar}
-                    onChange={setResolveEnsAvatar}
-                  />
-                </> :
-                null
-            }
             {
               siweConfig === 'On' ?
                 <div>
