@@ -187,7 +187,7 @@ function Home() {
               id='selectPreferences'
               label='Select Preference(s)'
             >
-              <div className='Dropdown-item'>
+              {/* <div className='Dropdown-item'>
                 <span className='Dropdown-item-name'>
                   Provider
                 </span>
@@ -200,7 +200,7 @@ function Home() {
                     inline={false}
                   />
                 </div>
-              </div>
+              </div> */}
               
               <div className='Dropdown-item'>
                 <span className='Dropdown-item-name'>

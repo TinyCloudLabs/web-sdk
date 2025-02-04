@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
+import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
 import Input from '../components/Input';
 import Button from '../components/Button';
-import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
+import RadioGroup from '../components/RadioGroup';
 
 interface IStorageModule {
   tcw: TinyCloudWeb;
@@ -14,14 +15,15 @@ function StorageModule({ tcw }: IStorageModule) {
   const [text, setText] = useState<string>('');
   const [viewingList, setViewingList] = useState<boolean>(true);
   const [allowPost, setAllowPost] = useState<boolean>(false);
+  const [removePrefix, setRemovePrefix] = useState<boolean>(false);
 
   useEffect(() => {
     const getContentList = async () => {
-      const { data } = await tcw.storage.list({ removePrefix: false });
+      const { data } = await tcw.storage.list({ removePrefix });
       setContentList(data);
     };
     getContentList();
-  }, [tcw]);
+  }, [tcw, removePrefix]);
 
   const handleShareContent = async (content: string) => {
     const prefix = tcw.storage.prefix;
@@ -86,11 +88,22 @@ function StorageModule({ tcw }: IStorageModule) {
   };
 
   return (
-    <div className="Content" style={{ marginTop: '30px' }}>
+    <div className="" style={{ marginTop: '30px' }}>
       <div className="storage-container Content-container">
+        <div>
+          <h3>Storage Prefix: {tcw.storage.prefix}</h3>
+          <p>The storage prefix is where the keys below live. It is like folder name for the keys. <code>"{tcw.storage.prefix}/key" = value</code></p>
+          <RadioGroup
+            label="Remove Prefix"
+            name="removePrefix"
+            options={['On', 'Off']}
+            value={removePrefix ? 'On' : 'Off'  }
+            onChange={(option) => setRemovePrefix(option === 'On')}
+          />
+        </div>
         {viewingList ? (
           <div className="List-pane">
-            <h3>List Pane</h3>
+            <h3>Key Value Store</h3>
             {contentList.map(content => (
               <div className="item-container" key={content}>
                 <span>{content}</span>
