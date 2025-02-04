@@ -2302,7 +2302,7 @@ dependencies = [
 [[package]]
 name = "kepler-lib"
 version = "0.2.0"
-source = "git+https://github.com/spruceid/kepler#4b9111984cba849589954faff39243b42efc44b1"
+source = "git+https://github.com/tinycloudlabs/kepler#4b9111984cba849589954faff39243b42efc44b1"
 dependencies = [
  "async-trait",
  "base64 0.13.1",
@@ -2329,7 +2329,7 @@ dependencies = [
 [[package]]
 name = "kepler-sdk"
 version = "0.2.0"
-source = "git+https://github.com/spruceid/kepler#4b9111984cba849589954faff39243b42efc44b1"
+source = "git+https://github.com/tinycloudlabs/kepler#4b9111984cba849589954faff39243b42efc44b1"
 dependencies = [
  "base64 0.13.1",
  "hex",
@@ -2347,7 +2347,7 @@ dependencies = [
 [[package]]
 name = "kepler-sdk-wasm"
 version = "0.3.0"
-source = "git+https://github.com/spruceid/kepler#4b9111984cba849589954faff39243b42efc44b1"
+source = "git+https://github.com/tinycloudlabs/kepler#4b9111984cba849589954faff39243b42efc44b1"
 dependencies = [
  "console_error_panic_hook",
  "getrandom 0.2.15",

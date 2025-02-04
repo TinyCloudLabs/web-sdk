@@ -17,7 +17,7 @@ pub struct TCWSessionManager {
 /// Builds an TCWSession.
 impl TCWSessionManager {
     #[wasm_bindgen(constructor)]
-    /// Initialize a new SpruceKitSessionManager.
+    /// Initialize a new TinyCloudWebSessionManager.
     pub fn new() -> Result<TCWSessionManager, String> {
         let manager = match manager::SessionManager::new() {
             Ok(manager) => manager,
