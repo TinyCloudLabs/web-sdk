@@ -2,46 +2,35 @@
 sidebar_position: 1
 ---
 
-# Tutorial Intro
+# TinyCloud SDK Documentation
 
-Let's discover **Docusaurus in less than 5 minutes**.
+Welcome to the TinyCloud SDK documentation. TinyCloud provides a suite of tools to help you build decentralized applications with ease.
+
+## SDK Components
+
+The TinyCloud SDK consists of several components:
+
+- [**Web SDK**](./web-sdk/) - A comprehensive toolkit for building web applications with TinyCloud
+  - [Getting Started Guide](./web-sdk/guides/getting-started.md)
+  - [API Reference](./web-sdk/api/)
 
 ## Getting Started
 
-Get started by **creating a new site**.
+To get started with the TinyCloud Web SDK, visit the [Web SDK Documentation](./web-sdk/).
 
-Or **try Docusaurus immediately** with **[docusaurus.new](https://docusaurus.new)**.
+## Features
 
-### What you'll need
+The TinyCloud SDK provides a range of features to help you build decentralized applications:
 
-- [Node.js](https://nodejs.org/en/download/) version 18.0 or above:
-  - When installing Node.js, you are recommended to check all checkboxes related to dependencies.
+- **Decentralized Storage** - Store and retrieve data without relying on centralized servers
+- **Authentication** - Secure authentication using blockchain wallets
+- **Type Safety** - Comprehensive TypeScript definitions for a better development experience
+- **Easy Integration** - Simple APIs that abstract away the complexities of blockchain technology
 
-## Generate a new site
+## Need Help?
 
-Generate a new Docusaurus site using the **classic template**.
+If you need help or have questions about the TinyCloud SDK, you can:
 
-The classic template will automatically be added to your project after you run the command:
-
-```bash
-npm init docusaurus@latest my-website classic
-```
-
-You can type this command into Command Prompt, Powershell, Terminal, or any other integrated terminal of your code editor.
-
-The command also installs all necessary dependencies you need to run Docusaurus.
-
-## Start your site
-
-Run the development server:
-
-```bash
-cd my-website
-npm run start
-```
-
-The `cd` command changes the directory you're working with. In order to work with your newly created Docusaurus site, you'll need to navigate the terminal there.
-
-The `npm run start` command builds your website locally and serves it through a development server, ready for you to view at http://localhost:3000/.
-
-Open `docs/intro.md` (this page) and edit some lines: the site **reloads automatically** and displays your changes.
+- Check the [API Reference](./web-sdk/api/) for detailed documentation
+- Explore the [Guides](./web-sdk/guides/) for step-by-step instructions
+- Visit our [GitHub repository](https://github.com/TinyCloudLabs/tc-sdk) to report issues or contribute

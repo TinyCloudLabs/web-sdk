@@ -1,6 +1,6 @@
 import { initialized, kepler, tcwSession } from '@tinycloudlabs/web-sdk-wasm';
 import { ConfigOverrides, TCWClientSession } from '@tinycloudlabs/web-core/client';
-import { generateNonce } from 'siwe';
+import { generateNonce, SiweMessage } from 'siwe';
 import {
   OrbitConnection,
   activateSession,
@@ -19,7 +19,6 @@ import {
 import {
   IUserAuthorization,
   UserAuthorizationConnected,
-  SiweMessage,
 } from '../../';
 
 export type DelegateParams = {
@@ -42,25 +41,88 @@ export type DelegateResponse = {
   version: number;
 };
 
+/**
+ * KeplerStorage provides decentralized storage functionality through the Kepler protocol.
+ * This class implements both the IStorage and IKepler interfaces.
+ * 
+ * @remarks
+ * KeplerStorage allows for storing, retrieving, and managing data in a decentralized way.
+ * It handles authentication and session management for secure data operations.
+ * 
+ * @public
+ */
 export class KeplerStorage implements IStorage, IKepler {
+  /**
+   * The namespace identifier for Kepler storage.
+   * @public
+   */
   public namespace = 'kepler';
+  
+  /**
+   * The prefix used for all storage operations.
+   * @public
+   */
   public prefix: string;
+  
+  /**
+   * Array of Kepler host endpoints.
+   * @private
+   */
   private hosts: string[];
+  
+  /**
+   * Whether to automatically create a new orbit if one doesn't exist.
+   * @private
+   */
   private autoCreateNewOrbit: boolean;
+  
+  /**
+   * User authorization service for authentication.
+   * @private
+   */
   private userAuth: IUserAuthorization;
+  
+  /**
+   * Reference to the Kepler WASM module.
+   * @private
+   */
   private keplerModule?: any;
-  /** The users orbitId. */
+  
+  /**
+   * The user's orbit identifier.
+   * @public
+   */
   public orbitId?: string;
 
-  /** The connection to the orbit. */
+  /**
+   * The connection to the orbit.
+   * @private
+   */
   private _orbit?: OrbitConnection;
 
-  /** Session Manager. Holds session keys and session objects */
+  /**
+   * Session Manager. Holds session keys and session objects.
+   * @private
+   */
   private sessionManager?: any;
 
-  /** The domain to display in the SIWE message. */
+  /**
+   * The domain to display in the SIWE message.
+   * @public
+   */
   domain?: string;
 
+  /**
+   * Creates a new instance of the KeplerStorage class.
+   * 
+   * @param config - Configuration options for Kepler storage
+   * @param config.hosts - Optional array of Kepler host endpoints
+   * @param config.prefix - Optional prefix to use for all storage operations
+   * @param config.autoCreateNewOrbit - Whether to automatically create a new orbit if one doesn't exist
+   * @param userAuth - User authorization interface for authentication
+   * 
+   * @public
+   */
   constructor(config: any, userAuth: IUserAuthorization) {
     this.userAuth = userAuth;
     this.hosts = [...(config?.hosts || []), 'https://node.tinycloud.xyz'];
@@ -150,6 +212,21 @@ export class KeplerStorage implements IStorage, IKepler {
     return this._orbit;
   }
 
+  /**
+   * Retrieves data from storage by key.
+   * 
+   * @param key - The key to retrieve
+   * @param options - Optional configuration for the get operation
+   * @returns A Promise containing the response with the data
+   * 
+   * @example
+   * ```ts
+   * const response = await keplerStorage.get('myData');
+   * console.log(response.data);
+   * ```
+   * 
+   * @public
+   */
   public async get(
     key: string,
     options: IStorageGetOptions = {}
@@ -161,6 +238,22 @@ export class KeplerStorage implements IStorage, IKepler {
     return this.orbit.get(`${prefix}/${key}`, request);
   }
 
+  /**
+   * Stores data in storage with the specified key.
+   * 
+   * @param key - The key to store the data under
+   * @param value - The value to store
+   * @param options - Optional configuration for the put operation
+   * @returns A Promise containing the response from the storage operation
+   * 
+   * @example
+   * ```ts
+   * const data = { name: 'Example', value: 42 };
+   * await keplerStorage.put('myData', data);
+   * ```
+   * 
+   * @public
+   */
   public async put(
     key: string,
     value: any,
@@ -173,6 +266,27 @@ export class KeplerStorage implements IStorage, IKepler {
     return this.orbit.put(`${prefix || this.prefix}/${key}`, value, request);
   }
 
+  /**
+   * Lists keys in storage, optionally filtered by path.
+   * 
+   * @param options - Configuration options for the list operation
+   * @param options.prefix - Custom prefix to use instead of the default
+   * @param options.path - Sub-path to list within the prefix
+   * @param options.removePrefix - Whether to remove the prefix from the returned keys
+   * @param options.request - Additional request options
+   * @returns A Promise containing the response with the list of keys
+   * 
+   * @example
+   * ```ts
+   * const response = await keplerStorage.list({ 
+   *   path: 'folder', 
+   *   removePrefix: true 
+   * });
+   * console.log(response.data); // List of keys
+   * ```
+   * 
+   * @public
+   */
   public async list(
     options: IStorageListOptions = {}
   ): Promise<Response> {
@@ -189,6 +303,20 @@ export class KeplerStorage implements IStorage, IKepler {
       : response;
   }
 
+  /**
+   * Deletes the data stored under the specified key.
+   * 
+   * @param key - The key to delete
+   * @param options - Optional configuration for the delete operation
+   * @returns A Promise containing the response from the delete operation
+   * 
+   * @example
+   * ```ts
+   * await keplerStorage.delete('myData');
+   * ```
+   * 
+   * @public
+   */
   public async delete(
     key: string,
     options: IStorageDeleteOptions = {}

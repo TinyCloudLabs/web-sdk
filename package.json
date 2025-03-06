@@ -18,10 +18,11 @@
     "clean-docs": "./scripts/clean-docs.sh",
     "github-pub": "./scripts/switch-registry.sh github",
     "npm-pub": "./scripts/switch-registry.sh npm",
-    "docs:dev": "cd documentation && bun run start",
-    "docs:build": "cd documentation && bun run build",
+    "docs:dev": "cd documentation && bun run docs:dev",
+    "docs:build": "cd documentation && bun run docs:build",
     "docs:serve": "cd documentation && bun run serve",
-    "docs:generate-api": "cd documentation && bun run generate-api-docs"
+    "docs:generate-api": "cd packages/web-sdk && bun run doc",
+    "docs:deploy": "cd documentation && bun run docs:deploy"
   },
   "devDependencies": {
     "@docusaurus/core": "^3.7.0",

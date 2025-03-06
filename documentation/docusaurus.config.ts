@@ -5,22 +5,22 @@ import type * as Preset from '@docusaurus/preset-classic';
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
 const config: Config = {
-  title: 'My Site',
-  tagline: 'Dinosaurs are cool',
+  title: 'TinyCloud SDK',
+  tagline: 'Build decentralized applications with ease',
   favicon: 'img/favicon.ico',
 
   // Set the production url of your site here
-  url: 'https://your-docusaurus-site.example.com',
+  url: 'https://tinycloud.xyz',
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
   baseUrl: '/',
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
-  organizationName: 'facebook', // Usually your GitHub org/user name.
-  projectName: 'docusaurus', // Usually your repo name.
+  organizationName: 'TinyCloudLabs', // Usually your GitHub org/user name.
+  projectName: 'tc-sdk', // Usually your repo name.
 
-  onBrokenLinks: 'throw',
+  onBrokenLinks: 'warn',
   onBrokenMarkdownLinks: 'warn',
 
   // Even if you don't use internationalization, you can use this field to set
@@ -66,23 +66,27 @@ const config: Config = {
 
   themeConfig: {
     // Replace with your project's social card
-    image: 'img/docusaurus-social-card.jpg',
+    image: 'img/tinycloud-social-card.jpg',
     navbar: {
-      title: 'My Site',
+      title: 'TinyCloud SDK',
       logo: {
-        alt: 'My Site Logo',
+        alt: 'TinyCloud Logo',
         src: 'img/logo.svg',
       },
       items: [
         {
           type: 'docSidebar',
-          sidebarId: 'tutorialSidebar',
+          sidebarId: 'mainSidebar',
           position: 'left',
-          label: 'Tutorial',
+          label: 'Documentation',
         },
-        {to: '/blog', label: 'Blog', position: 'left'},
         {
-          href: 'https://github.com/facebook/docusaurus',
+          to: '/docs/web-sdk',
+          label: 'Web SDK',
+          position: 'left',
+        },
+        {
+          href: 'https://github.com/TinyCloudLabs/tc-sdk',
           label: 'GitHub',
           position: 'right',
         },
@@ -92,11 +96,15 @@ const config: Config = {
       style: 'dark',
       links: [
         {
-          title: 'Docs',
+          title: 'Documentation',
           items: [
             {
-              label: 'Tutorial',
-              to: '/docs/intro',
+              label: 'Getting Started',
+              to: '/docs/web-sdk/guides/getting-started',
+            },
+            {
+              label: 'API Reference',
+              to: '/docs/web-sdk/api',
             },
           ],
         },
@@ -104,16 +112,12 @@ const config: Config = {
           title: 'Community',
           items: [
             {
-              label: 'Stack Overflow',
-              href: 'https://stackoverflow.com/questions/tagged/docusaurus',
+              label: 'Twitter',
+              href: 'https://twitter.com/TinyCloudLabs',
             },
             {
               label: 'Discord',
-              href: 'https://discordapp.com/invite/docusaurus',
-            },
-            {
-              label: 'X',
-              href: 'https://x.com/docusaurus',
+              href: 'https://discord.gg/tinycloud',
             },
           ],
         },
@@ -121,17 +125,17 @@ const config: Config = {
           title: 'More',
           items: [
             {
-              label: 'Blog',
-              to: '/blog',
+              label: 'GitHub',
+              href: 'https://github.com/TinyCloudLabs/tc-sdk',
             },
             {
-              label: 'GitHub',
-              href: 'https://github.com/facebook/docusaurus',
+              label: 'TinyCloud.xyz',
+              href: 'https://tinycloud.xyz',
             },
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} My Project, Inc. Built with Docusaurus.`,
+      copyright: `Copyright © ${new Date().getFullYear()} TinyCloud, Inc. All rights reserved.`,
     },
     prism: {
       theme: prismThemes.github,
