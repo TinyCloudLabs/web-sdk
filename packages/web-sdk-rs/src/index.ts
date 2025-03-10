@@ -14,7 +14,7 @@ export namespace tcwSession {
   export import ExtraFields = lib.ExtraFields;
 }
 
-export namespace kepler {
+export namespace tinycloud {
   export import completeSessionSetup = lib.completeSessionSetup;
   export import generateHostSIWEMessage = lib.generateHostSIWEMessage;
   export import siweToDelegationHeaders = lib.siweToDelegationHeaders;

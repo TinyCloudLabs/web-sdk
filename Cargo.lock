@@ -2300,69 +2300,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "kepler-lib"
-version = "0.2.0"
-source = "git+https://github.com/tinycloudlabs/kepler#4b9111984cba849589954faff39243b42efc44b1"
-dependencies = [
- "async-trait",
- "base64 0.13.1",
- "cacaos",
- "did-ethr",
- "did-method-key",
- "did-onion",
- "did-pkh",
- "did-tz",
- "did-web",
- "did-webkey",
- "iri-string",
- "lazy_static",
- "libipld",
- "serde",
- "serde_json",
- "serde_with 1.14.0",
- "siwe-recap",
- "ssi",
- "thiserror",
- "uuid",
-]
-
-[[package]]
-name = "kepler-sdk"
-version = "0.2.0"
-source = "git+https://github.com/tinycloudlabs/kepler#4b9111984cba849589954faff39243b42efc44b1"
-dependencies = [
- "base64 0.13.1",
- "hex",
- "http",
- "iri-string",
- "kepler-lib",
- "serde",
- "serde_json",
- "serde_with 1.14.0",
- "thiserror",
- "time",
- "tracing",
-]
-
-[[package]]
-name = "kepler-sdk-wasm"
-version = "0.3.0"
-source = "git+https://github.com/tinycloudlabs/kepler#4b9111984cba849589954faff39243b42efc44b1"
-dependencies = [
- "console_error_panic_hook",
- "getrandom 0.2.15",
- "js-sys",
- "kepler-sdk",
- "rand 0.7.3",
- "serde",
- "serde_json",
- "serde_with 1.14.0",
- "time",
- "wasm-bindgen",
- "wasm-bindgen-futures",
-]
-
-[[package]]
 name = "kv-log-macro"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4518,6 +4455,69 @@ dependencies = [
 ]
 
 [[package]]
+name = "tinycloud-lib"
+version = "0.2.0"
+source = "git+https://github.com/tinycloudlabs/tinycloud-node#25a6e0eaf9e11e7e447a5eaa022d2c2eb86de202"
+dependencies = [
+ "async-trait",
+ "base64 0.13.1",
+ "cacaos",
+ "did-ethr",
+ "did-method-key",
+ "did-onion",
+ "did-pkh",
+ "did-tz",
+ "did-web",
+ "did-webkey",
+ "iri-string",
+ "lazy_static",
+ "libipld",
+ "serde",
+ "serde_json",
+ "serde_with 1.14.0",
+ "siwe-recap",
+ "ssi",
+ "thiserror",
+ "uuid",
+]
+
+[[package]]
+name = "tinycloud-sdk-rs"
+version = "0.2.0"
+source = "git+https://github.com/tinycloudlabs/tinycloud-node#25a6e0eaf9e11e7e447a5eaa022d2c2eb86de202"
+dependencies = [
+ "base64 0.13.1",
+ "hex",
+ "http",
+ "iri-string",
+ "serde",
+ "serde_json",
+ "serde_with 1.14.0",
+ "thiserror",
+ "time",
+ "tinycloud-lib",
+ "tracing",
+]
+
+[[package]]
+name = "tinycloud-sdk-wasm"
+version = "0.3.0"
+source = "git+https://github.com/tinycloudlabs/tinycloud-node#25a6e0eaf9e11e7e447a5eaa022d2c2eb86de202"
+dependencies = [
+ "console_error_panic_hook",
+ "getrandom 0.2.15",
+ "js-sys",
+ "rand 0.7.3",
+ "serde",
+ "serde_json",
+ "serde_with 1.14.0",
+ "time",
+ "tinycloud-sdk-rs",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+]
+
+[[package]]
 name = "tinycloud-web-sdk-rs"
 version = "0.1.0"
 dependencies = [
@@ -4527,8 +4527,6 @@ dependencies = [
  "hex",
  "iri-string",
  "js-sys",
- "kepler-sdk",
- "kepler-sdk-wasm",
  "rand 0.7.3",
  "serde",
  "serde-wasm-bindgen",
@@ -4536,6 +4534,8 @@ dependencies = [
  "siwe",
  "siwe-recap",
  "ssi",
+ "tinycloud-sdk-rs",
+ "tinycloud-sdk-wasm",
  "tokio",
  "wasm-bindgen",
  "wasm-bindgen-futures",

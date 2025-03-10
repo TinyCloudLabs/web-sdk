@@ -1,5 +1,5 @@
 import { Authenticator } from './authenticator';
-import { invoke } from './kepler';
+import { invoke } from './tinycloud';
 
 export class KV {
   constructor(private url: string, private auth: Authenticator) {}

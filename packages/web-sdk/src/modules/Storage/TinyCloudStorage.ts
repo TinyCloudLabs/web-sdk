@@ -1,4 +1,4 @@
-import { initialized, kepler, tcwSession } from '@tinycloudlabs/web-sdk-wasm';
+import { initialized, tinycloud, tcwSession } from '@tinycloudlabs/web-sdk-wasm';
 import { ConfigOverrides, TCWClientSession } from '@tinycloudlabs/web-core/client';
 import { generateNonce, SiweMessage } from 'siwe';
 import {
@@ -7,10 +7,10 @@ import {
   hostOrbit,
   Response,
   Session,
-} from './kepler';
+} from './tinycloud';
 import {
   IStorage,
-  IKepler,
+  ITinyCloud,
   IStorageListOptions,
   IStoragePutOptions,
   IStorageGetOptions,
@@ -19,7 +19,7 @@ import {
 import {
   IUserAuthorization,
   UserAuthorizationConnected,
-} from '../../';
+} from '../..';
 
 export type DelegateParams = {
   /** The target file or folder you are sharing */
@@ -42,21 +42,21 @@ export type DelegateResponse = {
 };
 
 /**
- * KeplerStorage provides decentralized storage functionality through the Kepler protocol.
- * This class implements both the IStorage and IKepler interfaces.
+ * TinyCloudStorage provides decentralized storage functionality through the TinyCloud protocol.
+ * This class implements both the IStorage and ITinyCloud interfaces.
  * 
  * @remarks
- * KeplerStorage allows for storing, retrieving, and managing data in a decentralized way.
+ * TinyCloudStorage allows for storing, retrieving, and managing data in a decentralized way.
  * It handles authentication and session management for secure data operations.
  * 
  * @public
  */
-export class KeplerStorage implements IStorage, IKepler {
+export class TinyCloudStorage implements IStorage, ITinyCloud {
   /**
-   * The namespace identifier for Kepler storage.
+   * The namespace identifier for TinyCloud storage.
    * @public
    */
-  public namespace = 'kepler';
+  public namespace = 'tinycloud';
   
   /**
    * The prefix used for all storage operations.
@@ -65,7 +65,7 @@ export class KeplerStorage implements IStorage, IKepler {
   public prefix: string;
   
   /**
-   * Array of Kepler host endpoints.
+   * Array of TinyCloud host endpoints.
    * @private
    */
   private hosts: string[];
@@ -83,10 +83,10 @@ export class KeplerStorage implements IStorage, IKepler {
   private userAuth: IUserAuthorization;
   
   /**
-   * Reference to the Kepler WASM module.
+   * Reference to the TinyCloud WASM module.
    * @private
    */
-  private keplerModule?: any;
+  private tinycloudModule?: any;
   
   /**
    * The user's orbit identifier.
@@ -113,10 +113,10 @@ export class KeplerStorage implements IStorage, IKepler {
   domain?: string;
 
   /**
-   * Creates a new instance of the KeplerStorage class.
+   * Creates a new instance of the TinyCloudStorage class.
    * 
-   * @param config - Configuration options for Kepler storage
-   * @param config.hosts - Optional array of Kepler host endpoints
+   * @param config - Configuration options for TinyCloud storage
+   * @param config.hosts - Optional array of TinyCloud host endpoints
    * @param config.prefix - Optional prefix to use for all storage operations
    * @param config.autoCreateNewOrbit - Whether to automatically create a new orbit if one doesn't exist
    * @param userAuth - User authorization interface for authentication
@@ -137,14 +137,14 @@ export class KeplerStorage implements IStorage, IKepler {
     tcw: UserAuthorizationConnected
   ): Promise<ConfigOverrides> {
     await initialized;
-    this.keplerModule = await kepler;
+    this.tinycloudModule = await tinycloud;
     this.sessionManager = new (await tcwSession).TCWSessionManager();
-    (global as any).keplerModule = this.keplerModule;
+    (global as any).tinycloudModule = this.tinycloudModule;
 
     const address = await tcw.provider.getSigner().getAddress();
     const chain = await tcw.provider.getSigner().getChainId();
 
-    this.orbitId = `kepler:pkh:eip155:${chain}:${address}://default`;
+    this.orbitId = `tinycloud:pkh:eip155:${chain}:${address}://default`;
 
     this.domain = tcw.config.siweConfig?.domain;
     return {};
@@ -163,7 +163,7 @@ export class KeplerStorage implements IStorage, IKepler {
     return actions;
   }
 
-  public async generateKeplerSession(
+  public async generateTinyCloudSession(
     tcwSession: TCWClientSession
   ): Promise<Session> {
     return await Promise.resolve({
@@ -176,21 +176,21 @@ export class KeplerStorage implements IStorage, IKepler {
     })
       .then(JSON.stringify)
       // @TODO: figure out unit test issue
-      .then(this.keplerModule.completeSessionSetup)
+      .then(this.tinycloudModule.completeSessionSetup)
       .then(JSON.parse);
   }
 
   public async afterSignIn(tcwSession: TCWClientSession): Promise<void> {
-    const keplerHost = this.hosts[0];
-    const session = await this.generateKeplerSession(tcwSession);
+    const tinycloudHost = this.hosts[0];
+    const session = await this.generateTinyCloudSession(tcwSession);
 
     let authn;
     try {
-      authn = await activateSession(session, keplerHost);
+      authn = await activateSession(session, tinycloudHost);
     } catch ({ status, msg }) {
       if (status !== 404) {
         throw new Error(
-          `Failed to submit session key delegation to Kepler: ${msg}`
+          `Failed to submit session key delegation to TinyCloud: ${msg}`
         );
       }
 
@@ -201,13 +201,13 @@ export class KeplerStorage implements IStorage, IKepler {
     }
 
     if (authn) {
-      this._orbit = new OrbitConnection(keplerHost, authn);
+      this._orbit = new OrbitConnection(tinycloudHost, authn);
     }
   }
 
   get orbit(): OrbitConnection {
     if (!this._orbit) {
-      throw new Error('KeplerStorage is not connected');
+      throw new Error('TinyCloudStorage is not connected');
     }
     return this._orbit;
   }
@@ -221,7 +221,7 @@ export class KeplerStorage implements IStorage, IKepler {
    * 
    * @example
    * ```ts
-   * const response = await keplerStorage.get('myData');
+   * const response = await tinycloudStorage.get('myData');
    * console.log(response.data);
    * ```
    * 
@@ -249,7 +249,7 @@ export class KeplerStorage implements IStorage, IKepler {
    * @example
    * ```ts
    * const data = { name: 'Example', value: 42 };
-   * await keplerStorage.put('myData', data);
+   * await tinycloudStorage.put('myData', data);
    * ```
    * 
    * @public
@@ -278,7 +278,7 @@ export class KeplerStorage implements IStorage, IKepler {
    * 
    * @example
    * ```ts
-   * const response = await keplerStorage.list({ 
+   * const response = await tinycloudStorage.list({ 
    *   path: 'folder', 
    *   removePrefix: true 
    * });
@@ -312,7 +312,7 @@ export class KeplerStorage implements IStorage, IKepler {
    * 
    * @example
    * ```ts
-   * await keplerStorage.delete('myData');
+   * await tinycloudStorage.delete('myData');
    * ```
    * 
    * @public
@@ -345,11 +345,11 @@ export class KeplerStorage implements IStorage, IKepler {
         ({ session: tcwSession } = this.userAuth);
       }
 
-      const session = await this.generateKeplerSession(tcwSession);
+      const session = await this.generateTinyCloudSession(tcwSession);
 
-      const keplerHost = this.hosts[0];
-      await activateSession(session, keplerHost).then(authn => {
-        this._orbit = new OrbitConnection(keplerHost, authn);
+      const tinycloudHost = this.hosts[0];
+      await activateSession(session, tinycloudHost).then(authn => {
+        this._orbit = new OrbitConnection(tinycloudHost, authn);
       });
       return true;
     } catch (error) {
@@ -359,16 +359,16 @@ export class KeplerStorage implements IStorage, IKepler {
   }
 
   public async hostOrbit(tcwSession?: TCWClientSession): Promise<void> {
-    const keplerHost = this.hosts[0];
+    const tinycloudHost = this.hosts[0];
     const { status: hostStatus, statusText } = await hostOrbit(
       this.userAuth.getSigner(),
-      keplerHost,
+      tinycloudHost,
       this.orbitId,
       this.domain
     );
 
     if (hostStatus !== 200) {
-      throw new Error(`Failed to open new Kepler Orbit: ${statusText}`);
+      throw new Error(`Failed to open new TinyCloud Orbit: ${statusText}`);
     }
 
     await this.activateSession(tcwSession, () => {
@@ -440,7 +440,7 @@ export class KeplerStorage implements IStorage, IKepler {
       statement: 'I am giving permission to read this data.',
     });
 
-    // create tcw + kepler session
+    // create tcw + tinycloud session
     const sessionData: TCWClientSession = {
       address: this.userAuth.address(),
       walletAddress: this.userAuth.address(),
@@ -450,13 +450,13 @@ export class KeplerStorage implements IStorage, IKepler {
       signature,
     };
 
-    const session = await this.generateKeplerSession(sessionData);
+    const session = await this.generateTinyCloudSession(sessionData);
     /* activate session */
-    const keplerHost = this.hosts[0];
-    await activateSession(session, keplerHost).catch(({ status, msg }) => {
+    const tinycloudHost = this.hosts[0];
+    await activateSession(session, tinycloudHost).catch(({ status, msg }) => {
       if (status !== 404) {
         throw new Error(
-          `Failed to submit session key delegation to Kepler: ${msg}`
+          `Failed to submit session key delegation to TinyCloud: ${msg}`
         );
       }
     });
@@ -466,7 +466,7 @@ export class KeplerStorage implements IStorage, IKepler {
     // bundle delegation and encode
     const shareData = {
       path,
-      keplerHost: this.hosts[0],
+      tinycloudHost: this.hosts[0],
       session,
     };
 
@@ -476,27 +476,27 @@ export class KeplerStorage implements IStorage, IKepler {
   }
 
   public async retrieveSharingLink(encodedShare: string): Promise<Response> {
-    (global as any).keplerModule = await kepler;
+    (global as any).tinycloudModule = await tinycloud;
 
     // read key and delegation bundle
     const shareJSON = atob(encodedShare);
-    const { path, keplerHost, session } = JSON.parse(shareJSON);
+    const { path, tinycloudHost, session } = JSON.parse(shareJSON);
 
     // activate session and retrieve data
     try {
-      const authn = await activateSession(session, keplerHost);
-      const orbit = new OrbitConnection(keplerHost, authn);
+      const authn = await activateSession(session, tinycloudHost);
+      const orbit = new OrbitConnection(tinycloudHost, authn);
       const response = await orbit.get(path);
       return response;
     } catch (error) {
       const { status, msg } = error;
       if (status !== 404) {
         throw new Error(
-          `Failed to submit session key delegation to Kepler: ${msg}`
+          `Failed to submit session key delegation to TinyCloud: ${msg}`
         );
       }
     }
   }
 }
 
-export default KeplerStorage;
+export default TinyCloudStorage;

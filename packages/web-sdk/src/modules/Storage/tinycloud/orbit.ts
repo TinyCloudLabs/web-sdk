@@ -6,9 +6,9 @@ import { Capabilities, CapSummary } from './capabilities';
 import { HostConfig } from './types';
 
 /**
- * a connection to an orbit in a Kepler instance.
+ * a connection to an orbit in a TinyCloud instance.
  *
- * This class provides methods for interacting with an orbit. Construct an instance of this class using {@link Kepler.orbit}.
+ * This class provides methods for interacting with an orbit. Construct an instance of this class using {@link TinyCloud.orbit}.
  */
 export class OrbitConnection {
   private orbitId: string;
@@ -16,10 +16,10 @@ export class OrbitConnection {
   private caps: Capabilities;
 
   /** @ignore */
-  constructor(keplerUrl: string, authn: Authenticator) {
+  constructor(tinycloudUrl: string, authn: Authenticator) {
     this.orbitId = authn.getOrbitId();
-    this.kv = new KV(keplerUrl, authn);
-    this.caps = new Capabilities(keplerUrl, authn);
+    this.kv = new KV(tinycloudUrl, authn);
+    this.caps = new Capabilities(tinycloudUrl, authn);
   }
 
   /** Get the id of the connected orbit.
@@ -248,7 +248,7 @@ export type Request = {
   headers?: { [key: string]: string };
 };
 
-/** Response from kepler requests.
+/** Response from tinycloud requests.
  *
  * The methods on {@link OrbitConnection} return a Response that may have `data` property. See the
  * documentation of each method to discover whether a method will return data and what type you
@@ -257,13 +257,13 @@ export type Request = {
 export type Response = {
   /** Whether the request was successful or not. */
   ok: boolean;
-  /** The HTTP status code of the response from Kepler. */
+  /** The HTTP status code of the response from TinyCloud. */
   status: number;
-  /** The textual representation of the HTTP status of the response from Kepler. */
+  /** The textual representation of the HTTP status of the response from TinyCloud. */
   statusText: string;
   /** Metadata about the object and the request. */
   headers: Headers;
-  /** The body of the response from Kepler. */
+  /** The body of the response from TinyCloud. */
   data?: any;
 };
 
@@ -271,7 +271,7 @@ type FetchResponse = globalThis.Response;
 
 export const hostOrbit = async (
   wallet: WalletProvider,
-  keplerUrl: string,
+  tinycloudUrl: string,
   orbitId: string,
   domain: string = window.location.hostname
 ): Promise<Response> => {
@@ -279,7 +279,7 @@ export const hostOrbit = async (
   const chainId = await wallet.getChainId();
   const issuedAt = new Date(Date.now()).toISOString();
   const peerId = await fetch(
-    keplerUrl + `/peer/generate/${encodeURIComponent(orbitId)}`
+    tinycloudUrl + `/peer/generate/${encodeURIComponent(orbitId)}`
   ).then((res: FetchResponse) => res.text());
   const config: HostConfig = {
     address,
@@ -294,7 +294,7 @@ export const hostOrbit = async (
   const hostHeaders = siweToDelegationHeaders(
     JSON.stringify({ siwe, signature })
   );
-  return fetch(keplerUrl + '/delegate', {
+  return fetch(tinycloudUrl + '/delegate', {
     method: 'POST',
     headers: JSON.parse(hostHeaders),
   }).then(({ ok, status, statusText, headers }: FetchResponse) => ({

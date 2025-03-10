@@ -1,18 +1,18 @@
-import { kepler } from '@tinycloudlabs/web-sdk-wasm';
+import { tinycloud } from '@tinycloudlabs/web-sdk-wasm';
 
-type KeplerModule = typeof kepler;
+type TinyCloudModule = typeof tinycloud;
 const msg =
-  "Has Kepler been initialised? 'global.keplerModule' is not of the expected type";
+  "Has TinyCloud been initialised? 'global.tinycloudModule' is not of the expected type";
 
-function getModule(): KeplerModule {
+function getModule(): TinyCloudModule {
   try {
-    return global.keplerModule;
+    return global.tinycloudModule;
   } catch (e) {
     throw `${msg}: ${e}`;
   }
 }
 
-export const makeOrbitId: KeplerModule['makeOrbitId'] = (...args) => {
+export const makeOrbitId: TinyCloudModule['makeOrbitId'] = (...args) => {
   try {
     return getModule().makeOrbitId(...args);
   } catch (e) {
@@ -20,7 +20,7 @@ export const makeOrbitId: KeplerModule['makeOrbitId'] = (...args) => {
   }
 };
 
-export const prepareSession: KeplerModule['prepareSession'] = (...args) => {
+export const prepareSession: TinyCloudModule['prepareSession'] = (...args) => {
   try {
     return getModule().prepareSession(...args);
   } catch (e) {
@@ -28,7 +28,7 @@ export const prepareSession: KeplerModule['prepareSession'] = (...args) => {
   }
 };
 
-export const completeSessionSetup: KeplerModule['completeSessionSetup'] = (
+export const completeSessionSetup: TinyCloudModule['completeSessionSetup'] = (
   ...args
 ) => {
   try {
@@ -38,7 +38,7 @@ export const completeSessionSetup: KeplerModule['completeSessionSetup'] = (
   }
 };
 
-export const invoke: KeplerModule['invoke'] = (...args) => {
+export const invoke: TinyCloudModule['invoke'] = (...args) => {
   try {
     return getModule().invoke(...args);
   } catch (e) {
@@ -46,7 +46,7 @@ export const invoke: KeplerModule['invoke'] = (...args) => {
   }
 };
 
-export const generateHostSIWEMessage: KeplerModule['generateHostSIWEMessage'] =
+export const generateHostSIWEMessage: TinyCloudModule['generateHostSIWEMessage'] =
   (...args) => {
     try {
       return getModule().generateHostSIWEMessage(...args);
@@ -55,7 +55,7 @@ export const generateHostSIWEMessage: KeplerModule['generateHostSIWEMessage'] =
     }
   };
 
-export const siweToDelegationHeaders: KeplerModule['siweToDelegationHeaders'] =
+export const siweToDelegationHeaders: TinyCloudModule['siweToDelegationHeaders'] =
   (...args) => {
     try {
       return getModule().siweToDelegationHeaders(...args);

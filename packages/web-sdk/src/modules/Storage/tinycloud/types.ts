@@ -1,5 +1,5 @@
 /**
- * Configuration object for starting a Kepler session.
+ * Configuration object for starting a TinyCloud session.
  */
 export type SessionConfig = {
   /** Actions that the session key will be permitted to perform, organized by service and path */
@@ -25,7 +25,7 @@ export type SessionConfig = {
 };
 
 /**
- * A Kepler session.
+ * A TinyCloud session.
  */
 export type Session = {
   /** The delegation from the user to the session key. */

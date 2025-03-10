@@ -16,7 +16,7 @@ use web_sys::{console::error_1 as console_error, console::error_2 as console_err
 
 use super::types::*;
 
-use kepler_sdk::session::Session;
+use tinycloud_sdk_rs::session::Session;
 
 #[derive(Debug, Default)]
 pub struct SessionInfo {
