@@ -2,6 +2,8 @@
 sidebar_position: 2
 ---
 
+<img src="/img/tinycloudheader.png" alt="TinyCloud" width="100%" />
+
 # Getting Started
 
 This guide will help you get started with the TinyCloud Web SDK.

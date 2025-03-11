@@ -2,6 +2,8 @@
 sidebar_position: 2
 ---
 
+<img src="/img/tinycloudheader.png" alt="TinyCloud" width="100%" />
+
 # KeplerStorage
 
 KeplerStorage provides decentralized storage functionality through the Kepler protocol. This class implements both the IStorage and IKepler interfaces.

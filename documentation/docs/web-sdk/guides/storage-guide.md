@@ -2,6 +2,8 @@
 sidebar_position: 3
 ---
 
+<img src="/img/tinycloudheader.png" alt="TinyCloud" width="100%" />
+
 # Working with Storage
 
 This guide covers how to use the storage functionality provided by the TinyCloud Web SDK.

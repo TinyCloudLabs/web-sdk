@@ -24,7 +24,6 @@ const Shared = () => {
 
   return (
     <div className="App">
-      <Header />
       <Title />
       <div className="Content">
         <div className="Content-container">

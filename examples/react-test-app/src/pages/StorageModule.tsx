@@ -27,17 +27,11 @@ function StorageModule({ tcw }: IStorageModule) {
 
   const handleShareContent = async (content: string) => {
     const prefix = tcw.storage.prefix;
-    console.log('prefix', prefix);
-    console.log('removePrefix', removePrefix);
-    console.log('content', content);
-    console.log('content.replace(new RegExp(`^${prefix}/`))', content.replace(new RegExp(`^${prefix}/`), ''));
-
     let base64Content;
     try {
 
       let reference = removePrefix ? content : content.replace(new RegExp(`^${prefix}/`), '');
       reference = prefix ? `${prefix}/${reference}` : reference
-      console.log('reference', reference);
       base64Content = await tcw.storage.generateSharingLink(
         reference
       );
@@ -47,14 +41,7 @@ function StorageModule({ tcw }: IStorageModule) {
       return;
     }
     const sharingLink = `${window.location.origin}/share?data=${base64Content}`;
-    // Ask for permission to write to clipboard
-    try {
-      await navigator.clipboard.writeText(sharingLink);
-      alert('Sharing link copied to clipboard!');
-    } catch (err) {
-      console.error('Failed to copy to clipboard:', err);
-      alert('Could not copy to clipboard. Link: ' + sharingLink);
-    }
+    await navigator.clipboard.writeText(sharingLink);
     return;
   };
 

@@ -2,6 +2,8 @@
 sidebar_position: 3
 ---
 
+<img src="/img/tinycloudheader.png" alt="TinyCloud" width="100%" />
+
 # UserAuthorization
 
 The UserAuthorization module handles authentication and authorization for the TinyCloud Web SDK.

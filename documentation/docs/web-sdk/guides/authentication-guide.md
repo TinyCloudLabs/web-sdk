@@ -2,6 +2,8 @@
 sidebar_position: 4
 ---
 
+<img src="/img/tinycloudheader.png" alt="TinyCloud" width="100%" />
+
 # Authentication
 
 This guide covers how to use the authentication functionality provided by the TinyCloud Web SDK.

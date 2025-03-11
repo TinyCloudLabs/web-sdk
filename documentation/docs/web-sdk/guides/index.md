@@ -2,6 +2,8 @@
 sidebar_position: 1
 ---
 
+<img src="/img/tinycloudheader.png" alt="TinyCloud" width="100%" />
+
 # Guides
 
 Welcome to the TinyCloud Web SDK guides. These guides will help you learn how to use the SDK effectively for your decentralized applications.

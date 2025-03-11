@@ -1,5 +1,10 @@
 const Title = () => {
     return <div className='Title'>
+        <img 
+            src="/tinycloudheader.png" 
+            alt="TinyCloud" 
+            className="Title-logo"
+        />
         <h1 className='Title-h1'>
             TinyCloud Test App
         </h1>

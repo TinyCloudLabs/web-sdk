@@ -2,6 +2,8 @@
 sidebar_position: 1
 ---
 
+<img src="/img/tinycloudheader.png" alt="TinyCloud" width="100%" />
+
 # TinyCloud Web SDK
 
 Welcome to the TinyCloud Web SDK documentation. This SDK provides all the tools you need to build decentralized web applications with TinyCloud.
