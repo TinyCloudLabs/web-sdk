@@ -5,27 +5,37 @@ set -e
 
 #!/usr/bin/env bash
 
-# Ensure SSH directory exists
-mkdir -p ~/.ssh
+# Only run setup if BUILD_SETUP_ENABLED is set
+if [ -n "$BUILD_SETUP_ENABLED" ]; then
+    # Ensure SSH directory exists
+    mkdir -p ~/.ssh
 
-# Add GitHub's SSH public key to known_hosts only if it doesn't exist
-if [ ! -f ~/.ssh/known_hosts ] || ! grep -q "github.com" ~/.ssh/known_hosts; then
-    echo "Adding GitHub's SSH public key to known_hosts..."
-    ssh-keyscan github.com >> ~/.ssh/known_hosts
-fi
+    # Start the SSH agent
+    eval "$(ssh-agent -s)"
 
-# Check if rustup is installed
-if ! command -v rustup &> /dev/null; then
-    echo "Installing rustup..."
-    curl https://sh.rustup.rs -sSf | sh -s -- -y
-    export PATH="$HOME/.cargo/bin:$PATH"
-fi
+    # Add the private key to the SSH agent if it exists
+    if [ -n "$CF_SSH_KEY" ]; then
+        echo "$CF_SSH_KEY" | tr -d '\r' | ssh-add -
+    fi
 
+    # Add GitHub's SSH public key to known_hosts only if it doesn't exist
+    if [ ! -f ~/.ssh/known_hosts ] || ! grep -q "github.com" ~/.ssh/known_hosts; then
+        echo "Adding GitHub's SSH public key to known_hosts..."
+        ssh-keyscan github.com >> ~/.ssh/known_hosts
+    fi
 
-# Check if wasm-pack is installed
-if ! command -v wasm-pack &> /dev/null; then
-    echo "Installing wasm-pack..."
-    curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+    # Check if rustup is installed
+    if ! command -v rustup &> /dev/null; then
+        echo "Installing rustup..."
+        curl https://sh.rustup.rs -sSf | sh -s -- -y
+        export PATH="$HOME/.cargo/bin:$PATH"
+    fi
+
+    # Check if wasm-pack is installed
+    if ! command -v wasm-pack &> /dev/null; then
+        echo "Installing wasm-pack..."
+        curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+    fi
 fi
 
 # Build packages in order
