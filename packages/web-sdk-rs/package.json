@@ -6,7 +6,7 @@
   "author": "TinyCloud, Inc.",
   "license": "Apache-2.0 OR MIT",
   "scripts": {
-    "build": "pnpm build-dev",
+    "build": "bun build-dev",
     "build-dev": "wasm-pack build --dev --target web",
     "build-release": "wasm-pack build --release --target web",
     "bundle": "rollup -c && $PWD/fixup-types.sh",
