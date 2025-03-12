@@ -150,164 +150,158 @@ function Home() {
   };
 
   return (
-    <div className='App'>
-
-      <Title />
-      <div className='Content'>
-        <div className='Content-container'>
-          {
-            tcw ?
+    <div className="flex min-h-screen flex-col items-center bg-bg pt-20">
+      <div className="w-full max-w-4xl px-4">
+        <Title />
+        
+        <div className="mx-auto max-w-2xl rounded-base border-2 border-border bg-bw p-6 shadow-shadow">
+          <div className="space-y-6">
+            {tcw ? (
               <>
                 <Button
-                  id='signOutButton'
+                  id="signOutButton"
                   onClick={tcwLogoutHandler}
                   loading={loading}
+                  variant="default"
+                  className="w-full"
                 >
                   SIGN-OUT
                 </Button>
                 <AccountInfo
                   address={tcw?.address()}
                   session={tcw?.session()}
+                  className="mt-6"
                 />
-              </> :
+              </>
+            ) : (
               <>
                 <Button
-                  id='signInButton'
+                  id="signInButton"
                   onClick={tcwHandler}
                   loading={loading}
+                  variant="default"
+                  className="w-full"
                 >
                   SIGN-IN WITH ETHEREUM
                 </Button>
               </>
-          }
-          {
-            !tcw && 
-          <>
-            <Dropdown
-              id='selectPreferences'
-              label='Select Preference(s)'
-            >
-              {/* <div className='Dropdown-item'>
-                <span className='Dropdown-item-name'>
-                  Provider
-                </span>
-                <div className='Dropdown-item-options'>
-                  <RadioGroup
-                    name='provider'
-                    options={['MetaMask', 'Web3Modal v2']}
-                    value={provider}
-                    onChange={setProvider}
-                    inline={false}
-                  />
-                </div>
-              </div> */}
-              
-              <div className='Dropdown-item'>
-                <span className='Dropdown-item-name'>
-                  resolveEns
-                </span>
-                <div className='Dropdown-item-options'>
-                  <RadioGroup
-                    name='resolveEns'
-                    options={['On', 'Off']}
-                    value={resolveEns}
-                    onChange={setResolveEns}
-                  />
-                </div>
+            )}
+            
+            {!tcw && (
+              <div className="space-y-6 pt-4">
+                <Dropdown
+                  id="selectPreferences"
+                  label="Select Preference(s)"
+                  className="w-full"
+                >
+                  <div className="Dropdown-item">
+                    <span className="Dropdown-item-name">
+                      resolveEns
+                    </span>
+                    <div className="Dropdown-item-options">
+                      <RadioGroup
+                        name="resolveEns"
+                        options={['On', 'Off']}
+                        value={resolveEns}
+                        onChange={setResolveEns}
+                      />
+                    </div>
+                  </div>
+                  <div className="Dropdown-item">
+                    <span className="Dropdown-item-name">
+                      siweConfig
+                    </span>
+                    <div className="Dropdown-item-options">
+                      <RadioGroup
+                        name="siweConfig"
+                        options={['On', 'Off']}
+                        value={siweConfig}
+                        onChange={setSiweConfig}
+                      />
+                    </div>
+                  </div>
+                  <div className="Dropdown-item">
+                    <span className="Dropdown-item-name">
+                      Storage
+                    </span>
+                    <div className="Dropdown-item-options">
+                      <RadioGroup
+                        name="storageEnabled"
+                        options={['On', 'Off']}
+                        value={storageEnabled}
+                        onChange={setStorageEnabled}
+                      />
+                    </div>
+                  </div>
+                </Dropdown>
+                
+                {siweConfig === 'On' && (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Input
+                      label='Address'
+                      value={address}
+                      onChange={setAddress}
+                    />
+                    <Input
+                      label='Chain ID'
+                      value={chainId}
+                      onChange={setChainId}
+                    />
+                    <Input
+                      label='Domain'
+                      value={domain}
+                      onChange={setDomain}
+                    />
+                    <Input
+                      label='Nonce'
+                      value={nonce}
+                      onChange={setNonce}
+                    />
+                    <Input
+                      label='Issued At'
+                      value={issuedAt}
+                      onChange={setIssuedAt}
+                    />
+                    <Input
+                      label='Expiration Time'
+                      value={expirationTime}
+                      onChange={setExpirationTime}
+                    />
+                    <Input
+                      label='Request ID'
+                      value={requestId}
+                      onChange={setRequestId}
+                    />
+                    <Input
+                      label='Not Before'
+                      value={notBefore}
+                      onChange={setNotBefore}
+                    />
+                    <Input
+                      className="md:col-span-2"
+                      label='Resources'
+                      value={resources}
+                      onChange={setResources}
+                    />
+                    <Input
+                      className="md:col-span-2"
+                      label='Statement'
+                      value={statement}
+                      onChange={setStatement}
+                    />
+                  </div>
+                )}
               </div>
-              <div className='Dropdown-item'>
-                <span className='Dropdown-item-name'>
-                  siweConfig
-                </span>
-                <div className='Dropdown-item-options'>
-                  <RadioGroup
-                    name='siweConfig'
-                    options={['On', 'Off']}
-                    value={siweConfig}
-                    onChange={setSiweConfig}
-                  />
-                </div>
-              </div>
-              <div className='Dropdown-item'>
-                <span className='Dropdown-item-name'>
-                  Storage
-                </span>
-                <div className='Dropdown-item-options'>
-                  <RadioGroup
-                    name='storageEnabled'
-                    options={['On', 'Off']}
-                    value={storageEnabled}
-                    onChange={setStorageEnabled}
-                  />
-                </div>
-              </div>
-            </Dropdown>
-            {
-              siweConfig === 'On' ?
-                <div>
-                  <Input
-                    label='Address'
-                    value={address}
-                    onChange={setAddress}
-                  />
-                  <Input
-                    label='Chain ID'
-                    value={chainId}
-                    onChange={setChainId}
-                  />
-                  <Input
-                    label='Domain'
-                    value={domain}
-                    onChange={setDomain}
-                  />
-                  <Input
-                    label='Nonce'
-                    value={nonce}
-                    onChange={setNonce}
-                  />
-                  <Input
-                    label='Issued At'
-                    value={issuedAt}
-                    onChange={setIssuedAt}
-                  />
-                  <Input
-                    label='Expiration Time'
-                    value={expirationTime}
-                    onChange={setExpirationTime}
-                  />
-                  <Input
-                    label='Request ID'
-                    value={requestId}
-                    onChange={setRequestId}
-                  />
-                  <Input
-                    label='Not Before'
-                    value={notBefore}
-                    onChange={setNotBefore}
-                  />
-                  <Input
-                    label='Resources'
-                    value={resources}
-                    onChange={setResources}
-                  />
-                  <Input
-                    label='Statement'
-                    value={statement}
-                    onChange={setStatement}
-                  />
-                </div> :
-                null
-            }
-          </>
-          }
+            )}
+          </div>
         </div>
-        {
-          storageEnabled === "On"
-          && tcw
-          && <StorageModule tcw={tcw} />
-        }
+        
+        {storageEnabled === "On" && tcw && (
+          <div className="mt-8 rounded-base border-2 border-border bg-bw p-6 shadow-shadow">
+            <StorageModule tcw={tcw} />
+          </div>
+        )}
       </div>
-
     </div>
   );
 }

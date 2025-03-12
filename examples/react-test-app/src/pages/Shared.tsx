@@ -23,27 +23,40 @@ const Shared = () => {
   };
 
   return (
-    <div className="App">
-      <Title />
-      <div className="Content">
-        <div className="Content-container">
-          <Input
-            label="Share Data"
-            value={shareData}
-            onChange={(e: any) => setShareData(e.target.value)}
-          />
-          <Button
-            id="fetchShareData"
-            onClick={fetchShareData}
-            loading={isLoading}
-          >
-            Fetch Share Data
-          </Button>
-          {fetchedData && (
-            <div className="Output">
-              <pre>{JSON.stringify(fetchedData, null, 2)}</pre>
-            </div>
-          )}
+    <div className="flex min-h-screen flex-col items-center bg-bg pt-20">
+      <div className="w-full max-w-4xl px-4">
+        <Title />
+        
+        <div className="mx-auto max-w-2xl rounded-base border-2 border-border bg-bw p-6 shadow-shadow">
+          <div className="space-y-6">
+            <h2 className="text-xl font-heading text-text">Shared Content</h2>
+            
+            <Input
+              label="Share Data"
+              value={shareData}
+              onChange={(value) => setShareData(value)}
+              className="w-full"
+            />
+            
+            <Button
+              id="fetchShareData"
+              onClick={fetchShareData}
+              loading={isLoading}
+              variant="default"
+              className="w-full"
+            >
+              Fetch Shared Content
+            </Button>
+            
+            {fetchedData && (
+              <div className="mt-6 rounded-base border-2 border-border/30 bg-bw/50 p-4">
+                <h3 className="mb-2 text-lg font-heading text-text">Retrieved Content:</h3>
+                <pre className="overflow-x-auto whitespace-pre-wrap rounded bg-main/10 p-4 font-mono text-sm text-text">
+                  {JSON.stringify(fetchedData, null, 2)}
+                </pre>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -7,11 +7,13 @@ interface TitleProps {
 const Title = ({ className }: TitleProps) => {
     return (
         <div className={cn('flex flex-col items-center my-6', className)}>
-            <img 
-                src="/tinycloudheader.png" 
-                alt="TinyCloud" 
-                className="w-full max-w-[500px] mb-5"
-            />
+            <div className="relative mb-5 inline-block w-full max-w-2xl">
+                <img 
+                    src="/tinycloudheader.png" 
+                    alt="TinyCloud" 
+                    className="w-full rounded-base border-2 border-border bg-bw shadow-shadow"
+                />
+            </div>
             <h1 className="text-3xl font-heading text-text mb-2">
                 TinyCloud Test App
             </h1>
