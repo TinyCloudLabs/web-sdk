@@ -188,6 +188,8 @@ function Home() {
               </>
             ) : (
               <div className="space-y-4">
+
+                
                 <Button
                   id="signInButton"
                   onClick={tcwHandler}
@@ -198,173 +200,153 @@ function Home() {
                   SIGN-IN WITH ETHEREUM
                 </Button>
                 
-              </div>
-            )}
-            
-            {!tcw && (
-              <div className="space-y-6 pt-4">
-                <div className="mb-4">
-                  <h3 className="mb-2 text-lg font-heading text-text">Sign-in Options</h3>
-                  <p className="text-sm text-text/70">Configure your TinyCloud connection options</p>
-                </div>
-                
-                  <Accordion type="single" collapsible className="w-full">
-                  <AccordionItem value="tinyCloudSettings">
+                <Accordion type="single" collapsible className="w-full mt-4">
+                  <AccordionItem value="advancedOptions">
                     <AccordionTrigger>
                       <div className="flex items-center gap-2">
-                        TinyCloud Settings
+                        Advanced Options
                       </div>
                     </AccordionTrigger>
                     <AccordionContent>
                       <div className="space-y-4">
-                        <Input
-                          label="TinyCloud Host (Optional)"
-                          value={tinyCloudHost}
-                          onChange={setTinyCloudHost}
-                          className="w-full"
-                          placeholder="node.tinycloud.xyz"
-                          helperText="The location where your TinyCloud data is hosted."
-
-                        />
+                        {/* Host settings */}
+                        <div className="space-y-4 border-b border-border/20 pb-4">
+                          <h4 className="text-md font-heading text-text">TinyCloud Host</h4>
+                          <Input
+                            label="TinyCloud Host (Optional)"
+                            value={tinyCloudHost}
+                            onChange={setTinyCloudHost}
+                            className="w-full"
+                            placeholder="node.tinycloud.xyz"
+                            helperText="The location where your TinyCloud data is hosted. You can host your own data by setting this to your own host."
+                          />
+                        </div>
+                        {/* Bucket/Prefix settings */}
+                        <div className="space-y-4 border-b border-border/20 pb-4">
+                          <h4 className="text-md font-heading text-text">Bucket Configuration</h4>
+                          <p className="text-sm text-text/70">Set the bucket name (prefix) for your TinyCloud storage.</p>
+                          <Input
+                            label="Bucket Name"
+                            value={prefix}
+                            onChange={setPrefix}
+                            className="w-full"
+                            helperText="The bucket will default to 'default' if left empty."
+                            placeholder="default"
+                          />
+                        </div>
+                        {/* Storage Module toggle */}
+                        <div className="space-y-4 border-b border-border/20 pb-4">
+                          <h4 className="text-md font-heading text-text">Storage Module</h4>
+                          <p className="text-sm text-text/70">Control whether the TinyCloud storage module is enabled. This allows you to store and retrieve data.</p>
+                          <RadioGroup
+                            name="storageEnabled"
+                            options={['On', 'Off']}
+                            value={storageEnabled}
+                            onChange={setStorageEnabled}
+                            label="Enable storage module"
+                          />
+                        </div>
                         
-                        <Input
-                          label="Prefix Name"
-                          value={prefix}
-                          onChange={setPrefix}
-                          className="w-full"
-                          helperText="The prefix will default to 'default' if left empty."
-                          placeholder="default"
-                        />
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                  
-                  <AccordionItem value="storage" className="mt-4">
-                    <AccordionTrigger>
-                      <div className="flex items-center gap-2">
-                        Storage Module
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <p className="text-sm text-text/70 mb-2">Control whether the TinyCloud storage module is enabled. This allows you to store and retrieve data.</p>
-                      <RadioGroup
-                        name="storageEnabled"
-                        options={['On', 'Off']}
-                        value={storageEnabled}
-                        onChange={setStorageEnabled}
-                        label="Enable storage module"
-                      />
-                    </AccordionContent>
-                  </AccordionItem>
-                  
-                  <AccordionItem value="siweConfig" className="mt-4">
-                    <AccordionTrigger>
-                      <div className="flex items-center gap-2">
-                        SIWE Configuration
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <p className="text-sm text-text/70 mb-2">Sign-In With Ethereum (SIWE) allows for secure authentication using your Ethereum wallet. Advanced configuration options are available here.</p>
-                      <div className="space-y-6">
-                        <RadioGroup
-                          name="siweConfig"
-                          options={['On', 'Off']}
-                          value={siweConfig}
-                          onChange={setSiweConfig}
-                          label="Enable custom SIWE configuration"
-                        />
-                        
-                        {siweConfig === 'On' && (
-                          <div className="mt-4 grid gap-4 md:grid-cols-2">
-                            <Input
-                              label='Address'
-                              value={address}
-                              onChange={setAddress}
-                              helperText="Wallet address to be confirmed in the message"
-                            />
-                            <Input
-                              label='Chain ID'
-                              value={chainId}
-                              onChange={setChainId}
-                              helperText="Chain ID to be confirmed in the message"
-                            />
-                            <Input
-                              label='Domain'
-                              value={domain}
-                              onChange={setDomain}
-                              helperText="The domain that is requesting the signing"
-                            />
-                            <Input
-                              label='Nonce'
-                              value={nonce}
-                              onChange={setNonce}
-                              helperText="Random string to prevent replay attacks"
-                            />
-                            <Input
-                              label='Issued At'
-                              value={issuedAt}
-                              onChange={setIssuedAt}
-                              helperText="ISO 8601 datetime string of when the message was created"
-                            />
-                            <Input
-                              label='Expiration Time'
-                              value={expirationTime}
-                              onChange={setExpirationTime}
-                              helperText="ISO 8601 datetime string of when the message expires"
-                            />
-                            <Input
-                              label='Request ID'
-                              value={requestId}
-                              onChange={setRequestId}
-                              helperText="Request identifier for the signing request"
-                            />
-                            <Input
-                              label='Not Before'
-                              value={notBefore}
-                              onChange={setNotBefore}
-                              helperText="ISO 8601 datetime string of when the message starts being valid"
-                            />
-                            <Input
-                              className="md:col-span-2"
-                              label='Resources'
-                              value={resources}
-                              onChange={setResources}
-                              helperText="List of resources the user wishes to access (comma separated)"
-                            />
-                            <Input
-                              className="md:col-span-2"
-                              label='Statement'
-                              value={statement}
-                              onChange={setStatement}
-                              helperText="Statement that the user is signing (e.g. 'I accept the Terms of Service')"
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
+                        {/* ENS Resolution toggle */}
+                        <div className="space-y-4 border-b border-border/20 pb-4">
+                          <h4 className="text-md font-heading text-text">Resolve ENS</h4>
+                          <p className="text-sm text-text/70">When enabled, the TinyCloud Web SDK will resolve Ethereum Name Service (ENS) records for your address. This includes avatars and domain names.</p>
+                          <RadioGroup
+                            name="resolveEns"
+                            options={['On', 'Off']}
+                            value={resolveEns}
+                            onChange={setResolveEns}
+                            label="Enable ENS resolution"
+                          />
+                        </div>
 
-
-                  <AccordionItem value="resolveEns" className="mt-4">
-                    <AccordionTrigger>
-                      <div className="flex items-center gap-2">
-                        Resolve ENS
+                        {/* SIWE Configuration */}
+                        <div className="space-y-4">
+                          <h4 className="text-md font-heading text-text">SIWE Configuration</h4>
+                          <p className="text-sm text-text/70">Sign-In With Ethereum (SIWE) allows for secure authentication using your Ethereum wallet. Advanced configuration options are available here.</p>
+                          <RadioGroup
+                            name="siweConfig"
+                            options={['On', 'Off']}
+                            value={siweConfig}
+                            onChange={setSiweConfig}
+                            label="Enable custom SIWE configuration"
+                          />
+                          
+                          {siweConfig === 'On' && (
+                            <div className="mt-4 grid gap-4 md:grid-cols-2">
+                              <Input
+                                label='Address'
+                                value={address}
+                                onChange={setAddress}
+                                helperText="Wallet address to be confirmed in the message"
+                              />
+                              <Input
+                                label='Chain ID'
+                                value={chainId}
+                                onChange={setChainId}
+                                helperText="Chain ID to be confirmed in the message"
+                              />
+                              <Input
+                                label='Domain'
+                                value={domain}
+                                onChange={setDomain}
+                                helperText="The domain that is requesting the signing"
+                              />
+                              <Input
+                                label='Nonce'
+                                value={nonce}
+                                onChange={setNonce}
+                                helperText="Random string to prevent replay attacks"
+                              />
+                              <Input
+                                label='Issued At'
+                                value={issuedAt}
+                                onChange={setIssuedAt}
+                                helperText="ISO 8601 datetime string of when the message was created"
+                              />
+                              <Input
+                                label='Expiration Time'
+                                value={expirationTime}
+                                onChange={setExpirationTime}
+                                helperText="ISO 8601 datetime string of when the message expires"
+                              />
+                              <Input
+                                label='Request ID'
+                                value={requestId}
+                                onChange={setRequestId}
+                                helperText="Request identifier for the signing request"
+                              />
+                              <Input
+                                label='Not Before'
+                                value={notBefore}
+                                onChange={setNotBefore}
+                                helperText="ISO 8601 datetime string of when the message starts being valid"
+                              />
+                              <Input
+                                className="md:col-span-2"
+                                label='Resources'
+                                value={resources}
+                                onChange={setResources}
+                                helperText="List of resources the user wishes to access (comma separated)"
+                              />
+                              <Input
+                                className="md:col-span-2"
+                                label='Statement'
+                                value={statement}
+                                onChange={setStatement}
+                                helperText="Statement that the user is signing (e.g. 'I accept the Terms of Service')"
+                              />
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <p className="text-sm text-text/70 mb-2">When enabled, the TinyCloud Web SDK will resolve Ethereum Name Service (ENS) records for your address. This includes avatars and domain names.</p>
-                      <RadioGroup
-                        name="resolveEns"
-                        options={['On', 'Off']}
-                        value={resolveEns}
-                        onChange={setResolveEns}
-                        label="Enable ENS resolution"
-                      />
                     </AccordionContent>
                   </AccordionItem>
                 </Accordion>
               </div>
             )}
+            
+            {/* This section is removed as content is now in the Advanced Options accordion */}
           </div>
         </div>
         
