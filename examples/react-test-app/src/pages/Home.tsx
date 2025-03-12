@@ -28,7 +28,7 @@ function Home() {
 
   const [tcw, setTinyCloudWeb] = useState<TinyCloudWeb | null>(null);
   const [provider, setProvider] = useState<string>('MetaMask');
-  const [resolveEns, setResolveEns] = useState<string>('Off');
+  const [resolveEns, setResolveEns] = useState<string>('On');
   const [siweConfig, setSiweConfig] = useState<string>('Off');
   // siweConfig Fields
   const [address, setAddress] = useState<string>('');
@@ -79,9 +79,16 @@ function Home() {
       modules.storage = false;
     } else {
       // Configure storage with bucket
-      modules.storage = {
+      const storageConfig: Record<string, any> = {
         prefix: prefix.trim() || 'default'
       };
+      
+      // Add TinyCloud host if provided
+      if (tinyCloudHost.trim()) {
+        storageConfig.hosts = [tinyCloudHost.trim()];
+      }
+      
+      modules.storage = storageConfig;
     }
 
     tcwConfig = {
@@ -202,21 +209,33 @@ function Home() {
                 </div>
                 
                   <Accordion type="single" collapsible className="w-full">
-                  <AccordionItem value="prefixName">
+                  <AccordionItem value="tinyCloudSettings">
                     <AccordionTrigger>
                       <div className="flex items-center gap-2">
-                        Prefix Name
+                        TinyCloud Settings
                       </div>
                     </AccordionTrigger>
                     <AccordionContent>
-                    <p className="text-sm text-text/70 mb-2">You are giving permission to this app to access your TinyCloud storage at this prefix. The prefix will default to 'default' if left empty.</p>
+                      <div className="space-y-4">
+                        <Input
+                          label="TinyCloud Host (Optional)"
+                          value={tinyCloudHost}
+                          onChange={setTinyCloudHost}
+                          className="w-full"
+                          placeholder="node.tinycloud.xyz"
+                          helperText="The location where your TinyCloud data is hosted."
 
-                    <Input
-                  label="Prefix Name"
-                  value={prefix}
-                  onChange={setPrefix}
-                  className="w-full"
-                />
+                        />
+                        
+                        <Input
+                          label="Prefix Name"
+                          value={prefix}
+                          onChange={setPrefix}
+                          className="w-full"
+                          helperText="The prefix will default to 'default' if left empty."
+                          placeholder="default"
+                        />
+                      </div>
                     </AccordionContent>
                   </AccordionItem>
                   

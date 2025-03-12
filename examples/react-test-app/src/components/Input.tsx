@@ -7,9 +7,10 @@ interface IInput {
     onChange: (value: string) => void;
     helperText?: string;
     className?: string;
+    placeholder?: string;
 }
 
-const Input = ({ label, value, onChange, helperText, className }: IInput) => {
+const Input = ({ label, value, onChange, helperText, className, placeholder }: IInput) => {
     return (
         <div className={cn('space-y-1', className)}>
             <ShadcnInput
@@ -17,6 +18,7 @@ const Input = ({ label, value, onChange, helperText, className }: IInput) => {
                 id={label}
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
+                placeholder={placeholder}
             />
             {helperText && (
                 <p className="text-xs text-text/70">
