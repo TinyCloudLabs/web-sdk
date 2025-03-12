@@ -5,6 +5,7 @@ import Header from '../components/Header';
 import Button from '../components/Button';
 import Title from '../components/Title';
 import Input from '../components/Input';
+import Footer from '../components/Footer';
 
 const Shared = () => {
   const location = useLocation();
@@ -58,6 +59,9 @@ const Shared = () => {
             )}
           </div>
         </div>
+      </div>
+      <div className="mt-auto w-full">
+        <Footer />
       </div>
     </div>
   );

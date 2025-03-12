@@ -17,7 +17,7 @@ const Title = ({ className }: TitleProps) => {
                 </a>
             </div>
             <h1 className="text-3xl font-heading text-text mb-2">
-                TinyCloud Example App
+                TinyCloud Web SDK Example App
             </h1>
             <h2 className="text-sm text-text/70 max-w-2xl text-center px-8">
                 Play with TinyCloud Web SDK! Use <a
