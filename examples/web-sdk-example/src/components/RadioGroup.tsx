@@ -1,5 +1,4 @@
 import { RadioGroup as ShadcnRadioGroup, RadioOption } from './ui/radio-group';
-import { cn } from '../utils/utils';
 
 interface IRadioGroup {
     label?: string;

@@ -11,7 +11,6 @@ import { walletClientToEthers5Signer } from '../utils/web3modalV2Settings';
 import { getWalletClient } from '@wagmi/core'
 import { useWalletClient } from 'wagmi';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../components/ui/accordian';
-import { HelperIcon } from '../components/ui/helper-icon';
 import Footer from '../components/Footer';
 
 declare global {
@@ -28,7 +27,7 @@ function Home() {
   const [loading, setLoading] = useState(false);
 
   const [tcw, setTinyCloudWeb] = useState<TinyCloudWeb | null>(null);
-  const [provider, setProvider] = useState<string>('MetaMask');
+  const [provider] = useState<string>('MetaMask');
   const [resolveEns, setResolveEns] = useState<string>('On');
   const [siweConfig, setSiweConfig] = useState<string>('Off');
   // siweConfig Fields
@@ -100,6 +99,7 @@ function Home() {
     return tcwConfig;
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const signInUsingWeb3Modal = async (walletClient: any) => {
     const chainId = await walletClient.getChainId();
     const newWalletClient = await getWalletClient({ chainId });
