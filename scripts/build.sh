@@ -5,6 +5,14 @@ set -e
 
 #!/usr/bin/env bash
 
+# Check if rustup is installed
+if ! command -v rustup &> /dev/null; then
+    echo "Installing rustup..."
+    curl https://sh.rustup.rs -sSf | sh -s -- -y
+    export PATH="$HOME/.cargo/bin:$PATH"
+fi
+
+
 # Check if wasm-pack is installed
 if ! command -v wasm-pack &> /dev/null; then
     echo "Installing wasm-pack..."
