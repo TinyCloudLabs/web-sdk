@@ -3,6 +3,14 @@
 # Exit immediately if a command exits with a non-zero status
 set -e
 
+#!/usr/bin/env bash
+
+# Check if wasm-pack is installed
+if ! command -v wasm-pack &> /dev/null; then
+    echo "Installing wasm-pack..."
+    curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+fi
+
 # Build packages in order
 echo "Building packages..."
 
