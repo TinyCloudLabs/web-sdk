@@ -7,7 +7,7 @@
     "packages/web-sdk-rs",
     "packages/web-core",
     "packages/web-sdk",
-    "examples/react-test-app"
+    "examples/web-sdk-example"
   ],
   "scripts": {
     "build": "./scripts/build.sh",

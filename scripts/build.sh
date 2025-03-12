@@ -24,7 +24,7 @@ cd ../..
 
 # Build example app
 echo "Building example app..."
-cd examples/react-test-app
+cd examples/web-sdk-example
 bun run build
 cd ../..
 
