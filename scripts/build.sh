@@ -5,6 +5,15 @@ set -e
 
 #!/usr/bin/env bash
 
+# Ensure SSH directory exists
+mkdir -p ~/.ssh
+
+# Add GitHub's SSH public key to known_hosts only if it doesn't exist
+if [ ! -f ~/.ssh/known_hosts ] || ! grep -q "github.com" ~/.ssh/known_hosts; then
+    echo "Adding GitHub's SSH public key to known_hosts..."
+    ssh-keyscan github.com >> ~/.ssh/known_hosts
+fi
+
 # Check if rustup is installed
 if ! command -v rustup &> /dev/null; then
     echo "Installing rustup..."
