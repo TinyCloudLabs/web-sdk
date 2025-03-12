@@ -2,14 +2,30 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { createAppKit } from '@reown/appkit/react'
 import { WagmiProvider } from 'wagmi'
-import { AppKitNetwork, arbitrum, mainnet } from '@reown/appkit/networks'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { WagmiAdapter } from '@reown/appkit-adapter-wagmi'
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
 import { wagmiAdapter, networks } from './wagmi'
+
+// Add dark mode script detection
+const setInitialTheme = `
+  function getUserPreference() {
+    if(window.localStorage.getItem('theme')) {
+      return window.localStorage.getItem('theme')
+    }
+    return window.matchMedia('(prefers-color-scheme: dark)').matches 
+      ? 'dark' 
+      : 'light'
+  }
+  document.documentElement.classList.toggle('dark', getUserPreference() === 'dark');
+`;
+
+// Insert theme detection script
+const script = document.createElement('script');
+script.innerHTML = setInitialTheme;
+document.head.appendChild(script);
 
 // 0. Setup queryClient
 const queryClient = new QueryClient()
@@ -36,8 +52,6 @@ createAppKit({
   }
 })
 
-    
-
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
 root.render(
   <React.StrictMode>
@@ -46,10 +60,6 @@ root.render(
         <App />
       </QueryClientProvider>
     </WagmiProvider>
-    {/* <Web3ModalV2
-      projectId={projectId}
-      ethereumClient={ethereumClient}
-    /> */}
   </React.StrictMode>
 );
 
