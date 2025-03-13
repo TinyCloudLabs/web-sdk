@@ -16,7 +16,7 @@ const Title = ({ className }: TitleProps) => {
                 />
                 </a>
             </div>
-            <h1 className="text-3xl font-heading text-text mb-2">
+            <h1 className="text-3xl font-heading text-text text-center mb-2">
                 TinyCloud Web SDK Example App
             </h1>
             <h2 className="text-sm text-text/70 max-w-2xl text-center px-8">
