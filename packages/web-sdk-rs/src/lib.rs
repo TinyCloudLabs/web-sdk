@@ -1,4 +1,4 @@
-pub use kepler_sdk_wasm;
+pub use tinycloud_sdk_wasm;
 pub mod session;
 
 use wasm_bindgen::prelude::*;

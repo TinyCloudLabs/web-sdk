@@ -1,5 +1,5 @@
 import { TCWClientSession, TCWExtension } from '@tinycloudlabs/web-core/client';
-import type { Request, Response, Session } from './kepler';
+import type { Request, Response, Session } from './tinycloud';
 
 /**
  * @interface IStorageBaseOptions
@@ -95,7 +95,7 @@ interface IStorage extends TCWExtension {
 }
 
 // TODO: Document this interface
-export interface IKepler extends IStorage {
+export interface ITinyCloud extends IStorage {
   hostOrbit(tcwSession?: TCWClientSession): Promise<void>;
   activateSession(
     tcwSession?: TCWClientSession,
@@ -103,7 +103,7 @@ export interface IKepler extends IStorage {
   ): Promise<boolean>;
   generateSharingLink(key: string, params?: any): Promise<string>;
   retrieveSharingLink(link: string): Promise<Response>;
-  generateKeplerSession(tcwSession: TCWClientSession): Promise<Session>;
+  generateTinyCloudSession(tcwSession: TCWClientSession): Promise<Session>;
 }
 
 /**
@@ -114,21 +114,21 @@ interface IStorageConfig {
 }
 
 /**
- * Represents a Kepler storage configuration object that extends IStorageConfig.
+ * Represents a TinyCloud storage configuration object that extends IStorageConfig.
  */
-interface IKeplerStorageConfig extends IStorageConfig {
+interface ITinyCloudStorageConfig extends IStorageConfig {
   /**
-   * The Kepler Peer to connect to
+   * The TinyCloud Peer to connect to
    * @default 'https://node.tinycloud.xyz'
    */
   hosts?: string[];
   /**
    * Automatically create a new orbit if one does not exist.
    * If this is false, you will need to manually create an orbit before using
-   * the storage operations on KeplerDataVault.
+   * the storage operations on TinyCloudDataVault.
    * @default true
    */
   autoCreateNewOrbit?: boolean;
 }
 
-export { IStorage, IStorageConfig, IKeplerStorageConfig };
+export { IStorage, IStorageConfig, ITinyCloudStorageConfig };

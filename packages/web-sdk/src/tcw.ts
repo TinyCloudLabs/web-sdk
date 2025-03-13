@@ -4,7 +4,7 @@ import {
 } from '@tinycloudlabs/web-core';
 import {
   IUserAuthorization,
-  KeplerStorage,
+  TinyCloudStorage,
   UserAuthorization,
 } from './modules';
 import {
@@ -64,7 +64,7 @@ export class TinyCloudWeb {
   public userAuthorization: IUserAuthorization;
 
   /** Storage Module */
-  public storage: KeplerStorage;
+  public storage: TinyCloudStorage;
 
   constructor(private config: TCWConfig = TCW_DEFAULT_CONFIG) {
     // TODO: pull out config validation into separate function
@@ -80,11 +80,11 @@ export class TinyCloudWeb {
     if (storageConfig !== false) {
       if (typeof storageConfig === 'object') {
         // Initialize storage with the provided config
-        this.storage = new KeplerStorage(storageConfig, this.userAuthorization);
+        this.storage = new TinyCloudStorage(storageConfig, this.userAuthorization);
       } else {
         // storage == true or undefined
         // Initialize storage with default config when no other condition is met
-        this.storage = new KeplerStorage(
+        this.storage = new TinyCloudStorage(
           { prefix: 'default' },
           this.userAuthorization
         );
