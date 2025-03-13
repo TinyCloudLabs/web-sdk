@@ -1,11 +1,11 @@
 # TinyCloud Web Core
 
-<img src="https://github.com/TinyCloudLabs/tc-sdk/blob/main/documentation/static/img/tinycloudheader.png?raw=true" alt="TinyCloud" width="100%" />
+<img src="https://github.com/TinyCloudLabs/web-sdk/blob/main/documentation/static/img/tinycloudheader.png?raw=true" alt="TinyCloud" width="100%" />
 
 TinyCloud Web Core provides foundational utilities and types used by TinyCloud SDKs.
 
 [![npm version](https://img.shields.io/npm/v/@tinycloudlabs/web-core.svg)](https://www.npmjs.com/package/@tinycloudlabs/web-core)
-[![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/TinyCloudLabs/tc-sdk/blob/main/LICENSE-MIT)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/TinyCloudLabs/web-sdk/blob/main/LICENSE-MIT)
 
 ## Overview
 
@@ -50,7 +50,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE-MIT](https://github.com/TinyCloudLabs/tc-sdk/blob/main/LICENSE-MIT) file for details.
+This project is licensed under the MIT License - see the [LICENSE-MIT](https://github.com/TinyCloudLabs/web-sdk/blob/main/LICENSE-MIT) file for details.
 
 ## Related Packages
 

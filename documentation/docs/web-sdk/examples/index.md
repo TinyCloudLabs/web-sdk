@@ -13,4 +13,4 @@ These examples demonstrate common patterns and use cases to help you get started
 
 - [Basic Storage Operations](./storage) - How to store and retrieve data
 - [Authentication](./auth) - How to authenticate users with wallets
-- [Complete Application Examples](https://github.com/TinyCloudLabs/tc-sdk/tree/main/examples) - Full examples integrating multiple SDK features
+- [Complete Application Examples](https://github.com/TinyCloudLabs/web-sdk/tree/main/examples) - Full examples integrating multiple SDK features

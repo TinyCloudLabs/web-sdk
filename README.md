@@ -1,10 +1,10 @@
 # TinyCloud SDK
 
-<img src="https://github.com/TinyCloudLabs/tc-sdk/blob/main/documentation/static/img/tinycloudheader.png?raw=true" alt="TinyCloud" width="100%" />
+<img src="https://github.com/TinyCloudLabs/web-sdk/blob/main/documentation/static/img/tinycloudheader.png?raw=true" alt="TinyCloud" width="100%" />
 
 TinyCloud SDK is a comprehensive toolkit for building decentralized applications with TinyCloud. It provides easy-to-use interfaces for storage, authentication, and more.
 
-[![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/TinyCloudLabs/tc-sdk/blob/main/LICENSE-MIT)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/TinyCloudLabs/web-sdk/blob/main/LICENSE-MIT)
 
 ## Features
 
@@ -75,8 +75,8 @@ Check out our [examples directory](./examples/) for complete working examples of
 
 ```bash
 # Clone the repository
-git clone https://github.com/TinyCloudLabs/tc-sdk.git
-cd tc-sdk
+git clone https://github.com/TinyCloudLabs/web-sdk.git
+cd web-sdk
 
 # Install dependencies
 bun install
@@ -105,7 +105,7 @@ This project is licensed under the MIT License - see the [LICENSE-MIT](./LICENSE
 
 ## Support
 
-If you encounter any issues or have questions, please file an issue on our [GitHub repository](https://github.com/TinyCloudLabs/tc-sdk/issues).
+If you encounter any issues or have questions, please file an issue on our [GitHub repository](https://github.com/TinyCloudLabs/web-sdk/issues).
 
 ## Community
 

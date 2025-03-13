@@ -1,11 +1,11 @@
 # TinyCloud Web SDK
 
-<img src="https://github.com/TinyCloudLabs/tc-sdk/blob/main/documentation/static/img/tinycloudheader.png?raw=true" alt="TinyCloud" width="100%" />
+<img src="https://github.com/TinyCloudLabs/web-sdk/blob/main/documentation/static/img/tinycloudheader.png?raw=true" alt="TinyCloud" width="100%" />
 
 The TinyCloud Web SDK provides all the tools you need to build decentralized web applications with TinyCloud.
 
 [![npm version](https://img.shields.io/npm/v/@tinycloudlabs/web-sdk.svg)](https://www.npmjs.com/package/@tinycloudlabs/web-sdk)
-[![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/TinyCloudLabs/tc-sdk/blob/main/LICENSE-MIT)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/TinyCloudLabs/web-sdk/blob/main/LICENSE-MIT)
 
 ## Features
 
@@ -131,7 +131,7 @@ For complete documentation, please visit:
 
 ## Examples
 
-Check out our [examples directory](https://github.com/TinyCloudLabs/tc-sdk/tree/main/examples) for complete working examples of TinyCloud SDK integration.
+Check out our [examples directory](https://github.com/TinyCloudLabs/web-sdk/tree/main/examples) for complete working examples of TinyCloud SDK integration.
 
 ## Contributing
 
@@ -139,11 +139,11 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE-MIT](https://github.com/TinyCloudLabs/tc-sdk/blob/main/LICENSE-MIT) file for details.
+This project is licensed under the MIT License - see the [LICENSE-MIT](https://github.com/TinyCloudLabs/web-sdk/blob/main/LICENSE-MIT) file for details.
 
 ## Support
 
-If you encounter any issues or have questions, please file an issue on our [GitHub repository](https://github.com/TinyCloudLabs/tc-sdk/issues).
+If you encounter any issues or have questions, please file an issue on our [GitHub repository](https://github.com/TinyCloudLabs/web-sdk/issues).
 
 ## Community
 

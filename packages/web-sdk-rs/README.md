@@ -1,11 +1,11 @@
 # TinyCloud Web SDK (Rust/WASM)
 
-<img src="https://github.com/TinyCloudLabs/tc-sdk/blob/main/documentation/static/img/tinycloudheader.png?raw=true" alt="TinyCloud" width="100%" />
+<img src="https://github.com/TinyCloudLabs/web-sdk/blob/main/documentation/static/img/tinycloudheader.png?raw=true" alt="TinyCloud" width="100%" />
 
 WebAssembly library written in Rust for the TinyCloud Web SDK.
 
 [![npm version](https://img.shields.io/npm/v/@tinycloudlabs/web-sdk-rs.svg)](https://www.npmjs.com/package/@tinycloudlabs/web-sdk-rs)
-[![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/TinyCloudLabs/tc-sdk/blob/main/LICENSE-MIT)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/TinyCloudLabs/web-sdk/blob/main/LICENSE-MIT)
 
 ## Overview
 
@@ -84,7 +84,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE-MIT](https://github.com/TinyCloudLabs/tc-sdk/blob/main/LICENSE-MIT) file for details.
+This project is licensed under the MIT License - see the [LICENSE-MIT](https://github.com/TinyCloudLabs/web-sdk/blob/main/LICENSE-MIT) file for details.
 
 ## Related Packages
 
