@@ -10,7 +10,7 @@ This guide covers how to use the storage functionality provided by the TinyCloud
 
 ## Overview
 
-The TinyCloud Web SDK provides decentralized storage through the Kepler protocol. This allows you to store, retrieve, and manage data without relying on centralized servers.
+The TinyCloud Web SDK provides decentralized storage through TinyCloud's storage protocol. This allows you to store, retrieve, and manage data without relying on centralized servers.
 
 ## Accessing Storage
 
@@ -162,7 +162,7 @@ const delegateDID = 'did:key:...';
 
 // Delegate read access to a specific file or folder
 const delegation = await storage.delegate({
-  target: `${storage.orbitId}/kv/users/alice/profile`,
+  target: `${storage.storageId}/kv/users/alice/profile`,
   delegateDID: delegateDID,
   actions: ['get', 'metadata'],
   statement: 'I am giving you permission to view my profile'
@@ -194,4 +194,4 @@ try {
 Now that you understand how to work with storage, you might want to explore:
 
 - [Authentication](./authentication-guide.md) - Learn more about the authentication flow
-- [KeplerStorage API Reference](../api/keplerstorage.md) - Detailed reference for all storage methods
+- [TinyCloudStorage API Reference](../api/tinycloudstorage.md) - Detailed reference for all storage methods

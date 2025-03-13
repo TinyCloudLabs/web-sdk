@@ -18,7 +18,7 @@ const config: Config = {
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
   organizationName: 'TinyCloudLabs', // Usually your GitHub org/user name.
-  projectName: 'tc-sdk', // Usually your repo name.
+  projectName: 'web-sdk', // Usually your repo name.
 
   onBrokenLinks: 'warn',
   onBrokenMarkdownLinks: 'warn',
@@ -67,11 +67,16 @@ const config: Config = {
   themeConfig: {
     // Replace with your project's social card
     image: 'img/tinycloud-social-card.jpg',
+    colorMode: {
+      defaultMode: 'dark',
+      disableSwitch: false,
+      respectPrefersColorScheme: true,
+    },
     navbar: {
       title: 'TinyCloud SDK',
       logo: {
         alt: 'TinyCloud Logo',
-        src: 'img/logo.svg',
+        src: 'img/logoIcon.png',
       },
       items: [
         {
@@ -81,12 +86,22 @@ const config: Config = {
           label: 'Documentation',
         },
         {
-          to: '/docs/web-sdk',
+          to: '/docs/web-sdk/guides/getting-started',
+          label: 'Getting Started',
+          position: 'left',
+        },
+        {
+          to: '/docs/web-sdk', 
           label: 'Web SDK',
           position: 'left',
         },
         {
-          href: 'https://github.com/TinyCloudLabs/tc-sdk',
+          to: '/docs/web-sdk/api',
+          label: 'API Reference',
+          position: 'left',
+        },
+        {
+          href: 'https://github.com/TinyCloudLabs/web-sdk',
           label: 'GitHub',
           position: 'right',
         },
@@ -116,8 +131,8 @@ const config: Config = {
               href: 'https://twitter.com/TinyCloudLabs',
             },
             {
-              label: 'Discord',
-              href: 'https://discord.gg/tinycloud',
+              label: 'Telegram',
+              href: 'https://t.me/+pplkv1XbbU01MDVh',
             },
           ],
         },
@@ -126,7 +141,7 @@ const config: Config = {
           items: [
             {
               label: 'GitHub',
-              href: 'https://github.com/TinyCloudLabs/tc-sdk',
+              href: 'https://github.com/TinyCloudLabs/web-sdk',
             },
             {
               label: 'TinyCloud.xyz',

@@ -4,17 +4,17 @@ sidebar_position: 2
 
 <img src="/img/tinycloudheader.png" alt="TinyCloud" width="100%" />
 
-# KeplerStorage
+# TinyCloudStorage
 
-KeplerStorage provides decentralized storage functionality through the Kepler protocol. This class implements both the IStorage and IKepler interfaces.
+TinyCloudStorage provides decentralized storage functionality through TinyCloud's storage protocol. This class implements both the IStorage and ITinyCloudStorage interfaces.
 
 ```typescript
-import { KeplerStorage } from '@tinycloudlabs/web-sdk';
+import { TinyCloudStorage } from '@tinycloudlabs/web-sdk';
 ```
 
 ## Description
 
-KeplerStorage allows for storing, retrieving, and managing data in a decentralized way. It handles authentication and session management for secure data operations.
+TinyCloudStorage allows for storing, retrieving, and managing data in a decentralized way. It handles authentication and session management for secure data operations.
 
 ## Constructor
 
@@ -22,22 +22,22 @@ KeplerStorage allows for storing, retrieving, and managing data in a decentraliz
 constructor(config: any, userAuth: IUserAuthorization)
 ```
 
-Creates a new instance of the KeplerStorage class.
+Creates a new instance of the TinyCloudStorage class.
 
 **Parameters:**
-- `config` - Configuration options for Kepler storage
-  - `hosts` - Optional array of Kepler host endpoints
+- `config` - Configuration options for TinyCloud storage
+  - `hosts` - Optional array of TinyCloud storage host endpoints
   - `prefix` - Optional prefix to use for all storage operations
-  - `autoCreateNewOrbit` - Whether to automatically create a new orbit if one doesn't exist
+  - `autoCreateNew` - Whether to automatically create a new storage instance if one doesn't exist
 - `userAuth` - User authorization interface for authentication
 
 ## Properties
 
 | Name | Type | Description |
 |------|------|-------------|
-| `namespace` | `string` | The namespace identifier for Kepler storage. Default: `'kepler'` |
+| `namespace` | `string` | The namespace identifier for TinyCloud storage. Default: `'tinycloud'` |
 | `prefix` | `string` | The prefix used for all storage operations. |
-| `orbitId` | `string \| undefined` | The user's orbit identifier. |
+| `storageId` | `string \| undefined` | The user's storage identifier. |
 | `domain` | `string \| undefined` | The domain to display in the SIWE message. |
 
 ## Methods
@@ -58,7 +58,7 @@ Retrieves data from storage by key.
 
 **Example:**
 ```typescript
-const response = await keplerStorage.get('myData');
+const response = await storage.get('myData');
 console.log(response.data);
 ```
 
@@ -80,7 +80,7 @@ Stores data in storage with the specified key.
 **Example:**
 ```typescript
 const data = { name: 'Example', value: 42 };
-await keplerStorage.put('myData', data);
+await storage.put('myData', data);
 ```
 
 ### list
@@ -102,7 +102,7 @@ Lists keys in storage, optionally filtered by path.
 
 **Example:**
 ```typescript
-const response = await keplerStorage.list({ 
+const response = await storage.list({ 
   path: 'folder', 
   removePrefix: true 
 });
@@ -125,7 +125,7 @@ Deletes the data stored under the specified key.
 
 **Example:**
 ```typescript
-await keplerStorage.delete('myData');
+await storage.delete('myData');
 ```
 
 ### deleteAll
@@ -143,7 +143,7 @@ Deletes all data under a specific prefix.
 
 **Example:**
 ```typescript
-await keplerStorage.deleteAll('folder');
+await storage.deleteAll('folder');
 ```
 
 ### delegate
@@ -156,12 +156,12 @@ Creates a delegation to allow another user to access specific resources.
 
 **Parameters:**
 - `params` - Parameters for the delegation
-  - `target` - The target file or folder you are sharing
+  - `target` - The target file or folder path you are sharing
   - `delegateDID` - The DID of the key you are delegating to
   - `actions` - The actions you are authorizing the delegate to do
-  - `statement` - Optional statement in the SIWE message
+  - `statement` - Optional statement in the authentication message
 
-**Returns:** A Promise containing the delegation response with SIWE message and signature
+**Returns:** A Promise containing the delegation response with authentication message and signature
 
 ### generateSharingLink
 

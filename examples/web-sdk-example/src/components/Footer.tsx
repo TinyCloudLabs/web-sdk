@@ -26,7 +26,7 @@ const Footer: React.FC = () => {
               GitHub
             </a>
             <a 
-              href="https://docs.tinycloud.org" 
+              href="https://docs.tinycloud.xyz" 
               target="_blank" 
               rel="noopener noreferrer" 
               className="text-sm text-text-muted hover:text-primary-600 transition-colors"
@@ -34,7 +34,7 @@ const Footer: React.FC = () => {
               Documentation
             </a>
             <a 
-              href="https://tinycloud.org/protocol" 
+              href="https://tinycloud.xyz/protocol" 
               target="_blank" 
               rel="noopener noreferrer" 
               className="text-sm text-text-muted hover:text-primary-600 transition-colors"

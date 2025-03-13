@@ -11,32 +11,32 @@ type FeatureItem = {
 
 const FeatureList: FeatureItem[] = [
   {
-    title: 'Easy to Use',
+    title: 'Decentralized Storage',
     Svg: require('@site/static/img/undraw_docusaurus_mountain.svg').default,
     description: (
       <>
-        Docusaurus was designed from the ground up to be easily installed and
-        used to get your website up and running quickly.
+        Store and retrieve data securely without relying on centralized servers. 
+        TinyCloud provides a simple API for decentralized storage operations.
       </>
     ),
   },
   {
-    title: 'Focus on What Matters',
+    title: 'Web3 Authentication',
     Svg: require('@site/static/img/undraw_docusaurus_tree.svg').default,
     description: (
       <>
-        Docusaurus lets you focus on your docs, and we&apos;ll do the chores. Go
-        ahead and move your docs into the <code>docs</code> directory.
+        Seamlessly integrate wallet-based authentication with Sign-in with Ethereum (SIWE).
+        Connect with all major Web3 wallets out of the box.
       </>
     ),
   },
   {
-    title: 'Powered by React',
+    title: 'Developer-Friendly',
     Svg: require('@site/static/img/undraw_docusaurus_react.svg').default,
     description: (
       <>
-        Extend or customize your website layout by reusing React. Docusaurus can
-        be extended while reusing the same header and footer.
+        Built with TypeScript for comprehensive type safety and intellisense support.
+        Simple APIs abstract away the complexities of blockchain interactions.
       </>
     ),
   },

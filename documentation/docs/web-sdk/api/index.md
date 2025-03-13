@@ -1,11 +1,21 @@
 ---
 sidebar_position: 1
+title: "API Reference"
 ---
 
-<img src="/img/tinycloudheader.png" alt="TinyCloud" width="100%" />
+# TinyCloud SDK API Reference
 
-# API Reference
+Comprehensive reference documentation for the TinyCloud SDK packages.
 
-The API documentation is currently being updated. Please check back later.
+## [Web SDK](./sdk/)
 
+The main TinyCloud Web SDK package
+
+[View full Web SDK API Reference](./sdk/)
+
+## [Web Core](./core/)
+
+Core utilities and types for TinyCloud SDKs
+
+[View full Web Core API Reference](./core/)
 

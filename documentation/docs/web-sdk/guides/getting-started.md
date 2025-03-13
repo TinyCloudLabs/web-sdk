@@ -34,7 +34,7 @@ const tc = new TinyCloudWeb({
 await tc.connect();
 
 // Now you can use the SDK's functionality
-// For example, storing data with Kepler
+// For example, storing data with TinyCloud
 const storage = tc.storage;
 await storage.put('myKey', { hello: 'world' });
 
@@ -52,9 +52,9 @@ const tc = new TinyCloudWeb({
   // General configuration
   debug: true, // Enable debug logging
   
-  // Kepler storage configuration
+  // TinyCloud storage configuration
   storage: {
-    hosts: ['https://node.tinycloud.xyz'], // Kepler host endpoints
+    hosts: ['https://node.tinycloud.xyz'], // TinyCloud host endpoints
     prefix: 'myApp', // Prefix for all storage operations
     autoCreateNewOrbit: true, // Automatically create a new orbit if one doesn't exist
   },

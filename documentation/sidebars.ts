@@ -15,7 +15,11 @@ import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
 const sidebars: SidebarsConfig = {
   // By default, Docusaurus generates a sidebar from the docs folder structure
   mainSidebar: [
-    'intro',
+    {
+      type: 'doc',
+      label: 'Introduction',
+      id: 'intro',
+    },
     {
       type: 'category',
       label: 'Web SDK',
@@ -32,9 +36,21 @@ const sidebars: SidebarsConfig = {
             id: 'web-sdk/guides/index',
           },
           items: [
-            'web-sdk/guides/getting-started',
-            'web-sdk/guides/storage-guide',
-            'web-sdk/guides/authentication-guide',
+            {
+              type: 'doc',
+              label: 'Getting Started',
+              id: 'web-sdk/guides/getting-started',
+            },
+            {
+              type: 'doc',
+              label: 'Working with Storage',
+              id: 'web-sdk/guides/storage-guide',
+            },
+            {
+              type: 'doc',
+              label: 'Authentication',
+              id: 'web-sdk/guides/authentication-guide',
+            },
           ],
         },
         {
@@ -45,8 +61,16 @@ const sidebars: SidebarsConfig = {
             id: 'web-sdk/api/index',
           },
           items: [
-            'web-sdk/api/keplerstorage',
-            'web-sdk/api/userauthorization',
+            {
+              type: 'doc',
+              label: 'TinyCloudStorage',
+              id: 'web-sdk/api/tinycloudstorage',
+            },
+            {
+              type: 'doc',
+              label: 'UserAuthorization',
+              id: 'web-sdk/api/userauthorization',
+            },
           ],
         },
       ],
