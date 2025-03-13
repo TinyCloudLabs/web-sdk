@@ -1,0 +1,37 @@
+{
+  "name": "tinycloud-web-sdk",
+  "version": "0.0.1",
+  "description": "",
+  "private": true,
+  "workspaces": [
+    "packages/web-sdk-rs",
+    "packages/web-core",
+    "packages/web-sdk",
+    "examples/web-sdk-example"
+  ],
+  "scripts": {
+    "build": "./scripts/build.sh",
+    "web-core": "bun --cwd packages/web-core -c",
+    "web-sdk": "bun --cwd packages/web-sdk -c",
+    "web-sdk-rs": "bun --cwd packages/web-sdk-rs -c",
+    "clean": "./scripts/clean.sh",
+    "clean-docs": "./scripts/clean-docs.sh",
+    "github-pub": "./scripts/switch-registry.sh github",
+    "npm-pub": "./scripts/switch-registry.sh npm",
+    "docs:dev": "cd documentation && bun run docs:dev",
+    "docs:build": "cd documentation && bun run docs:build",
+    "docs:serve": "cd documentation && bun run serve",
+    "docs:generate-api": "cd packages/web-sdk && bun run doc",
+    "docs:deploy": "cd documentation && bun run docs:deploy"
+  },
+  "devDependencies": {
+    "@docusaurus/core": "^3.7.0",
+    "@docusaurus/preset-classic": "^3.7.0",
+    "@tinycloudlabs/web-core": "workspace:*",
+    "@tinycloudlabs/web-sdk": "workspace:*",
+    "@tinycloudlabs/web-sdk-wasm": "workspace:*"
+  },
+  "keywords": [],
+  "author": "TinyCloud, Inc.",
+  "license": "MIT"
+}

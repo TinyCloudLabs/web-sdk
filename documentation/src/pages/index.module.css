@@ -1,0 +1,334 @@
+/**
+ * CSS files with the .module.css suffix will be treated as CSS modules
+ * and scoped locally.
+ */
+
+/* Hero section */
+.heroBanner {
+  padding: 4rem 0;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #282F4B, #4573B9);
+  min-height: 50vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.heroBackground {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.gradientOrb1 {
+  position: absolute;
+  width: 800px;
+  height: 800px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(125, 176, 210, 0.6) 0%, rgba(125, 176, 210, 0) 70%);
+  opacity: 0.3;
+  top: -20%;
+  right: -10%;
+  animation: float 20s ease-in-out infinite;
+}
+
+.gradientOrb2 {
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(253, 249, 210, 0.3) 0%, rgba(253, 249, 210, 0) 70%);
+  opacity: 0.2;
+  bottom: -10%;
+  left: -10%;
+  animation: float-reverse 25s ease-in-out infinite;
+}
+
+.particles {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background-color: rgba(253, 249, 210, 0.5);
+  border-radius: 50%;
+  opacity: 0.2;
+  animation: float-particle 10s ease-in-out infinite;
+}
+
+@keyframes float-particle {
+  0%, 100% { transform: translateY(0) scale(1); opacity: 0.2; }
+  50% { transform: translateY(-50px) scale(1.5); opacity: 0.5; }
+}
+
+.logoContainer {
+  margin-bottom: 2rem;
+  display: flex;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+}
+
+.logoWrapper {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: transform 0.3s ease-in-out;
+}
+
+.logoWrapper:hover {
+  transform: scale(1.05);
+}
+
+.logoIcon {
+  width: 50px;
+  height: auto;
+}
+
+.logoText {
+  height: 30px;
+  width: auto;
+}
+
+.buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+  margin-top: 2rem;
+}
+
+.primaryButton {
+  background-color: #7DB0D2 !important;
+  color: #282F4B !important;
+  font-weight: bold;
+  border: none !important;
+  transition: transform 0.3s ease, background-color 0.3s ease;
+}
+
+.primaryButton:hover {
+  transform: scale(1.05);
+  background-color: #7DB0D2DD !important;
+}
+
+/* Features Section */
+.features {
+  display: flex;
+  align-items: center;
+  padding: 4rem 0;
+  width: 100%;
+  background-color: #282F4B;
+  color: #FDF9D2;
+}
+
+.featureItem {
+  text-align: center;
+  padding: 2rem 1rem;
+  border-radius: 0.5rem;
+  transition: transform 0.3s ease, background-color 0.3s ease;
+}
+
+.featureItem:hover {
+  transform: translateY(-5px);
+  background-color: rgba(125, 176, 210, 0.1);
+}
+
+.featureIcon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.featureTitle {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  color: #7DB0D2;
+}
+
+.featureDescription {
+  font-size: 1rem;
+  color: #FDF9D2CC;
+  line-height: 1.6;
+}
+
+/* Example Section */
+.exampleSection {
+  padding: 4rem 0;
+  background-color: #323A5A;
+  color: #FDF9D2;
+}
+
+.exampleContainer {
+  display: flex;
+  flex-direction: row;
+  gap: 3rem;
+  align-items: center;
+}
+
+.exampleContent {
+  flex: 1;
+  padding-right: 2rem;
+}
+
+.exampleTitle {
+  font-size: 2.2rem;
+  margin-bottom: 1.5rem;
+  color: #7DB0D2;
+  font-weight: bold;
+}
+
+.exampleText {
+  font-size: 1.1rem;
+  margin-bottom: 2rem;
+  line-height: 1.6;
+}
+
+.exampleButton {
+  background-color: #7DB0D2;
+  color: #282F4B;
+  font-weight: bold;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  transition: transform 0.3s ease;
+}
+
+.exampleButton:hover {
+  transform: scale(1.05);
+  background-color: #7DB0D2DD;
+}
+
+.codeExample {
+  flex: 1;
+  background-color: #282F4B;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(125, 176, 210, 0.2);
+}
+
+.codeExampleHeader {
+  background-color: #1e2439;
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid rgba(125, 176, 210, 0.1);
+}
+
+.codeExampleDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 0.5rem;
+}
+
+.codeExampleTitle {
+  margin-left: 0.5rem;
+  font-size: 0.85rem;
+  color: #FDF9D2;
+  opacity: 0.7;
+  font-family: 'Space Grotesk', monospace;
+}
+
+.codeContent {
+  padding: 1.5rem;
+  overflow-x: auto;
+}
+
+.codeExample pre {
+  margin: 0;
+  padding: 0;
+  color: #FDF9D2;
+  font-family: 'Space Grotesk', monospace;
+  overflow-x: visible;
+  background: transparent;
+}
+
+.codeExample code {
+  line-height: 1.6;
+  font-family: 'Space Grotesk', monospace;
+}
+
+/* Values Section */
+.valuesSection {
+  padding: 4rem 0;
+  background-color: #282F4B;
+  color: #FDF9D2;
+}
+
+.valuesSectionTitle {
+  text-align: center;
+  font-size: 2.2rem;
+  margin-bottom: 3rem;
+  color: #7DB0D2;
+  font-weight: bold;
+}
+
+.valuesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+}
+
+.valueCard {
+  background-color: rgba(125, 176, 210, 0.1);
+  border-radius: 0.5rem;
+  padding: 2rem;
+  transition: transform 0.3s ease, border-color 0.3s ease;
+  border: 1px solid rgba(125, 176, 210, 0.2);
+}
+
+.valueCard:hover {
+  transform: translateY(-5px);
+  border-color: rgba(125, 176, 210, 0.4);
+}
+
+.valueIcon {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  line-height: 1;
+}
+
+.valueTitle {
+  font-size: 1.3rem;
+  margin-bottom: 1rem;
+  color: #7DB0D2;
+}
+
+.valueDescription {
+  font-size: 1rem;
+  color: #FDF9D2CC;
+  line-height: 1.6;
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 996px) {
+  .heroBanner {
+    padding: 3rem 2rem;
+  }
+  
+  .exampleContainer {
+    flex-direction: column;
+    gap: 2rem;
+  }
+  
+  .exampleContent {
+    padding-right: 0;
+  }
+  
+  .valuesGrid {
+    grid-template-columns: 1fr;
+  }
+}
