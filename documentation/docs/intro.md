@@ -65,4 +65,4 @@ await storage.put('myKey', { hello: 'decentralized world' });
 - [**API Reference**](./web-sdk/api/) - Detailed documentation for all SDK components
 - [**Guides**](./web-sdk/guides/) - Step-by-step tutorials and how-to examples
 - [**GitHub**](https://github.com/TinyCloudLabs/web-sdk) - Report issues or contribute to the project
-- [**Discord Community**](https://discord.gg/tinycloud) - Get help from the TinyCloud team and community
+- [**Telegram Community**](https://t.me/+pplkv1XbbU01MDVh) - Get help from the TinyCloud team and community

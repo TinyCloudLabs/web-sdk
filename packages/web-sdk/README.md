@@ -150,4 +150,4 @@ If you encounter any issues or have questions, please file an issue on our [GitH
 Join the TinyCloud community:
 
 - [Twitter](https://twitter.com/TinyCloudLabs)
-- [Discord](https://discord.gg/tinycloud)
+- [Telegram](https://t.me/+pplkv1XbbU01MDVh)
