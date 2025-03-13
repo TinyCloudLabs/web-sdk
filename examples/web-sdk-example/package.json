@@ -51,11 +51,13 @@
     "react-app-rewired": "^2.2.1",
     "tailwind-merge": "^3.0.2",
     "tailwindcss": "3.4.1",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "webpack-bundle-analyzer": "^4.10.2"
   },
   "scripts": {
     "start": "npx react-app-rewired start",
-    "build": "npx react-app-rewired build",
+    "build": "GENERATE_SOURCEMAP=false npx react-app-rewired build",
+    "build:analyze": "GENERATE_SOURCEMAP=false ANALYZE=true npx react-app-rewired build",
     "eject": "npx react-app-rewired eject",
     "clean": "rimraf build"
   },

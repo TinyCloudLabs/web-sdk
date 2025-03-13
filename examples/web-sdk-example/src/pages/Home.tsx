@@ -6,13 +6,14 @@ import Input from '../components/Input';
 import Button from '../components/Button';
 import AccountInfo from '../components/AccountInfo';
 import { useWeb3Modal } from '@web3modal/react';
-import StorageModule from '../pages/StorageModule';
+import { lazy } from 'react';
 import { walletClientToEthers5Signer } from '../utils/web3modalV2Settings';
 import { getWalletClient } from '@wagmi/core'
 import { useWalletClient } from 'wagmi';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../components/ui/accordian';
 import Footer from '../components/Footer';
 
+const StorageModule = lazy(() => import('../pages/StorageModule'));
 declare global {
   interface Window {
     tcw: TinyCloudWeb;

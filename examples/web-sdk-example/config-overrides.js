@@ -1,7 +1,17 @@
 const webpack = require('webpack');
+const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
 
 // You can modify the webpack config in here, for instance to add polyfills.
 module.exports = function override(config, env) {
+  // Add bundle analyzer in analyze mode
+  if (process.env.ANALYZE) {
+    config.plugins.push(
+      new BundleAnalyzerPlugin({
+        analyzerMode: 'server',
+        analyzerPort: 8888,
+      })
+    );
+  }
   // Add PostCSS with Tailwind
   const oneOfRule = config.module.rules.find(rule => rule.oneOf);
   if (oneOfRule) {
@@ -23,12 +33,8 @@ module.exports = function override(config, env) {
     }
   }
 
-  // Handle webpack fallbacks
+  // Handle webpack fallbacks - only include essential ones
   config.resolve.fallback = {
-    os: require.resolve('os-browserify/browser'),
-    https: require.resolve('https-browserify'),
-    http: require.resolve('stream-http'),
-    stream: require.resolve('stream-browserify'),
     buffer: require.resolve('buffer/'),
   };
   
@@ -40,6 +46,31 @@ module.exports = function override(config, env) {
       Buffer: ['buffer', 'Buffer'],
     }),
   );
+  
+  // Enable code splitting
+  if (env === 'production') {
+    config.optimization = {
+      ...config.optimization,
+      splitChunks: {
+        chunks: 'all',
+        maxInitialRequests: Infinity,
+        minSize: 0,
+        cacheGroups: {
+          vendor: {
+            test: /[\\/]node_modules[\\/]/,
+            name(module) {
+              // Get the name. E.g. node_modules/packageName/not/this/part.js
+              // or node_modules/packageName
+              const packageName = module.context.match(/[\\/]node_modules[\\/](.*?)([\\/]|$)/)[1];
+              
+              // Create separate chunks for large packages
+              return `vendor.${packageName.replace('@', '')}`;
+            },
+          },
+        },
+      },
+    };
+  }
   
   return config;
 }
