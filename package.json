@@ -23,7 +23,6 @@
     "docs:serve": "cd documentation && bun run serve",
     "docs:generate-api": "cd packages/web-sdk && bun run doc",
     "docs:deploy": "cd documentation && bun run docs:deploy",
-    "changeset": "bun changeset",
     "changeset:add": "bun changeset add",
     "changeset:version": "bun changeset version",
     "changeset:publish": "bun changeset publish --access public",
