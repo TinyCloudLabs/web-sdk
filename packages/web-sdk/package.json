@@ -1,6 +1,6 @@
 {
   "name": "@tinycloudlabs/web-sdk",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "A set of tools and utilities to help you build your app with TinyCloud.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
