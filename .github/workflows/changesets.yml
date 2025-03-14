@@ -18,7 +18,7 @@ jobs:
         with:
           fetch-depth: 0
           # This makes sure we can push to protected branches
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_TOKEN }}
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
@@ -38,7 +38,7 @@ jobs:
           # disable publish since we handle it in the release step
           publish: false
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
 
       # Option 2: If PR is merged, run the release script
       - name: Release packages
@@ -48,5 +48,5 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           ./scripts/release.sh
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
