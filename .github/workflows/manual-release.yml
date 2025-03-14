@@ -58,6 +58,7 @@ jobs:
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          BUILD_SETUP_ENABLED: true
 
       - name: Create tags
         run: |
