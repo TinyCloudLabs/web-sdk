@@ -7,23 +7,6 @@ set -e
 
 # Only run setup if BUILD_SETUP_ENABLED is set
 if [ -n "$BUILD_SETUP_ENABLED" ]; then
-    # Ensure SSH directory exists
-    mkdir -p ~/.ssh
-
-    # Start the SSH agent
-    eval "$(ssh-agent -s)"
-
-    # Add the private key to the SSH agent if it exists
-    if [ -n "$CF_SSH_KEY" ]; then
-        echo "$CF_SSH_KEY" | tr -d '\r' | ssh-add -
-    fi
-
-    # Add GitHub's SSH public key to known_hosts only if it doesn't exist
-    if [ ! -f ~/.ssh/known_hosts ] || ! grep -q "github.com" ~/.ssh/known_hosts; then
-        echo "Adding GitHub's SSH public key to known_hosts..."
-        ssh-keyscan github.com >> ~/.ssh/known_hosts
-    fi
-
     # Check if rustup is installed
     if ! command -v rustup &> /dev/null; then
         echo "Installing rustup..."
