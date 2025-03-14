@@ -1,0 +1,85 @@
+name: Manual Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version strategy (patch, minor, major)'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: 'patch'
+        required: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      # Manual release with changeset snapshot for when the PR approach isn't working
+      - name: Create changeset
+        run: |
+          echo "Creating changeset for ${{ github.event.inputs.version }} release..."
+          bun changeset add --empty
+
+      - name: Version packages
+        run: bun changeset version --${{ github.event.inputs.version }}
+
+      - name: Build packages
+        run: bun run build
+
+      - name: Setup NPM
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+          bun run npm-pub
+
+      - name: Publish packages
+        run: bun changeset publish --access public
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+
+      - name: Create tags
+        run: |
+          ROOT_DIR=$(pwd)
+          
+          cd "$ROOT_DIR/packages/web-core"
+          CORE_VERSION=$(cat package.json | grep '"version"' | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[[:space:]]')
+          git tag "web-core-v$CORE_VERSION"
+          
+          cd "$ROOT_DIR/packages/web-sdk-rs"
+          SDK_RS_VERSION=$(cat package.json | grep '"version"' | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[[:space:]]')
+          git tag "web-sdk-rs-v$SDK_RS_VERSION"
+          
+          cd "$ROOT_DIR/packages/web-sdk"
+          SDK_VERSION=$(cat package.json | grep '"version"' | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[[:space:]]')
+          git tag "web-sdk-v$SDK_VERSION"
+          
+          cd "$ROOT_DIR"
+
+      - name: Commit changes
+        run: |
+          git add .
+          git commit -m "chore: release version [skip ci]" || echo "No changes to commit"
+          git push origin HEAD:master
+          git push origin --tags

@@ -35,8 +35,9 @@ jobs:
         with:
           commit: "chore: update versions"
           title: "chore: update versions"
-          # disable publish since we handle it in the release step
-          publish: false
+          # Use empty string to properly handle publishing
+          publish: ""
+          version: bun changeset version
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
 
