@@ -16,6 +16,7 @@ function StorageModule({ tcw }: IStorageModule) {
   const [viewingList, setViewingList] = useState<boolean>(true);
   const [allowPost, setAllowPost] = useState<boolean>(false);
   const [removePrefix, setRemovePrefix] = useState<boolean>(false);
+  const [sharingLink, setSharingLink] = useState<string>('');
 
   useEffect(() => {
     const getContentList = async () => {
@@ -29,7 +30,6 @@ function StorageModule({ tcw }: IStorageModule) {
     const prefix = tcw.storage.prefix;
     let base64Content;
     try {
-
       let reference = removePrefix ? content : content.replace(new RegExp(`^${prefix}/`), '');
       reference = prefix ? `${prefix}/${reference}` : reference
       base64Content = await tcw.storage.generateSharingLink(
@@ -40,9 +40,16 @@ function StorageModule({ tcw }: IStorageModule) {
       alert('Failed to generate sharing link. Please refresh the page and try again.');
       return;
     }
-    const sharingLink = `${window.location.origin}/share?data=${base64Content}`;
-    await navigator.clipboard.writeText(sharingLink);
+    const link = `${window.location.origin}/share?data=${base64Content}`;
+    setSharingLink(link);
     return;
+  };
+  
+  const handleCopyLink = async () => {
+    if (sharingLink) {
+      await navigator.clipboard.writeText(sharingLink);
+      alert('Link copied to clipboard!');
+    }
   };
 
   const handleGetContent = async (content: string) => {
@@ -62,6 +69,7 @@ function StorageModule({ tcw }: IStorageModule) {
     setSelectedContent(null);
     setName('');
     setText('');
+    setSharingLink('');
   };
 
   const handlePostContent = async () => {
@@ -81,6 +89,7 @@ function StorageModule({ tcw }: IStorageModule) {
     }
     setName('');
     setText('');
+    setSharingLink('');
     setViewingList(true);
   };
 
@@ -117,6 +126,38 @@ function StorageModule({ tcw }: IStorageModule) {
         {viewingList ? (
           <div className="space-y-4">
             <h3 className="text-lg font-heading text-text">Key Value Store</h3>
+            
+            {sharingLink && (
+              <div className="mb-4 rounded-base border-2 border-main/30 bg-main/10 p-3">
+                <div className="flex flex-col space-y-2">
+                  <p className="text-sm font-medium text-text">Sharing Link:</p>
+                  <div className="flex items-center space-x-2">
+                    <Input
+                      label=""
+                      value={sharingLink}
+                      onChange={() => {}}
+                      className="flex-1"
+                    />
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={handleCopyLink}
+                    >
+                      Copy
+                    </Button>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button
+                      variant="neutral"
+                      size="sm"
+                      onClick={() => setSharingLink('')}
+                    >
+                      Close
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
             
             {contentList.length === 0 ? (
               <div className="rounded-base border-2 border-dashed border-border/50 bg-bw/50 p-8 text-center">
@@ -198,7 +239,10 @@ function StorageModule({ tcw }: IStorageModule) {
                 )}
                 <Button 
                   variant="neutral"
-                  onClick={() => setViewingList(true)}
+                  onClick={() => {
+                    setSharingLink('');
+                    setViewingList(true);
+                  }}
                   className="flex-1"
                 >
                   Back to List
