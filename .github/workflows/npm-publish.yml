@@ -54,10 +54,10 @@ jobs:
       - name: Publish all packages
         if: ${{ github.event.inputs.package == 'all' }}
         run: |
-          cd packages/web-core
+          cd packages/web-sdk-rs
           npm publish --access public
           
-          cd ../web-sdk-rs
+          cd ../web-core
           npm publish --access public
           
           cd ../web-sdk

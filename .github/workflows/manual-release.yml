@@ -68,12 +68,12 @@ jobs:
           echo "Publishing packages with npm directly..."
           ROOT_DIR=$(pwd)
           
-          echo "Publishing web-core..."
-          cd "$ROOT_DIR/packages/web-core"
-          npm publish --access public
-          
           echo "Publishing web-sdk-rs..."
           cd "$ROOT_DIR/packages/web-sdk-rs"
+          npm publish --access public
+          
+          echo "Publishing web-core..."
+          cd "$ROOT_DIR/packages/web-core"
           npm publish --access public
           
           echo "Publishing web-sdk..."
