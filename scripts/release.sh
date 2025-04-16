@@ -52,6 +52,18 @@ git tag "web-sdk-v$SDK_VERSION"
 
 cd "$ROOT_DIR"
 
+# Setup NPM authentication
+echo "Setting up NPM authentication..."
+if [ -z "$NPM_TOKEN" ]; then
+  echo "ERROR: NPM_TOKEN environment variable is not set"
+  exit 1
+fi
+./scripts/npm-auth.sh
+
+# Switch to npm registry
+echo "Switching to npm registry..."
+bun run npm-pub
+
 # Publish packages with changesets
 echo "Publishing packages..."
 bun changeset publish --access public
