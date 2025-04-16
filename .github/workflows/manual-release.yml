@@ -50,15 +50,39 @@ jobs:
 
       - name: Setup NPM
         run: |
-          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+          # Export NPM_TOKEN for our script
+          export NPM_TOKEN="${{ secrets.NPM_TOKEN }}"
+          
+          # Run our NPM auth setup script
+          ./scripts/npm-auth.sh
+          
+          # Set to npm registry
           bun run npm-pub
 
-      - name: Publish packages
-        run: bun changeset publish --access public
+      - name: Publish packages with npm directly
+        run: |
+          # Export needed env vars
+          export NPM_TOKEN="${{ secrets.NPM_TOKEN }}"
+          export NODE_AUTH_TOKEN="${{ secrets.NPM_TOKEN }}"
+          
+          echo "Publishing packages with npm directly..."
+          ROOT_DIR=$(pwd)
+          
+          echo "Publishing web-core..."
+          cd "$ROOT_DIR/packages/web-core"
+          npm publish --access public
+          
+          echo "Publishing web-sdk-rs..."
+          cd "$ROOT_DIR/packages/web-sdk-rs"
+          npm publish --access public
+          
+          echo "Publishing web-sdk..."
+          cd "$ROOT_DIR/packages/web-sdk"
+          npm publish --access public
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-          BUILD_SETUP_ENABLED: true
 
       - name: Create tags
         run: |

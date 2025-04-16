@@ -1,0 +1,90 @@
+name: NPM Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 'Package to publish (all for all packages)'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - web-core
+          - web-sdk-rs
+          - web-sdk
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build packages
+        run: bun run build
+
+      - name: Configure NPM
+        run: |
+          # Export NPM_TOKEN for our script
+          export NPM_TOKEN="${{ secrets.NPM_TOKEN }}"
+          
+          # Run our NPM auth setup script
+          ./scripts/npm-auth.sh
+          
+          # Switch to npm registry
+          bun run npm-pub
+
+      - name: Publish all packages
+        if: ${{ github.event.inputs.package == 'all' }}
+        run: |
+          cd packages/web-core
+          npm publish --access public
+          
+          cd ../web-sdk-rs
+          npm publish --access public
+          
+          cd ../web-sdk
+          npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish web-core
+        if: ${{ github.event.inputs.package == 'web-core' }}
+        run: |
+          cd packages/web-core
+          npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish web-sdk-rs
+        if: ${{ github.event.inputs.package == 'web-sdk-rs' }}
+        run: |
+          cd packages/web-sdk-rs
+          npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish web-sdk
+        if: ${{ github.event.inputs.package == 'web-sdk' }}
+        run: |
+          cd packages/web-sdk
+          npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
