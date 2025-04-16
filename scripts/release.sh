@@ -72,6 +72,35 @@ bun changeset publish --access public
 echo "Pushing commits and tags..."
 git push origin master --tags
 
+# Create GitHub draft releases for each package
+echo "Creating GitHub draft releases..."
+
+# Check if gh CLI is installed
+if ! command -v gh &> /dev/null; then
+  echo "GitHub CLI (gh) is not installed. Skipping GitHub release creation."
+else
+  # Create draft release for web-core
+  echo "Creating draft release for web-core v$CORE_VERSION..."
+  gh release create "web-core-v$CORE_VERSION" \
+    --title "Web Core v$CORE_VERSION" \
+    --notes "Release notes for web-core v$CORE_VERSION" \
+    --draft
+  
+  # Create draft release for web-sdk-rs
+  echo "Creating draft release for web-sdk-rs v$SDK_RS_VERSION..."
+  gh release create "web-sdk-rs-v$SDK_RS_VERSION" \
+    --title "Web SDK RS v$SDK_RS_VERSION" \
+    --notes "Release notes for web-sdk-rs v$SDK_RS_VERSION" \
+    --draft
+  
+  # Create draft release for web-sdk
+  echo "Creating draft release for web-sdk v$SDK_VERSION..."
+  gh release create "web-sdk-v$SDK_VERSION" \
+    --title "Web SDK v$SDK_VERSION" \
+    --notes "Release notes for web-sdk v$SDK_VERSION" \
+    --draft
+fi
+
 echo "Release completed successfully!"
 echo "The following packages were released:"
 echo "- @tinycloudlabs/web-core@$CORE_VERSION"
