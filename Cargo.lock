@@ -582,9 +582,22 @@ checksum = "f6ed9c8b2d17acb8110c46f1da5bf4a696d745e1474a16db0cd2b49cd0249bf2"
 dependencies = [
  "core2",
  "multibase 0.9.1",
- "multihash",
+ "multihash 0.16.3",
  "serde",
  "serde_bytes",
+ "unsigned-varint",
+]
+
+[[package]]
+name = "cid"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fd94671561e36e4e7de75f753f577edafb0e7c05d6e4547229fdf7938fbcd2c3"
+dependencies = [
+ "core2",
+ "multibase 0.9.1",
+ "multihash 0.18.1",
+ "serde",
  "unsigned-varint",
 ]
 
@@ -957,7 +970,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1145d32e826a7748b69ee8fc62d3e6355ff7f1051df53141e7048162fc90481b"
 dependencies = [
  "data-encoding",
- "syn 1.0.109",
+ "syn 2.0.96",
 ]
 
 [[package]]
@@ -2417,7 +2430,7 @@ dependencies = [
  "libipld-json",
  "libipld-macro",
  "log",
- "multihash",
+ "multihash 0.16.3",
  "parking_lot",
  "thiserror",
 ]
@@ -2453,10 +2466,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d44790246ec6b7314cba745992c23d479d018073e66d49ae40ae1b64e5dd8eb5"
 dependencies = [
  "anyhow",
- "cid",
+ "cid 0.8.6",
  "core2",
  "multibase 0.9.1",
- "multihash",
+ "multihash 0.16.3",
  "serde",
  "thiserror",
 ]
@@ -2468,7 +2481,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "18aa481a87f084d98473dd9ece253a9569c762b75f6bbba8217d54e48c9d63b3"
 dependencies = [
  "libipld-core",
- "multihash",
+ "multihash 0.16.3",
  "serde",
  "serde_json",
 ]
@@ -2637,6 +2650,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "multihash"
+version = "0.18.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cfd8a792c1694c6da4f68db0a9d707c72bd260994da179e6030a5dcee00bb815"
+dependencies = [
+ "blake2b_simd 1.0.2",
+ "blake2s_simd",
+ "blake3",
+ "core2",
+ "digest 0.10.7",
+ "multihash-derive",
+ "sha2 0.10.8",
+ "sha3",
+ "unsigned-varint",
+]
+
+[[package]]
 name = "multihash-derive"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2761,6 +2791,26 @@ checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
 dependencies = [
  "autocfg",
  "libm",
+]
+
+[[package]]
+name = "nutype"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "060a7fdadbae85c7063375e8fb9dd88c9ac336a22d1f0eb2fefd53dbf98edcb5"
+dependencies = [
+ "nutype_macros",
+]
+
+[[package]]
+name = "nutype_macros"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a0d2e869a6039d8b1d10f8a478f76538958808fbf95dae367875ee9635430b9"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -3836,6 +3886,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "siwe-recap"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "054c5aea5227ca44212d3029576602ebefce5179d584bdfcc842997c73cc40d9"
+dependencies = [
+ "base64 0.12.3",
+ "cid 0.10.1",
+ "iri-string",
+ "serde",
+ "serde_jcs",
+ "serde_json",
+ "serde_with 2.3.3",
+ "siwe",
+ "thiserror",
+ "ucan-capabilities-object",
+]
+
+[[package]]
 name = "slab"
 version = "0.4.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4222,11 +4290,11 @@ dependencies = [
  "flate2",
  "iref",
  "libipld",
- "multihash",
+ "multihash 0.16.3",
  "reqwest",
  "serde",
  "serde_json",
- "siwe-recap",
+ "siwe-recap 0.1.0",
  "ssi-core",
  "ssi-dids",
  "ssi-json-ld",
@@ -4474,7 +4542,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_with 1.14.0",
- "siwe-recap",
+ "siwe-recap 0.1.0",
  "ssi",
  "thiserror",
  "uuid",
@@ -4531,7 +4599,7 @@ dependencies = [
  "serde-wasm-bindgen",
  "serde_json",
  "siwe",
- "siwe-recap",
+ "siwe-recap 0.2.0",
  "ssi",
  "tinycloud-sdk-rs",
  "tinycloud-sdk-wasm",
@@ -4700,6 +4768,18 @@ name = "typenum"
 version = "1.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "42ff0bf0c66b8238c6f3b578df37d0b7848e55df8577b3f74f92a69acceeb825"
+
+[[package]]
+name = "ucan-capabilities-object"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5f39597d86523b7f8028e7c05989fc64c1868f381e68ffc9c4b8540e5a891382"
+dependencies = [
+ "iri-string",
+ "nutype",
+ "serde",
+ "thiserror",
+]
 
 [[package]]
 name = "uint"

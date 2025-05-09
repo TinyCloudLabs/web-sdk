@@ -13,7 +13,7 @@ repository = "https://github.com/tinycloudlabs/web-sdk/"
 crate-type = ["cdylib"]
 
 [dependencies]
-siwe-recap = "0.1.0"
+siwe-recap = "0.2.0"
 did-method-key = "0.2.1"
 console_error_panic_hook = "0.1"
 rand = { version = "0.7", features = ["wasm-bindgen"] }

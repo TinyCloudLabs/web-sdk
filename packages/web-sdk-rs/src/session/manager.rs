@@ -3,7 +3,8 @@ use std::{collections::HashMap, str::FromStr};
 use did_method_key::DIDKey;
 use js_sys::{JsString, JSON};
 use siwe::{generate_nonce, Message};
-use siwe_recap::{Builder, Namespace};
+use siwe_recap::{Capability, Namespace};
+use serde_json::Value;
 use ssi::{
     did::{DIDMethod, Source},
     jwk::JWK,
@@ -27,7 +28,7 @@ pub struct SessionInfo {
 #[derive(Debug)]
 pub struct SessionManager {
     sessions: HashMap<String, SessionInfo>,
-    builder: Builder,
+    capability: Capability<Value>,
 }
 
 static DEFAULT_KEY_ID: &str = "default";
@@ -53,13 +54,13 @@ impl SessionManager {
         );
         Ok(Self {
             sessions,
-            builder: Default::default(),
+            capability: Capability::default(),
         })
     }
 
     // reset the builder
     pub fn reset_builder(&mut self) {
-        self.builder = Default::default();
+        self.capability = Capability::default();
     }
 
     /// Build a SIWE message for signing.
@@ -121,8 +122,8 @@ impl SessionManager {
         };
 
         let siwe = self
-            .builder
-            .build(message)
+            .capability
+            .build_message(message)
             .map_err(|build_error| format!("unable to build siwe message: {}", build_error))?;
         Ok(siwe.to_string())
     }
@@ -146,8 +147,13 @@ impl SessionManager {
             string_conversion_error();
             return false;
         };
-        let tmp = std::mem::take(&mut self.builder);
-        self.builder = tmp.with_default_actions(&namespace, actions);
+
+        for action in actions {
+            if let Err(e) = self.capability.with_action_convert(namespace.as_str(), &action, []) {
+                console_error(&format!("Failed to add action: {}", e).into());
+                return false;
+            }
+        }
         true
     }
 
@@ -175,8 +181,16 @@ impl SessionManager {
             string_conversion_error();
             return false;
         };
-        let tmp = std::mem::take(&mut self.builder);
-        self.builder = tmp.with_actions(&namespace, target, actions);
+
+        let resource = format!("{}{}", namespace, target);
+        let action_tuples: Vec<(&str, [&str; 0])> = actions.iter()
+            .map(|a| (a.as_str(), []))
+            .collect();
+
+        if let Err(e) = self.capability.with_actions_convert(&resource, action_tuples) {
+            console_error(&format!("Failed to add targeted actions: {}", e).into());
+            return false;
+        }
         true
     }
 
