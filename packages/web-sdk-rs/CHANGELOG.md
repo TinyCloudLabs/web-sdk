@@ -1,5 +1,11 @@
 # @tinycloudlabs/web-sdk-wasm
 
+## 0.1.1
+
+### Patch Changes
+
+- 45bae72: Security fixes
+
 ## 0.1.0
 
 ### Minor Changes
