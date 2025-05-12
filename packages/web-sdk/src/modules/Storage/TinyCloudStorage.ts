@@ -385,7 +385,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
     statement,
   }: DelegateParams): Promise<DelegateResponse> {
     // add actions to session builder
-    this.sessionManager.resetBuilder();
+    this.sessionManager.resetCapability();
     this.sessionManager.addTargetedActions(this.namespace, target, actions);
 
     // create siwe message
