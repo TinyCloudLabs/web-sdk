@@ -152,13 +152,13 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
 
   public async targetedActions(): Promise<{ [target: string]: string[] }> {
     const actions = {};
-    actions[`${this.orbitId}/capabilities/`] = ['read'];
+    actions[`${this.orbitId}/capabilities/`] = ['kv/read'];
     actions[`${this.orbitId}/kv/${this.prefix}`] = [
-      'put',
-      'get',
-      'list',
-      'del',
-      'metadata',
+      'kv/put',
+      'kv/get',
+      'kv/list',
+      'kv/del',
+      'kv/metadata',
     ];
     return actions;
   }
@@ -406,7 +406,10 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
     };
 
     // build and sign message
+    console.log("this.sessionManager.build")
     const siwe = await this.sessionManager.build(siweConfig, null, delegateDID);
+    console.log("post build")
+
     const signature = await this.userAuth.signMessage(siwe);
 
     return {
@@ -430,7 +433,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
 
     // get file target + permissions
     const target = `${this.orbitId}/kv/${path}`;
-    const actions = ['get', 'metadata'];
+    const actions = ['kv/get', 'kv/metadata'];
 
     // delegate permission to target
     const { siwe, signature } = await this.delegate({

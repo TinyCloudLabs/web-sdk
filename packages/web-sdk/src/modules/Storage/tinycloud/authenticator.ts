@@ -25,8 +25,8 @@ export async function startSession(
       config?.expirationTime ??
       new Date(Date.now() + 1000 * 60 * 60).toISOString(),
     actions: config?.actions ?? {
-      kv: { '': ['put', 'get', 'list', 'del', 'metadata'] },
-      capabilities: { '': ['read'] },
+      kv: { '': ['kv/put', 'kv/get', 'kv/list', 'kv/del', 'kv/metadata'] },
+      capabilities: { '': ['kv/read'] },
     },
     orbitId: config?.orbitId ?? makeOrbitId(address, chainId),
     parents: config?.parents,

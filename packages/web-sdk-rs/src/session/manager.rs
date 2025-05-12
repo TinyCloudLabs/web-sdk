@@ -192,8 +192,8 @@ impl SessionManager {
 
         for action in actions {
             if let Err(e) = self.capability.with_action_convert(
-                &resource,
-                &action,
+                resource.parse::<UriString>().unwrap(),
+                action.parse::<Ability>().unwrap(),
                 Vec::<std::collections::BTreeMap<String, Value>>::new()
             ) {
                 console_error(&format!("Failed to add targeted action: {}", e).into());
