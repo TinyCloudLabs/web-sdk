@@ -183,11 +183,6 @@ class UserAuthorizationConnected implements ITCWConnected {
         this.builder.addDefaultActions(extension.namespace, defaults);
       }
 
-      if (extension.namespace && extension.extraFields) {
-        const defaults = await extension.extraFields();
-        this.builder.addExtraFields(extension.namespace, defaults);
-      }
-
       if (extension.namespace && extension.targetedActions) {
         const targetedActions = await extension.targetedActions();
         for (const target in targetedActions) {

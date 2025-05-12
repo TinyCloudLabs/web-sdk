@@ -4604,6 +4604,7 @@ dependencies = [
  "tinycloud-sdk-rs",
  "tinycloud-sdk-wasm",
  "tokio",
+ "ucan-capabilities-object",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
