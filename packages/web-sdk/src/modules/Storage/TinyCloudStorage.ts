@@ -144,7 +144,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
     const address = await tcw.provider.getSigner().getAddress();
     const chain = await tcw.provider.getSigner().getChainId();
 
-    this.orbitId = `tinycloud:pkh:eip155:${chain}:${address}://default`;
+    this.orbitId = `pkh:eip155:${chain}:${address}://default`;
 
     this.domain = tcw.config.siweConfig?.domain;
     return {};
@@ -166,18 +166,20 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
   public async generateTinyCloudSession(
     tcwSession: TCWClientSession
   ): Promise<Session> {
-    return await Promise.resolve({
+    const sessionData = {
       jwk: JSON.parse(tcwSession.sessionKey),
-      orbitId: this.orbitId,
+      orbitId: `${this.namespace}:${this.orbitId}`,
       service: 'kv',
       siwe: tcwSession.siwe,
       signature: tcwSession.signature,
       verificationMethod: new SiweMessage(tcwSession.siwe).uri,
-    })
-      .then(JSON.stringify)
-      // @TODO: figure out unit test issue
-      .then(this.tinycloudModule.completeSessionSetup)
-      .then(JSON.parse);
+    };
+    
+    const stringifiedData = JSON.stringify(sessionData);
+    const completedSession = await this.tinycloudModule.completeSessionSetup(stringifiedData);
+    const result = JSON.parse(completedSession);
+    
+    return result;
   }
 
   public async afterSignIn(tcwSession: TCWClientSession): Promise<void> {
@@ -363,7 +365,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
     const { status: hostStatus, statusText } = await hostOrbit(
       this.userAuth.getSigner(),
       tinycloudHost,
-      this.orbitId,
+      `${this.namespace}:${this.orbitId}`,
       this.domain
     );
 
