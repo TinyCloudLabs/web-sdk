@@ -3,7 +3,10 @@ use std::{collections::HashMap, str::FromStr};
 use did_method_key::DIDKey;
 use js_sys::{JsString, JSON};
 use siwe::{generate_nonce, Message};
-use siwe_recap::{Builder, Namespace};
+use siwe_recap::Capability;
+use ucan_capabilities_object::Ability;
+use iri_string::types::UriString;
+use serde_json::Value;
 use ssi::{
     did::{DIDMethod, Source},
     jwk::JWK,
@@ -27,7 +30,7 @@ pub struct SessionInfo {
 #[derive(Debug)]
 pub struct SessionManager {
     sessions: HashMap<String, SessionInfo>,
-    builder: Builder,
+    capability: Capability<Value>,
 }
 
 static DEFAULT_KEY_ID: &str = "default";
@@ -53,13 +56,13 @@ impl SessionManager {
         );
         Ok(Self {
             sessions,
-            builder: Default::default(),
+            capability: Capability::default(),
         })
     }
 
     // reset the builder
-    pub fn reset_builder(&mut self) {
-        self.builder = Default::default();
+    pub fn reset_capability(&mut self) {
+        self.capability = Capability::default();
     }
 
     /// Build a SIWE message for signing.
@@ -121,36 +124,51 @@ impl SessionManager {
         };
 
         let siwe = self
-            .builder
-            .build(message)
+            .capability
+            .build_message(message)
             .map_err(|build_error| format!("unable to build siwe message: {}", build_error))?;
         Ok(siwe.to_string())
     }
 
     /// Add default actions to a capability.
-    pub fn add_default_actions(&mut self, namespace: &str, default_actions: Vec<JsString>) -> bool {
-        let namespace: Namespace = match namespace.parse() {
-            Ok(ns) => ns,
-            Err(e) => {
-                console_error(&e.to_string().into());
+    pub fn add_default_actions(&mut self, namespace: &str, default_actions:
+        Vec<JsString>) -> bool {
+            let actions: Vec<String> = if let Some(actions) = default_actions
+                .iter()
+                .map(|js_string| js_string.as_string())
+                .collect()
+            {
+                actions
+            } else {
+                string_conversion_error();
                 return false;
+            };
+      
+            for action in actions {
+                // Format the namespace as a URI pattern and parse it
+                let target = format!("{}:*", namespace);
+                // Parse the target string into a URI
+                let target_uri = match target.parse::<UriString>() {
+                    Ok(uri) => uri,
+                    Err(e) => {
+                        console_error(&format!("Failed to parse URI: {}", e).into());
+                        return false;
+                    }
+                };
+      
+                // Convert action string to &str to satisfy trait bounds
+                if let Err(e) = self.capability.with_action_convert(
+                    target_uri,
+                    action.as_str(),  // Use as_str() instead of &action
+                    Vec::<std::collections::BTreeMap<String, Value>>::new()
+                ) {
+                    console_error(&format!("Failed to add action: {}", e).into());
+                    return false;
+                }
             }
-        };
-        let actions: Vec<String> = if let Some(actions) = default_actions
-            .iter()
-            .map(|js_string| js_string.as_string())
-            .collect()
-        {
-            actions
-        } else {
-            string_conversion_error();
-            return false;
-        };
-        let tmp = std::mem::take(&mut self.builder);
-        self.builder = tmp.with_default_actions(&namespace, actions);
-        true
-    }
-
+            true
+        }
+        
     /// Add actions for a specific target to a capability.
     pub fn add_targeted_actions(
         &mut self,
@@ -158,13 +176,6 @@ impl SessionManager {
         target: String,
         actions: Vec<JsString>,
     ) -> bool {
-        let namespace: Namespace = match namespace.parse() {
-            Ok(ns) => ns,
-            Err(e) => {
-                console_error(&e.to_string().into());
-                return false;
-            }
-        };
         let actions: Vec<String> = if let Some(actions) = actions
             .iter()
             .map(|js_string| js_string.as_string())
@@ -175,46 +186,24 @@ impl SessionManager {
             string_conversion_error();
             return false;
         };
-        let tmp = std::mem::take(&mut self.builder);
-        self.builder = tmp.with_actions(&namespace, target, actions);
+
+        // Create a properly formatted resource URI
+        let resource = format!("{}:{}", namespace, target);
+
+        for action in actions {
+            if let Err(e) = self.capability.with_action_convert(
+                resource.parse::<UriString>().unwrap(),
+                action.parse::<Ability>().unwrap(),
+                Vec::<std::collections::BTreeMap<String, Value>>::new()
+            ) {
+                console_error(&format!("Failed to add targeted action: {}", e).into());
+                return false;
+            }
+        }
         true
     }
 
-    /// Add extra fields to a capability.
-    pub fn add_extra_fields(&mut self, namespace: &str, extra_fields: ExtraFields) -> bool {
-        let namespace: Namespace = match namespace.parse() {
-            Ok(ns) => ns,
-            Err(e) => {
-                console_error(&e.to_string().into());
-                return false;
-            }
-        };
-        let extra_fields_js_str: JsString = match JSON::stringify(&extra_fields) {
-            Ok(s) => s,
-            Err(err) => {
-                console_error_2(&"unable to serialize 'extraFields':".into(), &err);
-                return false;
-            }
-        };
-        let extra_fields_str: String = match extra_fields_js_str.as_string() {
-            Some(s) => s,
-            _ => {
-                string_conversion_error();
-                return false;
-            }
-        };
-        let extra_fields: HashMap<String, serde_json::Value> =
-            match serde_json::from_str(&extra_fields_str) {
-                Ok(m) => m,
-                Err(err) => {
-                    console_error(&format!("unable to deserialize 'extraFields': {}", err).into());
-                    return false;
-                }
-            };
-        let tmp = std::mem::take(&mut self.builder);
-        self.builder = tmp.with_extra_fields(&namespace, extra_fields);
-        true
-    }
+    
 
     pub fn create_session_key(&mut self, key_id: Option<String>) -> Result<String, String> {
         let key_id = key_id.unwrap_or(DEFAULT_KEY_ID.to_string());

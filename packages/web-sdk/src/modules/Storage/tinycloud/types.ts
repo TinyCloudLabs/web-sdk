@@ -34,6 +34,8 @@ export type Session = {
   delegationCid: string;
   /** The session key. */
   jwk: object;
+  /** The namespace the orbit is in */
+  namespace: string;
   /** The orbit that the session key is permitted to perform actions against. */
   orbitId: string;
   /** The verification method of the session key. */
