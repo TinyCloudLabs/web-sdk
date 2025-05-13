@@ -408,9 +408,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
     };
 
     // build and sign message
-    console.log("this.sessionManager.build")
     const siwe = await this.sessionManager.build(siweConfig, null, delegateDID);
-    console.log("post build")
 
     const signature = await this.userAuth.signMessage(siwe);
 

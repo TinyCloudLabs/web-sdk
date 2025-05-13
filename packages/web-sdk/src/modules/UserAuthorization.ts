@@ -169,14 +169,9 @@ class UserAuthorizationConnected implements ITCWConnected {
 
   /** Applies the "afterConnect" methods and the delegated capabilities of the extensions. */
   public async applyExtensions(): Promise<void> {
-    console.log("applyExtensions: Starting to apply extensions");
     for (const extension of this.extensions) {
-      console.log(`applyExtensions: Processing extension ${extension.namespace || 'unnamed'}`);
-      
       if (extension.afterConnect) {
-        console.log(`applyExtensions: Calling afterConnect for ${extension.namespace || 'unnamed'}`);
         const overrides = await extension.afterConnect(this);
-        console.log(`applyExtensions: Received overrides from afterConnect`, overrides);
         this.config = {
           ...this.config,
           siweConfig: { ...this.config?.siweConfig, ...overrides?.siwe },
@@ -184,18 +179,13 @@ class UserAuthorizationConnected implements ITCWConnected {
       }
 
       if (extension.namespace && extension.defaultActions) {
-        console.log(`applyExtensions: Adding default actions for ${extension.namespace}`);
         const defaults = await extension.defaultActions();
-        console.log(`applyExtensions: Default actions for ${extension.namespace}:`, defaults);
         this.builder.addDefaultActions(extension.namespace, defaults);
       }
 
       if (extension.namespace && extension.targetedActions) {
-        console.log(`applyExtensions: Adding targeted actions for ${extension.namespace}`);
         const targetedActions = await extension.targetedActions();
-        console.log(`applyExtensions: Targeted actions for ${extension.namespace}:`, targetedActions);
         for (const target in targetedActions) {
-          console.log(`applyExtensions: Adding actions for target ${target}`);
           this.builder.addTargetedActions(
             extension.namespace,
             target,
@@ -204,7 +194,6 @@ class UserAuthorizationConnected implements ITCWConnected {
         }
       }
     }
-    console.log("applyExtensions: Finished applying all extensions");
   }
 
   /**
@@ -227,26 +216,17 @@ class UserAuthorizationConnected implements ITCWConnected {
    * @returns Promise with the TCWClientSession object.
    */
   async signIn(): Promise<TCWClientSession> {
-    console.log("signIn: Waiting for afterConnectHooksPromise to resolve");
     await this.afterConnectHooksPromise;
     
-    console.log("signIn: Getting session key from builder");
     const sessionKey = this.builder.jwk();
     if (sessionKey === undefined) {
-      console.log("signIn: Session key is undefined, rejecting");
       return Promise.reject(new Error('unable to retrieve session key'));
     }
     
-    console.log("signIn: Getting signer from provider");
     const signer = await this.provider.getSigner();
-    
-    console.log("signIn: Getting wallet address");
     const walletAddress = await signer.getAddress();
-    
-    console.log("signIn: Getting chain ID");
     const chainId = await this.provider.getSigner().getChainId();
     
-    console.log("signIn: Building default SIWE config");
     const defaults = {
       address: this.config.siweConfig?.address ?? walletAddress,
       walletAddress,
@@ -256,16 +236,10 @@ class UserAuthorizationConnected implements ITCWConnected {
       nonce: generateNonce(),
     };
 
-    console.log("signIn: Merging with user-provided SIWE config");
     const siweConfig = merge(defaults, this.config.siweConfig);
-    
-    console.log("signIn: Building SIWE message");
     const siwe = await this.builder.build(siweConfig);
-    
-    console.log("signIn: Requesting signature from signer");
     const signature = await signer.signMessage(siwe);
 
-    console.log("signIn: Creating session object");
     let session = {
       address: siweConfig.address,
       walletAddress,
@@ -275,10 +249,7 @@ class UserAuthorizationConnected implements ITCWConnected {
       signature,
     };
 
-    console.log("signIn: Calling afterSignIn hooks");
     await this.afterSignIn(session);
-
-    console.log("signIn: Returning session");
     return session;
   }
 
