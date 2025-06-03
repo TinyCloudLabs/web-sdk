@@ -31,7 +31,7 @@ graph TB
         end
         
         subgraph "Security Layer"
-            E[web-sdk-rs (WASM)]
+            E["web-sdk-rs WASM"]
             E1[Session Manager]
             E2[Cryptographic Operations]
             E3[SIWE Implementation]
@@ -152,7 +152,7 @@ interface TinyCloudWeb {
 #### UserAuthorization (Authentication Flow)
 ```mermaid
 stateDiagram-v2
-    [*] --> Init: new UserAuthorization()
+    [*] --> Init: new UserAuthorization
     Init --> Connected: connect(wallet)
     Connected --> Authenticated: signIn()
     Authenticated --> SessionActive: Session established
@@ -278,11 +278,11 @@ sequenceDiagram
     participant App as User App
     participant SDK as TinyCloudWeb
     participant Auth as UserAuthorization
-    participant WASM as SessionManager (WASM)
+    participant WASM as "SessionManager WASM"
     participant Wallet as Wallet Provider
     participant TC as TinyCloud Node
     
-    App->>SDK: new TinyCloudWeb(config)
+    App->>SDK: new TinyCloudWeb with config
     App->>SDK: signIn()
     SDK->>Auth: signIn()
     
@@ -295,10 +295,10 @@ sequenceDiagram
     Auth->>WASM: build(siweConfig) 
     WASM-->>Auth: SIWE message with ReCap capabilities
     
-    Auth->>Wallet: signMessage(siweMessage)
+    Auth->>Wallet: signMessage with siweMessage
     Wallet-->>Auth: signature
     
-    Auth->>TC: POST /tcw-login {siwe, signature}
+    Auth->>TC: POST tcw-login with siwe and signature
     TC-->>Auth: session token
     
     Auth->>SDK: TCWClientSession
