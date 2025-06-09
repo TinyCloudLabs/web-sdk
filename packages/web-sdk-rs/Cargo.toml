@@ -13,7 +13,6 @@ repository = "https://github.com/tinycloudlabs/web-sdk/"
 crate-type = ["cdylib"]
 
 [dependencies]
-siwe-recap = { git = "https://github.com/tinycloudlabs/tinycloud-node.git" }
 did-method-key = "0.3.1"
 console_error_panic_hook = "0.1"
 rand = { version = "0.7", features = ["wasm-bindgen"] }
@@ -21,21 +20,14 @@ getrandom = { version = "0.2", features = ["js"] }
 hex = "0.4.3"
 iri-string = "0.7.8"
 js-sys = "0.3.59"
-tinycloud-sdk-rs = { git = "https://github.com/tinycloudlabs/tinycloud-node.git" }
-tinycloud-sdk-wasm = { git = "https://github.com/tinycloudlabs/tinycloud-node.git" }
+tinycloud-sdk-rs = { git = "https://github.com/tinycloudlabs/tinycloud-node.git", branch = "fix-tinycloud-sdk-rs" }
+tinycloud-sdk-wasm = { git = "https://github.com/tinycloudlabs/tinycloud-node.git", branch = "fix-tinycloud-sdk-rs"  }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.83"
 serde-wasm-bindgen = "0.6.5"
-siwe = { git = "https://github.com/tinycloudlabs/tinycloud-node.git" }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4.32"
 web-sys = { version = "0.3.59", features = ["console"] }
-ucan-capabilities-object = { git = "https://github.com/tinycloudlabs/tinycloud-node.git" }
-
-[dependencies.ssi]
-version = "0.12"
-features = ["ed25519"]
-default-features = false
 
 [dev-dependencies]
 tokio = { version = "1.45", features = ["full"] }
