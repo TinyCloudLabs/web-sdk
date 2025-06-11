@@ -1,6 +1,5 @@
 use std::{collections::HashMap, str::FromStr};
 
-use did_method_key::DIDKey;
 use iri_string::types::UriString;
 use js_sys::{JsString, JSON};
 use serde_json::Value;
@@ -8,6 +7,7 @@ use tinycloud_sdk_rs::tinycloud_lib::{
     cacaos::siwe::{generate_nonce, Message, Version as SiweVersion},
     siwe_recap::{Ability, Capability},
     ssi::{
+        dids::DIDKey,
         // did::{DIDMethod, Source},
         jwk::JWK,
         // vc::get_verification_method,
