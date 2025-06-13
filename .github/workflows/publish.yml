@@ -27,6 +27,8 @@ jobs:
 
       - name: Build packages
         run: bun run build
+        env:
+          BUILD_SETUP_ENABLED: true
 
       - name: Set npm registry
         if: ${{ !inputs.dryRun }}
