@@ -13,7 +13,7 @@ repository = "https://github.com/tinycloudlabs/web-sdk/"
 crate-type = ["cdylib"]
 
 [dependencies]
-siwe-recap = "0.1.0"
+siwe-recap = "0.2.0"
 did-method-key = "0.2.1"
 console_error_panic_hook = "0.1"
 rand = { version = "0.7", features = ["wasm-bindgen"] }
@@ -30,6 +30,7 @@ siwe = "0.5"
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4.32"
 web-sys = { version = "0.3.59", features = ["console"] }
+ucan-capabilities-object = "0.1.0"
 
 [dependencies.ssi]
 version = "0.6"
