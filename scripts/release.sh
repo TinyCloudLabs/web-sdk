@@ -1,6 +1,86 @@
 #!/usr/bin/env bash
 set -e
 
+# Function to resolve workspace:* dependencies to concrete versions
+resolve_workspace_dependencies() {
+  echo "Resolving workspace dependencies..."
+  
+  node -e "
+    const fs = require('fs');
+    const path = require('path');
+    
+    try {
+      // Read root package.json to get workspace configuration
+      const rootPkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+      const workspaces = rootPkg.workspaces || [];
+      
+      // Build a map of package names to versions
+      const packageVersions = new Map();
+      
+      // First pass: collect all workspace package versions
+      workspaces.forEach(workspace => {
+        try {
+          const pkgPath = path.join(workspace, 'package.json');
+          if (fs.existsSync(pkgPath)) {
+            const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+            packageVersions.set(pkg.name, pkg.version);
+            console.log(\`Found workspace package: \${pkg.name}@\${pkg.version}\`);
+          }
+        } catch (e) {
+          console.warn(\`Warning: Could not read package.json for workspace: \${workspace}\`);
+        }
+      });
+      
+      // Second pass: resolve workspace:* dependencies
+      let totalChanges = 0;
+      workspaces.forEach(workspace => {
+        try {
+          const pkgPath = path.join(workspace, 'package.json');
+          if (fs.existsSync(pkgPath)) {
+            const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+            let hasChanges = false;
+            
+            console.log(\`Processing \${workspace}...\`);
+            
+            // Process each dependency type
+            ['dependencies', 'devDependencies', 'peerDependencies'].forEach(depType => {
+              if (pkg[depType]) {
+                Object.keys(pkg[depType]).forEach(depName => {
+                  if (pkg[depType][depName] === 'workspace:*') {
+                    if (packageVersions.has(depName)) {
+                      const version = packageVersions.get(depName);
+                      pkg[depType][depName] = '^' + version;
+                      console.log(\`  \${depType}.\${depName}: workspace:* -> ^\${version}\`);
+                      hasChanges = true;
+                      totalChanges++;
+                    } else {
+                      console.warn(\`  Warning: Could not resolve workspace dependency: \${depName}\`);
+                    }
+                  }
+                });
+              }
+            });
+            
+            // Write back if there were changes
+            if (hasChanges) {
+              fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
+              console.log(\`  Updated \${pkgPath}\`);
+            }
+          }
+        } catch (e) {
+          console.error(\`Error processing workspace \${workspace}:\`, e.message);
+          process.exit(1);
+        }
+      });
+      
+      console.log(\`Workspace dependency resolution complete. \${totalChanges} dependencies resolved.\`);
+    } catch (e) {
+      console.error('Error resolving workspace dependencies:', e.message);
+      process.exit(1);
+    }
+  "
+}
+
 # Skip branch checks in CI environment
 if [ -z "$CI" ]; then
   # Check if on master branch
@@ -25,7 +105,10 @@ fi
 echo "Versioning packages with changesets..."
 bun changeset version
 
-# Commit the version changes
+# Resolve workspace dependencies to concrete versions
+resolve_workspace_dependencies
+
+# Commit the version changes and resolved dependencies
 echo "Committing version changes..."
 git add .
 git commit -m "Version packages"
