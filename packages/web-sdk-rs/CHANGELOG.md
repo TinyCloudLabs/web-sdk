@@ -1,5 +1,11 @@
 # @tinycloudlabs/web-sdk-wasm
 
+## 0.1.2
+
+### Patch Changes
+
+- 23dcfb2: Updated release
+
 ## 0.1.1
 
 ### Patch Changes
