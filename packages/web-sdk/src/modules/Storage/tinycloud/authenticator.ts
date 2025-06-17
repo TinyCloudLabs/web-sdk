@@ -14,8 +14,8 @@ export async function startSession(
   const address = config?.address ?? (await wallet.getAddress());
   const chainId = config?.chainId ?? (await wallet.getChainId());
   const domain = config?.domain ?? window.location.hostname;
-
-  return Promise.resolve({
+  
+  const sessionConfig = {
     address,
     chainId,
     domain,
@@ -25,23 +25,34 @@ export async function startSession(
       config?.expirationTime ??
       new Date(Date.now() + 1000 * 60 * 60).toISOString(),
     actions: config?.actions ?? {
-      kv: { '': ['put', 'get', 'list', 'del', 'metadata'] },
-      capabilities: { '': ['read'] },
+      kv: { '': ['kv/put', 'kv/get', 'kv/list', 'kv/del', 'kv/metadata'] },
+      capabilities: { '': ['kv/read'] },
     },
     orbitId: config?.orbitId ?? makeOrbitId(address, chainId),
     parents: config?.parents,
     jwk: config?.jwk,
-  })
-    .then(JSON.stringify)
-    .then(prepareSession)
-    .then(JSON.parse)
-    .then(async preparedSession => ({
-      ...preparedSession,
-      signature: await wallet.signMessage(preparedSession.siwe),
-    }))
-    .then(JSON.stringify)
-    .then(completeSessionSetup)
-    .then(JSON.parse);
+  };
+  
+  const stringifiedConfig = JSON.stringify(sessionConfig);
+  
+  const preparedSessionString = await prepareSession(stringifiedConfig);
+  
+  const preparedSession = JSON.parse(preparedSessionString);
+  
+  const signature = await wallet.signMessage(preparedSession.siwe);
+  
+  const sessionWithSignature = {
+    ...preparedSession,
+    signature
+  };
+  
+  const stringifiedSessionWithSignature = JSON.stringify(sessionWithSignature);
+  
+  const completedSessionString = await completeSessionSetup(stringifiedSessionWithSignature);
+  
+  const completedSession = JSON.parse(completedSessionString);
+  
+  return completedSession;
 }
 
 export async function activateSession(
@@ -67,7 +78,7 @@ export class Authenticator {
   private orbitId: string;
   private serializedSession: string;
   constructor(session: Session) {
-    this.orbitId = session.orbitId;
+    this.orbitId = `${session.namespace}:${session.orbitId}`;
     this.serializedSession = JSON.stringify(session);
   }
 

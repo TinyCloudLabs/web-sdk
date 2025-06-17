@@ -183,11 +183,6 @@ class UserAuthorizationConnected implements ITCWConnected {
         this.builder.addDefaultActions(extension.namespace, defaults);
       }
 
-      if (extension.namespace && extension.extraFields) {
-        const defaults = await extension.extraFields();
-        this.builder.addExtraFields(extension.namespace, defaults);
-      }
-
       if (extension.namespace && extension.targetedActions) {
         const targetedActions = await extension.targetedActions();
         for (const target in targetedActions) {
@@ -222,16 +217,20 @@ class UserAuthorizationConnected implements ITCWConnected {
    */
   async signIn(): Promise<TCWClientSession> {
     await this.afterConnectHooksPromise;
+    
     const sessionKey = this.builder.jwk();
     if (sessionKey === undefined) {
       return Promise.reject(new Error('unable to retrieve session key'));
     }
+    
     const signer = await this.provider.getSigner();
     const walletAddress = await signer.getAddress();
+    const chainId = await this.provider.getSigner().getChainId();
+    
     const defaults = {
       address: this.config.siweConfig?.address ?? walletAddress,
       walletAddress,
-      chainId: await this.provider.getSigner().getChainId(),
+      chainId,
       domain: globalThis.location.hostname,
       issuedAt: new Date().toISOString(),
       nonce: generateNonce(),
@@ -251,7 +250,6 @@ class UserAuthorizationConnected implements ITCWConnected {
     };
 
     await this.afterSignIn(session);
-
     return session;
   }
 

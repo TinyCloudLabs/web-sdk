@@ -29,8 +29,8 @@ impl TCWSessionManager {
 
     #[allow(non_snake_case)]
     /// Reset the SIWE message builder to its initial state.
-    pub fn resetBuilder(&mut self) {
-        self.manager.reset_builder();
+    pub fn resetCapability(&mut self) {
+        self.manager.reset_capability();
     }
 
     /// Build a SIWE message for signing.
@@ -59,12 +59,6 @@ impl TCWSessionManager {
     ) -> bool {
         self.manager
             .add_targeted_actions(namespace, target, actions)
-    }
-
-    #[allow(non_snake_case)]
-    /// Add extra fields to a capability.
-    pub fn addExtraFields(&mut self, namespace: &str, extraFields: ExtraFields) -> bool {
-        self.manager.add_extra_fields(namespace, extraFields)
     }
 
     #[allow(non_snake_case)]
