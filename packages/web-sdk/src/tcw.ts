@@ -15,6 +15,7 @@ import {
 import type { providers, Signer } from 'ethers';
 import { SDKErrorHandler, ToastManager } from './notifications';
 import type { NotificationConfig, ToastPosition } from './notifications/types';
+import { SiweMessage } from 'siwe';
 
 declare global {
   interface Window {
@@ -205,5 +206,33 @@ export class TinyCloudWeb {
    */
   public getSigner(): Signer {
     return this.userAuthorization.provider.getSigner();
+  }
+
+  /**
+   * Generates a SIWE message for authentication with session key capabilities.
+   * This method delegates to the UserAuthorization module.
+   * 
+   * @param address - Ethereum address performing the signing
+   * @param partialSiweMessage - Optional partial SIWE message to override defaults
+   * @returns SiweMessage object ready for signing
+   */
+  public async generateSiweMessage(
+    address: string,
+    partialSiweMessage?: Partial<SiweMessage>
+  ): Promise<SiweMessage> {
+    return this.userAuthorization.generateSiweMessage(address, partialSiweMessage);
+  }
+
+  /**
+   * Initialize the SDK session using a pre-signed SIWE message.
+   * This method delegates to the UserAuthorization module.
+   * @param siweMessage - The SIWE message that was generated
+   * @param signature - The signature of the SIWE message
+   */
+  public async initializeWithSignature(
+    siweMessage: SiweMessage,
+    signature: string
+  ): Promise<void> {
+    return this.userAuthorization.initializeWithSignature(siweMessage, signature);
   }
 }
