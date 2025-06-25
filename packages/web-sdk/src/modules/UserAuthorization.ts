@@ -87,14 +87,15 @@ interface IUserAuthorization {
     partialSiweMessage?: Partial<SiweMessage>
   ): Promise<SiweMessage>;
   /**
-   * Initialize the SDK session using a pre-signed SIWE message.
+   * Sign in to the SDK using a pre-signed SIWE message.
    * @param siweMessage - The SIWE message that was generated
    * @param signature - The signature of the SIWE message
+   * @returns Promise with the TCWClientSession object
    */
-  initializeWithSignature(
+  signInWithSignature(
     siweMessage: SiweMessage,
     signature: string
-  ): Promise<void>;
+  ): Promise<TCWClientSession>;
 }
 
 class UserAuthorizationInit {
@@ -564,18 +565,19 @@ class UserAuthorization implements IUserAuthorization {
   }
 
   /**
-   * Initialize the SDK session using a pre-signed SIWE message.
+   * Sign in to the SDK using a pre-signed SIWE message.
    * This method must be called after generateSiweMessage().
    * @param siweMessage - The SIWE message that was generated
    * @param signature - The signature of the SIWE message
+   * @returns Promise with the TCWClientSession object
    */
-  public async initializeWithSignature(
+  public async signInWithSignature(
     siweMessage: SiweMessage,
     signature: string
-  ): Promise<void> {
+  ): Promise<TCWClientSession> {
     // Validate that generateSiweMessage() was called first
     if (!this.pendingSession) {
-      throw new Error('generateSiweMessage() must be called before initializeWithSignature()');
+      throw new Error('generateSiweMessage() must be called before signInWithSignature()');
     }
 
     try {
@@ -603,6 +605,9 @@ class UserAuthorization implements IUserAuthorization {
 
       // Clean up pendingSession after successful initialization
       this.pendingSession = undefined;
+
+      // Return the session object
+      return session;
 
     } catch (error) {
       // Clean up pendingSession on error

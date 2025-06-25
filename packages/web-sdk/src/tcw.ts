@@ -224,15 +224,16 @@ export class TinyCloudWeb {
   }
 
   /**
-   * Initialize the SDK session using a pre-signed SIWE message.
+   * Sign in using a pre-signed SIWE message.
    * This method delegates to the UserAuthorization module.
    * @param siweMessage - The SIWE message that was generated
    * @param signature - The signature of the SIWE message
+   * @returns Object containing information about the session
    */
-  public async initializeWithSignature(
+  public async signInWithSignature(
     siweMessage: SiweMessage,
     signature: string
-  ): Promise<void> {
-    return this.userAuthorization.initializeWithSignature(siweMessage, signature);
+  ): Promise<TCWClientSession> {
+    return this.userAuthorization.signInWithSignature(siweMessage, signature);
   }
 }

@@ -94,9 +94,9 @@ class MockUserAuthorization {
     return new SiweMessage(siweMessageData);
   }
 
-  async initializeWithSignature(siweMessage, signature) {
+  async signInWithSignature(siweMessage, signature) {
     if (!this.pendingSession) {
-      throw new Error('generateSiweMessage() must be called before initializeWithSignature()');
+      throw new Error('generateSiweMessage() must be called before signInWithSignature()');
     }
 
     try {
@@ -123,6 +123,7 @@ class MockUserAuthorization {
 
       this.session = session;
       this.pendingSession = undefined;
+      return session;
     } catch (error) {
       this.pendingSession = undefined;
       throw error;
@@ -170,7 +171,7 @@ Object.defineProperty(global, 'window', {
   writable: true,
 });
 
-describe('TinyCloudWeb UserAuthorization SIWE Signature-based Initialization', () => {
+describe('TinyCloudWeb UserAuthorization SIWE Sign-in with Signature', () => {
   let tcw;
   let mockExtension;
 
@@ -352,7 +353,7 @@ describe('TinyCloudWeb UserAuthorization SIWE Signature-based Initialization', (
     });
   });
 
-  describe('userAuthorization.initializeWithSignature()', () => {
+  describe('userAuthorization.signInWithSignature()', () => {
     let mockSiweMessage;
     const testSignature = '0x' + '1'.repeat(130); // Valid signature format
 
@@ -362,18 +363,21 @@ describe('TinyCloudWeb UserAuthorization SIWE Signature-based Initialization', (
       mockSiweMessage = await tcw.userAuthorization.generateSiweMessage(address);
     });
 
-    it('should initialize session with valid signature', async () => {
-      await tcw.userAuthorization.initializeWithSignature(mockSiweMessage, testSignature);
+    it('should sign in with valid signature and return TCWClientSession', async () => {
+      const returnedSession = await tcw.userAuthorization.signInWithSignature(mockSiweMessage, testSignature);
       
-      // Verify session was created
-      const session = tcw.session();
-      expect(session).toBeDefined();
-      expect(session?.address).toBe('0x1234567890123456789012345678901234567890');
-      expect(session?.walletAddress).toBe('0x1234567890123456789012345678901234567890');
-      expect(session?.chainId).toBe(1);
-      expect(session?.sessionKey).toBe('mock-jwk-session-key');
-      expect(session?.siwe).toBe('mock-siwe-message');
-      expect(session?.signature).toBe(testSignature);
+      // Verify session was returned
+      expect(returnedSession).toBeDefined();
+      expect(returnedSession.address).toBe('0x1234567890123456789012345678901234567890');
+      expect(returnedSession.walletAddress).toBe('0x1234567890123456789012345678901234567890');
+      expect(returnedSession.chainId).toBe(1);
+      expect(returnedSession.sessionKey).toBe('mock-jwk-session-key');
+      expect(returnedSession.siwe).toBe('mock-siwe-message');
+      expect(returnedSession.signature).toBe(testSignature);
+      
+      // Verify session was also stored in the instance
+      const storedSession = tcw.session();
+      expect(storedSession).toEqual(returnedSession);
       
       // Verify pending session was cleaned up
       expect(tcw.userAuthorization.pendingSession).toBeUndefined();
@@ -383,7 +387,7 @@ describe('TinyCloudWeb UserAuthorization SIWE Signature-based Initialization', (
       tcw.extend(mockExtension);
       await tcw.userAuthorization.generateSiweMessage('0x1234567890123456789012345678901234567890'); // Refresh with extension
       
-      await tcw.userAuthorization.initializeWithSignature(mockSiweMessage, testSignature);
+      const returnedSession = await tcw.userAuthorization.signInWithSignature(mockSiweMessage, testSignature);
       
       expect(mockExtension.afterSignIn).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -404,10 +408,12 @@ describe('TinyCloudWeb UserAuthorization SIWE Signature-based Initialization', (
         { chainId: 5 }
       );
       
-      await tcw.userAuthorization.initializeWithSignature(customSiweMessage, testSignature);
+      const returnedSession = await tcw.userAuthorization.signInWithSignature(customSiweMessage, testSignature);
       
-      const session = tcw.session();
-      expect(session?.chainId).toBe(5);
+      expect(returnedSession.chainId).toBe(5);
+      
+      const storedSession = tcw.session();
+      expect(storedSession?.chainId).toBe(5);
     });
 
     it('should default chainId to 1 when not specified in SIWE message', async () => {
@@ -417,19 +423,21 @@ describe('TinyCloudWeb UserAuthorization SIWE Signature-based Initialization', (
         prepareMessage: jest.fn().mockReturnValue('mock-siwe-message'),
       };
       
-      await tcw.userAuthorization.initializeWithSignature(siweMessageWithoutChainId, testSignature);
+      const returnedSession = await tcw.userAuthorization.signInWithSignature(siweMessageWithoutChainId, testSignature);
       
-      const session = tcw.session();
-      expect(session?.chainId).toBe(1);
+      expect(returnedSession.chainId).toBe(1);
+      
+      const storedSession = tcw.session();
+      expect(storedSession?.chainId).toBe(1);
     });
 
     it('should reject when generateSiweMessage was not called first', async () => {
       // Create new instance without calling generateSiweMessage
       const newTcw = new TinyCloudWeb();
       
-      await expect(newTcw.userAuthorization.initializeWithSignature(mockSiweMessage, testSignature))
+      await expect(newTcw.userAuthorization.signInWithSignature(mockSiweMessage, testSignature))
         .rejects
-        .toThrow('generateSiweMessage() must be called before initializeWithSignature()');
+        .toThrow('generateSiweMessage() must be called before signInWithSignature()');
     });
 
     it('should handle session key retrieval failure', async () => {
@@ -437,7 +445,7 @@ describe('TinyCloudWeb UserAuthorization SIWE Signature-based Initialization', (
       const pendingSession = tcw.userAuthorization.pendingSession;
       pendingSession.sessionManager.jwk = jest.fn().mockReturnValue(undefined);
       
-      await expect(tcw.userAuthorization.initializeWithSignature(mockSiweMessage, testSignature))
+      await expect(tcw.userAuthorization.signInWithSignature(mockSiweMessage, testSignature))
         .rejects
         .toThrow('unable to retrieve session key from pending session');
       
@@ -454,7 +462,7 @@ describe('TinyCloudWeb UserAuthorization SIWE Signature-based Initialization', (
       tcw.extend(faultyExtension);
       await tcw.userAuthorization.generateSiweMessage('0x1234567890123456789012345678901234567890'); // Refresh with extension
       
-      await expect(tcw.userAuthorization.initializeWithSignature(mockSiweMessage, testSignature))
+      await expect(tcw.userAuthorization.signInWithSignature(mockSiweMessage, testSignature))
         .rejects
         .toThrow('AfterSignIn failed');
       
@@ -469,12 +477,37 @@ describe('TinyCloudWeb UserAuthorization SIWE Signature-based Initialization', (
         throw new Error('JWK error');
       });
       
-      await expect(tcw.userAuthorization.initializeWithSignature(mockSiweMessage, testSignature))
+      await expect(tcw.userAuthorization.signInWithSignature(mockSiweMessage, testSignature))
         .rejects
         .toThrow('JWK error');
       
       // Verify cleanup
       expect(tcw.userAuthorization.pendingSession).toBeUndefined();
+    });
+
+    it('should return TCWClientSession with all required properties', async () => {
+      const returnedSession = await tcw.userAuthorization.signInWithSignature(mockSiweMessage, testSignature);
+      
+      // Validate session structure - all properties should be defined
+      expect(returnedSession).toEqual({
+        address: expect.any(String),
+        walletAddress: expect.any(String),
+        chainId: expect.any(Number),
+        sessionKey: expect.any(String),
+        siwe: expect.any(String),
+        signature: expect.any(String),
+      });
+      
+      // Validate specific values
+      expect(returnedSession.address).toBe('0x1234567890123456789012345678901234567890');
+      expect(returnedSession.walletAddress).toBe(returnedSession.address);
+      expect(returnedSession.chainId).toBe(1);
+      expect(returnedSession.sessionKey).toBe('mock-jwk-session-key');
+      expect(returnedSession.siwe).toBe('mock-siwe-message');
+      expect(returnedSession.signature).toBe(testSignature);
+      
+      // Ensure address and walletAddress are the same
+      expect(returnedSession.walletAddress).toBe(returnedSession.address);
     });
   });
 
@@ -484,10 +517,11 @@ describe('TinyCloudWeb UserAuthorization SIWE Signature-based Initialization', (
       const address = '0x1234567890123456789012345678901234567890';
       const siweMessage = await tcw.userAuthorization.generateSiweMessage(address);
       const signature = '0x' + '1'.repeat(130);
-      await tcw.userAuthorization.initializeWithSignature(siweMessage, signature);
+      const returnedSession = await tcw.userAuthorization.signInWithSignature(siweMessage, signature);
       
       // Verify session exists
       expect(tcw.session()).toBeDefined();
+      expect(returnedSession).toBeDefined();
       
       // Sign out
       await tcw.signOut();
@@ -579,13 +613,17 @@ describe('TinyCloudWeb UserAuthorization SIWE Signature-based Initialization', (
       const address = '0x1234567890123456789012345678901234567890';
       const siweMessage = await tcw.userAuthorization.generateSiweMessage(address);
       const signature = '0x' + '1'.repeat(130);
-      await tcw.userAuthorization.initializeWithSignature(siweMessage, signature);
+      const returnedSession = await tcw.userAuthorization.signInWithSignature(siweMessage, signature);
       
       // Verify both extensions were applied
       expect(extension1.defaultActions).toHaveBeenCalled();
       expect(extension2.defaultActions).toHaveBeenCalled();
       expect(extension1.afterSignIn).toHaveBeenCalled();
       expect(extension2.afterSignIn).toHaveBeenCalled();
+      
+      // Verify session was returned
+      expect(returnedSession).toBeDefined();
+      expect(returnedSession.address).toBe(address);
     });
   });
 
