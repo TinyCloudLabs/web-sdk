@@ -110,6 +110,7 @@ impl SessionManager {
             })
             .collect::<Result<Vec<_>, JsValue>>()?;
         let message = Message {
+            scheme: None,
             domain,
             address,
             statement: config.statement(),
