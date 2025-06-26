@@ -8,4 +8,4 @@ TC-
 
 ## Changelog
 
-Be sure to run `bun changesets:update` to update the changelog.
+Be sure to run `bun changeset:add` to update the changelog.
