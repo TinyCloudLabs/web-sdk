@@ -3,14 +3,13 @@ import { ToastManager } from './ToastManager';
 import { TinyCloudToastElement } from './ToastElement';
 
 export class TinyCloudToastContainer extends HTMLElement {
-  public shadowRoot: ShadowRoot;
   private toastManager: ToastManager;
   private position: ToastPosition = 'bottom-right';
   private unsubscribe?: () => void;
   
   constructor() {
     super();
-    this.shadowRoot = this.attachShadow({ mode: 'open' });
+    this.attachShadow({ mode: 'open' });
     this.render();
   }
   
@@ -26,7 +25,7 @@ export class TinyCloudToastContainer extends HTMLElement {
   }
   
   private render() {
-    this.shadowRoot.innerHTML = `
+    this.shadowRoot!.innerHTML = `
       <style>${this.getStyles()}</style>
       <div class="toast-viewport" data-position="${this.position}">
         <div class="toast-container"></div>
@@ -111,7 +110,7 @@ export class TinyCloudToastContainer extends HTMLElement {
   }
   
   private updateToasts(toasts: Toast[]): void {
-    const container = this.shadowRoot.querySelector('.toast-container');
+    const container = this.shadowRoot!.querySelector('.toast-container');
     if (!container) return;
     
     const existingToasts = new Set(
@@ -144,21 +143,21 @@ export class TinyCloudToastContainer extends HTMLElement {
   }
   
   private updatePosition(): void {
-    const viewport = this.shadowRoot.querySelector('.toast-viewport');
+    const viewport = this.shadowRoot!.querySelector('.toast-viewport');
     if (viewport) {
       viewport.setAttribute('data-position', this.position);
     }
   }
   
   private pauseTimers(): void {
-    const toastElements = this.shadowRoot.querySelectorAll('tinycloud-toast');
+    const toastElements = this.shadowRoot!.querySelectorAll('tinycloud-toast');
     toastElements.forEach(element => {
       (element as any).pauseTimer?.();
     });
   }
   
   private resumeTimers(): void {
-    const toastElements = this.shadowRoot.querySelectorAll('tinycloud-toast');
+    const toastElements = this.shadowRoot!.querySelectorAll('tinycloud-toast');
     toastElements.forEach(element => {
       (element as any).resumeTimer?.();
     });
