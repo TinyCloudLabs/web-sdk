@@ -21,6 +21,7 @@ import {
   UserAuthorizationConnected,
 } from '../..';
 import { dispatchSDKEvent } from '../../notifications/ErrorHandler';
+import { showOrbitCreationModal } from '../../notifications/ModalManager';
 
 export type DelegateParams = {
   /** The target file or folder you are sharing */
@@ -201,7 +202,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
       }
 
       if (this.autoCreateNewOrbit === true) {
-        await this.hostOrbit(tcwSession);
+        await this.showOrbitCreationModal(tcwSession);
         return;
       }
     }
@@ -371,9 +372,28 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
       });
       return true;
     } catch (error) {
-      onError?.();
+      if (onError) {
+        onError();
+      }
       return false;
     }
+  }
+
+  private async showOrbitCreationModal(tcwSession: TCWClientSession): Promise<void> {
+    const result = await showOrbitCreationModal({
+      onCreateOrbit: async () => {
+        await this.hostOrbit(tcwSession);
+        // If we reach here, orbit creation succeeded
+        dispatchSDKEvent.success('Orbit created successfully');
+      },
+      onDismiss: () => {
+        // Modal dismissed without creating orbit
+        // No further action needed as per requirements
+      }
+    });
+    
+    // Modal completed - either orbit was created or user dismissed
+    // In both cases, afterSignIn() can now complete
   }
 
   public async hostOrbit(tcwSession?: TCWClientSession): Promise<void> {
@@ -392,13 +412,14 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
       throw new Error(`Failed to open new TinyCloud Orbit: ${statusText}`);
     }
 
-    await this.activateSession(tcwSession, () => {
+    const sessionActivated = await this.activateSession(tcwSession, () => {
       dispatchSDKEvent.error('storage.session_not_found', 
         'Session not found. You must be signed in to host an orbit');
-      throw new Error(
-        'Session not found. You must be signed in to host an orbit'
-      );
     });
+
+    if (!sessionActivated) {
+      throw new Error('Session not found. You must be signed in to host an orbit');
+    }
   }
 
   public async delegate({
