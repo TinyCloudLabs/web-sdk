@@ -7,6 +7,7 @@ import Button from '../components/Button';
 import AccountInfo from '../components/AccountInfo';
 import { lazy } from 'react';
 import { useAccount, useWalletClient } from 'wagmi';
+import { useModal } from 'connectkit';
 import { walletClientToEthers5Signer } from '../utils/web3modalV2Settings';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../components/ui/accordian';
 import Footer from '../components/Footer';
@@ -23,8 +24,10 @@ function Home() {
 
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
+  const { setOpen } = useModal();
 
   const [loading, setLoading] = useState(false);
+  const [pendingSignIn, setPendingSignIn] = useState(false);
 
   const [tcw, setTinyCloudWeb] = useState<TinyCloudWeb | null>(null);
   const [resolveEns, setResolveEns] = useState<string>('On');
@@ -125,14 +128,26 @@ function Home() {
     if (!isConnected) {
       tcw?.signOut?.();
       setTinyCloudWeb(null);
+      setPendingSignIn(false); // Clear pending sign-in if wallet disconnects
     }
     // eslint-disable-next-line
   }, [isConnected]);
 
+  // Auto sign-in to TinyCloud when wallet connects and user intended to sign in
+  useEffect(() => {
+    if (isConnected && walletClient && pendingSignIn && !tcw) {
+      setPendingSignIn(false); // Clear the pending state
+      signInWithWallet();
+    }
+    // eslint-disable-next-line
+  }, [isConnected, walletClient, pendingSignIn, tcw]);
+
 
   const tcwHandler = async () => {
     if (!isConnected || !walletClient) {
-      alert('Please connect your wallet first using the Connect button in the header.');
+      // User wants to sign in, so first connect the wallet
+      setPendingSignIn(true);
+      setOpen(true);
       return;
     }
 
@@ -329,8 +344,7 @@ function Home() {
               <div className="space-y-4">
                 {!isConnected && (
                   <div className="text-sm text-text/70 text-center p-3 bg-bg rounded border">
-                    <p><strong>Step 1:</strong> Connect your wallet using the "Connect Wallet" button in the header</p>
-                    <p><strong>Step 2:</strong> Sign in to TinyCloud using the button below</p>
+                    <p>Click the button below to connect your wallet and sign into TinyCloud</p>
                   </div>
                 )}
 
@@ -341,7 +355,7 @@ function Home() {
                   variant="default"
                   className="w-full"
                 >
-                  {isConnected ? 'SIGN-IN TO TINYCLOUD' : 'CONNECT WALLET FIRST'}
+                  {isConnected ? 'SIGN-IN TO TINYCLOUD' : 'CONNECT WALLET & SIGN-IN'}
                 </Button>
 
                 {displayAdvancedOptions()}
