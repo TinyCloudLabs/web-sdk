@@ -13,6 +13,8 @@ import {
   TCWExtension,
 } from '@tinycloudlabs/web-core/client';
 import type { providers, Signer } from 'ethers';
+import { SDKErrorHandler, ToastManager } from './notifications';
+import type { NotificationConfig, ToastPosition } from './notifications/types';
 
 declare global {
   interface Window {
@@ -30,6 +32,7 @@ interface TCWModuleConfig {
 // temporary: will move to tcw-core
 interface TCWConfig extends TCWClientConfig {
   modules?: TCWModuleConfig;
+  notifications?: NotificationConfig;
 }
 
 const TCW_DEFAULT_CONFIG: TCWClientConfig = {
@@ -66,10 +69,32 @@ export class TinyCloudWeb {
   /** Storage Module */
   public storage: TinyCloudStorage;
 
+  /** Error Handler for Notifications */
+  private errorHandler: SDKErrorHandler;
+
   constructor(private config: TCWConfig = TCW_DEFAULT_CONFIG) {
     // TODO: pull out config validation into separate function
     // TODO: pull out userAuthorization config
     this.userAuthorization = new UserAuthorization(config);
+
+    // Initialize error handling system
+    const notificationConfig = {
+      popups: config.notifications?.popups ?? true,
+      throwErrors: config.notifications?.throwErrors ?? false
+    };
+    
+    this.errorHandler = new SDKErrorHandler(notificationConfig);
+    
+    if (notificationConfig.popups) {
+      // Initialize toast manager with configuration
+      ToastManager.getInstance({
+        position: config.notifications?.position,
+        duration: config.notifications?.duration,
+        maxVisible: config.notifications?.maxVisible
+      });
+      
+      this.errorHandler.setupErrorHandling();
+    }
 
     // initialize storage module
 
