@@ -1,10 +1,8 @@
 import type { Toast, ToastType } from './types';
-import { GestureHandler } from './gestures';
 import { ToastManager } from './ToastManager';
 
 export class TinyCloudToastElement extends HTMLElement {
   private toast: Toast;
-  private gestureHandler: GestureHandler;
   private dismissTimer?: number;
   private isDismissing: boolean = false;
   private isPaused: boolean = false;
@@ -19,7 +17,6 @@ export class TinyCloudToastElement extends HTMLElement {
   }
   
   connectedCallback() {
-    this.gestureHandler = new GestureHandler(this, this.handleSwipe.bind(this));
     this.remainingTime = this.toast.duration || 5000;
     this.startDismissTimer();
     this.playEnterAnimation();
@@ -27,7 +24,6 @@ export class TinyCloudToastElement extends HTMLElement {
   }
   
   disconnectedCallback() {
-    this.gestureHandler?.destroy();
     if (this.dismissTimer) {
       clearTimeout(this.dismissTimer);
     }
@@ -44,8 +40,8 @@ export class TinyCloudToastElement extends HTMLElement {
           <div class="toast__title">${title}</div>
           ${description ? `<div class="toast__description">${description}</div>` : ''}
         </div>
-        ${action ? `<button class="toast__action" data-interactive="true">${action.label}</button>` : ''}
-        <button class="toast__close" data-interactive="true" aria-label="Close">
+        ${action ? `<button class="toast__action">${action.label}</button>` : ''}
+        <button class="toast__close" aria-label="Close">
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M1 1L13 13M13 1L1 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
           </svg>
@@ -115,11 +111,6 @@ export class TinyCloudToastElement extends HTMLElement {
       .toast[data-state="dismissing"] {
         z-index: 5;
         pointer-events: none;
-      }
-      
-      .toast[data-state="gesture"] {
-        z-index: 20;
-        transition: none !important;
       }
       
       .toast:hover {
@@ -220,8 +211,6 @@ export class TinyCloudToastElement extends HTMLElement {
         cursor: pointer;
         transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
         white-space: nowrap;
-        pointer-events: auto;
-        touch-action: manipulation;
       }
       
       .toast__action:hover {
@@ -247,8 +236,6 @@ export class TinyCloudToastElement extends HTMLElement {
         display: flex;
         align-items: center;
         justify-content: center;
-        pointer-events: auto;
-        touch-action: manipulation;
       }
       
       .toast__close:hover {
@@ -279,10 +266,6 @@ export class TinyCloudToastElement extends HTMLElement {
         }
       }
       
-      /* Ensure animations take precedence over inline styles */
-      .toast[data-state="dismissing"] {
-        animation: toast-exit 0.25s cubic-bezier(0.4, 0, 1, 1) forwards !important;
-      }
     `;
   }
   
@@ -301,18 +284,14 @@ export class TinyCloudToastElement extends HTMLElement {
     const closeButton = this.shadowRoot!.querySelector('.toast__close');
     const actionButton = this.shadowRoot!.querySelector('.toast__action');
     
-    closeButton?.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
+    closeButton?.addEventListener('click', () => {
       if (!this.isDismissing) {
         this.dismiss();
       }
     });
     
     if (actionButton && this.toast.action) {
-      actionButton.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
+      actionButton.addEventListener('click', () => {
         if (!this.isDismissing) {
           this.toast.action!.onClick();
           this.dismiss();
@@ -366,13 +345,8 @@ export class TinyCloudToastElement extends HTMLElement {
     }
   }
   
-  private handleSwipe(direction: 'left' | 'right'): void {
-    if (!this.isDismissing) {
-      this.dismiss('swipe');
-    }
-  }
   
-  private dismiss(reason: 'timer' | 'click' | 'swipe' = 'click'): void {
+  private dismiss(): void {
     if (this.isDismissing) return;
     
     this.isDismissing = true;
@@ -383,24 +357,15 @@ export class TinyCloudToastElement extends HTMLElement {
     
     const toastElement = this.shadowRoot!.querySelector('.toast') as HTMLElement;
     if (toastElement) {
-      // Clear any gesture styles that might interfere
-      toastElement.style.transform = '';
-      toastElement.style.opacity = '';
-      toastElement.style.transition = '';
-      
       toastElement.setAttribute('data-state', 'dismissing');
-      
-      // Use CSS animation for consistent dismissal
       toastElement.style.animation = 'toast-exit 0.25s cubic-bezier(0.4, 0, 1, 1) forwards';
       
-      // Wait for animation to complete before removing from DOM
       setTimeout(() => {
-        // Double-check the element still exists before removal
         if (this.isConnected) {
           ToastManager.getInstance().remove(this.toast.id);
           this.remove();
         }
-      }, 300); // Slightly longer than animation duration for safety
+      }, 250);
     }
   }
 }

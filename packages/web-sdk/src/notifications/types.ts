@@ -48,9 +48,3 @@ export interface SDKEventDetail {
   description?: string;
 }
 
-export type SwipeDirection = 'left' | 'right';
-
-export interface GestureHandlerOptions {
-  threshold?: number;
-  onSwipe: (direction: SwipeDirection) => void;
-}

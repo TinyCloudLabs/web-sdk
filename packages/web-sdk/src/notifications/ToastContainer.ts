@@ -18,7 +18,6 @@ export class TinyCloudToastContainer extends HTMLElement {
     this.position = (this.getAttribute('data-position') as ToastPosition) || 'bottom-right';
     this.unsubscribe = this.toastManager.subscribe(this.updateToasts.bind(this));
     this.setupEventListeners();
-    this.observeToastStates();
   }
   
   disconnectedCallback() {
@@ -109,7 +108,6 @@ export class TinyCloudToastContainer extends HTMLElement {
       /* Ensure proper stacking during animations */
       tinycloud-toast {
         position: relative;
-        transform-style: preserve-3d;
       }
       
       tinycloud-toast:nth-child(1) { z-index: 100; }
@@ -117,15 +115,6 @@ export class TinyCloudToastContainer extends HTMLElement {
       tinycloud-toast:nth-child(3) { z-index: 98; }
       tinycloud-toast:nth-child(4) { z-index: 97; }
       tinycloud-toast:nth-child(5) { z-index: 96; }
-      
-      /* Higher z-index for toasts being interacted with */
-      tinycloud-toast[data-state="gesture"] {
-        z-index: 200 !important;
-      }
-      
-      tinycloud-toast[data-state="entering"] {
-        z-index: 150 !important;
-      }
     `;
   }
   
@@ -159,14 +148,10 @@ export class TinyCloudToastContainer extends HTMLElement {
     });
     
     // Add new toasts
-    toasts.forEach((toast, index) => {
+    toasts.forEach(toast => {
       if (!existingToasts.has(toast.id)) {
         const toastElement = new TinyCloudToastElement(toast);
         toastElement.setAttribute('data-toast-id', toast.id);
-        
-        // Set initial z-index based on position in array
-        const zIndex = 100 - index;
-        toastElement.style.setProperty('--toast-z-index', zIndex.toString());
         
         if (this.position.startsWith('top')) {
           container.appendChild(toastElement);
@@ -176,32 +161,9 @@ export class TinyCloudToastContainer extends HTMLElement {
       }
     });
     
-    // Update z-indices for existing toasts to maintain proper stacking
-    this.updateStackingOrder();
     this.updatePosition();
   }
   
-  private updateStackingOrder(): void {
-    const container = this.shadowRoot!.querySelector('.toast-container');
-    if (!container) return;
-    
-    const toastElements = Array.from(container.children) as TinyCloudToastElement[];
-    
-    toastElements.forEach((element, index) => {
-      const baseZIndex = 100 - index;
-      element.style.setProperty('--toast-z-index', baseZIndex.toString());
-      
-      // Check if toast is being interacted with and adjust z-index accordingly
-      const toastEl = element.shadowRoot?.querySelector('.toast');
-      const state = toastEl?.getAttribute('data-state');
-      
-      if (state === 'gesture') {
-        element.style.setProperty('--toast-z-index', '200');
-      } else if (state === 'entering') {
-        element.style.setProperty('--toast-z-index', '150');
-      }
-    });
-  }
   
   private updatePosition(): void {
     const viewport = this.shadowRoot!.querySelector('.toast-viewport');
@@ -230,22 +192,6 @@ export class TinyCloudToastContainer extends HTMLElement {
     });
   }
   
-  // Observer for toast state changes to update stacking
-  private observeToastStates(): void {
-    const container = this.shadowRoot!.querySelector('.toast-container');
-    if (!container) return;
-    
-    const observer = new MutationObserver(() => {
-      this.updateStackingOrder();
-    });
-    
-    observer.observe(container, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ['data-state']
-    });
-  }
 }
 
 customElements.define('tinycloud-toast-container', TinyCloudToastContainer);
