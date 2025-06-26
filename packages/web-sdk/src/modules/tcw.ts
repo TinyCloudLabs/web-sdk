@@ -6,7 +6,7 @@ import {
   IUserAuthorization,
   TinyCloudStorage,
   UserAuthorization,
-} from './modules';
+} from '.';
 import {
   TCWClientConfig,
   TCWClientSession,
