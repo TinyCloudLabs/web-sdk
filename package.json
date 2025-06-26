@@ -42,5 +42,10 @@
   },
   "keywords": [],
   "author": "TinyCloud, Inc.",
-  "license": "MIT"
+  "license": "MIT",
+  "trustedDependencies": [
+    "@reown/appkit",
+    "core-js",
+    "core-js-pure"
+  ]
 }

@@ -1,4 +1,5 @@
 import { ThemeSwitcher } from './ThemeSwitcher';
+import { ConnectKitButton } from 'connectkit';
 
 const Header = () => {
     return (
@@ -13,7 +14,10 @@ const Header = () => {
                     Test App
                 </span>
             </div>
-            <ThemeSwitcher />
+            <div className="flex items-center gap-4">
+                <ConnectKitButton />
+                <ThemeSwitcher />
+            </div>
         </div>
     );
 };

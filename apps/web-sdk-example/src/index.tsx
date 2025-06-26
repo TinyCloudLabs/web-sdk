@@ -1,13 +1,13 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { createAppKit } from '@reown/appkit/react'
 import { WagmiProvider } from 'wagmi'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { ConnectKitProvider } from 'connectkit'
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
-import { wagmiAdapter, networks } from './wagmi'
+import { config } from './wagmi'
 
 // Add dark mode script detection
 const setInitialTheme = `
@@ -30,34 +30,14 @@ document.head.appendChild(script);
 // 0. Setup queryClient
 const queryClient = new QueryClient()
 
-// 1. Get projectId from https://cloud.reown.com
-const projectId = process.env.REACT_APP_PROJECT_ID || '';
-
-// 2. Create a metadata object - optional
-const metadata = {
-  name: 'TinyCloud Example App',
-  description: 'AppKit Example',
-  url: 'https://reown.com/appkit', // origin must match your domain & subdomain
-  icons: ['https://assets.reown.com/reown-profile-pic.png']
-}
-
-// Create modal
-createAppKit({
-  adapters: [wagmiAdapter],
-  networks: networks as any,
-  projectId,
-  metadata,
-  features: {
-    analytics: true // Optional - defaults to your Cloud configuration
-  }
-})
-
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
 root.render(
   <React.StrictMode>
-    <WagmiProvider config={wagmiAdapter.wagmiConfig}>
+    <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <App />
+        <ConnectKitProvider>
+          <App />
+        </ConnectKitProvider>
       </QueryClientProvider>
     </WagmiProvider>
   </React.StrictMode>
