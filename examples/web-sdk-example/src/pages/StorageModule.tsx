@@ -20,8 +20,10 @@ function StorageModule({ tcw }: IStorageModule) {
 
   useEffect(() => {
     const getContentList = async () => {
-      const { data } = await tcw.storage.list({ removePrefix });
-      setContentList(data);
+      const res = await tcw.storage.list({ removePrefix });
+      if (res.ok && res.data) {
+        setContentList(res.data);
+      }
     };
     getContentList();
   }, [tcw, removePrefix]);

@@ -1,16 +1,17 @@
 use std::{collections::HashMap, str::FromStr};
 
-use did_method_key::DIDKey;
-use js_sys::{JsString, JSON};
-use siwe::{generate_nonce, Message};
-use siwe_recap::Capability;
-use ucan_capabilities_object::Ability;
 use iri_string::types::UriString;
+use js_sys::{JsString, JSON};
 use serde_json::Value;
-use ssi::{
-    did::{DIDMethod, Source},
-    jwk::JWK,
-    vc::get_verification_method,
+use tinycloud_sdk_rs::tinycloud_lib::{
+    cacaos::siwe::{generate_nonce, Message, Version as SiweVersion},
+    siwe_recap::{Ability, Capability},
+    ssi::{
+        dids::DIDKey,
+        // did::{DIDMethod, Source},
+        jwk::JWK,
+        // vc::get_verification_method,
+    },
 };
 use wasm_bindgen::prelude::*;
 use web_sys::{console::error_1 as console_error, console::error_2 as console_error_2};
@@ -109,11 +110,12 @@ impl SessionManager {
             })
             .collect::<Result<Vec<_>, JsValue>>()?;
         let message = Message {
+            scheme: None,
             domain,
             address,
             statement: config.statement(),
             uri,
-            version: siwe::Version::V1,
+            version: SiweVersion::V1,
             chain_id: config.chainId() as u64,
             nonce,
             issued_at,
@@ -131,44 +133,43 @@ impl SessionManager {
     }
 
     /// Add default actions to a capability.
-    pub fn add_default_actions(&mut self, namespace: &str, default_actions:
-        Vec<JsString>) -> bool {
-            let actions: Vec<String> = if let Some(actions) = default_actions
-                .iter()
-                .map(|js_string| js_string.as_string())
-                .collect()
-            {
-                actions
-            } else {
-                string_conversion_error();
-                return false;
-            };
-      
-            for action in actions {
-                // Format the namespace as a URI pattern and parse it
-                let target = format!("{}:*", namespace);
-                // Parse the target string into a URI
-                let target_uri = match target.parse::<UriString>() {
-                    Ok(uri) => uri,
-                    Err(e) => {
-                        console_error(&format!("Failed to parse URI: {}", e).into());
-                        return false;
-                    }
-                };
-      
-                // Convert action string to &str to satisfy trait bounds
-                if let Err(e) = self.capability.with_action_convert(
-                    target_uri,
-                    action.as_str(),  // Use as_str() instead of &action
-                    Vec::<std::collections::BTreeMap<String, Value>>::new()
-                ) {
-                    console_error(&format!("Failed to add action: {}", e).into());
+    pub fn add_default_actions(&mut self, namespace: &str, default_actions: Vec<JsString>) -> bool {
+        let actions: Vec<String> = if let Some(actions) = default_actions
+            .iter()
+            .map(|js_string| js_string.as_string())
+            .collect()
+        {
+            actions
+        } else {
+            string_conversion_error();
+            return false;
+        };
+
+        for action in actions {
+            // Format the namespace as a URI pattern and parse it
+            let target = format!("{}:*", namespace);
+            // Parse the target string into a URI
+            let target_uri = match target.parse::<UriString>() {
+                Ok(uri) => uri,
+                Err(e) => {
+                    console_error(&format!("Failed to parse URI: {}", e).into());
                     return false;
                 }
+            };
+
+            // Convert action string to &str to satisfy trait bounds
+            if let Err(e) = self.capability.with_action_convert(
+                target_uri,
+                action.as_str(), // Use as_str() instead of &action
+                Vec::<std::collections::BTreeMap<String, Value>>::new(),
+            ) {
+                console_error(&format!("Failed to add action: {}", e).into());
+                return false;
             }
-            true
         }
-        
+        true
+    }
+
     /// Add actions for a specific target to a capability.
     pub fn add_targeted_actions(
         &mut self,
@@ -194,7 +195,7 @@ impl SessionManager {
             if let Err(e) = self.capability.with_action_convert(
                 resource.parse::<UriString>().unwrap(),
                 action.parse::<Ability>().unwrap(),
-                Vec::<std::collections::BTreeMap<String, Value>>::new()
+                Vec::<std::collections::BTreeMap<String, Value>>::new(),
             ) {
                 console_error(&format!("Failed to add targeted action: {}", e).into());
                 return false;
@@ -202,8 +203,6 @@ impl SessionManager {
         }
         true
     }
-
-    
 
     pub fn create_session_key(&mut self, key_id: Option<String>) -> Result<String, String> {
         let key_id = key_id.unwrap_or(DEFAULT_KEY_ID.to_string());
@@ -273,21 +272,19 @@ impl SessionManager {
     }
 
     pub async fn get_did(&self, key_id: Option<String>) -> Result<String, String> {
-        let didkey = DIDKey {};
-        let did = didkey
-            .generate(&Source::Key(&self.get_private_key(key_id).unwrap()))
-            .ok_or("unable to generate the DID of the session key")?;
-        let did_vm = get_verification_method(&did, &didkey).await.ok_or(format!(
-            "unable to generate the DID verification method from the DID '{}'",
-            &did
-        ))?;
-        let uri = did_vm.parse().map_err(|e| {
-            format!(
-                "failed to parse the DID verification method as a URI: {}",
-                e
-            )
-        })?;
-        Ok(uri)
+        let did = DIDKey::generate(&self.get_private_key(key_id)?)
+            .map_err(|e| format!("unable to generate the DID of the session key: {e}"))?;
+        // let did_vm = get_verification_method(&did, &didkey).await.ok_or(format!(
+        //     "unable to generate the DID verification method from the DID '{}'",
+        //     &did
+        // ))?;
+        // let uri = did_vm.parse().map_err(|e| {
+        //     format!(
+        //         "failed to parse the DID verification method as a URI: {}",
+        //         e
+        //     )
+        // })?;
+        Ok(did.to_string())
     }
 
     fn get_private_key(&self, key_id: Option<String>) -> Result<JWK, String> {
