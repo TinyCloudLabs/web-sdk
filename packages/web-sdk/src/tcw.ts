@@ -83,7 +83,7 @@ export class TinyCloudWeb {
       throwErrors: config.notifications?.throwErrors ?? false
     };
     
-    this.errorHandler = new SDKErrorHandler(notificationConfig);
+    this.errorHandler = SDKErrorHandler.getInstance(notificationConfig);
     
     if (notificationConfig.popups) {
       // Initialize toast manager with configuration
@@ -139,6 +139,22 @@ export class TinyCloudWeb {
   public signOut = async (): Promise<void> => {
     return this.userAuthorization.signOut();
   };
+
+  /**
+   * Cleanup SDK resources including notification system.
+   * Should be called when the SDK is no longer needed.
+   */
+  public cleanup(): void {
+    // Cleanup notification system
+    this.errorHandler.cleanup();
+    ToastManager.getInstance().clear();
+    
+    // Cleanup event dispatcher
+    const { dispatchSDKEvent } = require('./notifications');
+    if (dispatchSDKEvent.cleanup) {
+      dispatchSDKEvent.cleanup();
+    }
+  }
 
   /**
    * ENS data supported by TCW.

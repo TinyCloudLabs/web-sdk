@@ -6,6 +6,8 @@ export class ToastManager {
   private subscribers: Set<(toasts: Toast[]) => void> = new Set();
   private container: any | null = null;
   private config: ToastConfig;
+  private debounceTimers: Map<string, number> = new Map();
+  private toastHashes: Map<string, string> = new Map();
   
   private constructor(config: ToastConfig = {}) {
     this.config = {
@@ -32,27 +34,75 @@ export class ToastManager {
   }
   
   public add(toast: Omit<Toast, 'id' | 'timestamp'>): string {
-    const id = this.generateId();
-    const newToast: Toast = {
-      ...toast,
-      id,
-      timestamp: Date.now(),
-      duration: toast.duration ?? this.config.duration
-    };
+    const toastHash = this.hashToast(toast);
     
-    this.toasts.set(id, newToast);
-    this.enforceMaxVisible();
-    this.notify();
+    // Check for duplicate toasts
+    const existingId = this.findDuplicateToast(toastHash);
+    if (existingId) {
+      // Update existing toast instead of creating new one
+      this.updateToast(existingId, toast);
+      return existingId;
+    }
     
-    return id;
+    // Debounce rapid successive identical toasts
+    if (this.debounceTimers.has(toastHash)) {
+      clearTimeout(this.debounceTimers.get(toastHash));
+    }
+    
+    const debounceDelay = 300; // 300ms debounce
+    const timeoutId = window.setTimeout(() => {
+      this.debounceTimers.delete(toastHash);
+      
+      const id = this.generateId();
+      const newToast: Toast = {
+        ...toast,
+        id,
+        timestamp: Date.now(),
+        duration: toast.duration ?? this.config.duration
+      };
+      
+      this.toasts.set(id, newToast);
+      this.toastHashes.set(id, toastHash);
+      this.enforceMaxVisible();
+      this.notify();
+    }, debounceDelay);
+    
+    this.debounceTimers.set(toastHash, timeoutId);
+    
+    // Return a temporary ID for immediate operations
+    return `temp-${toastHash}`;
   }
   
   public remove(id: string): void {
+    if (id.startsWith('temp-')) {
+      // Handle temporary IDs from debounced toasts
+      const hash = id.replace('temp-', '');
+      if (this.debounceTimers.has(hash)) {
+        clearTimeout(this.debounceTimers.get(hash));
+        this.debounceTimers.delete(hash);
+      }
+      return;
+    }
+    
+    const hash = this.toastHashes.get(id);
+    if (hash) {
+      this.toastHashes.delete(id);
+      // Clear any pending debounced toasts of the same type
+      if (this.debounceTimers.has(hash)) {
+        clearTimeout(this.debounceTimers.get(hash));
+        this.debounceTimers.delete(hash);
+      }
+    }
+    
     this.toasts.delete(id);
     this.notify();
   }
   
   public clear(): void {
+    // Clear all debounce timers
+    this.debounceTimers.forEach(timerId => clearTimeout(timerId));
+    this.debounceTimers.clear();
+    this.toastHashes.clear();
     this.toasts.clear();
     this.notify();
   }
@@ -81,6 +131,36 @@ export class ToastManager {
   private generateId(): string {
     return `toast-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
+  
+  private hashToast(toast: Omit<Toast, 'id' | 'timestamp'>): string {
+    // Create a hash based on type, title, and description for deduplication
+    const key = `${toast.type}-${toast.title}-${toast.description || ''}`;
+    return btoa(key).replace(/[^a-zA-Z0-9]/g, '').substring(0, 16);
+  }
+  
+  private findDuplicateToast(hash: string): string | null {
+    for (const [id, toastHash] of this.toastHashes.entries()) {
+      if (toastHash === hash && this.toasts.has(id)) {
+        return id;
+      }
+    }
+    return null;
+  }
+  
+  private updateToast(id: string, updates: Omit<Toast, 'id' | 'timestamp'>): void {
+    const existingToast = this.toasts.get(id);
+    if (existingToast) {
+      const updatedToast: Toast = {
+        ...existingToast,
+        ...updates,
+        id: existingToast.id,
+        timestamp: existingToast.timestamp,
+        duration: updates.duration ?? existingToast.duration
+      };
+      this.toasts.set(id, updatedToast);
+      this.notify();
+    }
+  }
 }
 
 export const toast = {
@@ -103,7 +183,10 @@ export const toast = {
     promise: Promise<T>, 
     messages: { loading: string; success: string; error: string }
   ): Promise<T> => {
-    const id = ToastManager.getInstance().add({ 
+    const manager = ToastManager.getInstance();
+    
+    // Create loading toast
+    const loadingId = manager.add({ 
       type: 'loading', 
       title: messages.loading, 
       duration: Infinity 
@@ -111,13 +194,19 @@ export const toast = {
     
     return promise
       .then(result => {
-        ToastManager.getInstance().remove(id);
-        ToastManager.getInstance().add({ type: 'success', title: messages.success });
+        manager.remove(loadingId);
+        // Add a small delay to prevent rapid loading->success transition
+        setTimeout(() => {
+          manager.add({ type: 'success', title: messages.success });
+        }, 150);
         return result;
       })
       .catch(error => {
-        ToastManager.getInstance().remove(id);
-        ToastManager.getInstance().add({ type: 'error', title: messages.error });
+        manager.remove(loadingId);
+        // Add a small delay to prevent rapid loading->error transition
+        setTimeout(() => {
+          manager.add({ type: 'error', title: messages.error });
+        }, 150);
         throw error;
       });
   }

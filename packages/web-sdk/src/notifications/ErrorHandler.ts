@@ -2,24 +2,86 @@ import type { SDKErrorDetail, SDKEventDetail } from './types';
 import { ToastManager, toast } from './ToastManager';
 
 export class SDKErrorHandler {
+  private static instance: SDKErrorHandler | null = null;
   private toastManager: ToastManager;
   private config: { popups: boolean; throwErrors: boolean };
+  private isInitialized: boolean = false;
+  private boundHandlers: {
+    error: (event: CustomEvent<SDKErrorDetail>) => void;
+    warning: (event: CustomEvent<SDKEventDetail>) => void;
+    success: (event: CustomEvent<SDKEventDetail>) => void;
+    unhandledRejection: (event: PromiseRejectionEvent) => void;
+  };
   
-  constructor(config: { popups: boolean; throwErrors: boolean }) {
+  private constructor(config: { popups: boolean; throwErrors: boolean }) {
     this.config = config;
     this.toastManager = ToastManager.getInstance();
+    
+    // Bind handlers to maintain context and enable proper cleanup
+    this.boundHandlers = {
+      error: this.handleError.bind(this),
+      warning: this.handleWarning.bind(this),
+      success: this.handleSuccess.bind(this),
+      unhandledRejection: this.handleUnhandledRejection.bind(this)
+    };
+  }
+  
+  public static getInstance(config?: { popups: boolean; throwErrors: boolean }): SDKErrorHandler {
+    if (!SDKErrorHandler.instance && config) {
+      SDKErrorHandler.instance = new SDKErrorHandler(config);
+    } else if (!SDKErrorHandler.instance) {
+      throw new Error('SDKErrorHandler must be initialized with config on first call');
+    }
+    return SDKErrorHandler.instance;
+  }
+  
+  public static reset(): void {
+    if (SDKErrorHandler.instance) {
+      SDKErrorHandler.instance.cleanup();
+      SDKErrorHandler.instance = null;
+    }
   }
   
   public setupErrorHandling(): void {
-    if (!this.config.popups) return;
+    if (!this.config.popups || this.isInitialized) return;
     
     this.toastManager.initialize();
     
-    window.addEventListener('tinycloud:error', this.handleError.bind(this));
-    window.addEventListener('tinycloud:warning', this.handleWarning.bind(this));
-    window.addEventListener('tinycloud:success', this.handleSuccess.bind(this));
+    // Remove any existing listeners first to prevent duplicates
+    this.cleanup();
     
-    window.addEventListener('unhandledrejection', this.handleUnhandledRejection.bind(this));
+    // Add new listeners
+    window.addEventListener('tinycloud:error', this.boundHandlers.error);
+    window.addEventListener('tinycloud:warning', this.boundHandlers.warning);
+    window.addEventListener('tinycloud:success', this.boundHandlers.success);
+    window.addEventListener('unhandledrejection', this.boundHandlers.unhandledRejection);
+    
+    this.isInitialized = true;
+  }
+  
+  public cleanup(): void {
+    if (!this.isInitialized) return;
+    
+    window.removeEventListener('tinycloud:error', this.boundHandlers.error);
+    window.removeEventListener('tinycloud:warning', this.boundHandlers.warning);
+    window.removeEventListener('tinycloud:success', this.boundHandlers.success);
+    window.removeEventListener('unhandledrejection', this.boundHandlers.unhandledRejection);
+    
+    this.isInitialized = false;
+  }
+  
+  public updateConfig(config: { popups: boolean; throwErrors: boolean }): void {
+    const wasInitialized = this.isInitialized;
+    
+    if (wasInitialized) {
+      this.cleanup();
+    }
+    
+    this.config = config;
+    
+    if (wasInitialized && config.popups) {
+      this.setupErrorHandling();
+    }
   }
   
   private handleError(event: CustomEvent<SDKErrorDetail>): void {
@@ -69,7 +131,13 @@ export class SDKErrorHandler {
   }
   
   private handleUnhandledRejection(event: PromiseRejectionEvent): void {
-    if (event.reason?.message?.includes('tinycloud')) {
+    // Only handle SDK-related promise rejections
+    const reason = event.reason;
+    const isSDKError = reason?.message?.includes('tinycloud') || 
+                      reason?.message?.includes('TinyCloud') ||
+                      reason?.stack?.includes('tinycloud');
+    
+    if (isSDKError) {
       toast.error('An unexpected error occurred', {
         description: 'Please try refreshing the page'
       });
@@ -77,22 +145,51 @@ export class SDKErrorHandler {
   }
 }
 
-export const dispatchSDKEvent = {
-  error: (category: string, message: string, description?: string) => {
-    window.dispatchEvent(new CustomEvent('tinycloud:error', {
-      detail: { category, message, description }
-    }));
-  },
+// Debounced event dispatcher to prevent duplicate events
+class SDKEventDispatcher {
+  private eventQueue: Map<string, NodeJS.Timeout> = new Map();
+  private readonly debounceDelay = 200; // 200ms debounce
   
-  warning: (message: string, description?: string) => {
-    window.dispatchEvent(new CustomEvent('tinycloud:warning', {
-      detail: { message, description }
-    }));
-  },
-  
-  success: (message: string, description?: string) => {
-    window.dispatchEvent(new CustomEvent('tinycloud:success', {
-      detail: { message, description }
-    }));
+  private dispatch(eventType: string, detail: any): void {
+    const eventKey = `${eventType}-${JSON.stringify(detail)}`;
+    
+    // Clear existing timeout for this event
+    if (this.eventQueue.has(eventKey)) {
+      clearTimeout(this.eventQueue.get(eventKey)!);
+    }
+    
+    // Set new timeout
+    const timeoutId = setTimeout(() => {
+      window.dispatchEvent(new CustomEvent(eventType, { detail }));
+      this.eventQueue.delete(eventKey);
+    }, this.debounceDelay);
+    
+    this.eventQueue.set(eventKey, timeoutId);
   }
+  
+  error(category: string, message: string, description?: string): void {
+    this.dispatch('tinycloud:error', { category, message, description });
+  }
+  
+  warning(message: string, description?: string): void {
+    this.dispatch('tinycloud:warning', { message, description });
+  }
+  
+  success(message: string, description?: string): void {
+    this.dispatch('tinycloud:success', { message, description });
+  }
+  
+  cleanup(): void {
+    this.eventQueue.forEach(timeoutId => clearTimeout(timeoutId));
+    this.eventQueue.clear();
+  }
+}
+
+const eventDispatcher = new SDKEventDispatcher();
+
+export const dispatchSDKEvent = {
+  error: eventDispatcher.error.bind(eventDispatcher),
+  warning: eventDispatcher.warning.bind(eventDispatcher),
+  success: eventDispatcher.success.bind(eventDispatcher),
+  cleanup: eventDispatcher.cleanup.bind(eventDispatcher)
 };
