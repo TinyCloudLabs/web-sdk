@@ -35,6 +35,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "dev": "tsc --watch",
     "doc": "yarn doc:extractor && yarn doc:documenter",
     "doc:extractor": "api-extractor run",
     "doc:documenter": "api-documenter generate -i temp -o ../../documentation/docs/web-core"

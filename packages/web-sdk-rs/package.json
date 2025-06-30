@@ -6,13 +6,15 @@
   "author": "TinyCloud, Inc.",
   "license": "Apache-2.0 OR MIT",
   "scripts": {
-    "build": "bun build-dev",
+    "setup": "./scripts/setup-rust.sh",
+    "build": "bun run setup && bun run build:wasm && bun run bundle",
+    "build:wasm": "wasm-pack build --dev --target web",
     "build-dev": "wasm-pack build --dev --target web",
     "build-release": "wasm-pack build --release --target web",
     "bundle": "rollup -c && $PWD/fixup-types.sh",
     "clean": "rm -rf dist pkg",
-    "dev": "yarn build-dev && yarn bundle",
-    "release": "yarn build-release && yarn bundle",
+    "dev": "bun run build:wasm && bun run bundle",
+    "release": "bun run build-release && bun run bundle",
     "fmt": "prettier -w src package.json rollup.config.js tsconfig.json",
     "publish-gh": "npm config set @tinycloudlabs:registry=https://npm.pkg.github.com && npm publish",
     "publish-npm": "npm config set @tinycloudlabs:registry=https://registry.npmjs.org && npm publish --access public"

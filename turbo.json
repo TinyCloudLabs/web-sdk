@@ -2,17 +2,32 @@
   "$schema": "https://turbo.build/schema.json",
   "ui": "tui",
   "tasks": {
+    "setup": {
+      "cache": true,
+      "inputs": ["Cargo.toml", "package.json"],
+      "outputs": [".turbo/setup-cache"]
+    },
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**", "build/**", "pkg/**"]
     },
+    "build:wasm": {
+      "dependsOn": ["setup"],
+      "outputs": ["pkg/**"]
+    },
+    "bundle": {
+      "dependsOn": ["build:wasm"],
+      "outputs": ["dist/**"]
+    },
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "dependsOn": ["^build"]
     },
     "start": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "dependsOn": ["^build"]
     },
     "test": {
       "dependsOn": ["build"],
@@ -37,10 +52,6 @@
     "doc:documenter": {
       "dependsOn": ["doc:extractor"],
       "outputs": ["../../documentation/docs/**"]
-    },
-    "bundle": {
-      "dependsOn": ["build"],
-      "outputs": ["dist/**"]
     },
     "release": {
       "dependsOn": ["build", "test", "lint"],

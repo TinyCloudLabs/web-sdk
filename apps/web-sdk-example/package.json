@@ -56,6 +56,7 @@
   },
   "scripts": {
     "start": "npx react-app-rewired start",
+    "dev": "npx react-app-rewired start",
     "build": "GENERATE_SOURCEMAP=false npx react-app-rewired build",
     "build:analyze": "GENERATE_SOURCEMAP=false ANALYZE=true npx react-app-rewired build",
     "eject": "npx react-app-rewired eject",
