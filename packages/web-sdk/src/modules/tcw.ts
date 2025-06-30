@@ -13,8 +13,8 @@ import {
   TCWExtension,
 } from '@tinycloudlabs/web-core/client';
 import type { providers, Signer } from 'ethers';
-import { SDKErrorHandler, ToastManager } from './notifications';
-import type { NotificationConfig, ToastPosition } from './notifications/types';
+import { SDKErrorHandler, ToastManager } from '../notifications';
+import type { NotificationConfig, ToastPosition } from '../notifications/types';
 import { SiweMessage } from 'siwe';
 
 declare global {
@@ -151,7 +151,7 @@ export class TinyCloudWeb {
     ToastManager.getInstance().clear();
     
     // Cleanup event dispatcher
-    const { dispatchSDKEvent } = require('./notifications');
+    const { dispatchSDKEvent } = require('../notifications');
     if (dispatchSDKEvent.cleanup) {
       dispatchSDKEvent.cleanup();
     }
