@@ -1,0 +1,62 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "ui": "tui",
+  "envMode": "loose",
+  "tasks": {
+    "setup": {
+      "cache": true,
+      "inputs": ["Cargo.toml", "package.json"],
+      "outputs": [".turbo/setup-cache"]
+    },
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", "build/**", "pkg/**"]
+    },
+    "build:wasm": {
+      "dependsOn": ["setup"],
+      "outputs": ["pkg/**"]
+    },
+    "bundle": {
+      "dependsOn": ["build:wasm"],
+      "outputs": ["dist/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true,
+      "dependsOn": ["^build"]
+    },
+    "start": {
+      "cache": false,
+      "persistent": true,
+      "dependsOn": ["^build"]
+    },
+    "test": {
+      "dependsOn": ["build"],
+      "outputs": ["coverage/**"],
+      "inputs": ["src/**/*.tsx", "src/**/*.ts", "test/**/*.ts", "test/**/*.tsx"]
+    },
+    "lint": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "clean": {
+      "cache": false
+    },
+    "doc": {
+      "dependsOn": ["build"],
+      "outputs": ["temp/**", "../../documentation/docs/**"]
+    },
+    "doc:extractor": {
+      "dependsOn": ["build"],
+      "outputs": ["temp/**"]
+    },
+    "doc:documenter": {
+      "dependsOn": ["doc:extractor"],
+      "outputs": ["../../documentation/docs/**"]
+    },
+    "release": {
+      "dependsOn": ["build", "test", "lint"],
+      "outputs": ["dist/**", "pkg/**"]
+    }
+  }
+}

@@ -13,6 +13,7 @@
   "license": "Apache-2.0 OR MIT",
   "scripts": {
     "build": "webpack --mode production",
+    "dev": "webpack --watch",
     "watch": "webpack --watch",
     "doc": "bun run doc:extractor && bun run doc:documenter",
     "doc:extractor": "api-extractor run --local --diagnostics",
