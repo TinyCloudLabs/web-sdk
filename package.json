@@ -3,25 +3,28 @@
   "version": "0.0.1",
   "description": "",
   "private": true,
+  "packageManager": "bun@1.2.0",
   "workspaces": [
-    "packages/web-sdk-rs",
-    "packages/web-core",
-    "packages/web-sdk",
-    "examples/web-sdk-example"
+    "packages/*",
+    "apps/*"
   ],
   "scripts": {
-    "build": "./scripts/build.sh",
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "test": "turbo test",
+    "lint": "turbo lint",
+    "clean": "turbo clean",
+    "doc": "turbo doc",
     "web-core": "bun --cwd packages/web-core -c",
     "web-sdk": "bun --cwd packages/web-sdk -c",
     "web-sdk-rs": "bun --cwd packages/web-sdk-rs -c",
-    "clean": "./scripts/clean.sh",
     "clean-docs": "./scripts/clean-docs.sh",
     "github-pub": "./scripts/switch-registry.sh github",
     "npm-pub": "./scripts/switch-registry.sh npm",
     "docs:dev": "cd documentation && bun run docs:dev",
     "docs:build": "cd documentation && bun run docs:build",
     "docs:serve": "cd documentation && bun run serve",
-    "docs:generate-api": "cd packages/web-sdk && bun run doc",
+    "docs:generate-api": "turbo doc:documenter",
     "docs:deploy": "cd documentation && bun run docs:deploy",
     "changeset:add": "bun changeset add",
     "changeset:version": "bun changeset version",
@@ -29,12 +32,13 @@
     "release": "./scripts/release.sh"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.28.1",
     "@docusaurus/core": "^3.7.0",
     "@docusaurus/preset-classic": "^3.7.0",
-    "@changesets/cli": "^2.28.1",
     "@tinycloudlabs/web-core": "workspace:*",
     "@tinycloudlabs/web-sdk": "workspace:*",
-    "@tinycloudlabs/web-sdk-wasm": "workspace:*"
+    "@tinycloudlabs/web-sdk-wasm": "workspace:*",
+    "turbo": "^2.5.4"
   },
   "keywords": [],
   "author": "TinyCloud, Inc.",
