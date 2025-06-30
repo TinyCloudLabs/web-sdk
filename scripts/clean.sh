@@ -5,7 +5,7 @@ packages=(
   "packages/web-sdk"
   "packages/web-core"
   "packages/web-sdk-rs"
-  "examples/web-sdk-example"
+  "apps/web-sdk-example"
 )
 
 for package in "${packages[@]}"; do
