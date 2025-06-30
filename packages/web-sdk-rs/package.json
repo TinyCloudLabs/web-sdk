@@ -7,7 +7,7 @@
   "license": "Apache-2.0 OR MIT",
   "scripts": {
     "setup": "./scripts/setup-rust.sh",
-    "build": "bun run setup && bun run build:wasm && bun run bundle",
+    "build": "../../scripts/setup.sh && bun run build:wasm && bun run bundle",
     "build:wasm": "wasm-pack build --dev --target web",
     "build-dev": "wasm-pack build --dev --target web",
     "build-release": "wasm-pack build --release --target web",
