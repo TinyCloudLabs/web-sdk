@@ -20,6 +20,8 @@ import {
   IUserAuthorization,
   UserAuthorizationConnected,
 } from '../..';
+import { dispatchSDKEvent } from '../../notifications/ErrorHandler';
+import { showOrbitCreationModal } from '../../notifications/ModalManager';
 
 export type DelegateParams = {
   /** The target file or folder you are sharing */
@@ -191,13 +193,16 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
       authn = await activateSession(session, tinycloudHost);
     } catch ({ status, msg }) {
       if (status !== 404) {
+        dispatchSDKEvent.error('storage.session_delegation_failed', 
+          'Failed to submit session key delegation to TinyCloud', 
+          msg);
         throw new Error(
           `Failed to submit session key delegation to TinyCloud: ${msg}`
         );
       }
 
       if (this.autoCreateNewOrbit === true) {
-        await this.hostOrbit(tcwSession);
+        await this.showOrbitCreationModal(tcwSession);
         return;
       }
     }
@@ -209,6 +214,9 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
 
   get orbit(): OrbitConnection {
     if (!this._orbit) {
+      dispatchSDKEvent.error('storage.not_connected', 
+        'TinyCloudStorage is not connected', 
+        'Please sign in first to establish a connection');
       throw new Error('TinyCloudStorage is not connected');
     }
     return this._orbit;
@@ -265,7 +273,16 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
       prefix: this.prefix,
     };
     const { prefix, request } = { ...defaultOptions, ...options };
-    return this.orbit.put(`${prefix || this.prefix}/${key}`, value, request);
+    try {
+      const response = await this.orbit.put(`${prefix || this.prefix}/${key}`, value, request);
+      dispatchSDKEvent.success('Data stored successfully');
+      return response;
+    } catch (error) {
+      dispatchSDKEvent.error('storage.upload_failed', 
+        'Failed to store data', 
+        error.message);
+      throw error;
+    }
   }
 
   /**
@@ -355,9 +372,28 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
       });
       return true;
     } catch (error) {
-      onError?.();
+      if (onError) {
+        onError();
+      }
       return false;
     }
+  }
+
+  private async showOrbitCreationModal(tcwSession: TCWClientSession): Promise<void> {
+    const result = await showOrbitCreationModal({
+      onCreateOrbit: async () => {
+        await this.hostOrbit(tcwSession);
+        // If we reach here, orbit creation succeeded
+        dispatchSDKEvent.success('Orbit created successfully');
+      },
+      onDismiss: () => {
+        // Modal dismissed without creating orbit
+        // No further action needed as per requirements
+      }
+    });
+    
+    // Modal completed - either orbit was created or user dismissed
+    // In both cases, afterSignIn() can now complete
   }
 
   public async hostOrbit(tcwSession?: TCWClientSession): Promise<void> {
@@ -370,14 +406,20 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
     );
 
     if (hostStatus !== 200) {
+      dispatchSDKEvent.error('storage.orbit_creation_failed', 
+        'Failed to open new TinyCloud Orbit', 
+        statusText);
       throw new Error(`Failed to open new TinyCloud Orbit: ${statusText}`);
     }
 
-    await this.activateSession(tcwSession, () => {
-      throw new Error(
-        'Session not found. You must be signed in to host an orbit'
-      );
+    const sessionActivated = await this.activateSession(tcwSession, () => {
+      dispatchSDKEvent.error('storage.session_not_found', 
+        'Session not found. You must be signed in to host an orbit');
     });
+
+    if (!sessionActivated) {
+      throw new Error('Session not found. You must be signed in to host an orbit');
+    }
   }
 
   public async delegate({
@@ -458,6 +500,9 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
     const tinycloudHost = this.hosts[0];
     await activateSession(session, tinycloudHost).catch(({ status, msg }) => {
       if (status !== 404) {
+        dispatchSDKEvent.error('storage.sharing_link_delegation_failed', 
+          'Failed to submit session key delegation to TinyCloud', 
+          msg);
         throw new Error(
           `Failed to submit session key delegation to TinyCloud: ${msg}`
         );
@@ -494,6 +539,9 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
     } catch (error) {
       const { status, msg } = error;
       if (status !== 404) {
+        dispatchSDKEvent.error('storage.sharing_link_retrieval_failed', 
+          'Failed to retrieve shared data', 
+          msg);
         throw new Error(
           `Failed to submit session key delegation to TinyCloud: ${msg}`
         );

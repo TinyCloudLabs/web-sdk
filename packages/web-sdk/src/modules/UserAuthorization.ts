@@ -13,6 +13,7 @@ import {
   ITCWConnected,
   TCWExtension,
 } from '@tinycloudlabs/web-core/client';
+import { dispatchSDKEvent } from '../notifications/ErrorHandler';
 
 /** UserAuthorization Module
  *
@@ -93,6 +94,9 @@ class UserAuthorizationInit {
       } catch (err) {
         // Provider creation error
         console.error(err);
+        dispatchSDKEvent.error('auth.provider_creation_failed', 
+          'Failed to create Web3 provider', 
+          err.message);
         throw err;
       }
     } else {
@@ -111,6 +115,17 @@ class UserAuthorizationInit {
         } catch (err) {
           // Permission rejected error
           console.error(err);
+          if (err.code === 4001) {
+            dispatchSDKEvent.error('auth.signature_rejected', 
+              'User rejected the wallet connection request');
+          } else if (err.code === -32002) {
+            dispatchSDKEvent.error('auth.wallet_not_connected', 
+              'Please connect your wallet to continue');
+          } else {
+            dispatchSDKEvent.error('auth.permission_denied', 
+              'Failed to get wallet permissions', 
+              err.message);
+          }
           throw err;
         }
       }
@@ -124,6 +139,9 @@ class UserAuthorizationInit {
     } catch (err) {
       // TCW wasm related error
       console.error(err);
+      dispatchSDKEvent.error('wasm.initialization_failed', 
+        'Failed to initialize security module', 
+        err.message);
       throw err;
     }
 
@@ -314,6 +332,9 @@ class UserAuthorization implements IUserAuthorization {
       // ERROR:
       // Something went wrong when connecting or creating Session (wasm)
       console.error(err);
+      dispatchSDKEvent.error('auth.connection_failed', 
+        'Failed to establish wallet connection', 
+        err.message);
       throw err;
     }
   }
@@ -325,6 +346,14 @@ class UserAuthorization implements IUserAuthorization {
       this.session = await this.connection.signIn();
     } catch (err) {
       console.error(err);
+      if (err.code === 4001) {
+        dispatchSDKEvent.error('auth.signature_rejected', 
+          'Signature was rejected. Please try again');
+      } else {
+        dispatchSDKEvent.error('auth.signin_failed', 
+          'Failed to sign in', 
+          err.message);
+      }
       throw err;
     }
     const promises = [];
@@ -339,6 +368,8 @@ class UserAuthorization implements IUserAuthorization {
         this.session.ens = ens;
       }
     });
+
+    dispatchSDKEvent.success('Successfully signed in');
 
     return this.session;
   }
@@ -365,6 +396,9 @@ class UserAuthorization implements IUserAuthorization {
     } catch (err) {
       // request to /tcw-logout went wrong
       console.error(err);
+      dispatchSDKEvent.error('auth.signout_failed', 
+        'Failed to sign out', 
+        err.message);
       throw err;
     }
     this.session = undefined;

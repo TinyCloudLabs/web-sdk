@@ -1,5 +1,6 @@
 export * from './tcw';
 export * from './modules';
+export * from './notifications';
 export * from '@tinycloudlabs/web-core/client';
 export * from '@tinycloudlabs/web-core';
 export {
