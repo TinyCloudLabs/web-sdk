@@ -11,6 +11,7 @@ if [ -n "$BUILD_SETUP_ENABLED" ] || ! command -v rustup &> /dev/null || ! comman
     if ! command -v rustup &> /dev/null; then
         echo "Installing rustup..."
         curl https://sh.rustup.rs -sSf | sh -s -- -y
+        export PATH="$HOME/.cargo/bin:$PATH"
     fi
 
     # Check if wasm-pack is installed
