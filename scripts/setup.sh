@@ -24,3 +24,17 @@ if [ -n "$BUILD_SETUP_ENABLED" ] || ! command -v rustup &> /dev/null || ! comman
 else
     echo "Rust and WASM toolchain already available"
 fi
+
+# Always ensure cargo env is sourced for subsequent commands
+if [ -f "$HOME/.cargo/env" ]; then
+    echo "Sourcing cargo environment..."
+    . "$HOME/.cargo/env"
+fi
+
+# Export PATH to make tools available system-wide
+export PATH="$HOME/.cargo/bin:$PATH"
+
+# Add cargo bin to system PATH permanently for this session
+echo "$HOME/.cargo/bin" >> $GITHUB_PATH 2>/dev/null || true
+
+echo "Environment setup complete. PATH: $PATH"
