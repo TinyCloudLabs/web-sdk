@@ -29,7 +29,8 @@
     "changeset:add": "bun changeset add",
     "changeset:version": "bun changeset version",
     "changeset:publish": "bun changeset publish --access public",
-    "release": "./scripts/release.sh"
+    "release": "./scripts/release.sh",
+    "publish": "./scripts/publish.sh"
   },
   "devDependencies": {
     "@changesets/cli": "^2.28.1",

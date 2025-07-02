@@ -1,205 +1,44 @@
-name: Changesets
+name: Release
 
 on:
   push:
     branches:
       - master
 
-env:
-  CI: true
-
 jobs:
-  detect-changeset:
+  release:
+    name: Release
     runs-on: ubuntu-latest
-    outputs:
-      has_changesets: ${{ steps.check-changesets.outputs.has_changesets }}
-      was_changeset_merge: ${{ steps.check-merge.outputs.was_changeset_merge }}
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 50  # Fetch enough history for branch comparison
-      
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
-        with:
-          bun-version: latest
-
-      - name: Install dependencies
-        run: bun install
-      
-      - name: Check for changesets
-        id: check-changesets
-        run: |
-          # Check if there are any changesets to process
-          CHANGESET_COUNT=$(find .changeset -name "*.md" -not -name "README.md" | wc -l)
-          if [ $CHANGESET_COUNT -gt 0 ]; then
-            echo "has_changesets=true" >> $GITHUB_OUTPUT
-            echo "Found $CHANGESET_COUNT changesets"
-          else
-            echo "has_changesets=false" >> $GITHUB_OUTPUT
-            echo "No changesets found"
-          fi
-      
-      - name: Check if push is from changeset release
-        id: check-merge
-        run: |
-          # Get the commit message of the latest commit
-          COMMIT_MSG=$(git log -1 --pretty=format:"%s")
-          echo "Commit message: $COMMIT_MSG"
-          
-          # Check commit history to see if this was a merge from changeset-release/master
-          MERGE_FROM_CHANGESET=$(git log -10 --grep="Merge pull request" --grep="changeset-release/master" | wc -l)
-          
-          # Also check if this is a direct commit with common changeset messages
-          if [[ "$COMMIT_MSG" == *"Version Packages"* || 
-                "$COMMIT_MSG" == *"version packages"* || 
-                "$COMMIT_MSG" == *"chore: version packages"* || 
-                "$COMMIT_MSG" == *"chore: update versions"* ||
-                "$COMMIT_MSG" == *"release version"* ||
-                $MERGE_FROM_CHANGESET -gt 0 ]]; then
-            echo "was_changeset_merge=true" >> $GITHUB_OUTPUT
-            echo "This commit appears to be a changeset release merge or version packages commit"
-          else
-            echo "was_changeset_merge=false" >> $GITHUB_OUTPUT
-            echo "This commit is not related to a changeset release"
-          fi
-
-  create-version-pr:
-    needs: detect-changeset
-    if: needs.detect-changeset.outputs.has_changesets == 'true' && needs.detect-changeset.outputs.was_changeset_merge == 'false'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code repository
+      - name: Checkout Repo
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GH_TOKEN }}
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
           bun-version: latest
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: bun install
-
-      - name: Create version PR
-        uses: changesets/action@v1
-        with:
-          commit: "chore: update versions"
-          title: "chore: update versions"
-          publish: ""
-          version: bun changeset version
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-
-  publish-packages:
-    needs: detect-changeset
-    if: needs.detect-changeset.outputs.was_changeset_merge == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GH_TOKEN }}
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
-        with:
-          bun-version: latest
-
-      - name: Install dependencies
-        run: bun install
-
-      - name: Configure Git
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git remote set-url origin https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/TinyCloudLabs/web-sdk.git
 
       - name: Build packages
         run: bun run build
         env:
           BUILD_SETUP_ENABLED: true
 
-      - name: Setup NPM
-        run: |
-          # Export NPM_TOKEN for our script
-          export NPM_TOKEN="${{ secrets.NPM_TOKEN }}"
-          
-          # Run our NPM auth setup script
-          ./scripts/npm-auth.sh
-          
-          # Set to npm registry
-          bun run npm-pub
-
-      - name: Extract package versions
-        id: extract-versions
-        run: |
-          ROOT_DIR=$(pwd)
-          
-          cd "$ROOT_DIR/packages/web-core"
-          CORE_VERSION=$(cat package.json | grep '"version"' | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[[:space:]]')
-          echo "CORE_VERSION=$CORE_VERSION" >> $GITHUB_ENV
-          
-          cd "$ROOT_DIR/packages/web-sdk-rs"
-          SDK_RS_VERSION=$(cat package.json | grep '"version"' | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[[:space:]]')
-          echo "SDK_RS_VERSION=$SDK_RS_VERSION" >> $GITHUB_ENV
-          
-          cd "$ROOT_DIR/packages/web-sdk"
-          SDK_VERSION=$(cat package.json | grep '"version"' | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[[:space:]]')
-          echo "SDK_VERSION=$SDK_VERSION" >> $GITHUB_ENV
-          
-          cd "$ROOT_DIR"
-
-      - name: Publish packages with npm directly
-        run: |
-          # Export needed env vars
-          export NPM_TOKEN="${{ secrets.NPM_TOKEN }}"
-          export NODE_AUTH_TOKEN="${{ secrets.NPM_TOKEN }}"
-          
-          echo "Publishing packages with npm directly..."
-          ROOT_DIR=$(pwd)
-          
-          echo "Publishing web-sdk-rs..."
-          cd "$ROOT_DIR/packages/web-sdk-rs"
-          npm publish --access public
-          
-          echo "Publishing web-core..."
-          cd "$ROOT_DIR/packages/web-core"
-          npm publish --access public
-          
-          echo "Publishing web-sdk..."
-          cd "$ROOT_DIR/packages/web-sdk"
-          npm publish --access public
+      - name: Create Release Pull Request or Publish
+        id: changesets
+        uses: changesets/action@v1
+        with:
+          publish: bun run publish
+          version: bun changeset version
+          commit: "chore: version packages"
+          title: "chore: version packages"
         env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-
-      - name: Create GitHub draft releases
-        run: |
-          # Create draft release for web-core
-          echo "Creating draft release for web-core v${CORE_VERSION}..."
-          gh release create "web-core-v${CORE_VERSION}" \
-            --title "Web Core v${CORE_VERSION}" \
-            --notes "Release notes for web-core v${CORE_VERSION}" \
-            --draft
-          
-          # Create draft release for web-sdk-rs
-          echo "Creating draft release for web-sdk-rs v${SDK_RS_VERSION}..."
-          gh release create "web-sdk-rs-v${SDK_RS_VERSION}" \
-            --title "Web SDK RS v${SDK_RS_VERSION}" \
-            --notes "Release notes for web-sdk-rs v${SDK_RS_VERSION}" \
-            --draft
-          
-          # Create draft release for web-sdk
-          echo "Creating draft release for web-sdk v${SDK_VERSION}..."
-          gh release create "web-sdk-v${SDK_VERSION}" \
-            --title "Web SDK v${SDK_VERSION}" \
-            --notes "Release notes for web-sdk v${SDK_VERSION}" \
-            --draft
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
