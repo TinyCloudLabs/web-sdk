@@ -13,7 +13,7 @@
     "dev": "turbo dev",
     "test": "turbo test",
     "lint": "turbo lint",
-    "clean": "turbo clean",
+    "clean": "./scripts/clean.sh",
     "doc": "turbo doc",
     "web-core": "bun --cwd packages/web-core -c",
     "web-sdk": "bun --cwd packages/web-sdk -c",
