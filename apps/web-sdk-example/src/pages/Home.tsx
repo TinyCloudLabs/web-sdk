@@ -5,13 +5,13 @@ import RadioGroup from '../components/RadioGroup';
 import Input from '../components/Input';
 import Button from '../components/Button';
 import AccountInfo from '../components/AccountInfo';
-import { useWeb3Modal } from '@web3modal/react';
 import { lazy } from 'react';
+import { useAccount, useWalletClient } from 'wagmi';
+import { useModal } from 'connectkit';
 import { walletClientToEthers5Signer } from '../utils/web3modalV2Settings';
-import { getWalletClient } from '@wagmi/core'
-import { useWalletClient } from 'wagmi';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../components/ui/accordian';
 import Footer from '../components/Footer';
+import Header from '../components/Header';
 
 const StorageModule = lazy(() => import('../pages/StorageModule'));
 declare global {
@@ -22,17 +22,18 @@ declare global {
 
 function Home() {
 
-  const { open: openWeb3Modal } = useWeb3Modal();
-  const { data: walletClient } = useWalletClient()
+  const { address, isConnected } = useAccount();
+  const { data: walletClient } = useWalletClient();
+  const { setOpen } = useModal();
 
   const [loading, setLoading] = useState(false);
+  const [pendingSignIn, setPendingSignIn] = useState(false);
 
   const [tcw, setTinyCloudWeb] = useState<TinyCloudWeb | null>(null);
-  const [provider] = useState<string>('MetaMask');
   const [resolveEns, setResolveEns] = useState<string>('On');
   const [siweConfig, setSiweConfig] = useState<string>('Off');
   // siweConfig Fields
-  const [address, setAddress] = useState<string>('');
+  const [siweAddress, setSiweAddress] = useState<string>('');
   const [chainId, setChainId] = useState<string>('');
   const [domain, setDomain] = useState<string>('');
   const [nonce, setNonce] = useState<string>('');
@@ -51,7 +52,7 @@ function Home() {
 
     if (siweConfig === 'On') {
       const siweConfig: Record<string, any> = {};
-      if (address) siweConfig.address = address;
+      if (siweAddress) siweConfig.address = siweAddress;
       if (chainId) siweConfig.chainId = chainId;
       if (domain) siweConfig.domain = domain;
       if (nonce) siweConfig.nonce = nonce;
@@ -100,25 +101,21 @@ function Home() {
     return tcwConfig;
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const signInUsingWeb3Modal = async (walletClient: any) => {
-    const chainId = await walletClient.getChainId();
-    const newWalletClient = await getWalletClient({ chainId });
-    const signer = walletClientToEthers5Signer(newWalletClient as any);
-    if (tcw) return;
+  const signInWithWallet = async () => {
+    if (!walletClient || tcw) return;
 
     setLoading(true);
-    const tcwConfig = getTinyCloudWebConfig({
-      provider: {
-        web3: {
-          driver: signer.provider
-        }
-      }
-    });
-
-    const tcwProvider = new TinyCloudWeb(tcwConfig);
-
     try {
+      const signer = walletClientToEthers5Signer(walletClient as any);
+      const tcwConfig = getTinyCloudWebConfig({
+        provider: {
+          web3: {
+            driver: signer.provider
+          }
+        }
+      });
+
+      const tcwProvider = new TinyCloudWeb(tcwConfig);
       await tcwProvider.signIn();
       setTinyCloudWeb(tcwProvider);
     } catch (err) {
@@ -128,40 +125,45 @@ function Home() {
   }
 
   useEffect(() => {
-    if (!walletClient) {
+    if (!isConnected) {
       tcw?.signOut?.();
       setTinyCloudWeb(null);
+      setPendingSignIn(false); // Clear pending sign-in if wallet disconnects
     }
     // eslint-disable-next-line
-  }, [walletClient]);
+  }, [isConnected]);
+
+  // Auto sign-in to TinyCloud when wallet connects and user intended to sign in
+  useEffect(() => {
+    if (isConnected && walletClient && pendingSignIn && !tcw) {
+      setPendingSignIn(false); // Clear the pending state
+      signInWithWallet();
+    }
+    // eslint-disable-next-line
+  }, [isConnected, walletClient, pendingSignIn, tcw]);
+
 
   const tcwHandler = async () => {
-    if (provider === 'Web3Modal v2') {
-      return openWeb3Modal();
-    } else {
-      setLoading(true);
-      let tcwConfig = getTinyCloudWebConfig();
-
-      const tcw = new TinyCloudWeb(tcwConfig);
-      window.tcw = tcw;
-
-      try {
-        await tcw.signIn();
-        setTinyCloudWeb(tcw);
-      } catch (err) {
-        console.error(err);
-      }
-      setLoading(false);
+    if (!isConnected || !walletClient) {
+      // User wants to sign in, so first connect the wallet
+      setPendingSignIn(true);
+      setOpen(true);
+      return;
     }
+
+    if (tcw) {
+      // Already signed in
+      return;
+    }
+
+    // Sign in with TinyCloud using connected wallet
+    await signInWithWallet();
   };
 
   const tcwLogoutHandler = async () => {
-    if (provider === 'Web3Modal v2') {
-      return openWeb3Modal();
-    }
-
     tcw?.signOut?.();
     setTinyCloudWeb(null);
+    // Note: Wallet remains connected - user can disconnect via header button if desired
   };
 
   const displayAdvancedOptions = () => {
@@ -242,8 +244,8 @@ function Home() {
                   <div className="mt-4 grid gap-4 md:grid-cols-2">
                     <Input
                       label='Address'
-                      value={address}
-                      onChange={setAddress}
+                      value={siweAddress}
+                      onChange={setSiweAddress}
                       helperText="Wallet address to be confirmed in the message"
                     />
                     <Input
@@ -313,8 +315,10 @@ function Home() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center bg-bg pt-20">
-      <div className="w-full max-w-4xl px-4 mb-6">
+    <>
+      <Header />
+      <div className="flex min-h-screen flex-col items-center bg-bg pt-20">
+        <div className="w-full max-w-4xl px-4 mb-6">
         <Title />
 
         <div className="mx-auto max-w-2xl rounded-base border-2 border-border bg-bw p-6 shadow-shadow">
@@ -328,17 +332,21 @@ function Home() {
                   variant="default"
                   className="w-full"
                 >
-                  SIGN-OUT
+                  SIGN-OUT FROM TINYCLOUD
                 </Button>
                 <AccountInfo
-                  address={tcw?.address()}
+                  address={address || tcw?.address()}
                   session={tcw?.session()}
                   className="mt-6"
                 />
               </>
             ) : (
               <div className="space-y-4">
-
+                {!isConnected && (
+                  <div className="text-sm text-text/70 text-center p-3 bg-bg rounded border">
+                    <p>Click the button below to connect your wallet and sign into TinyCloud</p>
+                  </div>
+                )}
 
                 <Button
                   id="signInButton"
@@ -347,7 +355,7 @@ function Home() {
                   variant="default"
                   className="w-full"
                 >
-                  SIGN-IN WITH ETHEREUM
+                  {isConnected ? 'SIGN-IN TO TINYCLOUD' : 'CONNECT WALLET & SIGN-IN'}
                 </Button>
 
                 {displayAdvancedOptions()}
@@ -363,11 +371,12 @@ function Home() {
             <StorageModule tcw={tcw} />
           </div>
         )}
+        </div>
+        <div className="mt-auto w-full">
+          <Footer />
+        </div>
       </div>
-      <div className="mt-auto w-full">
-        <Footer />
-      </div>
-    </div>
+    </>
   );
 }
 

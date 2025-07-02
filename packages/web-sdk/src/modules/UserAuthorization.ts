@@ -2,7 +2,7 @@ import { providers, Signer } from 'ethers';
 import { initialized, tcwSession } from '@tinycloudlabs/web-sdk-wasm';
 import merge from 'lodash.merge';
 import { AxiosInstance } from 'axios';
-import { generateNonce } from 'siwe';
+import { generateNonce, SiweMessage } from 'siwe';
 import {
   TCWEnsData,
   tcwResolveEns,
@@ -14,6 +14,20 @@ import {
   TCWExtension,
 } from '@tinycloudlabs/web-core/client';
 import { dispatchSDKEvent } from '../notifications/ErrorHandler';
+
+/**
+ * Interface for tracking session state during SIWE message generation
+ */
+interface PendingSession {
+  /** Instance of TCWSessionManager */
+  sessionManager: tcwSession.TCWSessionManager;
+  /** Ethereum address for the session */
+  address: string;
+  /** Timestamp when session was generated */
+  generatedAt: number;
+  /** Extensions that were applied to the session */
+  extensions: TCWExtension[];
+}
 
 /** UserAuthorization Module
  *
@@ -62,11 +76,31 @@ interface IUserAuthorization {
   // signOut()
   /* updateUserAuthorization */
   // requestCapabilities()
+  /**
+   * Generates a SIWE message for authentication with session key capabilities.
+   * @param address - Ethereum address performing the signing
+   * @param partialSiweMessage - Optional partial SIWE message to override defaults
+   * @returns SiweMessage object ready for signing
+   */
+  generateSiweMessage(
+    address: string,
+    partialSiweMessage?: Partial<SiweMessage>
+  ): Promise<SiweMessage>;
+  /**
+   * Sign in to the SDK using a pre-signed SIWE message.
+   * @param siweMessage - The SIWE message that was generated
+   * @param signature - The signature of the SIWE message
+   * @returns Promise with the TCWClientSession object
+   */
+  signInWithSignature(
+    siweMessage: SiweMessage,
+    signature: string
+  ): Promise<TCWClientSession>;
 }
 
 class UserAuthorizationInit {
   /** Extensions for the TCWClientSession. */
-  private extensions: TCWExtension[] = [];
+  public extensions: TCWExtension[] = [];
 
   /** The session representation (once signed in). */
   public session?: TCWClientSession;
@@ -303,6 +337,9 @@ class UserAuthorization implements IUserAuthorization {
   /** The TCWClientConfig object. */
   private config: TCWClientConfig;
 
+  /** Pending session state for signature-based initialization */
+  private pendingSession?: PendingSession;
+
   constructor(private _config: TCWClientConfig = TCW_DEFAULT_CONFIG) {
     this.config = _config;
     this.init = new UserAuthorizationInit({
@@ -441,6 +478,200 @@ class UserAuthorization implements IUserAuthorization {
   public getSigner(): Signer {
     return this.provider.getSigner();
   }
+
+  /**
+   * Generates a SIWE message for authentication with session key capabilities.
+   * This method initializes a TCWSessionManager, generates a session key,
+   * applies extension capabilities, and builds a SIWE message for signing.
+   * 
+   * @param address - Ethereum address performing the signing
+   * @param partialSiweMessage - Optional partial SIWE message to override defaults
+   * @returns SiweMessage object ready for signing
+   */
+  public async generateSiweMessage(
+    address: string,
+    partialSiweMessage?: Partial<SiweMessage>
+  ): Promise<SiweMessage> {
+    try {
+      // Validate address format
+      if (!address || !address.startsWith('0x') || address.length !== 42) {
+        throw new Error('Invalid Ethereum address format. Address must be a valid 0x-prefixed hex string.');
+      }
+      
+      // Initialize TCWSessionManager from WASM
+      let sessionManager: tcwSession.TCWSessionManager;
+      try {
+        sessionManager = await initialized.then(
+          () => new tcwSession.TCWSessionManager()
+        );
+      } catch (error) {
+        throw new Error('Failed to initialize WASM session manager. Please try again.');
+      }
+      
+      // Generate session key and store in manager
+      let sessionKey: string;
+      try {
+        sessionKey = sessionManager.createSessionKey();
+        if (!sessionKey) {
+          throw new Error('Session key is empty or undefined');
+        }
+      } catch (error) {
+        throw new Error('Failed to generate session key from WASM manager');
+      }
+      
+      // Apply extension capabilities
+      const extensions = this.init.extensions;
+      try {
+        await this.applyExtensionCapabilities(sessionManager, extensions);
+      } catch (error) {
+        console.warn('Extension capability application failed:', error);
+        // Continue with session generation as extension capabilities are not critical
+      }
+      
+      // Build SIWE message with defaults
+      const domain = partialSiweMessage?.domain || (typeof window !== 'undefined' ? window.location.host : 'localhost');
+      const nonce = partialSiweMessage?.nonce || generateNonce();
+      const issuedAt = new Date().toISOString();
+      
+      const siweMessageData = {
+        address,
+        chainId: 1, // hardcoded as per requirements
+        domain,
+        nonce,
+        issuedAt,
+        uri: partialSiweMessage?.uri || `https://${domain}`,
+        version: '1',
+        ...partialSiweMessage, // Override with any provided partial data
+      };
+      
+      // Store session state for later retrieval
+      this.pendingSession = {
+        sessionManager,
+        address,
+        generatedAt: Date.now(),
+        extensions,
+      };
+      
+      // Return SiweMessage instance
+      return new SiweMessage(siweMessageData);
+      
+    } catch (error) {
+      // Clean up any partial state on error
+      this.pendingSession = undefined;
+      
+      console.error('Failed to generate SIWE message:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Sign in to the SDK using a pre-signed SIWE message.
+   * This method must be called after generateSiweMessage().
+   * @param siweMessage - The SIWE message that was generated
+   * @param signature - The signature of the SIWE message
+   * @returns Promise with the TCWClientSession object
+   */
+  public async signInWithSignature(
+    siweMessage: SiweMessage,
+    signature: string
+  ): Promise<TCWClientSession> {
+    // Validate that generateSiweMessage() was called first
+    if (!this.pendingSession) {
+      throw new Error('generateSiweMessage() must be called before signInWithSignature()');
+    }
+
+    try {
+      // Retrieve stored session key from TCWSessionManager
+      const sessionKey = this.pendingSession.sessionManager.jwk();
+      if (sessionKey === undefined) {
+        throw new Error('unable to retrieve session key from pending session');
+      }
+
+      // Create TCWClientSession object
+      const session: TCWClientSession = {
+        address: siweMessage.address,
+        walletAddress: siweMessage.address, // For signature-based init, address and walletAddress are the same
+        chainId: siweMessage.chainId || 1, // Default to mainnet if not specified
+        sessionKey,
+        siwe: siweMessage.prepareMessage(),
+        signature,
+      };
+
+      // Apply extension afterSignIn hooks
+      await this.applyAfterSignInHooks(session);
+
+      // Set session to completed session
+      this.session = session;
+
+      // Clean up pendingSession after successful initialization
+      this.pendingSession = undefined;
+
+      // Return the session object
+      return session;
+
+    } catch (error) {
+      // Clean up pendingSession on error
+      this.pendingSession = undefined;
+      throw error;
+    }
+  }
+
+  /**
+   * Applies extension capabilities (defaultActions/targetedActions) to the session manager.
+   * This method iterates through the extensions and adds their capabilities to the TCWSessionManager.
+   * 
+   * @private
+   * @param sessionManager - TCWSessionManager instance to apply capabilities to
+   * @param extensions - Array of extensions to apply
+   */
+  private async applyExtensionCapabilities(
+    sessionManager: tcwSession.TCWSessionManager,
+    extensions: TCWExtension[]
+  ): Promise<void> {
+    for (const extension of extensions) {
+      // Apply default actions if available
+      if (extension.namespace && extension.defaultActions) {
+        try {
+          const defaults = await extension.defaultActions();
+          sessionManager.addDefaultActions(extension.namespace, defaults);
+        } catch (error) {
+          console.warn(`Failed to apply default actions for ${extension.namespace}:`, error);
+          // Continue processing other extensions rather than failing completely
+        }
+      }
+      
+      // Apply targeted actions if available
+      if (extension.namespace && extension.targetedActions) {
+        try {
+          const targetedActions = await extension.targetedActions();
+          for (const target in targetedActions) {
+            sessionManager.addTargetedActions(
+              extension.namespace,
+              target,
+              targetedActions[target]
+            );
+          }
+        } catch (error) {
+          console.warn(`Failed to apply targeted actions for ${extension.namespace}:`, error);
+          // Continue processing other extensions rather than failing completely
+        }
+      }
+    }
+  }
+
+  /**
+   * Apply extension afterSignIn hooks to the session.
+   * @param session - The TCWClientSession object
+   */
+  private async applyAfterSignInHooks(session: TCWClientSession): Promise<void> {
+    const extensions = this.init.extensions;
+    
+    for (const extension of extensions) {
+      if (extension.afterSignIn) {
+        await extension.afterSignIn(session);
+      }
+    }
+  }
 }
 
 export {
@@ -448,4 +679,5 @@ export {
   UserAuthorization,
   UserAuthorizationInit,
   UserAuthorizationConnected,
+  PendingSession,
 };

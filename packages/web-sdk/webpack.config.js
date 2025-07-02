@@ -1,7 +1,10 @@
 const path = require('path');
 const webpack = require('webpack');
 
+const isProduction = process.argv.includes('--mode=production') || process.env.NODE_ENV === 'production';
+
 module.exports = {
+  mode: isProduction ? 'production' : 'development',
   entry: './src/index.ts',
   module: {
     rules: [
@@ -37,9 +40,18 @@ module.exports = {
     umdNamedDefine: true,
     globalObject: 'this',
   },
+  optimization: {
+    // Disable HMR and development optimizations in production
+    ...(isProduction && {
+      minimize: true,
+      sideEffects: false,
+    }),
+  },
   plugins: [
     new webpack.ProvidePlugin({
       Buffer: ['buffer', 'Buffer'],
     }),
+    // Only add HMR plugin in development
+    ...(!isProduction ? [new webpack.HotModuleReplacementPlugin()] : []),
   ],
 };

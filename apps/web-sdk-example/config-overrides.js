@@ -36,16 +36,30 @@ module.exports = function override(config, env) {
   // Handle webpack fallbacks - only include essential ones
   config.resolve.fallback = {
     buffer: require.resolve('buffer/'),
+    process: require.resolve('process/browser'),
+  };
+
+  // Handle ESM modules
+  config.resolve.extensionAlias = {
+    ".js": [".js", ".ts", ".tsx"]
   };
   
   config.ignoreWarnings = [/Failed to parse source map/];
   
   config.plugins.push(
     new webpack.ProvidePlugin({
-      process: 'process/browser',
+      process: 'process/browser.js',
       Buffer: ['buffer', 'Buffer'],
     }),
   );
+
+  // Add specific handling for framer-motion ESM issues
+  config.module.rules.push({
+    test: /\.m?js$/,
+    resolve: {
+      fullySpecified: false
+    }
+  });
   
   // Enable code splitting
   if (env === 'production') {
