@@ -1,6 +1,6 @@
 {
   "name": "@tinycloudlabs/web-sdk",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "A set of tools and utilities to help you build your app with TinyCloud.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -24,8 +24,8 @@
   },
   "dependencies": {
     "@metamask/detect-provider": "^1.2.0",
-    "@tinycloudlabs/web-core": "0.1.2",
-    "@tinycloudlabs/web-sdk-wasm": "0.1.2",
+    "@tinycloudlabs/web-core": "0.2.0",
+    "@tinycloudlabs/web-sdk-wasm": "0.2.0",
     "assert": "^2.1.0",
     "axios": "^1.7.9",
     "browser": "^0.2.6",
