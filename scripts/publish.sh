@@ -104,6 +104,10 @@ git tag "web-sdk-v$SDK_VERSION"
 
 cd "$ROOT_DIR"
 
+# Push all tags to remote
+echo "Pushing tags to remote repository..."
+git push origin --tags
+
 # Setup NPM authentication
 echo "Setting up NPM authentication..."
 if [ -z "$NPM_TOKEN" ]; then
