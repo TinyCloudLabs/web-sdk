@@ -1,5 +1,17 @@
 # @tinycloudlabs/web-core
 
+## 0.2.0
+
+### Minor Changes
+
+- 64affb0: Bring up to date with EIP-5573
+
+### Patch Changes
+
+- Updated dependencies [64affb0]
+- Updated dependencies [491f83c]
+  - @tinycloudlabs/web-sdk-wasm@0.2.0
+
 ## 0.1.2
 
 ### Patch Changes

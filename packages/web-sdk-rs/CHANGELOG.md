@@ -1,5 +1,12 @@
 # @tinycloudlabs/web-sdk-wasm
 
+## 0.2.0
+
+### Minor Changes
+
+- 64affb0: Bring up to date with EIP-5573
+- 491f83c: Support initializing SDK with messages + signature
+
 ## 0.1.2
 
 ### Patch Changes
