@@ -92,15 +92,15 @@ ROOT_DIR=$(pwd)
 
 cd "$ROOT_DIR/packages/web-core"
 CORE_VERSION=$(cat package.json | grep '"version"' | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[[:space:]]')
-git tag "web-core-v$CORE_VERSION"
+git tag "web-core-v$CORE_VERSION" || echo "Tag web-core-v$CORE_VERSION already exists"
 
 cd "$ROOT_DIR/packages/web-sdk-rs"
 SDK_RS_VERSION=$(cat package.json | grep '"version"' | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[[:space:]]')
-git tag "web-sdk-rs-v$SDK_RS_VERSION"
+git tag "web-sdk-rs-v$SDK_RS_VERSION" || echo "Tag web-sdk-rs-v$SDK_RS_VERSION already exists"
 
 cd "$ROOT_DIR/packages/web-sdk"
 SDK_VERSION=$(cat package.json | grep '"version"' | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[[:space:]]')
-git tag "web-sdk-v$SDK_VERSION"
+git tag "web-sdk-v$SDK_VERSION" || echo "Tag web-sdk-v$SDK_VERSION already exists"
 
 cd "$ROOT_DIR"
 
