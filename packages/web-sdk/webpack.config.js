@@ -8,7 +8,7 @@ const isProduction =
 module.exports = {
   mode: isProduction ? "production" : "development",
   entry: "./src/index.ts",
-  devtool: !isProduction,
+  devtool: isProduction ? false : 'eval-source-map',
   module: {
     rules: [
       {
