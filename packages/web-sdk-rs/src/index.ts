@@ -3,9 +3,9 @@ import { getWasmBinary } from "./wasm-loader.js";
 import * as lib from "../pkg/tinycloud_web_sdk_rs.js";
 
 // Initialize WASM using chunked loader
-export const initialized: Promise<void> = init(getWasmBinary()).then(() =>
-  lib.initPanicHook()
-);
+export const initialized: Promise<void> = getWasmBinary()
+  .then(wasmBinary => init(wasmBinary))
+  .then(() => lib.initPanicHook());
 
 export namespace tcwSession {
   export import TCWSessionManager = lib.TCWSessionManager;
