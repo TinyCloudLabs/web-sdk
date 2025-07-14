@@ -1,10 +1,9 @@
 import init from "../pkg/tinycloud_web_sdk_rs.js";
-// @ts-ignore
-import wasm from "../pkg/tinycloud_web_sdk_rs_bg.wasm";
-
+import { getWasmBinary } from "./wasm-loader.js";
 import * as lib from "../pkg/tinycloud_web_sdk_rs.js";
 
-export const initialized: Promise<void> = init(wasm()).then(() =>
+// Initialize WASM using chunked loader
+export const initialized: Promise<void> = init(getWasmBinary()).then(() =>
   lib.initPanicHook()
 );
 
