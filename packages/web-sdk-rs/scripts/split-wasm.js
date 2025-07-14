@@ -5,11 +5,15 @@
 
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
 
 const WASM_FILE = path.join(__dirname, '../pkg/tinycloud_web_sdk_rs_bg.wasm');
 const CHUNKS_DIR = path.join(__dirname, '../src/wasm-chunks');
 
 function splitWasmIntoChunks() {
+  // Note: WASM is already optimized by wasm-pack build --release
+  // which automatically runs wasm-opt, so no additional optimization needed
+  
   // Read the WASM binary
   const wasmBuffer = fs.readFileSync(WASM_FILE);
   console.log(`Original WASM size: ${wasmBuffer.length} bytes`);
