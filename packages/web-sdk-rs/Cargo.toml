@@ -30,3 +30,6 @@ web-sys = { version = "0.3.59", features = ["console"] }
 
 [dev-dependencies]
 tokio = { version = "1.45", features = ["full"] }
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-O4", "--enable-bulk-memory"]
