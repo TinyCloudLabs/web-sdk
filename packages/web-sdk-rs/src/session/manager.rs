@@ -1,7 +1,7 @@
 use std::{collections::HashMap, str::FromStr};
 
 use iri_string::types::UriString;
-use js_sys::{JsString, JSON};
+use js_sys::JsString;
 use serde_json::Value;
 use tinycloud_sdk_rs::tinycloud_lib::{
     cacaos::siwe::{generate_nonce, Message, Version as SiweVersion},
@@ -14,7 +14,7 @@ use tinycloud_sdk_rs::tinycloud_lib::{
     },
 };
 use wasm_bindgen::prelude::*;
-use web_sys::{console::error_1 as console_error, console::error_2 as console_error_2};
+use web_sys::console::error_1 as console_error;
 
 // use crate::session::*;
 

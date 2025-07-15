@@ -4,6 +4,11 @@ members = [
   "packages/web-sdk-rs",
 ]
 
+# Optimization profile for WASM size reduction
 [profile.release]
-lto = true
+opt-level = "s"  # Optimize for size
+lto = true       # Enable link-time optimization
+codegen-units = 1
+panic = "abort"  # Reduce WASM size by removing panic handling
+strip = true     # Remove debug symbols
 

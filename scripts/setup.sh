@@ -19,7 +19,7 @@ if [ -n "$BUILD_SETUP_ENABLED" ] || ! command -v rustup &> /dev/null || ! comman
         echo "Installing wasm-pack..."
         curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
     fi
-    
+
     echo "Rust and WASM toolchain setup complete!"
 else
     echo "Rust and WASM toolchain already available"
@@ -37,4 +37,7 @@ export PATH="$HOME/.cargo/bin:$PATH"
 # Add cargo bin to system PATH permanently for this session
 echo "$HOME/.cargo/bin" >> $GITHUB_PATH 2>/dev/null || true
 
-echo "Environment setup complete. PATH: $PATH"
+echo "Environment setup complete!"
+echo "Rust version: $(rustc --version 2>/dev/null || echo 'Not available')"
+echo "wasm-pack version: $(wasm-pack --version 2>/dev/null || echo 'Not available')"
+echo "PATH: $PATH"
