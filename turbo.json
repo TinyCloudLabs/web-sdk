@@ -2,6 +2,10 @@
   "$schema": "https://turbo.build/schema.json",
   "ui": "tui",
   "envMode": "loose",
+  "remoteCache": {
+    "teamId": "team_Jroa9qgwBTjFeepUfvkD5jzH",
+    "signature": true
+  },
   "tasks": {
     "setup": {
       "cache": true,
