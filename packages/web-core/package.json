@@ -1,6 +1,6 @@
 {
   "name": "@tinycloudlabs/web-core",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "TinyCloud Web Core library",
   "author": "TinyCloud, Inc.",
   "license": "Apache-2.0 OR MIT",
@@ -48,7 +48,7 @@
     "url": "ssh://git@github.com:TinyCloudLabs/web-sdk.git"
   },
   "dependencies": {
-    "@tinycloudlabs/web-sdk-wasm": "0.2.0",
+    "@tinycloudlabs/web-sdk-wasm": "0.2.1",
     "@types/axios": "^0.14.4",
     "axios": "^1.7.9",
     "ethers": "^5.7.2",
