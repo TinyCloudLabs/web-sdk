@@ -21,6 +21,7 @@
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.12",
+    "@rollup/plugin-wasm": "^5.2.0",
     "prettier": "^2.8.8",
     "rollup": "^2.79.2",
     "rollup-plugin-typescript2": "^0.32.1",
@@ -29,7 +30,6 @@
   },
   "files": [
     "tsconfig.json",
-    "dist",
-    "scripts/split-wasm.js"
+    "dist"
   ]
 }
