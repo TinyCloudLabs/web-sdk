@@ -1,20 +1,21 @@
+@import './styles/neobrutalism.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
+  /* OLD VARIABLES - KEPT FOR COMPATIBILITY */
   --main: #88aaee;
-  --overlay: rgba(0, 0, 0, 0.8); /* background color overlay for alert dialogs, modals, etc. */
-
+  --overlay: rgba(0, 0, 0, 0.8);
   --bg: #dfe5f2;
-  --bw: #fff; /* white and secondary black e.g. utility class variant would be: bg-[#fff] dark:bg-[#212121] */
-  --blank: #000; /* blank black and white */
+  --bw: #fff;
+  --blank: #000;
   --border: #000;
   --text: #000;
-  --mtext: #000; /* text that is placed on background with main color e.g. text color of default button */
+  --mtext: #000;
   --ring: #000;
   --ring-offset: #fff;
-
   --border-radius: 8px;
   --box-shadow-x: 3px;
   --box-shadow-y: 3px;
@@ -22,7 +23,6 @@
   --reverse-box-shadow-y: -3px;
   --base-font-weight: 500;
   --heading-font-weight: 700;
-
   --shadow: var(--box-shadow-x) var(--box-shadow-y) 0px 0px var(--border);
 }
 
@@ -35,46 +35,295 @@
   --mtext: #000;
   --ring: #fff;
   --ring-offset: #000;
-
   --shadow: var(--box-shadow-x) var(--box-shadow-y) 0px 0px var(--border);
 }
 
 * {
-  padding: 0;
-  margin: 0;
-  box-sizing: border-box;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+html {
+  background-color: var(--neo-bg-primary) !important;
+  color: var(--neo-text-primary) !important;
 }
 
 body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background-color: var(--bg);
-  color: var(--text);
+  margin: 0 !important;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+  background-color: var(--neo-bg-primary) !important;
+  color: var(--neo-text-primary) !important;
+  font-size: 16px !important;
+  line-height: 1.5 !important;
+  font-weight: 500 !important;
+  min-height: 100vh !important;
 }
 
 body::-webkit-scrollbar {
-  width: 16px;
+  width: 16px !important;
 }
 
 body::-webkit-scrollbar-track {
-  background: var(--bw);
+  background: var(--neo-bg-secondary) !important;
+  border: 2px solid var(--neo-border) !important;
 }
 
 body::-webkit-scrollbar-thumb {
-  background: var(--blank);
+  background: var(--neo-yellow) !important;
+  border: 2px solid var(--neo-border) !important;
+  border-radius: var(--neo-radius-md) !important;
+}
+
+body::-webkit-scrollbar-thumb:hover {
+  background: var(--neo-pink) !important;
 }
 
 @supports not selector(::-webkit-scrollbar) {
   body {
-    scrollbar-color: var(--blank) var(--bw);
+    scrollbar-color: var(--neo-yellow) var(--neo-bg-secondary) !important;
   }
 }
 
 code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Consolas', 'Courier New', monospace !important;
+  background-color: var(--neo-bg-secondary) !important;
+  color: var(--neo-text-primary) !important;
+  padding: 2px 4px !important;
+  border-radius: var(--neo-radius-sm) !important;
+  border: 1px solid var(--neo-border) !important;
+  font-size: 0.9em !important;
+  font-weight: 600 !important;
+}
+
+#root {
+  background-color: var(--neo-bg-primary) !important;
+  color: var(--neo-text-primary) !important;
+  min-height: 100vh !important;
+}
+
+@layer base {
+  * {
+    transition: all 0.15s ease-out !important;
+  }
+  
+  button {
+    background-color: var(--neo-yellow) !important;
+    color: var(--neo-text-primary) !important;
+    border: var(--neo-border-width) solid var(--neo-border) !important;
+    border-radius: var(--neo-radius-md) !important;
+    box-shadow: var(--neo-shadow-x) var(--neo-shadow-y) var(--neo-shadow-blur) var(--neo-shadow-color) !important;
+    transition: all 0.15s ease-out !important;
+  }
+  
+  input, textarea, select {
+    background-color: var(--neo-bg-primary) !important;
+    border: var(--neo-border-width) solid var(--neo-border) !important;
+    border-radius: var(--neo-radius-md) !important;
+    padding: var(--neo-space-sm) !important;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    color: var(--neo-text-primary) !important;
+  }
+  
+  p {
+    color: var(--neo-text-primary) !important;
+  }
+  
+  a {
+    color: var(--neo-purple) !important;
+  }
+}
+
+@layer components {
+  .btn {
+    background-color: var(--neo-yellow) !important;
+    color: var(--neo-text-primary) !important;
+    border: var(--neo-border-width) solid var(--neo-border) !important;
+    border-radius: var(--neo-radius-md) !important;
+    box-shadow: var(--neo-shadow-x) var(--neo-shadow-y) var(--neo-shadow-blur) var(--neo-shadow-color) !important;
+    transition: all 0.15s ease-out !important;
+    padding: var(--neo-space-sm) var(--neo-space-md) !important;
+  }
+  
+  .btn-primary {
+    background-color: var(--neo-yellow) !important;
+    color: var(--neo-text-primary) !important;
+  }
+  
+  .btn-secondary {
+    background-color: var(--neo-pink) !important;
+    color: var(--neo-text-inverse) !important;
+  }
+  
+  .btn-success {
+    background-color: var(--neo-lime) !important;
+    color: var(--neo-text-primary) !important;
+  }
+  
+  .btn-warning {
+    background-color: var(--neo-orange) !important;
+    color: var(--neo-text-inverse) !important;
+  }
+  
+  .btn-info {
+    background-color: var(--neo-purple) !important;
+    color: var(--neo-text-inverse) !important;
+  }
+  
+  .btn-danger {
+    background-color: var(--neo-orange) !important;
+    color: var(--neo-text-inverse) !important;
+  }
+  
+  .card {
+    background-color: var(--neo-bg-primary) !important;
+    border: var(--neo-border-width) solid var(--neo-border) !important;
+    border-radius: var(--neo-radius-md) !important;
+    box-shadow: var(--neo-shadow-x) var(--neo-shadow-y) var(--neo-shadow-blur) var(--neo-shadow-color) !important;
+    padding: var(--neo-space-lg) !important;
+  }
+  
+  .input {
+    background-color: var(--neo-bg-primary) !important;
+    border: var(--neo-border-width) solid var(--neo-border) !important;
+    border-radius: var(--neo-radius-md) !important;
+    padding: var(--neo-space-sm) !important;
+    color: var(--neo-text-primary) !important;
+  }
+  
+  .container {
+    max-width: 1200px !important;
+    margin: 0 auto !important;
+    padding: 0 var(--neo-space-md) !important;
+  }
+}
+
+@layer utilities {
+  .text-shadow {
+    text-shadow: 2px 2px 0px var(--neo-border) !important;
+  }
+  
+  .text-shadow-lg {
+    text-shadow: 4px 4px 0px var(--neo-border) !important;
+  }
+  
+  .bg-gradient-brutal {
+    background: linear-gradient(45deg, var(--neo-yellow), var(--neo-pink), var(--neo-lime)) !important;
+  }
+  
+  .bg-gradient-sunset {
+    background: linear-gradient(45deg, var(--neo-orange), var(--neo-pink), var(--neo-purple)) !important;
+  }
+  
+  .border-brutal {
+    border: 4px solid var(--neo-border) !important;
+  }
+  
+  .shadow-brutal-colored {
+    box-shadow: 6px 6px 0px var(--neo-pink) !important;
+  }
+  
+  .shadow-brutal-multi {
+    box-shadow: 
+      6px 6px 0px var(--neo-pink),
+      12px 12px 0px var(--neo-yellow),
+      18px 18px 0px var(--neo-lime) !important;
+  }
+}
+
+.neo-glitch {
+  position: relative !important;
+}
+
+.neo-glitch::before,
+.neo-glitch::after {
+  content: attr(data-text) !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+}
+
+.neo-glitch::before {
+  animation: neo-glitch-1 0.5s infinite !important;
+  color: var(--neo-pink) !important;
+  z-index: -1 !important;
+}
+
+.neo-glitch::after {
+  animation: neo-glitch-2 0.5s infinite !important;
+  color: var(--neo-cyan) !important;
+  z-index: -2 !important;
+}
+
+@keyframes neo-glitch-1 {
+  0%, 100% { transform: translate(0); }
+  20% { transform: translate(-2px, 2px); }
+  40% { transform: translate(-2px, -2px); }
+  60% { transform: translate(2px, 2px); }
+  80% { transform: translate(2px, -2px); }
+}
+
+@keyframes neo-glitch-2 {
+  0%, 100% { transform: translate(0); }
+  20% { transform: translate(2px, -2px); }
+  40% { transform: translate(2px, 2px); }
+  60% { transform: translate(-2px, -2px); }
+  80% { transform: translate(-2px, 2px); }
+}
+
+* {
+  border-color: var(--neo-border) !important;
+}
+
+*:not(svg):not(path):not(circle):not(rect):not(line):not(polyline):not(polygon):not(ellipse) {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+.App, #root, [data-reactroot] {
+  background-color: var(--neo-bg-primary) !important;
+  color: var(--neo-text-primary) !important;
+  min-height: 100vh !important;
+}
+
+@media (max-width: 768px) {
+  body {
+    font-size: 14px !important;
+  }
+  
+  .neo-container {
+    padding: 0 12px !important;
+  }
+  
+  .neo-shadow,
+  .neo-shadow-lg,
+  .neo-shadow-xl,
+  .neo-shadow-brutal {
+    box-shadow: 3px 3px 0px var(--neo-shadow-color) !important;
+  }
+  
+  .neo-hover:hover {
+    transform: translate(3px, 3px) !important;
+  }
+}
+
+@media print {
+  * {
+    color: #000 !important;
+    background: #fff !important;
+    box-shadow: none !important;
+  }
+  
+  .neo-shadow,
+  .neo-shadow-lg,
+  .neo-shadow-xl,
+  .neo-shadow-brutal {
+    box-shadow: 2px 2px 0px #000 !important;
+  }
 }
