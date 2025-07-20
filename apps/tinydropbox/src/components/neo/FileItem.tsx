@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { Download, Trash2, Folder, File, FileText, Image, Film, Music, Archive, Code } from 'lucide-react';
 import { cn } from '../../utils/utils';
-import { NeoBrutalButton } from './Button';
-import { NeoBrutalCard } from './Card';
 
 interface FileItem {
   type: 'file' | 'folder';
@@ -61,25 +59,6 @@ const formatSize = (bytes: number) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 };
 
-const getFileTypeColor = (item: FileItem) => {
-  if (item.type === 'folder') return 'neo-bg-blue';
-  
-  const ext = item.name.split('.').pop()?.toLowerCase() || '';
-  
-  if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'].includes(ext)) {
-    return 'neo-bg-blue-light';
-  } else if (['mp4', 'avi', 'mov', 'webm'].includes(ext)) {
-    return 'neo-bg-neutral';
-  } else if (['mp3', 'wav', 'ogg', 'flac'].includes(ext)) {
-    return 'neo-bg-blue-light';
-  } else if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) {
-    return 'neo-bg-neutral';
-  } else if (['js', 'jsx', 'ts', 'tsx', 'py', 'java', 'cpp', 'c', 'html', 'css'].includes(ext)) {
-    return 'neo-bg-blue-light';
-  }
-  
-  return 'neo-bg-secondary';
-};
 
 const NeoBrutalFileItem: React.FC<NeoBrutalFileItemProps> = ({ 
   item, 
@@ -94,20 +73,12 @@ const NeoBrutalFileItem: React.FC<NeoBrutalFileItemProps> = ({
 }) => {
   const [isHovered, setIsHovered] = useState(false);
 
-  const fileTypeColor = getFileTypeColor(item);
   const iconSize = compact ? 'sm' : 'md';
-  const cardSize = compact ? 'sm' : 'md';
 
   return (
-    <NeoBrutalCard
-      variant="default"
-      size={cardSize}
-      shadow={brutal ? 'lg' : 'md'}
-      animation={animateOnHover ? 'hover' : 'none'}
+    <div
       className={cn(
-        'cursor-pointer group relative',
-        'neo-transition',
-        isHovered && 'neo-shadow-lg',
+        'cursor-pointer group relative bg-white border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all duration-150 rounded-lg p-4 dark:bg-gray-800 dark:border-white dark:shadow-[2px_2px_0px_0px_#fff]',
         className
       )}
       onMouseEnter={() => setIsHovered(true)}
@@ -117,13 +88,15 @@ const NeoBrutalFileItem: React.FC<NeoBrutalFileItemProps> = ({
       {/* File Icon Container */}
       <div className="flex flex-col items-center space-y-3">
         <div className={cn(
-          'flex items-center justify-center neo-rounded neo-border neo-transition',
-          compact ? 'w-12 h-12' : 'w-16 h-16',
-          fileTypeColor,
-          item.type === 'folder' ? 'neo-text-inverse' : 'neo-text-primary'
+          'flex items-center justify-center rounded border-2 border-black shadow-[1px_1px_0px_0px_#000] transition-all',
+          compact ? 'w-10 h-10 sm:w-12 sm:h-12' : 'w-12 h-12 sm:w-16 sm:h-16 lg:w-18 lg:h-18',
+          item.type === 'folder' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200',
+          'dark:border-white dark:shadow-[1px_1px_0px_0px_#fff]'
         )}>
           {item.type === 'folder' ? (
-            <Folder className={cn(compact ? 'w-6 h-6' : 'w-8 h-8')} />
+            <Folder className={cn(
+              compact ? 'w-5 h-5 sm:w-6 sm:h-6' : 'w-6 h-6 sm:w-8 sm:h-8 lg:w-9 lg:h-9'
+            )} />
           ) : (
             getFileIcon(item.name, iconSize)
           )}
@@ -132,8 +105,8 @@ const NeoBrutalFileItem: React.FC<NeoBrutalFileItemProps> = ({
         {/* File Name */}
         <div className="text-center w-full space-y-1">
           <h3 className={cn(
-            'neo-body font-semibold line-clamp-2 break-words',
-            compact ? 'text-xs' : 'text-sm'
+            'font-semibold line-clamp-2 break-words text-black dark:text-white',
+            compact ? 'text-xs sm:text-sm' : 'text-sm sm:text-base lg:text-lg'
           )}>
             {item.name}
           </h3>
@@ -141,9 +114,8 @@ const NeoBrutalFileItem: React.FC<NeoBrutalFileItemProps> = ({
           {/* File Info */}
           <div className="space-y-1">
             <p className={cn(
-              'neo-small',
-              compact ? 'text-xs' : 'text-sm',
-              'neo-text-secondary'
+              compact ? 'text-xs' : 'text-xs sm:text-sm lg:text-base',
+              'text-gray-600 dark:text-gray-400'
             )}>
               {item.type === 'folder' ? 'Folder' : formatSize(item.size || 0)}
             </p>
@@ -151,11 +123,7 @@ const NeoBrutalFileItem: React.FC<NeoBrutalFileItemProps> = ({
             {/* File Extension Badge */}
             {item.type === 'file' && (
               <div className="flex justify-center">
-                <span className={cn(
-                  'inline-block px-2 py-1 neo-rounded-sm text-xs font-semibold uppercase',
-                  'neo-border neo-bg-secondary neo-text-primary',
-                  'neo-transition'
-                )}>
+                <span className="inline-block px-2 py-1 rounded-sm text-xs font-semibold uppercase bg-gray-200 text-gray-700 border border-black dark:bg-gray-600 dark:text-gray-200 dark:border-white">
                   {item.name.split('.').pop() || 'FILE'}
                 </span>
               </div>
@@ -167,42 +135,33 @@ const NeoBrutalFileItem: React.FC<NeoBrutalFileItemProps> = ({
       {/* Action Buttons */}
       {showActions && (
         <div className={cn(
-          'absolute -top-2 -right-2 flex gap-1 neo-transition',
+          'absolute -top-2 -right-2 flex gap-1 transition-all',
           isHovered ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
         )}>
           {item.type === 'file' && onDownload && (
-            <NeoBrutalButton
-              variant="primary"
-              size="icon"
-              className="w-7 h-7 text-xs"
+            <button
+              className="w-7 h-7 flex items-center justify-center bg-blue-500 border border-black shadow-[1px_1px_0px_0px_#000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all text-white rounded dark:border-white dark:shadow-[1px_1px_0px_0px_#fff]"
               onClick={(e) => {
                 e.stopPropagation();
                 onDownload(item);
               }}
             >
               <Download className="w-3 h-3" />
-            </NeoBrutalButton>
+            </button>
           )}
           
-          <NeoBrutalButton
-            variant="neutral"
-            size="icon"
-            className="w-7 h-7 text-xs"
+          <button
+            className="w-7 h-7 flex items-center justify-center bg-red-500 border border-black shadow-[1px_1px_0px_0px_#000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all text-white rounded dark:border-white dark:shadow-[1px_1px_0px_0px_#fff]"
             onClick={(e) => {
               e.stopPropagation();
               onDelete(item);
             }}
           >
             <Trash2 className="w-3 h-3" />
-          </NeoBrutalButton>
+          </button>
         </div>
       )}
-
-      {/* Hover Overlay */}
-      {isHovered && (
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-50/30 to-blue-100/30 neo-rounded pointer-events-none"></div>
-      )}
-    </NeoBrutalCard>
+    </div>
   );
 };
 
@@ -230,7 +189,7 @@ interface NeoFileGridProps {
   className?: string;
   compact?: boolean;
   brutal?: boolean;
-  columns?: 2 | 3 | 4 | 5 | 6;
+  maxColumns?: 2 | 3 | 4 | 5 | 6 | 8;
 }
 
 export const NeoFileGrid: React.FC<NeoFileGridProps> = ({
@@ -241,20 +200,34 @@ export const NeoFileGrid: React.FC<NeoFileGridProps> = ({
   className,
   compact = false,
   brutal = false,
-  columns = 4
+  maxColumns = 6
 }) => {
-  const gridClasses = {
-    2: 'grid-cols-2',
-    3: 'grid-cols-3',
-    4: 'grid-cols-4',
-    5: 'grid-cols-5',
-    6: 'grid-cols-6'
+  // Mobile-first responsive grid system: 2→3→4→5→6→8 columns
+  const getResponsiveGridClasses = () => {
+    const baseClass = 'grid';
+    const gapClass = 'gap-3 sm:gap-4 md:gap-5 lg:gap-6';
+    
+    switch (maxColumns) {
+      case 2:
+        return `${baseClass} ${gapClass} grid-cols-1 xs:grid-cols-2`;
+      case 3:
+        return `${baseClass} ${gapClass} grid-cols-2 sm:grid-cols-3`;
+      case 4:
+        return `${baseClass} ${gapClass} grid-cols-2 sm:grid-cols-3 lg:grid-cols-4`;
+      case 5:
+        return `${baseClass} ${gapClass} grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5`;
+      case 6:
+        return `${baseClass} ${gapClass} grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6`;
+      case 8:
+        return `${baseClass} ${gapClass} grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8`;
+      default:
+        return `${baseClass} ${gapClass} grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6`;
+    }
   };
 
   return (
     <div className={cn(
-      'grid neo-gap-md',
-      `grid-cols-1 sm:grid-cols-2 md:${gridClasses[columns]}`,
+      getResponsiveGridClasses(),
       className
     )}>
       {items.map((item, index) => (
@@ -284,29 +257,29 @@ interface NeoEmptyStateProps {
 export const NeoEmptyState: React.FC<NeoEmptyStateProps> = ({
   title = "No Files Found",
   description = "This folder is empty. Start by uploading some files or creating a new folder.",
-  icon = <Folder className="w-16 h-16" />,
+  icon = <Folder className="w-12 h-12 sm:w-16 sm:h-16 lg:w-20 lg:h-20" />,
   action,
   className
 }) => {
   return (
     <div className={cn(
-      'flex flex-col items-center justify-center neo-p-xl text-center',
+      'flex flex-col items-center justify-center p-6 sm:p-8 lg:p-12 text-center',
       className
     )}>
-      <div className="mb-6 neo-text-secondary neo-fade-in">
+      <div className="mb-4 sm:mb-6 lg:mb-8 neo-text-secondary neo-fade-in">
         {icon}
       </div>
       
-      <h2 className="neo-heading mb-2 neo-text-primary">
+      <h2 className="text-lg sm:text-xl lg:text-2xl xl:text-3xl font-bold mb-2 sm:mb-3 neo-text-primary">
         {title}
       </h2>
       
-      <p className="neo-body neo-text-secondary mb-6 max-w-md">
+      <p className="text-sm sm:text-base lg:text-lg neo-text-secondary mb-6 sm:mb-8 max-w-xs sm:max-w-md lg:max-w-lg">
         {description}
       </p>
       
       {action && (
-        <div className="flex flex-col sm:flex-row neo-gap-sm">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
           {action}
         </div>
       )}

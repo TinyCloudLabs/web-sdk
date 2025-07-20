@@ -20,15 +20,7 @@ import { walletClientToEthers5Signer } from "./utils/web3modalV2Settings";
 import { ThemeProvider } from "./components/ThemeProvider";
 import { cn } from "./utils/utils";
 
-import {
-  NeoBrutalButton,
-  NeoBrutalCard,
-  NeoBrutalInput,
-  NeoButtonPrimary,
-  NeoButtonSecondary,
-  NeoButtonOutline,
-} from "./components/neo";
-import { NeoFileGrid, NeoEmptyState } from "./components/neo/FileItem";
+import { NeoFileGrid } from "./components/neo/FileItem";
 
 interface FileItem {
   type: "file" | "folder";
@@ -69,92 +61,98 @@ function RefinedLoginView({
   const showLoading = loading || isLoading;
 
   return (
-    <div
-      className={cn(
-        "min-h-screen flex items-center justify-center neo-p-md",
-        "neo-bg-primary"
-      )}
-    >
-      <div className="max-w-md w-full">
-        <NeoBrutalCard
-          variant="default"
-          size="lg"
-          shadow="lg"
-          className="neo-fade-in"
-        >
-          {/* Header Section */}
-          <div className="text-center mb-12">
-            {/* Title */}
-            <h1 className="neo-display text-3xl mb-3">Tiny Drop Box</h1>
-            <p className="neo-body neo-text-secondary">
-              Decentralized • Secure • Storage
-            </p>
-          </div>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-bg p-4">
+      <div className="w-full max-w-2xl mx-auto">
+        {/* TinyCloud Header - Match web-sdk-example exactly */}
+        <div className="relative mb-5 inline-block w-full max-w-2xl">
+          <a href="https://tinycloud.xyz/protocol" target="_blank" rel="noopener noreferrer">
+            <img
+              src="/tinycloudheader.png"
+              alt="TinyCloud"
+              className="w-full rounded-base border-2 border-border bg-bw shadow-shadow"
+            />
+          </a>
+        </div>
 
-          {/* Login Button */}
-          <NeoButtonPrimary
-            size="lg"
-            leftIcon={<Wallet className="w-5 h-5" />}
-            loading={showLoading}
-            onClick={handleLogin}
-            className="w-full"
-            disabled={showLoading}
-          >
-            {showLoading
-              ? loading
-                ? "Initializing Storage..."
-                : "Connecting..."
-              : isConnected
-              ? "Connect to TinyCloud"
-              : "Connect Wallet"}
-          </NeoButtonPrimary>
+        {/* Title */}
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-heading text-text text-center mb-2">
+          TinyCloud Dropbox Example App
+        </h1>
+        <p className="text-center text-text/70 mb-8 text-sm sm:text-base">
+          Decentralized • Secure • Storage
+        </p>
 
-          {/* Loading Progress */}
-          {showLoading && (
-            <div className="mt-6">
-              <div className="neo-bg-secondary neo-rounded-full h-2 overflow-hidden">
-                <div className="h-full neo-bg-blue neo-slide-infinite w-1/3"></div>
-              </div>
-              <p className="neo-small neo-text-secondary text-center mt-3">
-                {loading
-                  ? "Setting up your cloud storage..."
-                  : "Connecting to Web3 wallet..."}
-              </p>
-            </div>
-          )}
-
-          {/* Settings Section */}
-          {!showLoading && (
-            <div className="mt-6">
-              <NeoBrutalButton
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowSettings(!showSettings)}
-                className="w-full text-center neo-text-secondary"
-                leftIcon={<Settings className="w-4 h-4" />}
-                rightIcon={showSettings ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              >
-                Storage Settings
-              </NeoBrutalButton>
-
-              {showSettings && (
-                <div className="mt-4 neo-p-md neo-bg-secondary neo-border neo-rounded">
-                  <NeoBrutalInput
-                    label="Folder to Open"
-                    value={prefix}
-                    onChange={(e) => setPrefix(e.target.value)}
-                    placeholder="dropbox"
-                    className="w-full"
-                  />
-                  <p className="neo-tiny neo-text-secondary mt-2">
-                    This determines which folder namespace to use for your storage. 
-                    Defaults to "dropbox" if left empty.
-                  </p>
-                </div>
+        {/* Login Card */}
+        <div className="max-w-md mx-auto">
+          <div className="bg-bw border-2 border-border shadow-shadow rounded-base p-6 sm:p-8">
+            
+            {/* Login Button */}
+            <button
+              onClick={handleLogin}
+              disabled={showLoading}
+              className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-main border-2 border-border rounded-base hover:translate-x-[3px] hover:translate-y-[3px] hover:shadow-none transition-all duration-150 text-mtext font-base shadow-shadow disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {showLoading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  {loading ? "Initializing Storage..." : "Connecting..."}
+                </>
+              ) : (
+                <>
+                  <Wallet className="w-5 h-5" />
+                  {isConnected ? "Connect to TinyCloud" : "Connect Wallet"}
+                </>
               )}
-            </div>
-          )}
-        </NeoBrutalCard>
+            </button>
+
+            {/* Loading Progress */}
+            {showLoading && (
+              <div className="mt-6">
+                <div className="bg-bg rounded-full h-2 overflow-hidden">
+                  <div className="h-full bg-main animate-pulse"></div>
+                </div>
+                <p className="text-center text-sm text-text/70 mt-3">
+                  {loading
+                    ? "Setting up your cloud storage..."
+                    : "Connecting to Web3 wallet..."}
+                </p>
+              </div>
+            )}
+
+            {/* Settings Section */}
+            {!showLoading && (
+              <div className="mt-6">
+                <button
+                  onClick={() => setShowSettings(!showSettings)}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm text-text/70 hover:bg-bg rounded-base transition-colors"
+                >
+                  <Settings className="w-4 h-4" />
+                  <span>Storage Settings</span>
+                  {showSettings ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+
+                {showSettings && (
+                  <div className="mt-4 p-4 bg-bg border-2 border-border rounded-base">
+                    <label className="block text-sm font-heading text-text mb-2">
+                      Folder to Open
+                    </label>
+                    <input
+                      type="text"
+                      value={prefix}
+                      onChange={(e) => setPrefix(e.target.value)}
+                      placeholder="dropbox"
+                      className="w-full px-3 py-2 border-2 border-border rounded-base bg-bw text-text focus:outline-none focus:ring-2 focus:ring-main"
+                    />
+                    <p className="text-xs text-text/60 mt-2">
+                      This determines which folder namespace to use for your storage. 
+                      Defaults to "dropbox" if left empty.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -177,101 +175,72 @@ function RefinedHeader({
   currentPath: string;
   onNavigate: (path: string) => void;
 }) {
-  const getBreadcrumb = () => {
-    const parts = currentPath.split("/").filter(Boolean);
-    const paths = [{ name: "Home", path: "/" }];
-
-    parts.forEach((part, i) => {
-      paths.push({
-        name: part,
-        path: "/" + parts.slice(0, i + 1).join("/"),
-      });
-    });
-
-    return paths;
-  };
 
   return (
-    <header className="sticky top-0 z-50 w-full neo-bg-card neo-border-bottom neo-shadow backdrop-blur-sm">
-      <div className="neo-container">
-        {/* Top row: Logo and Action Buttons */}
-        <div className="h-16 flex items-center justify-between">
-          {/* Logo Section */}
-          <div className="flex items-center neo-gap-sm">
-            <div className="w-10 h-10 neo-bg-blue neo-border neo-rounded flex items-center justify-center neo-shadow-sm">
-              <Folder className="w-5 h-5 neo-text-inverse" />
-            </div>
-
-            <div>
-              <h1 className="neo-subheading">Tiny Drop Box</h1>
-              <p className="neo-tiny neo-text-secondary">
-                Powered by TinyCloud Protocol
-              </p>
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex items-center neo-gap-sm">
-            {/* Theme Toggle */}
-            <NeoBrutalButton variant="ghost" size="icon" onClick={toggleTheme}>
-              {darkMode ? (
-                <Sun className="w-4 h-4" />
-              ) : (
-                <Moon className="w-4 h-4" />
-              )}
-            </NeoBrutalButton>
-
-            {/* New Folder Button */}
-            <NeoButtonSecondary
-              size="md"
-              leftIcon={<Folder className="w-4 h-4" />}
-              onClick={onCreateFolder}
-              className="hidden sm:flex"
-            >
-              New Folder
-            </NeoButtonSecondary>
-
-            {/* Upload Button */}
-            <NeoButtonPrimary
-              size="md"
-              leftIcon={<Upload className="w-4 h-4" />}
-              onClick={onUpload}
-            >
-              Upload
-            </NeoButtonPrimary>
-
-            {/* Logout Button */}
-            <NeoButtonOutline size="icon" onClick={onLogout}>
-              <LogOut className="w-4 h-4" />
-            </NeoButtonOutline>
-          </div>
-        </div>
-
-        {/* Bottom row: Breadcrumb Navigation */}
-        <div className="pb-4 border-t border-gray-200 dark:border-gray-700">
-          <div className="flex items-center neo-gap-xs flex-wrap pt-3">
-            {getBreadcrumb().map((crumb, i) => (
-              <React.Fragment key={crumb.path}>
-                {i > 0 && (
-                  <ChevronRight className="w-4 h-4 neo-text-secondary flex-shrink-0" />
-                )}
-                <NeoBrutalButton
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onNavigate(crumb.path)}
-                  className="neo-tiny font-semibold"
-                >
-                  {crumb.name === "Home" ? (
-                    <Home className="w-4 h-4" />
-                  ) : (
-                    crumb.name
-                  )}
-                </NeoBrutalButton>
-              </React.Fragment>
-            ))}
-          </div>
-        </div>
+    <header className="fixed top-0 left-0 z-50 flex w-full items-center justify-between bg-bw border-b-2 border-border px-6 py-4">
+      {/* Left: Logo and Title */}
+      <div className="flex items-center">
+        <img 
+          src="/tinycloudheader.png" 
+          alt="TinyCloud" 
+          className="h-10 mr-4" 
+        />
+        <span className="text-2xl font-heading text-text">
+          Tiny Drop Box
+        </span>
       </div>
+
+      {/* Right: Action Buttons */}
+      <div className="flex items-center gap-4">
+        {/* Theme Toggle */}
+        <button
+          onClick={toggleTheme}
+          className="w-10 h-10 flex items-center justify-center bg-main border-2 border-border rounded-base hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none transition-all duration-150 text-mtext shadow-shadow"
+        >
+          {darkMode ? (
+            <Sun className="w-5 h-5" />
+          ) : (
+            <Moon className="w-5 h-5" />
+          )}
+        </button>
+
+        {/* New Folder Button - Desktop */}
+        <button
+          onClick={onCreateFolder}
+          className="hidden sm:flex items-center gap-2 px-4 py-2 bg-bw border-2 border-border rounded-base hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none transition-all duration-150 text-sm font-base text-text shadow-shadow"
+        >
+          <Folder className="w-4 h-4" />
+          <span>New Folder</span>
+        </button>
+
+        {/* New Folder Button - Mobile */}
+        <button
+          onClick={onCreateFolder}
+          className="sm:hidden w-10 h-10 flex items-center justify-center bg-bw border-2 border-border rounded-base hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none transition-all duration-150 shadow-shadow"
+        >
+          <Folder className="w-4 h-4 text-text" />
+        </button>
+
+        {/* Upload Button */}
+        <button
+          onClick={onUpload}
+          className="flex items-center gap-2 px-4 py-2 bg-main border-2 border-border rounded-base hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none transition-all duration-150 text-sm font-base text-mtext shadow-shadow"
+        >
+          <Upload className="w-4 h-4" />
+          <span className="hidden sm:inline">Upload</span>
+          <span className="sm:hidden">Up</span>
+        </button>
+
+        {/* Logout Button */}
+        <button
+          onClick={onLogout}
+          className="w-10 h-10 flex items-center justify-center bg-bw border-2 border-border rounded-base hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none transition-all duration-150 shadow-shadow"
+        >
+          <LogOut className="w-5 h-5 text-text" />
+        </button>
+      </div>
+
+      {/* Breadcrumb Navigation - Moved below header */}
     </header>
   );
 }
@@ -294,7 +263,7 @@ function RefinedDropZone({
   return (
     <div
       className={cn(
-        "neo-transition-all duration-200 neo-rounded",
+        "neo-transition-all duration-200 neo-rounded h-full",
         isDragOver
           ? "neo-border border-dashed neo-shadow-lg scale-[1.02] bg-blue-50/30"
           : ""
@@ -360,6 +329,25 @@ function App() {
   }, [prefix]);
 
   const toggleTheme = () => setDarkMode(!darkMode);
+
+  // Breadcrumb navigation function
+  const getBreadcrumb = useCallback(() => {
+    const parts = currentPath.split("/").filter(Boolean);
+    const paths = [{ name: "Home", path: "/" }];
+
+    parts.forEach((part, i) => {
+      paths.push({
+        name: part,
+        path: "/" + parts.slice(0, i + 1).join("/"),
+      });
+    });
+
+    return paths;
+  }, [currentPath]);
+
+  const onNavigate = (path: string) => {
+    setCurrentPath(path);
+  };
 
   // Wallet connection logic
   const signInWithWallet = useCallback(async () => {
@@ -714,22 +702,45 @@ function App() {
   // Main application
   return (
     <ThemeProvider>
-      <div className="flex flex-col min-h-screen neo-bg-primary">
-        {/* Header */}
-        <div className="flex-none">
-          <RefinedHeader
-            onLogout={handleLogout}
-            onCreateFolder={() => setNewFolderModal(true)}
-            onUpload={() => fileInputRef.current?.click()}
-            darkMode={darkMode}
-            toggleTheme={toggleTheme}
-            currentPath={currentPath}
-            onNavigate={setCurrentPath}
-          />
+      <div className="min-h-screen bg-bg">
+        {/* Header - Fixed */}
+        <RefinedHeader
+          onLogout={handleLogout}
+          onCreateFolder={() => setNewFolderModal(true)}
+          onUpload={() => fileInputRef.current?.click()}
+          darkMode={darkMode}
+          toggleTheme={toggleTheme}
+          currentPath={currentPath}
+          onNavigate={setCurrentPath}
+        />
+
+        {/* Breadcrumb Navigation */}
+        <div className="mt-16 sm:mt-18 lg:mt-20 bg-bw border-b-2 border-border px-4 sm:px-6 py-2">
+          <div className="flex items-center gap-1 sm:gap-2 flex-wrap overflow-x-auto scrollbar-hide">
+            {getBreadcrumb().map((crumb: { name: string; path: string }, i: number) => (
+              <React.Fragment key={crumb.path}>
+                {i > 0 && (
+                  <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500 flex-shrink-0" />
+                )}
+                <button
+                  onClick={() => onNavigate(crumb.path)}
+                  className="text-xs sm:text-sm font-base whitespace-nowrap min-h-8 px-2 sm:px-3 py-1 hover:bg-bg rounded-base transition-colors text-text"
+                >
+                  {crumb.name === "Home" ? (
+                    <Home className="w-3 h-3 sm:w-4 sm:h-4" />
+                  ) : (
+                    <span className="max-w-20 sm:max-w-32 lg:max-w-none truncate">
+                      {crumb.name}
+                    </span>
+                  )}
+                </button>
+              </React.Fragment>
+            ))}
+          </div>
         </div>
 
-        {/* Main Content - Full Height */}
-        <main className="flex-1 overflow-auto">
+        {/* Main Content */}
+        <main className="min-h-[calc(100vh-120px)]">
           {/* File Area */}
           <RefinedDropZone
             isDragOver={dragOver}
@@ -738,37 +749,40 @@ function App() {
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
           >
-            <div className="w-full min-h-full neo-bg-primary neo-p-lg">
+            <div className="w-full min-h-full bg-bg p-4 sm:p-6 lg:p-8 flex flex-col">
               {items.length === 0 ? (
-                <div className="max-w-4xl mx-auto h-full flex items-center justify-center">
-                  <NeoBrutalCard variant="default" size="lg" shadow="lg">
-                    <NeoEmptyState
-                      title="Empty Folder"
-                      description="This folder is empty. Start by uploading files or creating new folders."
-                      action={
-                        <div className="flex flex-col sm:flex-row neo-gap-sm">
-                          <NeoButtonPrimary
-                            size="lg"
-                            leftIcon={<Upload className="w-5 h-5" />}
-                            onClick={() => fileInputRef.current?.click()}
-                          >
-                            Upload Files
-                          </NeoButtonPrimary>
-                          <NeoButtonSecondary
-                            size="lg"
-                            leftIcon={<Folder className="w-5 h-5" />}
-                            onClick={() => setNewFolderModal(true)}
-                          >
-                            Create Folder
-                          </NeoButtonSecondary>
-                        </div>
-                      }
-                    />
-                  </NeoBrutalCard>
+                <div className="w-full flex-1 flex items-center justify-center">
+                  <div className="bg-bw border-2 border-border shadow-shadow rounded-base p-8 sm:p-12 max-w-md mx-auto text-center">
+                    <div className="mb-6">
+                      <Folder className="w-16 h-16 sm:w-20 sm:h-20 mx-auto text-text/50" />
+                    </div>
+                    <h2 className="text-xl sm:text-2xl font-heading mb-3 text-text">
+                      Empty Folder
+                    </h2>
+                    <p className="text-text/70 mb-8">
+                      This folder is empty. Start by uploading files or creating new folders.
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex items-center justify-center gap-2 px-4 py-3 bg-main border-2 border-border shadow-shadow hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none transition-all duration-150 text-mtext font-base rounded-base"
+                      >
+                        <Upload className="w-5 h-5" />
+                        Upload Files
+                      </button>
+                      <button
+                        onClick={() => setNewFolderModal(true)}
+                        className="flex items-center justify-center gap-2 px-4 py-3 bg-bw border-2 border-border shadow-shadow hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none transition-all duration-150 text-text font-base rounded-base"
+                      >
+                        <Folder className="w-5 h-5" />
+                        Create Folder
+                      </button>
+                    </div>
+                  </div>
                 </div>
               ) : (
-                <div className="max-w-7xl mx-auto">
-                  <NeoBrutalCard variant="default" size="lg" shadow="lg">
+                <div className="w-full flex-1">
+                  <div className="bg-bw border-2 border-border shadow-shadow rounded-base p-6">
                     <NeoFileGrid
                       items={items}
                       onSelect={(item) => {
@@ -783,9 +797,9 @@ function App() {
                       }}
                       onDownload={downloadFile}
                       brutal={false}
-                      columns={6}
+                      maxColumns={8}
                     />
-                  </NeoBrutalCard>
+                  </div>
                 </div>
               )}
             </div>
@@ -794,13 +808,12 @@ function App() {
 
         {/* Floating Action Button */}
         <div className="fixed bottom-6 right-6 z-40">
-          <NeoButtonPrimary
-            size="xl"
+          <button
             onClick={() => fileInputRef.current?.click()}
-            className="neo-rounded-full w-14 h-14 neo-shadow-lg"
+            className="w-14 h-14 bg-main border-2 border-border shadow-shadow hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none transition-all duration-150 text-mtext rounded-full flex items-center justify-center"
           >
             <Plus className="w-6 h-6" />
-          </NeoButtonPrimary>
+          </button>
         </div>
 
         {/* Hidden file input */}
@@ -814,48 +827,49 @@ function App() {
 
         {/* New Folder Modal */}
         {newFolderModal && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 neo-p-md">
-            <NeoBrutalCard
-              variant="default"
-              size="md"
-              shadow="lg"
-              className="w-full max-w-md"
-            >
-              <h3 className="neo-heading mb-6 text-center">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-bw border-2 border-border shadow-shadow rounded-base p-6 w-full max-w-md">
+              <h3 className="text-xl font-heading mb-6 text-center text-text">
                 Create New Folder
               </h3>
 
               <div className="space-y-4">
-                <NeoBrutalInput
-                  label="Folder Name"
-                  value={newFolderName}
-                  onChange={(e) => setNewFolderName(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && createFolder()}
-                  placeholder="Enter folder name..."
-                  autoFocus
-                />
+                <div>
+                  <label className="block text-sm font-heading text-text mb-2">
+                    Folder Name
+                  </label>
+                  <input
+                    type="text"
+                    value={newFolderName}
+                    onChange={(e) => setNewFolderName(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && createFolder()}
+                    placeholder="Enter folder name..."
+                    autoFocus
+                    className="w-full px-3 py-2 border-2 border-border rounded-base bg-bw text-text focus:outline-none focus:ring-2 focus:ring-main"
+                  />
+                </div>
 
-                <div className="flex justify-end neo-gap-sm">
-                  <NeoButtonSecondary
-                    size="md"
+                <div className="flex justify-end gap-3">
+                  <button
                     onClick={() => {
                       setNewFolderModal(false);
                       setNewFolderName("");
                     }}
+                    className="px-4 py-2 bg-bw border-2 border-border shadow-shadow hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none transition-all duration-150 text-text font-base rounded-base"
                   >
                     Cancel
-                  </NeoButtonSecondary>
+                  </button>
 
-                  <NeoButtonPrimary
-                    size="md"
+                  <button
                     onClick={createFolder}
                     disabled={!newFolderName.trim()}
+                    className="px-4 py-2 bg-main border-2 border-border shadow-shadow hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none transition-all duration-150 text-mtext font-base rounded-base disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Create
-                  </NeoButtonPrimary>
+                  </button>
                 </div>
               </div>
-            </NeoBrutalCard>
+            </div>
           </div>
         )}
       </div>
