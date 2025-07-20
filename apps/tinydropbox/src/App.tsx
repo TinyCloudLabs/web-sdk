@@ -6,8 +6,6 @@ import {
   ChevronRight,
   LogOut,
   Wallet,
-  Sun,
-  Moon,
   Plus,
   Settings,
   ChevronDown,
@@ -18,6 +16,8 @@ import { useAccount, useWalletClient } from "wagmi";
 import { useModal } from "connectkit";
 import { walletClientToEthers5Signer } from "./utils/web3modalV2Settings";
 import { ThemeProvider } from "./components/ThemeProvider";
+import { ThemeSwitcher } from "./components/ThemeSwitcher";
+import { MobileDropdown } from "./components/MobileDropdown";
 import { cn } from "./utils/utils";
 
 import { NeoFileGrid } from "./components/neo/FileItem";
@@ -33,7 +33,6 @@ interface FileItem {
 
 function RefinedLoginView({
   onLogin,
-  darkMode,
   loading,
   isConnected,
   prefix,
@@ -42,7 +41,6 @@ function RefinedLoginView({
   setShowSettings,
 }: {
   onLogin: () => void;
-  darkMode: boolean;
   loading: boolean;
   isConnected: boolean;
   prefix: string;
@@ -162,16 +160,12 @@ function RefinedHeader({
   onLogout,
   onCreateFolder,
   onUpload,
-  darkMode,
-  toggleTheme,
   currentPath,
   onNavigate,
 }: {
   onLogout: () => void;
   onCreateFolder: () => void;
   onUpload: () => void;
-  darkMode: boolean;
-  toggleTheme: () => void;
   currentPath: string;
   onNavigate: (path: string) => void;
 }) {
@@ -192,52 +186,46 @@ function RefinedHeader({
 
       {/* Right: Action Buttons */}
       <div className="flex items-center gap-4">
-        {/* Theme Toggle */}
-        <button
-          onClick={toggleTheme}
-          className="w-10 h-10 flex items-center justify-center bg-main border-2 border-border rounded-base hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none transition-all duration-150 text-mtext shadow-shadow"
-        >
-          {darkMode ? (
-            <Sun className="w-5 h-5" />
-          ) : (
-            <Moon className="w-5 h-5" />
-          )}
-        </button>
+        {/* Desktop Actions - Hidden on Mobile */}
+        <div className="hidden sm:flex items-center gap-4">
+          {/* Theme Toggle */}
+          <ThemeSwitcher />
 
-        {/* New Folder Button - Desktop */}
-        <button
-          onClick={onCreateFolder}
-          className="hidden sm:flex items-center gap-2 px-4 py-2 bg-bw border-2 border-border rounded-base hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none transition-all duration-150 text-sm font-base text-text shadow-shadow"
-        >
-          <Folder className="w-4 h-4" />
-          <span>New Folder</span>
-        </button>
+          {/* New Folder Button - Desktop */}
+          <button
+            onClick={onCreateFolder}
+            className="flex items-center gap-2 px-4 py-2 bg-bw border-2 border-border rounded-base hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none transition-all duration-150 text-sm font-base text-text shadow-shadow"
+          >
+            <Folder className="w-4 h-4" />
+            <span>New Folder</span>
+          </button>
 
-        {/* New Folder Button - Mobile */}
-        <button
-          onClick={onCreateFolder}
-          className="sm:hidden w-10 h-10 flex items-center justify-center bg-bw border-2 border-border rounded-base hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none transition-all duration-150 shadow-shadow"
-        >
-          <Folder className="w-4 h-4 text-text" />
-        </button>
+          {/* Upload Button - Desktop */}
+          <button
+            onClick={onUpload}
+            className="flex items-center gap-2 px-4 py-2 bg-main border-2 border-border rounded-base hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none transition-all duration-150 text-sm font-base text-mtext shadow-shadow"
+          >
+            <Upload className="w-4 h-4" />
+            <span>Upload</span>
+          </button>
 
-        {/* Upload Button */}
-        <button
-          onClick={onUpload}
-          className="flex items-center gap-2 px-4 py-2 bg-main border-2 border-border rounded-base hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none transition-all duration-150 text-sm font-base text-mtext shadow-shadow"
-        >
-          <Upload className="w-4 h-4" />
-          <span className="hidden sm:inline">Upload</span>
-          <span className="sm:hidden">Up</span>
-        </button>
+          {/* Logout Button - Desktop */}
+          <button
+            onClick={onLogout}
+            className="w-10 h-10 flex items-center justify-center bg-bw border-2 border-border rounded-base hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none transition-all duration-150 shadow-shadow"
+          >
+            <LogOut className="w-5 h-5 text-text" />
+          </button>
+        </div>
 
-        {/* Logout Button */}
-        <button
-          onClick={onLogout}
-          className="w-10 h-10 flex items-center justify-center bg-bw border-2 border-border rounded-base hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none transition-all duration-150 shadow-shadow"
-        >
-          <LogOut className="w-5 h-5 text-text" />
-        </button>
+        {/* Mobile Dropdown - Shown only on Mobile */}
+        <div className="sm:hidden">
+          <MobileDropdown
+            onCreateFolder={onCreateFolder}
+            onUpload={onUpload}
+            onLogout={onLogout}
+          />
+        </div>
       </div>
 
       {/* Breadcrumb Navigation - Moved below header */}
@@ -306,11 +294,6 @@ function App() {
   const [dragOver, setDragOver] = useState(false);
   const [newFolderModal, setNewFolderModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
-  const [darkMode, setDarkMode] = useState(() => {
-    const saved = localStorage.getItem("theme");
-    if (saved) return saved === "dark";
-    return window.matchMedia("(prefers-color-scheme: dark)").matches;
-  });
   const [prefix, setPrefix] = useState(() => {
     const saved = localStorage.getItem("tinycloud-prefix");
     return saved || "dropbox";
@@ -318,17 +301,11 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Theme management
-  useEffect(() => {
-    localStorage.setItem("theme", darkMode ? "dark" : "light");
-  }, [darkMode]);
-
   // Prefix management
   useEffect(() => {
     localStorage.setItem("tinycloud-prefix", prefix);
   }, [prefix]);
 
-  const toggleTheme = () => setDarkMode(!darkMode);
 
   // Breadcrumb navigation function
   const getBreadcrumb = useCallback(() => {
@@ -687,7 +664,6 @@ function App() {
       <ThemeProvider>
         <RefinedLoginView
           onLogin={handleLogin}
-          darkMode={darkMode}
           loading={loading}
           isConnected={isConnected}
           prefix={prefix}
@@ -708,8 +684,6 @@ function App() {
           onLogout={handleLogout}
           onCreateFolder={() => setNewFolderModal(true)}
           onUpload={() => fileInputRef.current?.click()}
-          darkMode={darkMode}
-          toggleTheme={toggleTheme}
           currentPath={currentPath}
           onNavigate={setCurrentPath}
         />
