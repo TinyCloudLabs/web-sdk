@@ -1,5 +1,11 @@
 # @tinycloudlabs/web-sdk-wasm
 
+## 0.2.1
+
+### Patch Changes
+
+- 5a37904: Improved wasm bundling
+
 ## 0.2.0
 
 ### Minor Changes

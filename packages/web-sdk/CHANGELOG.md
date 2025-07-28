@@ -1,5 +1,15 @@
 # @tinycloudlabs/web-sdk
 
+## 0.2.1
+
+### Patch Changes
+
+- 5a37904: Improved wasm bundling
+- 5a37904: Update Exports to include missing export
+- Updated dependencies [5a37904]
+  - @tinycloudlabs/web-sdk-wasm@0.2.1
+  - @tinycloudlabs/web-core@0.2.1
+
 ## 0.2.0
 
 ### Minor Changes
