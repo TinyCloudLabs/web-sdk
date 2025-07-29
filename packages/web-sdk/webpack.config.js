@@ -1,9 +1,8 @@
 const path = require("path");
 const webpack = require("webpack");
 
-const isProduction =
-  process.argv.includes("--mode=production") ||
-  process.env.NODE_ENV === "production";
+const isProduction = process.env.NODE_ENV === "production" || 
+  process.argv.some(arg => arg.includes('--mode') && arg.includes('production'));
 
 module.exports = {
   mode: isProduction ? "production" : "development",
