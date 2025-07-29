@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
+<<<<<<< HEAD
 import { useLocation } from "react-router-dom";
+=======
+>>>>>>> 0160e51 (update default)
 import { TinyCloudWeb } from "@tinycloudlabs/web-sdk";
 import Title from "../components/Title";
 import RadioGroup from "../components/RadioGroup";
@@ -27,8 +30,11 @@ declare global {
 }
 
 function Home() {
+<<<<<<< HEAD
   const location = useLocation();
 
+=======
+>>>>>>> 0160e51 (update default)
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
   const { setOpen } = useModal();
@@ -54,7 +60,7 @@ function Home() {
   const [statement, setStatement] = useState<string>("");
   // tcw module config
   const [storageEnabled, setStorageEnabled] = useState<string>("On");
-  const [prefix, setPrefix] = useState<string>("default");
+  const [prefix, setPrefix] = useState<string>("demo-app");
   const [tinyCloudHost, setTinyCloudHost] = useState<string>("");
 
   // Parse URL parameters on component mount
@@ -102,7 +108,11 @@ function Home() {
     } else {
       // Configure storage with bucket
       const storageConfig: Record<string, any> = {
+<<<<<<< HEAD
         prefix: prefix.trim() || "default",
+=======
+        prefix: prefix.trim(),
+>>>>>>> 0160e51 (update default)
       };
 
       // Add TinyCloud host if provided
@@ -231,7 +241,11 @@ function Home() {
       resumeSession();
     }
     // eslint-disable-next-line
+<<<<<<< HEAD
   }, [isConnected, walletClient, tcw]);
+=======
+  }, [isConnected, walletClient, pendingSignIn, tcw]);
+>>>>>>> 0160e51 (update default)
 
   const tcwHandler = async () => {
     if (!isConnected || !walletClient) {
@@ -293,8 +307,8 @@ function Home() {
                   value={prefix}
                   onChange={setPrefix}
                   className="w-full"
-                  helperText="The bucket will default to 'default' if left empty."
-                  placeholder="default"
+                  helperText="This will request access to the root directory if empty"
+                  placeholder="/"
                 />
               </div>
               {/* Storage Module toggle */}
@@ -461,6 +475,7 @@ function Home() {
                     </div>
                   )}
 
+<<<<<<< HEAD
                   {/* Session resumption status */}
                   {resumeStatus && (
                     <div
@@ -497,6 +512,24 @@ function Home() {
                 </div>
               )}
 
+=======
+                  <Button
+                    id="signInButton"
+                    onClick={tcwHandler}
+                    loading={loading}
+                    variant="default"
+                    className="w-full"
+                  >
+                    {isConnected
+                      ? "SIGN-IN TO TINYCLOUD"
+                      : "CONNECT WALLET & SIGN-IN"}
+                  </Button>
+
+                  {displayAdvancedOptions()}
+                </div>
+              )}
+
+>>>>>>> 0160e51 (update default)
               {/* This section is removed as content is now in the Advanced Options accordion */}
             </div>
           </div>
