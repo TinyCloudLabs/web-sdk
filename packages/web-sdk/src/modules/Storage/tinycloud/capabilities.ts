@@ -1,12 +1,12 @@
-import { Authenticator } from './authenticator';
-import { invoke } from './tinycloud';
+import { Authenticator } from "./authenticator";
+import { invoke } from "./tinycloud";
 
 export class Capabilities {
   constructor(private url: string, private auth: Authenticator) {}
 
   async get(query: string): Promise<{ [cid: string]: CapSummary }> {
     const res = await this.invoke({
-      headers: await this.auth.invocationHeaders('capabilities', 'read', query),
+      headers: this.auth.invocationHeaders("capabilities", "read", query),
     });
     if (res.status == 200 && res.body !== null) {
       return await res.json();

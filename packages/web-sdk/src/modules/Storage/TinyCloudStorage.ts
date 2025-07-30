@@ -321,8 +321,10 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
         existingSession.tinycloudSession = tinycloudSessionData;
         await this.sessionPersistence.saveSession(existingSession);
       } else {
-        const expirationTime = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-        
+        const expirationTime = new Date(
+          Date.now() + 24 * 60 * 60 * 1000
+        ).toISOString();
+
         const newPersistedSession = {
           address: tcwSession.address,
           chainId: tcwSession.chainId,
@@ -332,7 +334,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
           tinycloudSession: tinycloudSessionData,
           expiresAt: expirationTime,
           createdAt: new Date().toISOString(),
-          version: '1.0.0',
+          version: "1.0.0",
         };
 
         await this.sessionPersistence.saveSession(newPersistedSession);
