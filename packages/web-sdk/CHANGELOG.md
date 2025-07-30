@@ -1,5 +1,11 @@
 # @tinycloudlabs/web-sdk
 
+## 0.2.2
+
+### Patch Changes
+
+- cfc0696: Remove `eval` in production builds
+
 ## 0.2.1
 
 ### Patch Changes
