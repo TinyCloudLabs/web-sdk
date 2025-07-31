@@ -14,6 +14,11 @@ import {
   TCWExtension,
 } from '@tinycloudlabs/web-core/client';
 import { dispatchSDKEvent } from '../notifications/ErrorHandler';
+import { 
+  SessionPersistence, 
+  PersistedSession, 
+  SessionPersistenceConfig 
+} from './SessionPersistence';
 
 /**
  * Interface for tracking session state during SIWE message generation
@@ -96,6 +101,23 @@ interface IUserAuthorization {
     siweMessage: SiweMessage,
     signature: string
   ): Promise<TCWClientSession>;
+  /**
+   * Attempts to resume a previously saved session.
+   * @param address - Ethereum address to resume session for
+   * @returns Promise with the TCWClientSession object or null if no valid session
+   */
+  tryResumeSession(address: string): Promise<TCWClientSession | null>;
+  /**
+   * Clears the persisted session for the given address.
+   * @param address - Ethereum address
+   */
+  clearPersistedSession(address?: string): Promise<void>;
+  /**
+   * Checks if a session is persisted for the given address.
+   * @param address - Ethereum address
+   * @returns true if session is persisted
+   */
+  isSessionPersisted(address: string): boolean;
 }
 
 class UserAuthorizationInit {
@@ -340,6 +362,9 @@ class UserAuthorization implements IUserAuthorization {
   /** Pending session state for signature-based initialization */
   private pendingSession?: PendingSession;
 
+  /** Session persistence handler */
+  private sessionPersistence: SessionPersistence;
+
   constructor(private _config: TCWClientConfig = TCW_DEFAULT_CONFIG) {
     this.config = _config;
     this.init = new UserAuthorizationInit({
@@ -349,6 +374,9 @@ class UserAuthorization implements IUserAuthorization {
         ...this.config?.providers,
       },
     });
+    
+    // Initialize session persistence
+    this.sessionPersistence = new SessionPersistence(this.config.persistence);
   }
 
   /**
@@ -406,6 +434,9 @@ class UserAuthorization implements IUserAuthorization {
       }
     });
 
+    // Persist session after successful sign-in
+    await this.persistSession(this.session);
+
     dispatchSDKEvent.success('Successfully signed in');
 
     return this.session;
@@ -438,6 +469,12 @@ class UserAuthorization implements IUserAuthorization {
         err.message);
       throw err;
     }
+
+    // Clear persisted session
+    if (this.session) {
+      await this.sessionPersistence.clearSession(this.session.address);
+    }
+
     this.session = undefined;
     this.connection = undefined;
   }
@@ -656,6 +693,99 @@ class UserAuthorization implements IUserAuthorization {
           // Continue processing other extensions rather than failing completely
         }
       }
+    }
+  }
+
+  /**
+   * Attempts to resume a previously saved session.
+   * @param address - Ethereum address to resume session for
+   * @returns Promise with the TCWClientSession object or null if no valid session
+   */
+  public async tryResumeSession(address: string): Promise<TCWClientSession | null> {
+    try {
+      // Load persisted session
+      const persistedSession = await this.sessionPersistence.loadSession(address);
+      if (!persistedSession) {
+        return null;
+      }
+
+      // Recreate TCWClientSession from persisted data
+      // Note: We can't import session keys in WASM, so we restore the session data directly
+      // The session key and delegation should still be valid if not expired
+      this.session = {
+        address: persistedSession.address,
+        walletAddress: persistedSession.address,
+        chainId: persistedSession.chainId,
+        sessionKey: persistedSession.sessionKey,
+        siwe: persistedSession.siwe,
+        signature: persistedSession.signature,
+      };
+
+      // Apply extension afterSignIn hooks
+      await this.applyAfterSignInHooks(this.session);
+
+      return this.session;
+    } catch (error) {
+      console.warn('Failed to resume session:', error);
+      // Clear potentially corrupted session
+      await this.sessionPersistence.clearSession(address);
+      return null;
+    }
+  }
+
+  /**
+   * Clears the persisted session for the given address.
+   * @param address - Ethereum address (optional, uses current session if not provided)
+   */
+  public async clearPersistedSession(address?: string): Promise<void> {
+    const targetAddress = address || this.session?.address;
+
+    if (targetAddress) {
+      await this.sessionPersistence.clearSession(targetAddress);
+    }
+  }
+
+  /**
+   * Checks if a session is persisted for the given address.
+   * @param address - Ethereum address
+   * @returns true if session is persisted
+   */
+  public isSessionPersisted(address: string): boolean {
+    // This is a synchronous check - we can't await here
+    // We'll implement a simple storage key check
+    try {
+      const storageKey = `tinycloud_session_${address.toLowerCase()}`;
+      const storage = localStorage || sessionStorage;
+      return storage.getItem(storageKey) !== null;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Persists the current session to storage
+   * @param session - The TCWClientSession to persist
+   */
+  private async persistSession(session: TCWClientSession): Promise<void> {
+    try {
+      // Calculate expiration time (default 24 hours from now)
+      const expirationTime = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+      const persistedSession: PersistedSession = {
+        address: session.address,
+        chainId: session.chainId,
+        sessionKey: session.sessionKey,
+        siwe: session.siwe,
+        signature: session.signature,
+        expiresAt: expirationTime,
+        createdAt: new Date().toISOString(),
+        version: '1.0.0',
+      };
+
+      await this.sessionPersistence.saveSession(persistedSession);
+    } catch (error) {
+      console.warn('Failed to persist session:', error);
+      // Don't throw - persistence failure shouldn't break the sign-in flow
     }
   }
 

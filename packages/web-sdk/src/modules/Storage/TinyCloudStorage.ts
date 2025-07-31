@@ -7,6 +7,7 @@ import {
   hostOrbit,
   Response,
   Session,
+  Authenticator,
 } from './tinycloud';
 import {
   IStorage,
@@ -22,6 +23,7 @@ import {
 } from '../..';
 import { dispatchSDKEvent } from '../../notifications/ErrorHandler';
 import { showOrbitCreationModal } from '../../notifications/ModalManager';
+import { SessionPersistence, PersistedTinyCloudSession } from '../SessionPersistence';
 
 export type DelegateParams = {
   /** The target file or folder you are sharing */
@@ -115,6 +117,12 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
   domain?: string;
 
   /**
+   * Session persistence handler for TinyCloud sessions.
+   * @private
+   */
+  private sessionPersistence: SessionPersistence;
+
+  /**
    * Creates a new instance of the TinyCloudStorage class.
    * 
    * @param config - Configuration options for TinyCloud storage
@@ -133,6 +141,9 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
       config?.autoCreateNewOrbit === undefined
         ? true
         : config?.autoCreateNewOrbit;
+    
+    // Initialize session persistence
+    this.sessionPersistence = new SessionPersistence();
   }
 
   public async afterConnect(
@@ -186,6 +197,17 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
 
   public async afterSignIn(tcwSession: TCWClientSession): Promise<void> {
     const tinycloudHost = this.hosts[0];
+    
+    // Try to load persisted TinyCloud session first
+    const persistedSession = await this.loadPersistedTinyCloudSession(tcwSession);
+    if (persistedSession) {
+      // Use existing delegation
+      const authn = new Authenticator(persistedSession);
+      this._orbit = new OrbitConnection(tinycloudHost, authn);
+      return;
+    }
+
+    // Generate new session if no persisted session exists
     const session = await this.generateTinyCloudSession(tcwSession);
 
     let authn;
@@ -209,6 +231,65 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
 
     if (authn) {
       this._orbit = new OrbitConnection(tinycloudHost, authn);
+      
+      // Persist the new TinyCloud session
+      await this.persistTinyCloudSession(session, tcwSession);
+    }
+  }
+
+  /**
+   * Attempts to load a persisted TinyCloud session
+   * @private
+   */
+  private async loadPersistedTinyCloudSession(tcwSession: TCWClientSession): Promise<Session | null> {
+    try {
+      const persistedSession = await this.sessionPersistence.loadSession(tcwSession.address);
+      
+      if (!persistedSession?.tinycloudSession) {
+        return null;
+      }
+
+      // Convert PersistedTinyCloudSession back to Session
+      const session: Session = {
+        delegationHeader: persistedSession.tinycloudSession.delegationHeader,
+        delegationCid: persistedSession.tinycloudSession.delegationCid,
+        jwk: JSON.parse(tcwSession.sessionKey),
+        namespace: persistedSession.tinycloudSession.namespace,
+        orbitId: persistedSession.tinycloudSession.orbitId,
+        verificationMethod: persistedSession.tinycloudSession.verificationMethod,
+      };
+
+      return session;
+    } catch (error) {
+      console.warn('Failed to load persisted TinyCloud session:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Persists a TinyCloud session for future use
+   * @private
+   */
+  private async persistTinyCloudSession(session: Session, tcwSession: TCWClientSession): Promise<void> {
+    try {
+      // Load existing persisted session
+      const existingSession = await this.sessionPersistence.loadSession(tcwSession.address);
+
+      if (existingSession) {
+        // Update existing session with TinyCloud data
+        existingSession.tinycloudSession = {
+          delegationHeader: session.delegationHeader,
+          delegationCid: session.delegationCid,
+          namespace: session.namespace,
+          orbitId: session.orbitId,
+          verificationMethod: session.verificationMethod,
+        };
+
+        await this.sessionPersistence.saveSession(existingSession);
+      }
+    } catch (error) {
+      console.warn('Failed to persist TinyCloud session:', error);
+      // Don't throw - persistence failure shouldn't break the session flow
     }
   }
 
