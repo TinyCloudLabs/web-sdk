@@ -75,6 +75,8 @@ export interface SessionPersistenceConfig {
   sessionTTL: number;
   /** Storage key prefix */
   keyPrefix: string;
+  /** Whether to automatically resume sessions on signIn() */
+  autoResumeSession: boolean;
 }
 
 /**
@@ -86,6 +88,7 @@ export const DEFAULT_PERSISTENCE_CONFIG: SessionPersistenceConfig = {
   encryptionEnabled: true,
   sessionTTL: 24 * 60 * 60 * 1000, // 24 hours
   keyPrefix: 'tinycloud_session',
+  autoResumeSession: true,
 };
 
 /**

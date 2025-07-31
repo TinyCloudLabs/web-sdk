@@ -16,6 +16,13 @@ export class SessionPersistence {
   }
 
   /**
+   * Get the current configuration
+   */
+  get configuration(): SessionPersistenceConfig {
+    return this.config;
+  }
+
+  /**
    * Save a session to persistent storage
    */
   async saveSession(session: PersistedSession): Promise<void> {
@@ -23,7 +30,7 @@ export class SessionPersistence {
 
     try {
       const storageKey = this.getStorageKey(session.address);
-      
+
       if (this.config.encryptionEnabled) {
         const encrypted = await this.encryptSession(session);
         this.getStorage().setItem(storageKey, JSON.stringify(encrypted));
@@ -45,11 +52,11 @@ export class SessionPersistence {
     try {
       const storageKey = this.getStorageKey(address);
       const stored = this.getStorage().getItem(storageKey);
-      
+
       if (!stored) return null;
 
       const parsed = JSON.parse(stored);
-      
+
       let session: PersistedSession;
       if (this.config.encryptionEnabled && 'data' in parsed) {
         // Encrypted session

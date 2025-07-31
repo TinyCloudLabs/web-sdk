@@ -407,6 +407,43 @@ class UserAuthorization implements IUserAuthorization {
   public async signIn(): Promise<TCWClientSession> {
     await this.connect();
 
+    // Check if automatic session resumption is enabled
+    const autoResumeEnabled = this.sessionPersistence.configuration.autoResumeSession;
+    
+    if (autoResumeEnabled) {
+      try {
+        // Get the current wallet address to check for existing sessions
+        const currentAddress = await this.provider.getSigner().getAddress();
+        
+        // Try to resume an existing session
+        const resumedSession = await this.tryResumeSession(currentAddress);
+        
+        if (resumedSession) {
+          // Session resumed successfully
+          this.session = resumedSession;
+          
+          // Handle ENS resolution for resumed session
+          const promises = [];
+          if (this.config.resolveEns) {
+            promises.push(this.resolveEns(this.session.address));
+          }
+
+          await Promise.all(promises).then(([ens]) => {
+            if (ens) {
+              this.session.ens = ens;
+            }
+          });
+
+          dispatchSDKEvent.success('Successfully resumed existing session');
+          return this.session;
+        }
+      } catch (error) {
+        // Resume failed, continue with normal sign-in flow
+        console.warn('Session resumption failed, proceeding with normal sign-in:', error);
+      }
+    }
+
+    // Normal sign-in flow (when auto-resume is disabled or resumption failed)
     try {
       this.session = await this.connection.signIn();
     } catch (err) {
