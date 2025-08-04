@@ -28,6 +28,7 @@ function Home() {
 
   const [loading, setLoading] = useState(false);
   const [pendingSignIn, setPendingSignIn] = useState(false);
+  const [resumeStatus, setResumeStatus] = useState<'checking' | 'resumed' | 'failed' | null>(null);
 
   const [tcw, setTinyCloudWeb] = useState<TinyCloudWeb | null>(null);
   const [resolveEns, setResolveEns] = useState<string>('On');
@@ -105,6 +106,8 @@ function Home() {
     if (!walletClient || tcw) return;
 
     setLoading(true);
+    setResumeStatus('checking');
+    
     try {
       const signer = walletClientToEthers5Signer(walletClient as any);
       const tcwConfig = getTinyCloudWebConfig({
@@ -116,10 +119,34 @@ function Home() {
       });
 
       const tcwProvider = new TinyCloudWeb(tcwConfig);
-      await tcwProvider.signIn();
-      setTinyCloudWeb(tcwProvider);
+      
+      // First, try to resume an existing session
+      const walletAddress = await signer.getAddress();
+      console.log('Attempting to resume session for address:', walletAddress);
+      
+      const resumedSession = await tcwProvider.userAuthorization.tryResumeSession(walletAddress);
+      
+      if (resumedSession) {
+        console.log('✅ Session resumed successfully!', resumedSession);
+        setResumeStatus('resumed');
+        setTinyCloudWeb(tcwProvider);
+        
+        // Clear resume status after 3 seconds
+        setTimeout(() => setResumeStatus(null), 3000);
+      } else {
+        console.log('⚠️ No existing session found, proceeding with normal sign-in');
+        setResumeStatus('failed');
+        
+        // No existing session, proceed with normal sign-in
+        await tcwProvider.signIn();
+        setTinyCloudWeb(tcwProvider);
+        
+        // Clear resume status after 2 seconds
+        setTimeout(() => setResumeStatus(null), 2000);
+      }
     } catch (err) {
-      console.error(err);
+      console.error('❌ Sign-in failed:', err);
+      setResumeStatus(null);
     }
     setLoading(false);
   }
@@ -129,6 +156,7 @@ function Home() {
       tcw?.signOut?.();
       setTinyCloudWeb(null);
       setPendingSignIn(false); // Clear pending sign-in if wallet disconnects
+      setResumeStatus(null); // Clear resume status when wallet disconnects
     }
     // eslint-disable-next-line
   }, [isConnected]);
@@ -163,6 +191,7 @@ function Home() {
   const tcwLogoutHandler = async () => {
     tcw?.signOut?.();
     setTinyCloudWeb(null);
+    setResumeStatus(null); // Clear resume status on sign-out
     // Note: Wallet remains connected - user can disconnect via header button if desired
   };
 
@@ -345,6 +374,19 @@ function Home() {
                 {!isConnected && (
                   <div className="text-sm text-text/70 text-center p-3 bg-bg rounded border">
                     <p>Click the button below to connect your wallet and sign into TinyCloud</p>
+                  </div>
+                )}
+
+                {/* Session resumption status */}
+                {resumeStatus && (
+                  <div className={`text-sm text-center p-3 rounded border ${
+                    resumeStatus === 'checking' ? 'bg-yellow-50 text-yellow-800 border-yellow-200' :
+                    resumeStatus === 'resumed' ? 'bg-green-50 text-green-800 border-green-200' :
+                    'bg-blue-50 text-blue-800 border-blue-200'
+                  }`}>
+                    {resumeStatus === 'checking' && '🔍 Checking for existing session...'}
+                    {resumeStatus === 'resumed' && '✅ Welcome back! Session resumed successfully'}
+                    {resumeStatus === 'failed' && '🔐 No existing session found, signing in with wallet...'}
                   </div>
                 )}
 
