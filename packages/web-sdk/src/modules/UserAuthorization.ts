@@ -14,6 +14,7 @@ import {
   TCWExtension,
 } from '@tinycloudlabs/web-core/client';
 import { dispatchSDKEvent } from '../notifications/ErrorHandler';
+import { WasmInitializer } from './WasmInitializer';
 import { 
   SessionPersistence, 
   PersistedSession, 
@@ -243,6 +244,9 @@ class UserAuthorizationConnected implements ITCWConnected {
 
   /** Applies the "afterConnect" methods and the delegated capabilities of the extensions. */
   public async applyExtensions(): Promise<void> {
+    // Ensure WASM modules are initialized before calling extension hooks
+    await WasmInitializer.ensureInitialized();
+    
     for (const extension of this.extensions) {
       if (extension.afterConnect) {
         const overrides = await extension.afterConnect(this);
@@ -758,6 +762,9 @@ class UserAuthorization implements IUserAuthorization {
         signature: persistedSession.signature,
       };
 
+      // Ensure WASM modules are initialized before calling extension hooks
+      await WasmInitializer.ensureInitialized();
+      
       // Apply extension afterSignIn hooks
       await this.applyAfterSignInHooks(this.session);
 
