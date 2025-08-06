@@ -33,11 +33,11 @@ export interface PersistedSession {
   siwe: string;
   /** User's signature of the SIWE message */
   signature: string;
-  
+
   // TinyCloud Session (the actual delegation)
   /** TinyCloud delegation data if available */
   tinycloudSession?: PersistedTinyCloudSession;
-  
+
   // Minimal metadata
   /** When session expires (ISO timestamp) */
   expiresAt: string;
@@ -68,7 +68,7 @@ export interface SessionPersistenceConfig {
   /** Whether persistence is enabled */
   enabled: boolean;
   /** Storage type to use */
-  storage: 'localStorage' | 'sessionStorage';
+  storage: "localStorage" | "sessionStorage";
   /** Whether to encrypt stored sessions */
   encryptionEnabled: boolean;
   /** Session TTL in milliseconds */
@@ -84,17 +84,17 @@ export interface SessionPersistenceConfig {
  */
 export const DEFAULT_PERSISTENCE_CONFIG: SessionPersistenceConfig = {
   enabled: true,
-  storage: 'localStorage',
-  encryptionEnabled: true,
-  sessionTTL: 24 * 60 * 60 * 1000, // 24 hours
-  keyPrefix: 'tinycloud_session',
+  storage: "localStorage",
+  encryptionEnabled: !!crypto.subtle, // default on if Web Crypto API available
+  sessionTTL: 7 * 24 * 60 * 60 * 1000, // 7 * 24 hours
+  keyPrefix: "tinycloud_session",
   autoResumeSession: true,
 };
 
 /**
  * Extended TCW Client Config with persistence options
  */
-declare module '@tinycloudlabs/web-core/client' {
+declare module "@tinycloudlabs/web-core/client" {
   interface TCWClientConfig {
     /** Session persistence configuration */
     persistence?: Partial<SessionPersistenceConfig>;
