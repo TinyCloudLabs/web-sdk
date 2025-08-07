@@ -34,7 +34,6 @@ function Home() {
   const { setOpen } = useModal();
 
   const [loading, setLoading] = useState(false);
-  const [pendingSignIn, setPendingSignIn] = useState(false);
   const [resumeStatus, setResumeStatus] = useState<
     "checking" | "resumed" | "failed" | null
   >(null);
@@ -221,7 +220,6 @@ function Home() {
     if (!isConnected) {
       tcw?.signOut?.();
       setTinyCloudWeb(null);
-      setPendingSignIn(false); // Clear pending sign-in if wallet disconnects
       setResumeStatus(null); // Clear resume status when wallet disconnects
     }
     // eslint-disable-next-line
@@ -230,7 +228,6 @@ function Home() {
   // Auto sign-in to TinyCloud when wallet connects and user intended to sign in
   useEffect(() => {
     if (isConnected && walletClient && !tcw) {
-      setPendingSignIn(false); // Clear the pending state
       resumeSession();
     }
     // eslint-disable-next-line
@@ -239,7 +236,6 @@ function Home() {
   const tcwHandler = async () => {
     if (!isConnected || !walletClient) {
       // User wants to sign in, so first connect the wallet
-      setPendingSignIn(true);
       setOpen(true);
       return;
     }
