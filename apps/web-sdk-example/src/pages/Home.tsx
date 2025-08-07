@@ -122,6 +122,50 @@ function Home() {
     return tcwConfig;
   };
 
+  const resumeSession = async () => {
+    setLoading(true);
+    setResumeStatus("checking");
+
+    try {
+      if (!walletClient) return;
+
+      const signer = walletClientToEthers5Signer(walletClient as any);
+      const tcwConfig = getTinyCloudWebConfig({
+        provider: {
+          web3: {
+            driver: signer.provider,
+          },
+        },
+      });
+
+      const tcwProvider = new TinyCloudWeb(tcwConfig);
+      const walletAddress = await signer.getAddress();
+
+      console.log("Attempting to resume session for address:", walletAddress);
+
+      const resumedSession =
+        await tcwProvider.userAuthorization.tryResumeSession(walletAddress);
+
+      if (resumedSession) {
+        setResumeStatus("resumed");
+        setTinyCloudWeb(tcwProvider);
+
+        // Clear resume status after 3 seconds
+        setTimeout(() => setResumeStatus(null), 3000);
+      } else {
+        console.log("⚠️ No existing session found");
+        setResumeStatus("failed");
+        setTimeout(() => setResumeStatus(null), 2000);
+      }
+    } catch (err) {
+      console.error("❌ Resume session failed:", err);
+      setResumeStatus("failed");
+      setTimeout(() => setResumeStatus(null), 2000);
+    }
+
+    setLoading(false);
+  };
+
   const signInWithWallet = async () => {
     if (!walletClient || tcw) return;
 
@@ -148,7 +192,6 @@ function Home() {
         await tcwProvider.userAuthorization.tryResumeSession(walletAddress);
 
       if (resumedSession) {
-        console.log("✅ Session resumed successfully!", resumedSession);
         setResumeStatus("resumed");
         setTinyCloudWeb(tcwProvider);
 
@@ -186,12 +229,12 @@ function Home() {
 
   // Auto sign-in to TinyCloud when wallet connects and user intended to sign in
   useEffect(() => {
-    if (isConnected && walletClient && pendingSignIn && !tcw) {
+    if (isConnected && walletClient && !tcw) {
       setPendingSignIn(false); // Clear the pending state
-      signInWithWallet();
+      resumeSession();
     }
     // eslint-disable-next-line
-  }, [isConnected, walletClient, pendingSignIn, tcw]);
+  }, [isConnected, walletClient, tcw]);
 
   const tcwHandler = async () => {
     if (!isConnected || !walletClient) {
