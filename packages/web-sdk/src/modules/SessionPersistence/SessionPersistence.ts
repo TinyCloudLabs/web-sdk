@@ -59,14 +59,11 @@ export class SessionPersistence {
 
       let session: PersistedSession;
       if (this.config.encryptionEnabled && 'data' in parsed) {
-        // Encrypted session
         session = await this.decryptSession(parsed as EncryptedPersistedSession, address);
       } else {
-        // Plain session (fallback)
         session = parsed as PersistedSession;
       }
 
-      // Validate session hasn't expired
       if (this.isSessionExpired(session)) {
         await this.clearSession(address);
         return null;
@@ -75,7 +72,6 @@ export class SessionPersistence {
       return session;
     } catch (error) {
       console.warn('Failed to load session:', error);
-      // Clear potentially corrupted session
       await this.clearSession(address);
       return null;
     }

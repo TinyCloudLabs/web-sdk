@@ -744,15 +744,12 @@ class UserAuthorization implements IUserAuthorization {
    */
   public async tryResumeSession(address: string): Promise<TCWClientSession | null> {
     try {
-      // Load persisted session
       const persistedSession = await this.sessionPersistence.loadSession(address);
+      
       if (!persistedSession) {
         return null;
       }
 
-      // Recreate TCWClientSession from persisted data
-      // Note: We can't import session keys in WASM, so we restore the session data directly
-      // The session key and delegation should still be valid if not expired
       this.session = {
         address: persistedSession.address,
         walletAddress: persistedSession.address,
@@ -762,16 +759,12 @@ class UserAuthorization implements IUserAuthorization {
         signature: persistedSession.signature,
       };
 
-      // Ensure WASM modules are initialized before calling extension hooks
       await WasmInitializer.ensureInitialized();
-      
-      // Apply extension afterSignIn hooks
       await this.applyAfterSignInHooks(this.session);
 
       return this.session;
     } catch (error) {
       console.warn('Failed to resume session:', error);
-      // Clear potentially corrupted session
       await this.sessionPersistence.clearSession(address);
       return null;
     }
@@ -812,24 +805,34 @@ class UserAuthorization implements IUserAuthorization {
    */
   private async persistSession(session: TCWClientSession): Promise<void> {
     try {
-      // Calculate expiration time (default 24 hours from now)
-      const expirationTime = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      const existingSession = await this.sessionPersistence.loadSession(session.address);
+      
+      if (existingSession) {
+        existingSession.address = session.address;
+        existingSession.chainId = session.chainId;
+        existingSession.sessionKey = session.sessionKey;
+        existingSession.siwe = session.siwe;
+        existingSession.signature = session.signature;
+        
+        await this.sessionPersistence.saveSession(existingSession);
+      } else {
+        const expirationTime = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
-      const persistedSession: PersistedSession = {
-        address: session.address,
-        chainId: session.chainId,
-        sessionKey: session.sessionKey,
-        siwe: session.siwe,
-        signature: session.signature,
-        expiresAt: expirationTime,
-        createdAt: new Date().toISOString(),
-        version: '1.0.0',
-      };
+        const persistedSession: PersistedSession = {
+          address: session.address,
+          chainId: session.chainId,
+          sessionKey: session.sessionKey,
+          siwe: session.siwe,
+          signature: session.signature,
+          expiresAt: expirationTime,
+          createdAt: new Date().toISOString(),
+          version: '1.0.0',
+        };
 
-      await this.sessionPersistence.saveSession(persistedSession);
+        await this.sessionPersistence.saveSession(persistedSession);
+      }
     } catch (error) {
       console.warn('Failed to persist session:', error);
-      // Don't throw - persistence failure shouldn't break the sign-in flow
     }
   }
 

@@ -16,6 +16,7 @@ import {
   Session,
   Authenticator,
 } from "./tinycloud";
+import { makeOrbitId } from "./tinycloud/module";
 import {
   IStorage,
   ITinyCloud,
@@ -167,6 +168,8 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
     const chain = await tcw.provider.getSigner().getChainId();
 
     this.orbitId = `pkh:eip155:${chain}:${address}://default`;
+    console.log(makeOrbitId(address, chain));
+    console.log(this.orbitId);
 
     this.domain = tcw.config.siweConfig?.domain;
     return {};
@@ -276,7 +279,6 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
         return null;
       }
 
-      // Convert PersistedTinyCloudSession back to Session
       const session: Session = {
         delegationHeader: persistedSession.tinycloudSession.delegationHeader,
         delegationCid: persistedSession.tinycloudSession.delegationCid,
@@ -303,26 +305,40 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
     tcwSession: TCWClientSession
   ): Promise<void> {
     try {
-      // Load existing persisted session
       const existingSession = await this.sessionPersistence.loadSession(
         tcwSession.address
       );
 
+      const tinycloudSessionData = {
+        delegationHeader: session.delegationHeader,
+        delegationCid: session.delegationCid,
+        namespace: session.namespace,
+        orbitId: session.orbitId,
+        verificationMethod: session.verificationMethod,
+      };
+
       if (existingSession) {
-        // Update existing session with TinyCloud data
-        existingSession.tinycloudSession = {
-          delegationHeader: session.delegationHeader,
-          delegationCid: session.delegationCid,
-          namespace: session.namespace,
-          orbitId: session.orbitId,
-          verificationMethod: session.verificationMethod,
+        existingSession.tinycloudSession = tinycloudSessionData;
+        await this.sessionPersistence.saveSession(existingSession);
+      } else {
+        const expirationTime = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+        
+        const newPersistedSession = {
+          address: tcwSession.address,
+          chainId: tcwSession.chainId,
+          sessionKey: tcwSession.sessionKey,
+          siwe: tcwSession.siwe,
+          signature: tcwSession.signature,
+          tinycloudSession: tinycloudSessionData,
+          expiresAt: expirationTime,
+          createdAt: new Date().toISOString(),
+          version: '1.0.0',
         };
 
-        await this.sessionPersistence.saveSession(existingSession);
+        await this.sessionPersistence.saveSession(newPersistedSession);
       }
     } catch (error) {
       console.warn("Failed to persist TinyCloud session:", error);
-      // Don't throw - persistence failure shouldn't break the session flow
     }
   }
 
