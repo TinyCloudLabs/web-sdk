@@ -338,7 +338,7 @@ checksum = "d71b6127be86fdcfddb610f7182ac57211d4b18a3e9c82eb2d17662f2227ad6a"
 [[package]]
 name = "cacaos"
 version = "0.5.1"
-source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=4a435d8#4a435d8486c259a2e2c0740f52a087c47129ce2c"
+source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=50c7e50#50c7e502347a12e172ce4b91acc4159d69456ecd"
 dependencies = [
  "async-trait",
  "hex",
@@ -346,12 +346,13 @@ dependencies = [
  "ipld-core",
  "iri-string",
  "serde",
+ "serde_bytes",
  "serde_ipld_dagcbor",
+ "serde_repr",
  "serde_with 3.14.0",
  "siwe",
  "thiserror 2.0.12",
  "time",
- "url",
 ]
 
 [[package]]
@@ -3551,6 +3552,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_repr"
+version = "0.1.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "175ee3e80ae9982737ca543e96133087cbd9a485eecc3bc4de9c1a37b47ea59c"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.104",
+]
+
+[[package]]
 name = "serde_urlencoded"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3730,7 +3742,7 @@ dependencies = [
 [[package]]
 name = "siwe"
 version = "1.0.0"
-source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=4a435d8#4a435d8486c259a2e2c0740f52a087c47129ce2c"
+source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=50c7e50#50c7e502347a12e172ce4b91acc4159d69456ecd"
 dependencies = [
  "hex",
  "http 1.3.1",
@@ -3746,7 +3758,7 @@ dependencies = [
 [[package]]
 name = "siwe-recap"
 version = "0.2.0"
-source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=4a435d8#4a435d8486c259a2e2c0740f52a087c47129ce2c"
+source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=50c7e50#50c7e502347a12e172ce4b91acc4159d69456ecd"
 dependencies = [
  "base64 0.22.1",
  "ipld-core",
@@ -4809,7 +4821,7 @@ dependencies = [
 [[package]]
 name = "tinycloud-lib"
 version = "0.2.0"
-source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=4a435d8#4a435d8486c259a2e2c0740f52a087c47129ce2c"
+source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=50c7e50#50c7e502347a12e172ce4b91acc4159d69456ecd"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -4833,7 +4845,7 @@ dependencies = [
 [[package]]
 name = "tinycloud-sdk-rs"
 version = "0.2.0"
-source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=4a435d8#4a435d8486c259a2e2c0740f52a087c47129ce2c"
+source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=50c7e50#50c7e502347a12e172ce4b91acc4159d69456ecd"
 dependencies = [
  "async-trait",
  "hex",
@@ -4851,7 +4863,7 @@ dependencies = [
 [[package]]
 name = "tinycloud-sdk-wasm"
 version = "0.2.0"
-source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=4a435d8#4a435d8486c259a2e2c0740f52a087c47129ce2c"
+source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=50c7e50#50c7e502347a12e172ce4b91acc4159d69456ecd"
 dependencies = [
  "chrono",
  "console_error_panic_hook",
