@@ -338,7 +338,7 @@ checksum = "d71b6127be86fdcfddb610f7182ac57211d4b18a3e9c82eb2d17662f2227ad6a"
 [[package]]
 name = "cacaos"
 version = "0.5.1"
-source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=8d32b21#8d32b21e92fc6d93c3806edf5b0b1e8d574fb7a5"
+source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=e37b477#e37b47768817d92a5e392761785fce0e18092d0a"
 dependencies = [
  "async-trait",
  "hex",
@@ -3465,17 +3465,6 @@ dependencies = [
 
 [[package]]
 name = "serde-wasm-bindgen"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3b143e2833c57ab9ad3ea280d21fd34e285a42837aeb0ee301f4f41890fa00e"
-dependencies = [
- "js-sys",
- "serde",
- "wasm-bindgen",
-]
-
-[[package]]
-name = "serde-wasm-bindgen"
 version = "0.6.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8302e169f0eddcc139c70f139d19d6467353af16f9fce27e8c30158036a1e16b"
@@ -3741,7 +3730,7 @@ dependencies = [
 [[package]]
 name = "siwe"
 version = "1.0.0"
-source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=8d32b21#8d32b21e92fc6d93c3806edf5b0b1e8d574fb7a5"
+source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=e37b477#e37b47768817d92a5e392761785fce0e18092d0a"
 dependencies = [
  "hex",
  "http 1.3.1",
@@ -3757,7 +3746,7 @@ dependencies = [
 [[package]]
 name = "siwe-recap"
 version = "0.2.0"
-source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=8d32b21#8d32b21e92fc6d93c3806edf5b0b1e8d574fb7a5"
+source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=e37b477#e37b47768817d92a5e392761785fce0e18092d0a"
 dependencies = [
  "base64 0.22.1",
  "ipld-core",
@@ -4820,7 +4809,7 @@ dependencies = [
 [[package]]
 name = "tinycloud-lib"
 version = "0.2.0"
-source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=8d32b21#8d32b21e92fc6d93c3806edf5b0b1e8d574fb7a5"
+source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=e37b477#e37b47768817d92a5e392761785fce0e18092d0a"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -4844,7 +4833,7 @@ dependencies = [
 [[package]]
 name = "tinycloud-sdk-rs"
 version = "0.2.0"
-source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=8d32b21#8d32b21e92fc6d93c3806edf5b0b1e8d574fb7a5"
+source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=e37b477#e37b47768817d92a5e392761785fce0e18092d0a"
 dependencies = [
  "async-trait",
  "hex",
@@ -4862,18 +4851,21 @@ dependencies = [
 [[package]]
 name = "tinycloud-sdk-wasm"
 version = "0.2.0"
-source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=8d32b21#8d32b21e92fc6d93c3806edf5b0b1e8d574fb7a5"
+source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=e37b477#e37b47768817d92a5e392761785fce0e18092d0a"
 dependencies = [
  "chrono",
  "console_error_panic_hook",
  "getrandom 0.2.16",
  "hex",
+ "http 1.3.1",
  "js-sys",
  "k256",
  "lazy_static",
  "serde",
- "serde-wasm-bindgen 0.5.0",
+ "serde-wasm-bindgen",
+ "serde_ipld_dagcbor",
  "serde_json",
+ "serde_with 3.14.0",
  "siwe",
  "siwe-recap",
  "thiserror 2.0.12",
@@ -4896,7 +4888,7 @@ dependencies = [
  "js-sys",
  "rand 0.7.3",
  "serde",
- "serde-wasm-bindgen 0.6.5",
+ "serde-wasm-bindgen",
  "serde_json",
  "tinycloud-sdk-rs",
  "tinycloud-sdk-wasm",

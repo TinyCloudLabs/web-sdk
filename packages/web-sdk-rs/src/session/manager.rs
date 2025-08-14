@@ -6,21 +6,14 @@ use serde_json::Value;
 use tinycloud_sdk_rs::tinycloud_lib::{
     cacaos::siwe::{generate_nonce, Message, Version as SiweVersion},
     siwe_recap::{Ability, Capability},
-    ssi::{
-        dids::DIDKey,
-        // did::{DIDMethod, Source},
-        jwk::JWK,
-        // vc::get_verification_method,
-    },
+    ssi::{dids::DIDKey, jwk::JWK},
 };
 use wasm_bindgen::prelude::*;
 use web_sys::console::error_1 as console_error;
 
-// use crate::session::*;
-
 use super::types::*;
 
-use tinycloud_sdk_rs::session::Session;
+use tinycloud_sdk_wasm::session::Session;
 
 #[derive(Debug, Default)]
 pub struct SessionInfo {
@@ -85,7 +78,10 @@ impl SessionManager {
             .domain()
             .parse()
             .map_err(|e| format!("failed to parse the domain as an authority: {}", e))?;
-        let address = crate::session::util::hex_to_bytes(&config.address())?;
+        let addr = config.address();
+        let address =
+            tinycloud_sdk_rs::util::decode_eip55(addr.strip_prefix("0x").unwrap_or(&addr))
+                .map_err(|e| format!("failed to parse '{}' as an Eth Address: {}", addr, e))?;
         let nonce = config.nonce().unwrap_or_else(generate_nonce);
         let parse_date_err = |e| format!("unable to parse timestamp from string: {}", e);
         let issued_at = config.issuedAt().parse().map_err(parse_date_err)?;
