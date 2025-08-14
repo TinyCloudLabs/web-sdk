@@ -176,13 +176,13 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
 
   public async targetedActions(): Promise<{ [target: string]: string[] }> {
     const actions = {};
-    actions[`${this.orbitId}/capabilities/all`] = ["capabilities/read"];
+    actions[`${this.orbitId}/capabilities/all`] = ["tinycloud.capabilities/read"];
     actions[`${this.orbitId}/kv/${this.prefix}`] = [
-      "kv/put",
-      "kv/get",
-      "kv/list",
-      "kv/del",
-      "kv/metadata",
+      "tinycloud.kv/put",
+      "tinycloud.kv/get",
+      "tinycloud.kv/list",
+      "tinycloud.kv/del",
+      "tinycloud.kv/metadata",
     ];
     return actions;
   }
