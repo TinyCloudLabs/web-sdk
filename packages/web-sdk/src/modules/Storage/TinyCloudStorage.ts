@@ -168,8 +168,6 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
     const chain = await tcw.provider.getSigner().getChainId();
 
     this.orbitId = makeOrbitId(address, chain, "default");
-    console.log(this.orbitId);
-
     this.domain = tcw.config.siweConfig?.domain;
     return {};
   }
