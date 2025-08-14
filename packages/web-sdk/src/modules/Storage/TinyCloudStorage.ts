@@ -66,10 +66,10 @@ export type DelegateResponse = {
  */
 export class TinyCloudStorage implements IStorage, ITinyCloud {
   /**
-   * The namespace identifier for TinyCloud storage.
+   * The name of the Storage Extension
    * @public
    */
-  public namespace = "tinycloud";
+  public namespace: string = "tinycloud";
 
   /**
    * The prefix used for all storage operations.
@@ -167,23 +167,27 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
     const address = await tcw.provider.getSigner().getAddress();
     const chain = await tcw.provider.getSigner().getChainId();
 
-    this.orbitId = `pkh:eip155:${chain}:${address}://default`;
-    console.log(makeOrbitId(address, chain));
-    console.log(this.orbitId);
-
+    this.orbitId = makeOrbitId(address, chain, "default");
     this.domain = tcw.config.siweConfig?.domain;
     return {};
   }
 
   public async targetedActions(): Promise<{ [target: string]: string[] }> {
     const actions = {};
-    actions[`${this.orbitId}/capabilities/all`] = ["capabilities/read"];
+    console.log(this.orbitId);
+    console.log(this.orbitId);
+
+    console.log(this.orbitId);
+
+    actions[`${this.orbitId}/capabilities/all`] = [
+      "tinycloud.capabilities/read",
+    ];
     actions[`${this.orbitId}/kv/${this.prefix}`] = [
-      "kv/put",
-      "kv/get",
-      "kv/list",
-      "kv/del",
-      "kv/metadata",
+      "tinycloud.kv/put",
+      "tinycloud.kv/get",
+      "tinycloud.kv/list",
+      "tinycloud.kv/del",
+      "tinycloud.kv/metadata",
     ];
     return actions;
   }
@@ -201,20 +205,14 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
 
     const sessionData = {
       jwk: JSON.parse(tcwSession.sessionKey),
-      orbitId: `${this.namespace}:${this.orbitId}`,
+      orbitId: this.orbitId,
       service: "kv",
       siwe: tcwSession.siwe,
       signature: tcwSession.signature,
       verificationMethod: new SiweMessage(tcwSession.siwe).uri,
     };
 
-    const stringifiedData = JSON.stringify(sessionData);
-    const completedSession = await this.tinycloudModule.completeSessionSetup(
-      stringifiedData
-    );
-    const result = JSON.parse(completedSession);
-
-    return result;
+    return this.tinycloudModule.completeSessionSetup(sessionData);
   }
 
   public async afterSignIn(tcwSession: TCWClientSession): Promise<void> {
@@ -283,7 +281,6 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
         delegationHeader: persistedSession.tinycloudSession.delegationHeader,
         delegationCid: persistedSession.tinycloudSession.delegationCid,
         jwk: JSON.parse(tcwSession.sessionKey),
-        namespace: persistedSession.tinycloudSession.namespace,
         orbitId: persistedSession.tinycloudSession.orbitId,
         verificationMethod:
           persistedSession.tinycloudSession.verificationMethod,
@@ -312,7 +309,6 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
       const tinycloudSessionData = {
         delegationHeader: session.delegationHeader,
         delegationCid: session.delegationCid,
-        namespace: session.namespace,
         orbitId: session.orbitId,
         verificationMethod: session.verificationMethod,
       };
@@ -544,7 +540,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
     const { status: hostStatus, statusText } = await hostOrbit(
       this.userAuth.getSigner(),
       tinycloudHost,
-      `${this.namespace}:${this.orbitId}`,
+      this.orbitId,
       this.domain
     );
 
@@ -579,7 +575,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
   }: DelegateParams): Promise<DelegateResponse> {
     // add actions to session builder
     this.sessionManager.resetCapability();
-    this.sessionManager.addTargetedActions(this.namespace, target, actions);
+    this.sessionManager.addTargetedActions(target, actions);
 
     // create siwe message
     const address =

@@ -6,7 +6,7 @@ export class Capabilities {
 
   async get(query: string): Promise<{ [cid: string]: CapSummary }> {
     const res = await this.invoke({
-      headers: this.auth.invocationHeaders("capabilities", "read", query),
+      headers: this.auth.invocationHeaders("capabilities", "tinycloud.capabilities/read", query),
     });
     if (res.status == 200 && res.body !== null) {
       return await res.json();
