@@ -43,7 +43,7 @@ class MockUserAuthorization {
 
     // Apply extension capabilities
     for (const extension of this.extensions) {
-      if (extension.namespace && extension.targetedActions) {
+      if (extension.targetedActions) {
         try {
           const targetedActions = await extension.targetedActions();
           for (const target in targetedActions) {
@@ -54,7 +54,9 @@ class MockUserAuthorization {
           }
         } catch (error) {
           console.warn(
-            `Failed to apply targeted actions for ${extension.namespace}:`,
+            `Failed to apply targeted actions for ${
+              extension.namespace || "unknown TinyCloud extension"
+            }:`,
             error
           );
         }

@@ -66,6 +66,12 @@ export type DelegateResponse = {
  */
 export class TinyCloudStorage implements IStorage, ITinyCloud {
   /**
+   * The name of the Storage Extension
+   * @public
+   */
+  public namespace: string = "tinycloud";
+
+  /**
    * The prefix used for all storage operations.
    * @public
    */
@@ -168,6 +174,11 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
 
   public async targetedActions(): Promise<{ [target: string]: string[] }> {
     const actions = {};
+    console.log(this.orbitId);
+    console.log(this.orbitId);
+
+    console.log(this.orbitId);
+
     actions[`${this.orbitId}/capabilities/all`] = [
       "tinycloud.capabilities/read",
     ];

@@ -263,7 +263,7 @@ class UserAuthorizationConnected implements ITCWConnected {
         };
       }
 
-      if (extension.namespace && extension.targetedActions) {
+      if (extension.targetedActions) {
         const targetedActions = await extension.targetedActions();
         for (const target in targetedActions) {
           this.builder.addTargetedActions(target, targetedActions[target]);
@@ -314,6 +314,7 @@ class UserAuthorizationConnected implements ITCWConnected {
 
     const siweConfig = merge(defaults, this.config.siweConfig);
     const siwe = this.builder.build(siweConfig);
+    console.log(siwe);
     const signature = await signer.signMessage(siwe);
 
     let session = {
@@ -724,7 +725,7 @@ class UserAuthorization implements IUserAuthorization {
   ): Promise<void> {
     for (const extension of extensions) {
       // Apply targeted actions if available
-      if (extension.namespace && extension.targetedActions) {
+      if (extension.targetedActions) {
         try {
           const targetedActions = await extension.targetedActions();
           for (const target in targetedActions) {
@@ -732,7 +733,9 @@ class UserAuthorization implements IUserAuthorization {
           }
         } catch (error) {
           console.warn(
-            `Failed to apply targeted actions for ${extension.namespace}:`,
+            `Failed to apply targeted actions for ${
+              extension.namespace || "unknown TinyCloud extension"
+            }:`,
             error
           );
           // Continue processing other extensions rather than failing completely
