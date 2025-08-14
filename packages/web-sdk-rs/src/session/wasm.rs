@@ -44,21 +44,9 @@ impl TCWSessionManager {
     }
 
     #[allow(non_snake_case)]
-    /// Add default actions to a capability.
-    pub fn addDefaultActions(&mut self, namespace: &str, defaultActions: Vec<JsString>) -> bool {
-        self.manager.add_default_actions(namespace, defaultActions)
-    }
-
-    #[allow(non_snake_case)]
     /// Add actions for a specific target to a capability.
-    pub fn addTargetedActions(
-        &mut self,
-        namespace: &str,
-        target: String,
-        actions: Vec<JsString>,
-    ) -> bool {
-        self.manager
-            .add_targeted_actions(namespace, target, actions)
+    pub fn addTargetedActions(&mut self, target: String, actions: Vec<JsString>) -> bool {
+        self.manager.add_targeted_actions(target, actions)
     }
 
     #[allow(non_snake_case)]

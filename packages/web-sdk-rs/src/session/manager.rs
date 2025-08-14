@@ -128,51 +128,8 @@ impl SessionManager {
         Ok(siwe.to_string())
     }
 
-    /// Add default actions to a capability.
-    pub fn add_default_actions(&mut self, namespace: &str, default_actions: Vec<JsString>) -> bool {
-        let actions: Vec<String> = if let Some(actions) = default_actions
-            .iter()
-            .map(|js_string| js_string.as_string())
-            .collect()
-        {
-            actions
-        } else {
-            string_conversion_error();
-            return false;
-        };
-
-        for action in actions {
-            // Format the namespace as a URI pattern and parse it
-            let target = format!("{}:*", namespace);
-            // Parse the target string into a URI
-            let target_uri = match target.parse::<UriString>() {
-                Ok(uri) => uri,
-                Err(e) => {
-                    console_error(&format!("Failed to parse URI: {}", e).into());
-                    return false;
-                }
-            };
-
-            // Convert action string to &str to satisfy trait bounds
-            if let Err(e) = self.capability.with_action_convert(
-                target_uri,
-                action.as_str(), // Use as_str() instead of &action
-                Vec::<std::collections::BTreeMap<String, Value>>::new(),
-            ) {
-                console_error(&format!("Failed to add action: {}", e).into());
-                return false;
-            }
-        }
-        true
-    }
-
     /// Add actions for a specific target to a capability.
-    pub fn add_targeted_actions(
-        &mut self,
-        namespace: &str,
-        target: String,
-        actions: Vec<JsString>,
-    ) -> bool {
+    pub fn add_targeted_actions(&mut self, target: String, actions: Vec<JsString>) -> bool {
         let actions: Vec<String> = if let Some(actions) = actions
             .iter()
             .map(|js_string| js_string.as_string())
@@ -185,11 +142,10 @@ impl SessionManager {
         };
 
         // Create a properly formatted resource URI
-        let resource = format!("{}:{}", namespace, target);
 
         for action in actions {
             if let Err(e) = self.capability.with_action_convert(
-                resource.parse::<UriString>().unwrap(),
+                target.parse::<UriString>().unwrap(),
                 action.parse::<Ability>().unwrap(),
                 Vec::<std::collections::BTreeMap<String, Value>>::new(),
             ) {
