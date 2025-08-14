@@ -15,10 +15,10 @@ import {
 } from '@tinycloudlabs/web-core/client';
 import { dispatchSDKEvent } from '../notifications/ErrorHandler';
 import { WasmInitializer } from './WasmInitializer';
-import { 
-  SessionPersistence, 
-  PersistedSession, 
-  SessionPersistenceConfig 
+import {
+  SessionPersistence,
+  PersistedSession,
+  SessionPersistenceConfig
 } from './SessionPersistence';
 
 /**
@@ -151,8 +151,8 @@ class UserAuthorizationInit {
       } catch (err) {
         // Provider creation error
         console.error(err);
-        dispatchSDKEvent.error('auth.provider_creation_failed', 
-          'Failed to create Web3 provider', 
+        dispatchSDKEvent.error('auth.provider_creation_failed',
+          'Failed to create Web3 provider',
           err.message);
         throw err;
       }
@@ -173,14 +173,14 @@ class UserAuthorizationInit {
           // Permission rejected error
           console.error(err);
           if (err.code === 4001) {
-            dispatchSDKEvent.error('auth.signature_rejected', 
+            dispatchSDKEvent.error('auth.signature_rejected',
               'User rejected the wallet connection request');
           } else if (err.code === -32002) {
-            dispatchSDKEvent.error('auth.wallet_not_connected', 
+            dispatchSDKEvent.error('auth.wallet_not_connected',
               'Please connect your wallet to continue');
           } else {
-            dispatchSDKEvent.error('auth.permission_denied', 
-              'Failed to get wallet permissions', 
+            dispatchSDKEvent.error('auth.permission_denied',
+              'Failed to get wallet permissions',
               err.message);
           }
           throw err;
@@ -196,8 +196,8 @@ class UserAuthorizationInit {
     } catch (err) {
       // TCW wasm related error
       console.error(err);
-      dispatchSDKEvent.error('wasm.initialization_failed', 
-        'Failed to initialize security module', 
+      dispatchSDKEvent.error('wasm.initialization_failed',
+        'Failed to initialize security module',
         err.message);
       throw err;
     }
@@ -246,7 +246,7 @@ class UserAuthorizationConnected implements ITCWConnected {
   public async applyExtensions(): Promise<void> {
     // Ensure WASM modules are initialized before calling extension hooks
     await WasmInitializer.ensureInitialized();
-    
+
     for (const extension of this.extensions) {
       if (extension.afterConnect) {
         const overrides = await extension.afterConnect(this);
@@ -295,16 +295,16 @@ class UserAuthorizationConnected implements ITCWConnected {
    */
   async signIn(): Promise<TCWClientSession> {
     await this.afterConnectHooksPromise;
-    
+
     const sessionKey = this.builder.jwk();
     if (sessionKey === undefined) {
       return Promise.reject(new Error('unable to retrieve session key'));
     }
-    
-    const signer = await this.provider.getSigner();
+
+    const signer = this.provider.getSigner();
     const walletAddress = await signer.getAddress();
     const chainId = await this.provider.getSigner().getChainId();
-    
+
     const defaults = {
       address: this.config.siweConfig?.address ?? walletAddress,
       walletAddress,
@@ -314,8 +314,11 @@ class UserAuthorizationConnected implements ITCWConnected {
       nonce: generateNonce(),
     };
 
+    console.log(walletAddress);
+    console.log(defaults.address);
+
     const siweConfig = merge(defaults, this.config.siweConfig);
-    const siwe = await this.builder.build(siweConfig);
+    const siwe = this.builder.build(siweConfig);
     const signature = await signer.signMessage(siwe);
 
     let session = {
@@ -378,7 +381,7 @@ class UserAuthorization implements IUserAuthorization {
         ...this.config?.providers,
       },
     });
-    
+
     // Initialize session persistence
     this.sessionPersistence = new SessionPersistence(this.config.persistence);
   }
@@ -401,8 +404,8 @@ class UserAuthorization implements IUserAuthorization {
       // ERROR:
       // Something went wrong when connecting or creating Session (wasm)
       console.error(err);
-      dispatchSDKEvent.error('auth.connection_failed', 
-        'Failed to establish wallet connection', 
+      dispatchSDKEvent.error('auth.connection_failed',
+        'Failed to establish wallet connection',
         err.message);
       throw err;
     }
@@ -413,19 +416,19 @@ class UserAuthorization implements IUserAuthorization {
 
     // Check if automatic session resumption is enabled
     const autoResumeEnabled = this.sessionPersistence.configuration.autoResumeSession;
-    
+
     if (autoResumeEnabled) {
       try {
         // Get the current wallet address to check for existing sessions
         const currentAddress = await this.provider.getSigner().getAddress();
-        
+
         // Try to resume an existing session
         const resumedSession = await this.tryResumeSession(currentAddress);
-        
+
         if (resumedSession) {
           // Session resumed successfully
           this.session = resumedSession;
-          
+
           // Handle ENS resolution for resumed session
           const promises = [];
           if (this.config.resolveEns) {
@@ -453,11 +456,11 @@ class UserAuthorization implements IUserAuthorization {
     } catch (err) {
       console.error(err);
       if (err.code === 4001) {
-        dispatchSDKEvent.error('auth.signature_rejected', 
+        dispatchSDKEvent.error('auth.signature_rejected',
           'Signature was rejected. Please try again');
       } else {
-        dispatchSDKEvent.error('auth.signin_failed', 
-          'Failed to sign in', 
+        dispatchSDKEvent.error('auth.signin_failed',
+          'Failed to sign in',
           err.message);
       }
       throw err;
@@ -505,8 +508,8 @@ class UserAuthorization implements IUserAuthorization {
     } catch (err) {
       // request to /tcw-logout went wrong
       console.error(err);
-      dispatchSDKEvent.error('auth.signout_failed', 
-        'Failed to sign out', 
+      dispatchSDKEvent.error('auth.signout_failed',
+        'Failed to sign out',
         err.message);
       throw err;
     }
@@ -575,7 +578,7 @@ class UserAuthorization implements IUserAuthorization {
       if (!address || !address.startsWith('0x') || address.length !== 42) {
         throw new Error('Invalid Ethereum address format. Address must be a valid 0x-prefixed hex string.');
       }
-      
+
       // Initialize TCWSessionManager from WASM
       let sessionManager: tcwSession.TCWSessionManager;
       try {
@@ -585,7 +588,7 @@ class UserAuthorization implements IUserAuthorization {
       } catch (error) {
         throw new Error('Failed to initialize WASM session manager. Please try again.');
       }
-      
+
       // Generate session key and store in manager
       let sessionKey: string;
       try {
@@ -596,7 +599,7 @@ class UserAuthorization implements IUserAuthorization {
       } catch (error) {
         throw new Error('Failed to generate session key from WASM manager');
       }
-      
+
       // Apply extension capabilities
       const extensions = this.init.extensions;
       try {
@@ -605,12 +608,12 @@ class UserAuthorization implements IUserAuthorization {
         console.warn('Extension capability application failed:', error);
         // Continue with session generation as extension capabilities are not critical
       }
-      
+
       // Build SIWE message with defaults
       const domain = partialSiweMessage?.domain || (typeof window !== 'undefined' ? window.location.host : 'localhost');
       const nonce = partialSiweMessage?.nonce || generateNonce();
       const issuedAt = new Date().toISOString();
-      
+
       const siweMessageData = {
         address,
         chainId: 1, // hardcoded as per requirements
@@ -621,7 +624,7 @@ class UserAuthorization implements IUserAuthorization {
         version: '1',
         ...partialSiweMessage, // Override with any provided partial data
       };
-      
+
       // Store session state for later retrieval
       this.pendingSession = {
         sessionManager,
@@ -629,14 +632,14 @@ class UserAuthorization implements IUserAuthorization {
         generatedAt: Date.now(),
         extensions,
       };
-      
+
       // Return SiweMessage instance
       return new SiweMessage(siweMessageData);
-      
+
     } catch (error) {
       // Clean up any partial state on error
       this.pendingSession = undefined;
-      
+
       console.error('Failed to generate SIWE message:', error);
       throw error;
     }
@@ -717,7 +720,7 @@ class UserAuthorization implements IUserAuthorization {
           // Continue processing other extensions rather than failing completely
         }
       }
-      
+
       // Apply targeted actions if available
       if (extension.namespace && extension.targetedActions) {
         try {
@@ -745,7 +748,7 @@ class UserAuthorization implements IUserAuthorization {
   public async tryResumeSession(address: string): Promise<TCWClientSession | null> {
     try {
       const persistedSession = await this.sessionPersistence.loadSession(address);
-      
+
       if (!persistedSession) {
         return null;
       }
@@ -806,14 +809,14 @@ class UserAuthorization implements IUserAuthorization {
   private async persistSession(session: TCWClientSession): Promise<void> {
     try {
       const existingSession = await this.sessionPersistence.loadSession(session.address);
-      
+
       if (existingSession) {
         existingSession.address = session.address;
         existingSession.chainId = session.chainId;
         existingSession.sessionKey = session.sessionKey;
         existingSession.siwe = session.siwe;
         existingSession.signature = session.signature;
-        
+
         await this.sessionPersistence.saveSession(existingSession);
       } else {
         const expirationTime = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
@@ -842,7 +845,7 @@ class UserAuthorization implements IUserAuthorization {
    */
   private async applyAfterSignInHooks(session: TCWClientSession): Promise<void> {
     const extensions = this.init.extensions;
-    
+
     for (const extension of extensions) {
       if (extension.afterSignIn) {
         await extension.afterSignIn(session);

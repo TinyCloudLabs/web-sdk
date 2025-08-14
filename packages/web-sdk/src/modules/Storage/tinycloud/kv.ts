@@ -6,13 +6,13 @@ export class KV {
 
   public async get(key: string): Promise<Response> {
     return await this.invoke({
-      headers: this.auth.invocationHeaders("kv", "get", key),
+      headers: this.auth.invocationHeaders("kv", "tinycloud.kv/get", key),
     });
   }
 
   public async head(key: string): Promise<Response> {
     return await this.invoke({
-      headers: this.auth.invocationHeaders("kv", "metadata", key),
+      headers: this.auth.invocationHeaders("kv", "tinycloud.kv/metadata", key),
     });
   }
 
@@ -25,20 +25,20 @@ export class KV {
       body: value,
       headers: {
         ...metadata,
-        ...this.auth.invocationHeaders("kv", "put", key),
+        ...this.auth.invocationHeaders("kv", "tinycloud.kv/put", key),
       },
     });
   }
 
   public async del(key: string): Promise<Response> {
     return await this.invoke({
-      headers: this.auth.invocationHeaders("kv", "del", key),
+      headers: this.auth.invocationHeaders("kv", "tinycloud.kv/del", key),
     });
   }
 
   public async list(prefix: string): Promise<Response> {
     return await this.invoke({
-      headers: this.auth.invocationHeaders("kv", "list", prefix),
+      headers: this.auth.invocationHeaders("kv", "tinycloud.kv/list", prefix),
     });
   }
 

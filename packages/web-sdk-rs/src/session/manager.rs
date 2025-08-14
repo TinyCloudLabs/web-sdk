@@ -60,7 +60,7 @@ impl SessionManager {
     }
 
     /// Build a SIWE message for signing.
-    pub async fn build(
+    pub fn build(
         self,
         config: SiweConfig,
         key_id: Option<String>,
@@ -68,7 +68,7 @@ impl SessionManager {
     ) -> Result<String, JsValue> {
         let did_uri_string = match custom_uri {
             Some(uri) => uri,
-            None => self.get_did(key_id).await?,
+            None => self.get_did(key_id)?,
         };
 
         let uri = iri_string::types::UriString::from_str(&did_uri_string)
@@ -267,7 +267,7 @@ impl SessionManager {
         Ok(())
     }
 
-    pub async fn get_did(&self, key_id: Option<String>) -> Result<String, String> {
+    pub fn get_did(&self, key_id: Option<String>) -> Result<String, String> {
         let did = DIDKey::generate(&self.get_private_key(key_id)?)
             .map_err(|e| format!("unable to generate the DID of the session key: {e}"))?;
         // let did_vm = get_verification_method(&did, &didkey).await.ok_or(format!(
@@ -399,7 +399,7 @@ pub mod test {
     #[tokio::test]
     async fn test_get_did() {
         let manager = SessionManager::new().unwrap();
-        let result = manager.get_did(None).await;
+        let result = manager.get_did(None);
         assert!(result.is_ok());
     }
 

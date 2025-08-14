@@ -167,8 +167,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
     const address = await tcw.provider.getSigner().getAddress();
     const chain = await tcw.provider.getSigner().getChainId();
 
-    this.orbitId = `pkh:eip155:${chain}:${address}://default`;
-    console.log(makeOrbitId(address, chain));
+    this.orbitId = makeOrbitId(address, chain, "default");
     console.log(this.orbitId);
 
     this.domain = tcw.config.siweConfig?.domain;
@@ -208,13 +207,9 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
       verificationMethod: new SiweMessage(tcwSession.siwe).uri,
     };
 
-    const stringifiedData = JSON.stringify(sessionData);
-    const completedSession = await this.tinycloudModule.completeSessionSetup(
-      stringifiedData
-    );
-    const result = JSON.parse(completedSession);
-
-    return result;
+    return this.tinycloudModule.completeSessionSetup(
+      sessionData
+    )
   }
 
   public async afterSignIn(tcwSession: TCWClientSession): Promise<void> {
@@ -322,7 +317,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
         await this.sessionPersistence.saveSession(existingSession);
       } else {
         const expirationTime = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-        
+
         const newPersistedSession = {
           address: tcwSession.address,
           chainId: tcwSession.chainId,

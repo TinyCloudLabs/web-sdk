@@ -25,19 +25,15 @@ export async function startSession(
       config?.expirationTime ??
       new Date(Date.now() + 1000 * 60 * 60).toISOString(),
     actions: config?.actions ?? {
-      kv: { "": ["kv/put", "kv/get", "kv/list", "kv/del", "kv/metadata"] },
-      capabilities: { "": ["kv/read"] },
+      kv: { "default/": ["tinycloud.kv/put", "tinycloud.kv/get", "tinycloud.kv/list", "tinycloud.kv/del", "tinycloud.kv/metadata"] },
+      capabilities: { "all/": ["tinycloud.capabilities/read"] },
     },
-    orbitId: config?.orbitId ?? makeOrbitId(address, chainId),
+    orbitId: config?.orbitId ?? makeOrbitId(address, chainId, "default"),
     parents: config?.parents,
     jwk: config?.jwk,
   };
 
-  const stringifiedConfig = JSON.stringify(sessionConfig);
-
-  const preparedSessionString = prepareSession(stringifiedConfig);
-
-  const preparedSession = JSON.parse(preparedSessionString);
+  const preparedSession = prepareSession(sessionConfig);
 
   const signature = await wallet.signMessage(preparedSession.siwe);
 
@@ -46,15 +42,9 @@ export async function startSession(
     signature,
   };
 
-  const stringifiedSessionWithSignature = JSON.stringify(sessionWithSignature);
-
-  const completedSessionString = await completeSessionSetup(
-    stringifiedSessionWithSignature
-  );
-
-  const completedSession = JSON.parse(completedSessionString);
-
-  return completedSession;
+  return completeSessionSetup(
+    sessionWithSignature
+  )
 }
 
 export async function activateSession(
@@ -77,11 +67,9 @@ export async function activateSession(
 }
 
 export class Authenticator {
-  private orbitId: string;
-  private serializedSession: string;
+  private session: Session;
   constructor(session: Session) {
-    this.orbitId = `${session.namespace}:${session.orbitId}`;
-    this.serializedSession = JSON.stringify(session);
+    this.session = session;
   }
 
   invocationHeaders = (
@@ -89,6 +77,6 @@ export class Authenticator {
     action: string,
     path: string
   ): HeadersInit =>
-    JSON.parse(invoke(this.serializedSession, service, path, action));
-  getOrbitId = (): string => this.orbitId;
+    invoke(this.session, service, path, action);
+  getOrbitId = (): string => this.session.orbitId;
 }
