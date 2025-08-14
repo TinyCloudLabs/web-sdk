@@ -338,7 +338,7 @@ checksum = "d71b6127be86fdcfddb610f7182ac57211d4b18a3e9c82eb2d17662f2227ad6a"
 [[package]]
 name = "cacaos"
 version = "0.5.1"
-source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=50c7e50#50c7e502347a12e172ce4b91acc4159d69456ecd"
+source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=f424608#f424608e2f54a080817a0fedea32634c5afe210e"
 dependencies = [
  "async-trait",
  "hex",
@@ -786,7 +786,7 @@ dependencies = [
 [[package]]
 name = "did-ethr"
 version = "0.3.2"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 dependencies = [
  "hex",
  "iref",
@@ -801,7 +801,7 @@ dependencies = [
 [[package]]
 name = "did-ion"
 version = "0.3.2"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 dependencies = [
  "base64 0.22.1",
  "iref",
@@ -822,7 +822,7 @@ dependencies = [
 [[package]]
 name = "did-jwk"
 version = "0.2.1"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 dependencies = [
  "async-trait",
  "iref",
@@ -840,7 +840,7 @@ dependencies = [
 [[package]]
 name = "did-method-key"
 version = "0.3.1"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 dependencies = [
  "bs58",
  "iref",
@@ -860,7 +860,7 @@ dependencies = [
 [[package]]
 name = "did-pkh"
 version = "0.3.2"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 dependencies = [
  "async-trait",
  "bech32",
@@ -880,7 +880,7 @@ dependencies = [
 [[package]]
 name = "did-tz"
 version = "0.3.2"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 dependencies = [
  "async-trait",
  "bs58",
@@ -902,7 +902,7 @@ dependencies = [
 [[package]]
 name = "did-web"
 version = "0.3.4"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 dependencies = [
  "http 0.2.12",
  "iref",
@@ -3742,7 +3742,7 @@ dependencies = [
 [[package]]
 name = "siwe"
 version = "1.0.0"
-source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=50c7e50#50c7e502347a12e172ce4b91acc4159d69456ecd"
+source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=f424608#f424608e2f54a080817a0fedea32634c5afe210e"
 dependencies = [
  "hex",
  "http 1.3.1",
@@ -3758,7 +3758,7 @@ dependencies = [
 [[package]]
 name = "siwe-recap"
 version = "0.2.0"
-source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=50c7e50#50c7e502347a12e172ce4b91acc4159d69456ecd"
+source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=f424608#f424608e2f54a080817a0fedea32634c5afe210e"
 dependencies = [
  "base64 0.22.1",
  "ipld-core",
@@ -3864,7 +3864,7 @@ dependencies = [
 [[package]]
 name = "ssi"
 version = "0.12.0"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 dependencies = [
  "document-features",
  "ssi-caips",
@@ -3890,7 +3890,7 @@ dependencies = [
 [[package]]
 name = "ssi-caips"
 version = "0.2.2"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 dependencies = [
  "bs58",
  "linked-data",
@@ -3903,7 +3903,7 @@ dependencies = [
 [[package]]
 name = "ssi-claims"
 version = "0.4.0"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 dependencies = [
  "educe 0.4.23",
  "iref",
@@ -3936,7 +3936,7 @@ dependencies = [
 [[package]]
 name = "ssi-claims-core"
 version = "0.1.3"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 dependencies = [
  "chrono",
  "educe 0.4.23",
@@ -3951,12 +3951,12 @@ dependencies = [
 [[package]]
 name = "ssi-contexts"
 version = "0.1.10"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 
 [[package]]
 name = "ssi-core"
 version = "0.2.3"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 dependencies = [
  "async-trait",
  "pin-project",
@@ -3967,7 +3967,7 @@ dependencies = [
 [[package]]
 name = "ssi-cose"
 version = "0.1.0"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 dependencies = [
  "ciborium",
  "coset",
@@ -3980,7 +3980,7 @@ dependencies = [
 [[package]]
 name = "ssi-crypto"
 version = "0.2.1"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 dependencies = [
  "async-trait",
  "bs58",
@@ -4005,7 +4005,7 @@ dependencies = [
 [[package]]
 name = "ssi-data-integrity"
 version = "0.2.0"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 dependencies = [
  "chrono",
  "iref",
@@ -4033,7 +4033,7 @@ dependencies = [
 [[package]]
 name = "ssi-data-integrity-core"
 version = "0.3.0"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 dependencies = [
  "chrono",
  "contextual",
@@ -4068,7 +4068,7 @@ dependencies = [
 [[package]]
 name = "ssi-data-integrity-suites"
 version = "0.2.0"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -4117,7 +4117,7 @@ dependencies = [
 [[package]]
 name = "ssi-di-sd-primitives"
 version = "0.2.1"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 dependencies = [
  "base64 0.22.1",
  "digest 0.10.7",
@@ -4139,7 +4139,7 @@ dependencies = [
 [[package]]
 name = "ssi-dids"
 version = "0.2.1"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 dependencies = [
  "did-ethr",
  "did-ion",
@@ -4156,7 +4156,7 @@ dependencies = [
 [[package]]
 name = "ssi-dids-core"
 version = "0.1.3"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 dependencies = [
  "async-trait",
  "iref",
@@ -4180,7 +4180,7 @@ dependencies = [
 [[package]]
 name = "ssi-eip712"
 version = "0.1.1"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 dependencies = [
  "hex",
  "indexmap 2.10.0",
@@ -4198,7 +4198,7 @@ dependencies = [
 [[package]]
 name = "ssi-json-ld"
 version = "0.3.2"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 dependencies = [
  "combination",
  "iref",
@@ -4216,7 +4216,7 @@ dependencies = [
 [[package]]
 name = "ssi-jwk"
 version = "0.3.2"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 dependencies = [
  "base64 0.22.1",
  "blake2b_simd 0.5.11",
@@ -4248,7 +4248,7 @@ dependencies = [
 [[package]]
 name = "ssi-jws"
 version = "0.3.1"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 dependencies = [
  "base64 0.22.1",
  "blake2",
@@ -4275,7 +4275,7 @@ dependencies = [
 [[package]]
 name = "ssi-jwt"
 version = "0.3.1"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4298,7 +4298,7 @@ dependencies = [
 [[package]]
 name = "ssi-multicodec"
 version = "0.2.0"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 dependencies = [
  "csv",
  "ed25519-dalek",
@@ -4312,7 +4312,7 @@ dependencies = [
 [[package]]
 name = "ssi-rdf"
 version = "0.1.1"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 dependencies = [
  "combination",
  "indexmap 2.10.0",
@@ -4326,7 +4326,7 @@ dependencies = [
 [[package]]
 name = "ssi-sd-jwt"
 version = "0.3.1"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 dependencies = [
  "base64 0.22.1",
  "indexmap 2.10.0",
@@ -4345,7 +4345,7 @@ dependencies = [
 [[package]]
 name = "ssi-security"
 version = "0.1.0"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 dependencies = [
  "iref",
  "linked-data",
@@ -4358,7 +4358,7 @@ dependencies = [
 [[package]]
 name = "ssi-ssh"
 version = "0.2.1"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 dependencies = [
  "sshkeys",
  "ssi-jwk",
@@ -4368,7 +4368,7 @@ dependencies = [
 [[package]]
 name = "ssi-status"
 version = "0.5.0"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 dependencies = [
  "base64 0.22.1",
  "flate2",
@@ -4397,7 +4397,7 @@ dependencies = [
 [[package]]
 name = "ssi-ucan"
 version = "0.2.2"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 dependencies = [
  "base64 0.22.1",
  "bs58",
@@ -4423,7 +4423,7 @@ dependencies = [
 [[package]]
 name = "ssi-vc"
 version = "0.6.1"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 dependencies = [
  "base64 0.22.1",
  "bitvec",
@@ -4453,7 +4453,7 @@ dependencies = [
 [[package]]
 name = "ssi-vc-jose-cose"
 version = "0.4.0"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 dependencies = [
  "base64 0.22.1",
  "ciborium",
@@ -4473,7 +4473,7 @@ dependencies = [
 [[package]]
 name = "ssi-verification-methods"
 version = "0.1.3"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 dependencies = [
  "async-trait",
  "derivative",
@@ -4511,7 +4511,7 @@ dependencies = [
 [[package]]
 name = "ssi-verification-methods-core"
 version = "0.1.2"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 dependencies = [
  "bs58",
  "educe 0.4.23",
@@ -4535,7 +4535,7 @@ dependencies = [
 [[package]]
 name = "ssi-zcap-ld"
 version = "0.5.0"
-source = "git+https://github.com/chunningham/ssi?rev=f9d4e8c#f9d4e8cbc7ab2c4875b19113b1315edfb9271bbf"
+source = "git+https://github.com/chunningham/ssi?rev=137e3b1#137e3b1ff5fe8aad3f7f6c5b258375a4972f497e"
 dependencies = [
  "async-trait",
  "iref",
@@ -4821,7 +4821,7 @@ dependencies = [
 [[package]]
 name = "tinycloud-lib"
 version = "0.2.0"
-source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=50c7e50#50c7e502347a12e172ce4b91acc4159d69456ecd"
+source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=f424608#f424608e2f54a080817a0fedea32634c5afe210e"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -4845,7 +4845,7 @@ dependencies = [
 [[package]]
 name = "tinycloud-sdk-rs"
 version = "0.2.0"
-source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=50c7e50#50c7e502347a12e172ce4b91acc4159d69456ecd"
+source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=f424608#f424608e2f54a080817a0fedea32634c5afe210e"
 dependencies = [
  "async-trait",
  "hex",
@@ -4863,7 +4863,7 @@ dependencies = [
 [[package]]
 name = "tinycloud-sdk-wasm"
 version = "0.2.0"
-source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=50c7e50#50c7e502347a12e172ce4b91acc4159d69456ecd"
+source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=f424608#f424608e2f54a080817a0fedea32634c5afe210e"
 dependencies = [
  "chrono",
  "console_error_panic_hook",
