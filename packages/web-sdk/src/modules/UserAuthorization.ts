@@ -314,9 +314,6 @@ class UserAuthorizationConnected implements ITCWConnected {
       nonce: generateNonce(),
     };
 
-    console.log(walletAddress);
-    console.log(defaults.address);
-
     const siweConfig = merge(defaults, this.config.siweConfig);
     const siwe = this.builder.build(siweConfig);
     const signature = await signer.signMessage(siwe);
