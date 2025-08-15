@@ -28,7 +28,6 @@ declare global {
 
 function Home() {
   const location = useLocation();
-
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
   const { setOpen } = useModal();
@@ -54,7 +53,7 @@ function Home() {
   const [statement, setStatement] = useState<string>("");
   // tcw module config
   const [storageEnabled, setStorageEnabled] = useState<string>("On");
-  const [prefix, setPrefix] = useState<string>("default");
+  const [prefix, setPrefix] = useState<string>("demo-app");
   const [tinyCloudHost, setTinyCloudHost] = useState<string>("");
 
   // Parse URL parameters on component mount
@@ -102,7 +101,7 @@ function Home() {
     } else {
       // Configure storage with bucket
       const storageConfig: Record<string, any> = {
-        prefix: prefix.trim() || "default",
+        prefix: prefix.trim(),
       };
 
       // Add TinyCloud host if provided
@@ -293,8 +292,8 @@ function Home() {
                   value={prefix}
                   onChange={setPrefix}
                   className="w-full"
-                  helperText="The bucket will default to 'default' if left empty."
-                  placeholder="default"
+                  helperText="This will request access to the root directory if empty"
+                  placeholder="/"
                 />
               </div>
               {/* Storage Module toggle */}
