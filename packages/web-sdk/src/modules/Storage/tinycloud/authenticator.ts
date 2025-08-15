@@ -3,9 +3,9 @@ import {
   invoke,
   makeOrbitId,
   prepareSession,
-} from './module';
-import { WalletProvider } from './walletProvider';
-import { SessionConfig, Session } from './types';
+} from "./module";
+import { WalletProvider } from "./walletProvider";
+import { SessionConfig, Session } from "./types";
 
 export async function startSession(
   wallet: WalletProvider,
@@ -14,7 +14,7 @@ export async function startSession(
   const address = config?.address ?? (await wallet.getAddress());
   const chainId = config?.chainId ?? (await wallet.getChainId());
   const domain = config?.domain ?? window.location.hostname;
-  
+
   const sessionConfig = {
     address,
     chainId,
@@ -25,42 +25,34 @@ export async function startSession(
       config?.expirationTime ??
       new Date(Date.now() + 1000 * 60 * 60).toISOString(),
     actions: config?.actions ?? {
-      kv: { '': ['kv/put', 'kv/get', 'kv/list', 'kv/del', 'kv/metadata'] },
-      capabilities: { '': ['kv/read'] },
+      kv: { "default/": ["tinycloud.kv/put", "tinycloud.kv/get", "tinycloud.kv/list", "tinycloud.kv/del", "tinycloud.kv/metadata"] },
+      capabilities: { "all/": ["tinycloud.capabilities/read"] },
     },
-    orbitId: config?.orbitId ?? makeOrbitId(address, chainId),
+    orbitId: config?.orbitId ?? makeOrbitId(address, chainId, "default"),
     parents: config?.parents,
     jwk: config?.jwk,
   };
-  
-  const stringifiedConfig = JSON.stringify(sessionConfig);
-  
-  const preparedSessionString = await prepareSession(stringifiedConfig);
-  
-  const preparedSession = JSON.parse(preparedSessionString);
-  
+
+  const preparedSession = prepareSession(sessionConfig);
+
   const signature = await wallet.signMessage(preparedSession.siwe);
-  
+
   const sessionWithSignature = {
     ...preparedSession,
-    signature
+    signature,
   };
-  
-  const stringifiedSessionWithSignature = JSON.stringify(sessionWithSignature);
-  
-  const completedSessionString = await completeSessionSetup(stringifiedSessionWithSignature);
-  
-  const completedSession = JSON.parse(completedSessionString);
-  
-  return completedSession;
+
+  return completeSessionSetup(
+    sessionWithSignature
+  )
 }
 
 export async function activateSession(
   session: Session,
   url: string
 ): Promise<Authenticator> {
-  const res = await fetch(url + '/delegate', {
-    method: 'POST',
+  const res = await fetch(url + "/delegate", {
+    method: "POST",
     headers: session.delegationHeader,
   });
 
@@ -69,24 +61,22 @@ export async function activateSession(
   } else {
     throw {
       status: res.status,
-      msg: 'Failed to delegate to session key',
+      msg: "Failed to delegate to session key",
     };
   }
 }
 
 export class Authenticator {
-  private orbitId: string;
-  private serializedSession: string;
+  private session: Session;
   constructor(session: Session) {
-    this.orbitId = `${session.namespace}:${session.orbitId}`;
-    this.serializedSession = JSON.stringify(session);
+    this.session = session;
   }
 
-  invocationHeaders = async (
+  invocationHeaders = (
     service: string,
     action: string,
     path: string
-  ): Promise<HeadersInit> =>
-    invoke(this.serializedSession, service, path, action).then(JSON.parse);
-  getOrbitId = (): string => this.orbitId;
+  ): HeadersInit =>
+    invoke(this.session, service, path, action);
+  getOrbitId = (): string => this.session.orbitId;
 }

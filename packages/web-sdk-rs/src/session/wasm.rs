@@ -34,31 +34,19 @@ impl TCWSessionManager {
     }
 
     /// Build a SIWE message for signing.
-    pub async fn build(
+    pub fn build(
         self,
         config: SiweConfig,
         key_id: Option<String>,
         custom_uri: Option<String>,
     ) -> Result<String, JsValue> {
-        self.manager.build(config, key_id, custom_uri).await
-    }
-
-    #[allow(non_snake_case)]
-    /// Add default actions to a capability.
-    pub fn addDefaultActions(&mut self, namespace: &str, defaultActions: Vec<JsString>) -> bool {
-        self.manager.add_default_actions(namespace, defaultActions)
+        self.manager.build(config, key_id, custom_uri)
     }
 
     #[allow(non_snake_case)]
     /// Add actions for a specific target to a capability.
-    pub fn addTargetedActions(
-        &mut self,
-        namespace: &str,
-        target: String,
-        actions: Vec<JsString>,
-    ) -> bool {
-        self.manager
-            .add_targeted_actions(namespace, target, actions)
+    pub fn addTargetedActions(&mut self, target: String, actions: Vec<JsString>) -> bool {
+        self.manager.add_targeted_actions(target, actions)
     }
 
     #[allow(non_snake_case)]
@@ -90,7 +78,7 @@ impl TCWSessionManager {
 
     #[allow(non_snake_case)]
     /// Rename the key_id to retrieve session data.
-    pub async fn renameSessionKeyId(
+    pub fn renameSessionKeyId(
         &mut self,
         old_key_id: String,
         new_key_id: String,
@@ -100,8 +88,8 @@ impl TCWSessionManager {
 
     #[allow(non_snake_case)]
     /// Get the DID associated with a the session key key_id.
-    pub async fn getDID(&self, key_id: Option<String>) -> Result<String, String> {
-        self.manager.get_did(key_id).await
+    pub fn getDID(&self, key_id: Option<String>) -> Result<String, String> {
+        self.manager.get_did(key_id)
     }
 
     /// Get the full JWK associated with a the session key key_id.

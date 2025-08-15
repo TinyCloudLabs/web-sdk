@@ -6,21 +6,14 @@ use serde_json::Value;
 use tinycloud_sdk_rs::tinycloud_lib::{
     cacaos::siwe::{generate_nonce, Message, Version as SiweVersion},
     siwe_recap::{Ability, Capability},
-    ssi::{
-        dids::DIDKey,
-        // did::{DIDMethod, Source},
-        jwk::JWK,
-        // vc::get_verification_method,
-    },
+    ssi::{dids::DIDKey, jwk::JWK},
 };
 use wasm_bindgen::prelude::*;
 use web_sys::console::error_1 as console_error;
 
-// use crate::session::*;
-
 use super::types::*;
 
-use tinycloud_sdk_rs::session::Session;
+use tinycloud_sdk_wasm::session::Session;
 
 #[derive(Debug, Default)]
 pub struct SessionInfo {
@@ -67,7 +60,7 @@ impl SessionManager {
     }
 
     /// Build a SIWE message for signing.
-    pub async fn build(
+    pub fn build(
         self,
         config: SiweConfig,
         key_id: Option<String>,
@@ -75,7 +68,7 @@ impl SessionManager {
     ) -> Result<String, JsValue> {
         let did_uri_string = match custom_uri {
             Some(uri) => uri,
-            None => self.get_did(key_id).await?,
+            None => self.get_did(key_id)?,
         };
 
         let uri = iri_string::types::UriString::from_str(&did_uri_string)
@@ -85,7 +78,10 @@ impl SessionManager {
             .domain()
             .parse()
             .map_err(|e| format!("failed to parse the domain as an authority: {}", e))?;
-        let address = crate::session::util::hex_to_bytes(&config.address())?;
+        let addr = config.address();
+        let address =
+            tinycloud_sdk_rs::util::decode_eip55(addr.strip_prefix("0x").unwrap_or(&addr))
+                .map_err(|e| format!("failed to parse '{}' as an Eth Address: {}", addr, e))?;
         let nonce = config.nonce().unwrap_or_else(generate_nonce);
         let parse_date_err = |e| format!("unable to parse timestamp from string: {}", e);
         let issued_at = config.issuedAt().parse().map_err(parse_date_err)?;
@@ -132,51 +128,8 @@ impl SessionManager {
         Ok(siwe.to_string())
     }
 
-    /// Add default actions to a capability.
-    pub fn add_default_actions(&mut self, namespace: &str, default_actions: Vec<JsString>) -> bool {
-        let actions: Vec<String> = if let Some(actions) = default_actions
-            .iter()
-            .map(|js_string| js_string.as_string())
-            .collect()
-        {
-            actions
-        } else {
-            string_conversion_error();
-            return false;
-        };
-
-        for action in actions {
-            // Format the namespace as a URI pattern and parse it
-            let target = format!("{}:*", namespace);
-            // Parse the target string into a URI
-            let target_uri = match target.parse::<UriString>() {
-                Ok(uri) => uri,
-                Err(e) => {
-                    console_error(&format!("Failed to parse URI: {}", e).into());
-                    return false;
-                }
-            };
-
-            // Convert action string to &str to satisfy trait bounds
-            if let Err(e) = self.capability.with_action_convert(
-                target_uri,
-                action.as_str(), // Use as_str() instead of &action
-                Vec::<std::collections::BTreeMap<String, Value>>::new(),
-            ) {
-                console_error(&format!("Failed to add action: {}", e).into());
-                return false;
-            }
-        }
-        true
-    }
-
     /// Add actions for a specific target to a capability.
-    pub fn add_targeted_actions(
-        &mut self,
-        namespace: &str,
-        target: String,
-        actions: Vec<JsString>,
-    ) -> bool {
+    pub fn add_targeted_actions(&mut self, target: String, actions: Vec<JsString>) -> bool {
         let actions: Vec<String> = if let Some(actions) = actions
             .iter()
             .map(|js_string| js_string.as_string())
@@ -189,11 +142,10 @@ impl SessionManager {
         };
 
         // Create a properly formatted resource URI
-        let resource = format!("{}:{}", namespace, target);
 
         for action in actions {
             if let Err(e) = self.capability.with_action_convert(
-                resource.parse::<UriString>().unwrap(),
+                target.parse::<UriString>().unwrap(),
                 action.parse::<Ability>().unwrap(),
                 Vec::<std::collections::BTreeMap<String, Value>>::new(),
             ) {
@@ -271,7 +223,7 @@ impl SessionManager {
         Ok(())
     }
 
-    pub async fn get_did(&self, key_id: Option<String>) -> Result<String, String> {
+    pub fn get_did(&self, key_id: Option<String>) -> Result<String, String> {
         let did = DIDKey::generate(&self.get_private_key(key_id)?)
             .map_err(|e| format!("unable to generate the DID of the session key: {e}"))?;
         // let did_vm = get_verification_method(&did, &didkey).await.ok_or(format!(
@@ -403,7 +355,7 @@ pub mod test {
     #[tokio::test]
     async fn test_get_did() {
         let manager = SessionManager::new().unwrap();
-        let result = manager.get_did(None).await;
+        let result = manager.get_did(None);
         assert!(result.is_ok());
     }
 

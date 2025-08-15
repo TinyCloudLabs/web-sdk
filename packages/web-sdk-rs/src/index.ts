@@ -24,4 +24,5 @@ export namespace tinycloud {
   export import Session = lib.Session;
   export import SessionConfig = lib.SessionConfig;
   export import HostConfig = lib.HostConfig;
+  export import ensureEip55 = lib.ensureEip55;
 }
