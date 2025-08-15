@@ -1,5 +1,12 @@
 # @tinycloudlabs/web-sdk
 
+## 0.2.2
+
+### Patch Changes
+
+- 6db4556: Add support for saved sessions in the TinyCloud SDK
+- cfc0696: Remove `eval` in production builds
+
 ## 0.2.1
 
 ### Patch Changes
