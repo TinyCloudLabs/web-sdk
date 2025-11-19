@@ -13,8 +13,12 @@ for package in "${packages[@]}"; do
   rm -rf "$package/node_modules"
   rm -rf "$package/dist"
   rm -rf "$package/temp"
+  rm -rf "$package/pkg"
 done
 
 # Clean root node_modules
 echo "Cleaning root node_modules..."
 rm -rf node_modules
+
+echo "Cleaning rust artifacts..."
+rm -rf target

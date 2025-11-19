@@ -35,7 +35,6 @@ Creates a new instance of the TinyCloudStorage class.
 
 | Name | Type | Description |
 |------|------|-------------|
-| `namespace` | `string` | The namespace identifier for TinyCloud storage. Default: `'tinycloud'` |
 | `prefix` | `string` | The prefix used for all storage operations. |
 | `storageId` | `string \| undefined` | The user's storage identifier. |
 | `domain` | `string \| undefined` | The domain to display in the SIWE message. |
@@ -102,9 +101,9 @@ Lists keys in storage, optionally filtered by path.
 
 **Example:**
 ```typescript
-const response = await storage.list({ 
-  path: 'folder', 
-  removePrefix: true 
+const response = await storage.list({
+  path: 'folder',
+  removePrefix: true
 });
 console.log(response.data); // List of keys
 ```

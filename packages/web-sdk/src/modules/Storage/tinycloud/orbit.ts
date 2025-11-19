@@ -134,15 +134,15 @@ export class OrbitConnection {
       const data = !ok
         ? undefined
         : streamBody
-        ? response.body
-        : await // content type was not stored, let the caller decide how to handle the blob
-          (!type
-            ? response.blob()
-            : type.startsWith('text/')
-            ? response.text()
-            : type === 'application/json'
-            ? response.json()
-            : response.blob());
+          ? response.body
+          : await // content type was not stored, let the caller decide how to handle the blob
+            (!type
+              ? response.blob()
+              : type.startsWith('text/')
+                ? response.text()
+                : type === 'application/json'
+                  ? response.json()
+                  : response.blob());
       return { ok, status, statusText, headers, data };
     };
 
@@ -207,8 +207,8 @@ export class OrbitConnection {
       const data = !ok
         ? undefined
         : streamBody
-        ? response.body
-        : await response.json();
+          ? response.body
+          : await response.json();
 
       return { ok, status, statusText, headers, data };
     };
@@ -289,14 +289,14 @@ export const hostOrbit = async (
     orbitId,
     peerId,
   };
-  const siwe = generateHostSIWEMessage(JSON.stringify(config));
+  const siwe = generateHostSIWEMessage(config);
   const signature = await wallet.signMessage(siwe);
   const hostHeaders = siweToDelegationHeaders(
-    JSON.stringify({ siwe, signature })
+    { siwe, signature }
   );
   return fetch(tinycloudUrl + '/delegate', {
     method: 'POST',
-    headers: JSON.parse(hostHeaders),
+    headers: hostHeaders,
   }).then(({ ok, status, statusText, headers }: FetchResponse) => ({
     ok,
     status,
