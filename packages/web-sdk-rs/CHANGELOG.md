@@ -1,5 +1,11 @@
 # @tinycloudlabs/web-sdk-wasm
 
+## 0.3.0
+
+### Minor Changes
+
+- 91c8c4d: Update capability formation and usage to match TinyCloud node changes
+
 ## 0.2.1
 
 ### Patch Changes
