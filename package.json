@@ -15,7 +15,7 @@
     "lint": "turbo lint",
     "clean": "./scripts/clean.sh",
     "doc": "turbo doc",
-    "dev:apps": "turbo dev --filter=./apps/*",
+    "dev:apps": "turbo dev --filter=./apps/web-sdk-example",
     "web-core": "bun --cwd packages/web-core -c",
     "web-sdk": "bun --cwd packages/web-sdk -c",
     "web-sdk-rs": "bun --cwd packages/web-sdk-rs -c",
