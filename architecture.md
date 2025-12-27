@@ -171,9 +171,9 @@ interface TinyCloudStorage {
   list(options?: ListOptions): Promise<string[]>
   delete(key: string, options?: DeleteOptions): Promise<void>
   
-  // Orbit Management
-  orbitId(): string
-  createOrbit(name?: string): Promise<string>
+  // Namespace Management
+  namespaceId(): string
+  createNamespace(name?: string): Promise<string>
   
   // Sharing & Delegation
   createSharingLink(key: string): Promise<string>
@@ -264,7 +264,7 @@ pub struct TCWSessionManager {
 #### Integration with TinyCloud Protocol
 ```rust
 use tinycloud_sdk_wasm::{
-    makeOrbitId, prepareSession, completeSessionSetup,
+    makeNamespaceId, prepareSession, completeSessionSetup,
     invoke, generateHostSIWEMessage, siweToDelegationHeaders
 };
 ```
@@ -351,12 +351,12 @@ graph TB
     subgraph "SDK Layer"
         B[TinyCloudStorage]
         C[Session Delegation]
-        D[Orbit Management]
+        D[Namespace Management]
     end
     
     subgraph "TinyCloud Network"
         E[TinyCloud Node]
-        F[User Orbit]
+        F[User Namespace]
         G[Shared Data]
         H[Capability Validation]
     end
@@ -395,14 +395,14 @@ sequenceDiagram
     Storage->>WASM: prepareSession(sessionData)
     WASM-->>Storage: prepared session headers
     
-    Storage->>Node: POST /orbit/{orbitId}/{key}
+    Storage->>Node: POST /namespace/{namespaceId}/{key}
     Note over Storage,Node: Headers: session delegation
     Node-->>Storage: storage confirmation
-    
+
     Storage-->>App: operation complete
-    
+
     App->>Storage: get(key, options)
-    Storage->>Node: GET /orbit/{orbitId}/{key}
+    Storage->>Node: GET /namespace/{namespaceId}/{key}
     Node-->>Storage: encrypted data
     Storage-->>App: decrypted value
 ```
@@ -568,7 +568,7 @@ tcw.extend(customExtension);
 ## Future Architecture Considerations
 
 ### Scalability
-- **Orbit Federation**: Multi-node data distribution
+- **Namespace Federation**: Multi-node data distribution
 - **Caching Layers**: Client-side and CDN optimization
 - **Load Balancing**: Intelligent node selection
 

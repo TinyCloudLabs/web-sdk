@@ -12,9 +12,9 @@ function getModule(): TinyCloudModule {
   }
 }
 
-export const makeOrbitId: TinyCloudModule['makeOrbitId'] = (...args) => {
+export const makeNamespaceId: TinyCloudModule['makeNamespaceId'] = (...args) => {
   try {
-    return getModule().makeOrbitId(...args);
+    return getModule().makeNamespaceId(...args);
   } catch (e) {
     throw `${msg}: ${e}`;
   }

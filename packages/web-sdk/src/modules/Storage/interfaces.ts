@@ -96,7 +96,7 @@ interface IStorage extends TCWExtension {
 
 // TODO: Document this interface
 export interface ITinyCloud extends IStorage {
-  hostOrbit(tcwSession?: TCWClientSession): Promise<void>;
+  hostNamespace(tcwSession?: TCWClientSession): Promise<void>;
   activateSession(
     tcwSession?: TCWClientSession,
     onError?: () => void
@@ -123,12 +123,12 @@ interface ITinyCloudStorageConfig extends IStorageConfig {
    */
   hosts?: string[];
   /**
-   * Automatically create a new orbit if one does not exist.
-   * If this is false, you will need to manually create an orbit before using
+   * Automatically create a new namespace if one does not exist.
+   * If this is false, you will need to manually create a namespace before using
    * the storage operations on TinyCloudDataVault.
    * @default true
    */
-  autoCreateNewOrbit?: boolean;
+  autoCreateNewNamespace?: boolean;
 }
 
 export { IStorage, IStorageConfig, ITinyCloudStorageConfig };

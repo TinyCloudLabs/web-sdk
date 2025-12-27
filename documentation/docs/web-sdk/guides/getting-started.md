@@ -56,7 +56,7 @@ const tc = new TinyCloudWeb({
   storage: {
     hosts: ['https://node.tinycloud.xyz'], // TinyCloud host endpoints
     prefix: 'myApp', // Prefix for all storage operations
-    autoCreateNewOrbit: true, // Automatically create a new orbit if one doesn't exist
+    autoCreateNewNamespace: true, // Automatically create a new namespace if one doesn't exist
   },
   
   // SIWE (Sign-In with Ethereum) configuration

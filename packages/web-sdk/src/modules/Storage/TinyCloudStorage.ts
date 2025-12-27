@@ -9,14 +9,14 @@ import {
 } from "@tinycloudlabs/web-core/client";
 import { generateNonce, SiweMessage } from "siwe";
 import {
-  OrbitConnection,
+  NamespaceConnection,
   activateSession,
-  hostOrbit,
+  hostNamespace,
   Response,
   Session,
   Authenticator,
 } from "./tinycloud";
-import { makeOrbitId } from "./tinycloud/module";
+import { makeNamespaceId } from "./tinycloud/module";
 import {
   IStorage,
   ITinyCloud,
@@ -27,7 +27,7 @@ import {
 } from "./interfaces";
 import { IUserAuthorization, UserAuthorizationConnected } from "../..";
 import { dispatchSDKEvent } from "../../notifications/ErrorHandler";
-import { showOrbitCreationModal } from "../../notifications/ModalManager";
+import { showNamespaceCreationModal } from "../../notifications/ModalManager";
 import { debug } from "../../utils/debug";
 import {
   SessionPersistence,
@@ -67,7 +67,7 @@ export type DelegateResponse = {
  */
 export class TinyCloudStorage implements IStorage, ITinyCloud {
   /**
-   * The name of the Storage Extension
+   * The name of the Storage Extension (required by TCWExtension interface)
    * @public
    */
   public namespace: string = "tinycloud";
@@ -85,10 +85,10 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
   private hosts: string[];
 
   /**
-   * Whether to automatically create a new orbit if one doesn't exist.
+   * Whether to automatically create a new namespace if one doesn't exist.
    * @private
    */
-  private autoCreateNewOrbit: boolean;
+  private autoCreateNewNamespace: boolean;
 
   /**
    * User authorization service for authentication.
@@ -103,16 +103,16 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
   private tinycloudModule?: any;
 
   /**
-   * The user's orbit identifier.
+   * The user's namespace identifier.
    * @public
    */
-  public orbitId?: string;
+  public namespaceId?: string;
 
   /**
-   * The connection to the orbit.
+   * The connection to the namespace.
    * @private
    */
-  private _orbit?: OrbitConnection;
+  private _namespace?: NamespaceConnection;
 
   /**
    * Session Manager. Holds session keys and session objects.
@@ -138,7 +138,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
    * @param config - Configuration options for TinyCloud storage
    * @param config.hosts - Optional array of TinyCloud host endpoints
    * @param config.prefix - Optional prefix to use for all storage operations
-   * @param config.autoCreateNewOrbit - Whether to automatically create a new orbit if one doesn't exist
+   * @param config.autoCreateNewNamespace - Whether to automatically create a new namespace if one doesn't exist
    * @param userAuth - User authorization interface for authentication
    *
    * @public
@@ -147,10 +147,10 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
     this.userAuth = userAuth;
     this.hosts = [...(config?.hosts || []), "https://node.tinycloud.xyz"];
     this.prefix = config?.prefix || "";
-    this.autoCreateNewOrbit =
-      config?.autoCreateNewOrbit === undefined
+    this.autoCreateNewNamespace =
+      config?.autoCreateNewNamespace === undefined
         ? true
-        : config?.autoCreateNewOrbit;
+        : config?.autoCreateNewNamespace;
 
     // Initialize session persistence
     this.sessionPersistence = new SessionPersistence();
@@ -165,21 +165,29 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
     this.tinycloudModule = tinycloudModule;
     this.sessionManager = sessionManager;
 
-    const address = await tcw.provider.getSigner().getAddress();
-    const chain = await tcw.provider.getSigner().getChainId();
+    const signer = tcw.provider.getSigner();
+    const address = await signer.getAddress();
+    const chain = await signer.getChainId();
 
-    this.orbitId = makeOrbitId(address, chain, "default");
-    this.domain = tcw.config.siweConfig?.domain;
+    if (!address || typeof address !== 'string') {
+      throw new Error(`TinyCloud: Invalid wallet address: ${address}`);
+    }
+    if (chain === undefined || chain === null) {
+      throw new Error(`TinyCloud: Invalid chain ID: ${chain}`);
+    }
+
+    this.namespaceId = makeNamespaceId(address, Number(chain), "default");
+    this.domain = tcw.config.siweConfig?.domain || window.location.hostname;
     return {};
   }
 
   public async targetedActions(): Promise<{ [target: string]: string[] }> {
     const actions = {};
 
-    actions[`${this.orbitId}/capabilities/all`] = [
+    actions[`${this.namespaceId}/capabilities/all`] = [
       "tinycloud.capabilities/read",
     ];
-    actions[`${this.orbitId}/kv/${this.prefix}`] = [
+    actions[`${this.namespaceId}/kv/${this.prefix}`] = [
       "tinycloud.kv/put",
       "tinycloud.kv/get",
       "tinycloud.kv/list",
@@ -200,13 +208,33 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
       this.sessionManager = sessionManager;
     }
 
+    // Validate required fields before calling WASM
+    if (!this.namespaceId || typeof this.namespaceId !== 'string') {
+      throw new Error(`TinyCloud: Invalid namespaceId: ${this.namespaceId}. Did afterConnect complete?`);
+    }
+    if (!tcwSession.siwe || typeof tcwSession.siwe !== 'string') {
+      throw new Error(`TinyCloud: Invalid SIWE message: ${tcwSession.siwe}`);
+    }
+    if (!tcwSession.signature || typeof tcwSession.signature !== 'string') {
+      throw new Error(`TinyCloud: Invalid signature: ${tcwSession.signature}`);
+    }
+    if (!tcwSession.sessionKey) {
+      throw new Error('TinyCloud: Missing session key');
+    }
+
+    const siweMessage = new SiweMessage(tcwSession.siwe);
+    const verificationMethod = siweMessage.uri;
+    if (!verificationMethod || typeof verificationMethod !== 'string') {
+      throw new Error(`TinyCloud: Invalid verification method from SIWE: ${verificationMethod}`);
+    }
+
     const sessionData = {
       jwk: JSON.parse(tcwSession.sessionKey),
-      orbitId: this.orbitId,
+      namespaceId: this.namespaceId,
       service: "kv",
       siwe: tcwSession.siwe,
       signature: tcwSession.signature,
-      verificationMethod: new SiweMessage(tcwSession.siwe).uri,
+      verificationMethod,
     };
 
     const session = this.tinycloudModule.completeSessionSetup(sessionData);
@@ -214,7 +242,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
       debug.error('Session created without delegationHeader:', {
         hasDelegationCid: !!session?.delegationCid,
         hasJwk: !!session?.jwk,
-        orbitId: this.orbitId,
+        namespaceId: this.namespaceId,
       });
     }
     return session;
@@ -230,7 +258,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
     if (persistedSession) {
       // Use existing delegation
       const authn = new Authenticator(persistedSession);
-      this._orbit = new OrbitConnection(tinycloudHost, authn);
+      this._namespace = new NamespaceConnection(tinycloudHost, authn);
       return;
     }
 
@@ -240,7 +268,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
     debug.log('Activating session:', {
       host: tinycloudHost,
       hasDelegationHeader: !!session?.delegationHeader,
-      orbitId: this.orbitId,
+      namespaceId: this.namespaceId,
     });
 
     let authn;
@@ -260,14 +288,14 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
         );
       }
 
-      if (this.autoCreateNewOrbit === true) {
-        await this.showOrbitCreationModal(tcwSession);
+      if (this.autoCreateNewNamespace === true) {
+        await this.showNamespaceCreationModal(tcwSession);
         return;
       }
     }
 
     if (authn) {
-      this._orbit = new OrbitConnection(tinycloudHost, authn);
+      this._namespace = new NamespaceConnection(tinycloudHost, authn);
 
       // Persist the new TinyCloud session
       await this.persistTinyCloudSession(session, tcwSession);
@@ -290,11 +318,18 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
         return null;
       }
 
+      // Clear sessions from before orbit→namespace migration that have orbitId instead of namespaceId
+      if (!persistedSession.tinycloudSession.namespaceId) {
+        debug.log('Clearing legacy session without namespaceId');
+        await this.sessionPersistence.clearSession(tcwSession.address);
+        return null;
+      }
+
       const session: Session = {
         delegationHeader: persistedSession.tinycloudSession.delegationHeader,
         delegationCid: persistedSession.tinycloudSession.delegationCid,
         jwk: JSON.parse(tcwSession.sessionKey),
-        orbitId: persistedSession.tinycloudSession.orbitId,
+        namespaceId: persistedSession.tinycloudSession.namespaceId,
         verificationMethod:
           persistedSession.tinycloudSession.verificationMethod,
       };
@@ -322,7 +357,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
       const tinycloudSessionData = {
         delegationHeader: session.delegationHeader,
         delegationCid: session.delegationCid,
-        orbitId: session.orbitId,
+        namespaceId: session.namespaceId,
         verificationMethod: session.verificationMethod,
       };
 
@@ -353,8 +388,14 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
     }
   }
 
-  get orbit(): OrbitConnection {
-    if (!this._orbit) {
+  /**
+   * Gets the active namespace connection.
+   * Note: This is the TinyCloud user namespace (data container), not to be confused with
+   * ReCap ability namespaces (action categories like "kv", "tinycloud.kv").
+   * @private
+   */
+  get namespaceConnection(): NamespaceConnection {
+    if (!this._namespace) {
       dispatchSDKEvent.error(
         "storage.not_connected",
         "TinyCloudStorage is not connected",
@@ -362,7 +403,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
       );
       throw new Error("TinyCloudStorage is not connected");
     }
-    return this._orbit;
+    return this._namespace;
   }
 
   /**
@@ -388,7 +429,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
       prefix: this.prefix,
     };
     const { prefix, request } = { ...defaultOptions, ...options };
-    return this.orbit.get(`${prefix}/${key}`, request);
+    return this.namespaceConnection.get(`${prefix}/${key}`, request);
   }
 
   /**
@@ -417,7 +458,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
     };
     const { prefix, request } = { ...defaultOptions, ...options };
     try {
-      const response = await this.orbit.put(
+      const response = await this.namespaceConnection.put(
         `${prefix || this.prefix}/${key}`,
         value,
         request
@@ -465,7 +506,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
       ...options,
     };
     const p = path ? `${prefix}/${path}` : `${prefix}/`;
-    const response = await this.orbit.list(prefix, request);
+    const response = await this.namespaceConnection.list(prefix, request);
     // remove prefix from keys
     return removePrefix
       ? { ...response, data: response.data.map((key) => key.slice(p.length)) }
@@ -494,14 +535,14 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
       prefix: this.prefix,
     };
     const { prefix, request } = { ...defaultOptions, ...options };
-    return this.orbit.delete(`${prefix}/${key}`, request);
+    return this.namespaceConnection.delete(`${prefix}/${key}`, request);
   }
 
   public async deleteAll(prefix?: string): Promise<Response[]> {
     if (prefix) {
-      return this.orbit.deleteAll(`${this.prefix}/${prefix}`);
+      return this.namespaceConnection.deleteAll(`${this.prefix}/${prefix}`);
     } else {
-      return this.orbit.deleteAll(this.prefix);
+      return this.namespaceConnection.deleteAll(this.prefix);
     }
   }
 
@@ -518,7 +559,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
 
       const tinycloudHost = this.hosts[0];
       await activateSession(session, tinycloudHost).then((authn) => {
-        this._orbit = new OrbitConnection(tinycloudHost, authn);
+        this._namespace = new NamespaceConnection(tinycloudHost, authn);
       });
       return true;
     } catch (error) {
@@ -529,53 +570,53 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
     }
   }
 
-  private async showOrbitCreationModal(
+  private async showNamespaceCreationModal(
     tcwSession: TCWClientSession
   ): Promise<void> {
-    const result = await showOrbitCreationModal({
-      onCreateOrbit: async () => {
-        await this.hostOrbit(tcwSession);
-        // If we reach here, orbit creation succeeded
-        dispatchSDKEvent.success("Orbit created successfully");
+    const result = await showNamespaceCreationModal({
+      onCreateNamespace: async () => {
+        await this.hostNamespace(tcwSession);
+        // If we reach here, namespace creation succeeded
+        dispatchSDKEvent.success("TinyCloud Namespace created successfully");
       },
       onDismiss: () => {
-        // Modal dismissed without creating orbit
+        // Modal dismissed without creating namespace
         // No further action needed as per requirements
       },
     });
 
-    // Modal completed - either orbit was created or user dismissed
+    // Modal completed - either namespace was created or user dismissed
     // In both cases, afterSignIn() can now complete
   }
 
-  public async hostOrbit(tcwSession?: TCWClientSession): Promise<void> {
+  public async hostNamespace(tcwSession?: TCWClientSession): Promise<void> {
     const tinycloudHost = this.hosts[0];
-    const { status: hostStatus, statusText } = await hostOrbit(
+    const { status: hostStatus, statusText } = await hostNamespace(
       this.userAuth.getSigner(),
       tinycloudHost,
-      this.orbitId,
+      this.namespaceId,
       this.domain
     );
 
     if (hostStatus !== 200) {
       dispatchSDKEvent.error(
-        "storage.orbit_creation_failed",
-        "Failed to open new TinyCloud Orbit",
+        "storage.namespace_creation_failed",
+        "Failed to create your TinyCloud Namespace",
         statusText
       );
-      throw new Error(`Failed to open new TinyCloud Orbit: ${statusText}`);
+      throw new Error(`Failed to create your TinyCloud Namespace: ${statusText}`);
     }
 
     const sessionActivated = await this.activateSession(tcwSession, () => {
       dispatchSDKEvent.error(
         "storage.session_not_found",
-        "Session not found. You must be signed in to host an orbit"
+        "Session not found. You must be signed in to host a namespace"
       );
     });
 
     if (!sessionActivated) {
       throw new Error(
-        "Session not found. You must be signed in to host an orbit"
+        "Session not found. You must be signed in to host a namespace"
       );
     }
   }
@@ -632,7 +673,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
     const delegateDID = await this.sessionManager.getDID(keyId);
 
     // get file target + permissions
-    const target = `${this.orbitId}/kv/${path}`;
+    const target = `${this.namespaceId}/kv/${path}`;
     const actions = ["kv/get", "kv/metadata"];
 
     // delegate permission to target
@@ -695,8 +736,8 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
     // activate session and retrieve data
     try {
       const authn = await activateSession(session, tinycloudHost);
-      const orbit = new OrbitConnection(tinycloudHost, authn);
-      const response = await orbit.get(path);
+      const namespace = new NamespaceConnection(tinycloudHost, authn);
+      const response = await namespace.get(path);
       return response;
     } catch (error: any) {
       const status = error?.status;

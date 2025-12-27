@@ -1,5 +1,5 @@
 import { startSession, activateSession } from './authenticator';
-import { hostOrbit, OrbitConnection } from './orbit';
+import { hostNamespace, NamespaceConnection } from './namespace';
 import { WalletProvider } from './walletProvider';
 import { SessionConfig } from './types';
 
@@ -19,7 +19,7 @@ export class TinyCloud {
   private wallet: WalletProvider;
 
   /**
-   * @param wallet The controller of the orbit that you wish to access.
+   * @param wallet The controller of the namespace that you wish to access.
    * @param config Optional configuration for TinyCloud.
    */
   constructor(wallet: WalletProvider, config: TinyCloudOptions) {
@@ -29,24 +29,24 @@ export class TinyCloud {
     this.wallet = wallet;
   }
 
-  /** Make a connection to an orbit.
+  /** Make a connection to a namespace.
    *
-   * This method handles the creation and connection to an orbit in TinyCloud. This method should
+   * This method handles the creation and connection to a namespace in TinyCloud. This method should
    * usually be used without providing any ConnectionOptions:
    * ```ts
-   * let orbitConnection = await tinycloud.orbit();
+   * let namespaceConnection = await tinycloud.namespace();
    * ```
-   * In this case the orbit ID will be derived from the wallet's address. The wallet will be
-   * asked to sign a message delegating access to a session key for 1 hour. If the orbit does not
+   * In this case the namespace ID will be derived from the wallet's address. The wallet will be
+   * asked to sign a message delegating access to a session key for 1 hour. If the namespace does not
    * already exist in the TinyCloud instance, then the wallet will be asked to sign another message
-   * to permit the TinyCloud instance to host the orbit.
+   * to permit the TinyCloud instance to host the namespace.
    *
-   * @param config Optional parameters to configure the orbit connection.
-   * @returns Returns undefined if the TinyCloud instance was unable to host the orbit.
+   * @param config Optional parameters to configure the namespace connection.
+   * @returns Returns undefined if the TinyCloud instance was unable to host the namespace.
    */
-  async orbit(
+  async namespace(
     config: Partial<SessionConfig> = {}
-  ): Promise<OrbitConnection | undefined> {
+  ): Promise<NamespaceConnection | undefined> {
     // TODO: support multiple urls for tinycloud.
     const tinycloudUrl = this.config.hosts[0];
     const sessionInfo = await startSession(this.wallet, config);
@@ -54,22 +54,22 @@ export class TinyCloud {
     return await activateSession(sessionInfo, tinycloudUrl)
       .catch(async ({ status, msg }) => {
         if (status === 404) {
-          const { status: hostStatus, statusText } = await hostOrbit(
+          const { status: hostStatus, statusText } = await hostNamespace(
             this.wallet,
             tinycloudUrl,
-            sessionInfo.orbitId,
+            sessionInfo.namespaceId,
             config.domain
           );
           if (hostStatus === 200) {
             return await activateSession(sessionInfo, tinycloudUrl);
           } else {
-            throw new Error('Failed to open new Orbit: ' + statusText);
+            throw new Error('Failed to open new Namespace: ' + statusText);
           }
         } else {
           throw new Error('Failed to delegate to session key: ' + msg);
         }
       })
-      .then(authn => new OrbitConnection(tinycloudUrl, authn));
+      .then(authn => new NamespaceConnection(tinycloudUrl, authn));
   }
 }
 

@@ -1,7 +1,7 @@
 import {
   completeSessionSetup,
   invoke,
-  makeOrbitId,
+  makeNamespaceId,
   prepareSession,
 } from "./module";
 import { WalletProvider } from "./walletProvider";
@@ -28,7 +28,7 @@ export async function startSession(
       kv: { "default/": ["tinycloud.kv/put", "tinycloud.kv/get", "tinycloud.kv/list", "tinycloud.kv/del", "tinycloud.kv/metadata"] },
       capabilities: { "all/": ["tinycloud.capabilities/read"] },
     },
-    orbitId: config?.orbitId ?? makeOrbitId(address, chainId, "default"),
+    namespaceId: config?.namespaceId ?? makeNamespaceId(address, chainId, "default"),
     parents: config?.parents,
     jwk: config?.jwk,
   };
@@ -78,5 +78,5 @@ export class Authenticator {
     path: string
   ): HeadersInit =>
     invoke(this.session, service, path, action);
-  getOrbitId = (): string => this.session.orbitId;
+  getNamespaceId = (): string => this.session.namespaceId;
 }
