@@ -4,6 +4,7 @@ import {
   SessionPersistenceConfig,
   DEFAULT_PERSISTENCE_CONFIG,
 } from './types';
+import { debug } from '../../utils/debug';
 
 /**
  * Handles secure persistence and retrieval of session data
@@ -38,7 +39,7 @@ export class SessionPersistence {
         this.getStorage().setItem(storageKey, JSON.stringify(session));
       }
     } catch (error) {
-      console.warn('Failed to save session:', error);
+      debug.warn('Failed to save session:', error);
       // Don't throw - persistence is not critical
     }
   }
@@ -71,7 +72,7 @@ export class SessionPersistence {
 
       return session;
     } catch (error) {
-      console.warn('Failed to load session:', error);
+      debug.warn('Failed to load session:', error);
       await this.clearSession(address);
       return null;
     }
@@ -87,7 +88,7 @@ export class SessionPersistence {
       const storageKey = this.getStorageKey(address);
       this.getStorage().removeItem(storageKey);
     } catch (error) {
-      console.warn('Failed to clear session:', error);
+      debug.warn('Failed to clear session:', error);
     }
   }
 
@@ -123,7 +124,7 @@ export class SessionPersistence {
 
       keysToRemove.forEach(key => storage.removeItem(key));
     } catch (error) {
-      console.warn('Failed to clear expired sessions:', error);
+      debug.warn('Failed to clear expired sessions:', error);
     }
   }
 

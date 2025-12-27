@@ -12,6 +12,7 @@ import {
 } from "@tinycloudlabs/web-core/client";
 import { dispatchSDKEvent } from "../notifications/ErrorHandler";
 import { WasmInitializer } from "./WasmInitializer";
+import { debug } from "../utils/debug";
 import {
   SessionPersistence,
   PersistedSession,
@@ -147,7 +148,7 @@ class UserAuthorizationInit {
         );
       } catch (err) {
         // Provider creation error
-        console.error(err);
+        debug.error(err);
         dispatchSDKEvent.error(
           "auth.provider_creation_failed",
           "Failed to create Web3 provider",
@@ -170,7 +171,7 @@ class UserAuthorizationInit {
           ]);
         } catch (err) {
           // Permission rejected error
-          console.error(err);
+          debug.error(err);
           if (err.code === 4001) {
             dispatchSDKEvent.error(
               "auth.signature_rejected",
@@ -200,7 +201,7 @@ class UserAuthorizationInit {
       );
     } catch (err) {
       // TCW wasm related error
-      console.error(err);
+      debug.error(err);
       dispatchSDKEvent.error(
         "wasm.initialization_failed",
         "Failed to initialize security module",
@@ -314,7 +315,7 @@ class UserAuthorizationConnected implements ITCWConnected {
 
     const siweConfig = merge(defaults, this.config.siweConfig);
     const siwe = this.builder.build(siweConfig);
-    console.log(siwe);
+    debug.log(siwe);
     const signature = await signer.signMessage(siwe);
 
     let session = {
@@ -399,7 +400,7 @@ class UserAuthorization implements IUserAuthorization {
     } catch (err) {
       // ERROR:
       // Something went wrong when connecting or creating Session (wasm)
-      console.error(err);
+      debug.error(err);
       dispatchSDKEvent.error(
         "auth.connection_failed",
         "Failed to establish wallet connection",
@@ -445,7 +446,7 @@ class UserAuthorization implements IUserAuthorization {
         }
       } catch (error) {
         // Resume failed, continue with normal sign-in flow
-        console.warn(
+        debug.warn(
           "Session resumption failed, proceeding with normal sign-in:",
           error
         );
@@ -456,7 +457,7 @@ class UserAuthorization implements IUserAuthorization {
     try {
       this.session = await this.connection.signIn();
     } catch (err) {
-      console.error(err);
+      debug.error(err);
       if (err.code === 4001) {
         dispatchSDKEvent.error(
           "auth.signature_rejected",
@@ -513,7 +514,7 @@ class UserAuthorization implements IUserAuthorization {
       await this.connection.signOut(this.session);
     } catch (err) {
       // request to /tcw-logout went wrong
-      console.error(err);
+      debug.error(err);
       dispatchSDKEvent.error(
         "auth.signout_failed",
         "Failed to sign out",
@@ -617,7 +618,7 @@ class UserAuthorization implements IUserAuthorization {
       try {
         await this.applyExtensionCapabilities(sessionManager, extensions);
       } catch (error) {
-        console.warn("Extension capability application failed:", error);
+        debug.warn("Extension capability application failed:", error);
         // Continue with session generation as extension capabilities are not critical
       }
 
@@ -653,7 +654,7 @@ class UserAuthorization implements IUserAuthorization {
       // Clean up any partial state on error
       this.pendingSession = undefined;
 
-      console.error("Failed to generate SIWE message:", error);
+      debug.error("Failed to generate SIWE message:", error);
       throw error;
     }
   }
@@ -732,7 +733,7 @@ class UserAuthorization implements IUserAuthorization {
             sessionManager.addTargetedActions(target, targetedActions[target]);
           }
         } catch (error) {
-          console.warn(
+          debug.warn(
             `Failed to apply targeted actions for ${
               extension.namespace || "unknown TinyCloud extension"
             }:`,
@@ -775,7 +776,7 @@ class UserAuthorization implements IUserAuthorization {
 
       return this.session;
     } catch (error) {
-      console.warn("Failed to resume session:", error);
+      debug.warn("Failed to resume session:", error);
       await this.sessionPersistence.clearSession(address);
       return null;
     }
@@ -847,7 +848,7 @@ class UserAuthorization implements IUserAuthorization {
         await this.sessionPersistence.saveSession(persistedSession);
       }
     } catch (error) {
-      console.warn("Failed to persist session:", error);
+      debug.warn("Failed to persist session:", error);
     }
   }
 

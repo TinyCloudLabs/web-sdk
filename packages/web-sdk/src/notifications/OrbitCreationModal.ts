@@ -1,3 +1,5 @@
+import { debug } from "../utils/debug";
+
 export interface OrbitCreationModalOptions {
   onCreateOrbit: () => Promise<void>;
   onDismiss?: () => void;
@@ -375,7 +377,7 @@ export class TinyCloudOrbitModal extends HTMLElement {
       this.resolveResult?.({ success: true, dismissed: false });
       this.hide();
     } catch (error) {
-      console.error('Failed to create orbit:', error);
+      debug.error('Failed to create orbit:', error);
       // Don't close modal on error - let user try again or dismiss manually
       // Error handling will be managed elsewhere as per requirements
     } finally {

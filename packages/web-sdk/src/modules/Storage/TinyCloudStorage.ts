@@ -28,6 +28,7 @@ import {
 import { IUserAuthorization, UserAuthorizationConnected } from "../..";
 import { dispatchSDKEvent } from "../../notifications/ErrorHandler";
 import { showOrbitCreationModal } from "../../notifications/ModalManager";
+import { debug } from "../../utils/debug";
 import {
   SessionPersistence,
   PersistedTinyCloudSession,
@@ -174,10 +175,6 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
 
   public async targetedActions(): Promise<{ [target: string]: string[] }> {
     const actions = {};
-    console.log(this.orbitId);
-    console.log(this.orbitId);
-
-    console.log(this.orbitId);
 
     actions[`${this.orbitId}/capabilities/all`] = [
       "tinycloud.capabilities/read",
@@ -212,7 +209,15 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
       verificationMethod: new SiweMessage(tcwSession.siwe).uri,
     };
 
-    return this.tinycloudModule.completeSessionSetup(sessionData);
+    const session = this.tinycloudModule.completeSessionSetup(sessionData);
+    if (!session?.delegationHeader) {
+      debug.error('Session created without delegationHeader:', {
+        hasDelegationCid: !!session?.delegationCid,
+        hasJwk: !!session?.jwk,
+        orbitId: this.orbitId,
+      });
+    }
+    return session;
   }
 
   public async afterSignIn(tcwSession: TCWClientSession): Promise<void> {
@@ -232,10 +237,18 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
     // Generate new session if no persisted session exists
     const session = await this.generateTinyCloudSession(tcwSession);
 
+    debug.log('Activating session:', {
+      host: tinycloudHost,
+      hasDelegationHeader: !!session?.delegationHeader,
+      orbitId: this.orbitId,
+    });
+
     let authn;
     try {
       authn = await activateSession(session, tinycloudHost);
-    } catch ({ status, msg }) {
+    } catch (error: any) {
+      const status = error?.status;
+      const msg = error?.msg ?? error?.message ?? String(error);
       if (status !== 404) {
         dispatchSDKEvent.error(
           "storage.session_delegation_failed",
@@ -288,7 +301,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
 
       return session;
     } catch (error) {
-      console.warn("Failed to load persisted TinyCloud session:", error);
+      debug.warn("Failed to load persisted TinyCloud session:", error);
       return null;
     }
   }
@@ -336,7 +349,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
         await this.sessionPersistence.saveSession(newPersistedSession);
       }
     } catch (error) {
-      console.warn("Failed to persist TinyCloud session:", error);
+      debug.warn("Failed to persist TinyCloud session:", error);
     }
   }
 
@@ -643,7 +656,9 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
     const session = await this.generateTinyCloudSession(sessionData);
     /* activate session */
     const tinycloudHost = this.hosts[0];
-    await activateSession(session, tinycloudHost).catch(({ status, msg }) => {
+    await activateSession(session, tinycloudHost).catch((error: any) => {
+      const status = error?.status;
+      const msg = error?.msg ?? error?.message ?? String(error);
       if (status !== 404) {
         dispatchSDKEvent.error(
           "storage.sharing_link_delegation_failed",
@@ -683,8 +698,9 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
       const orbit = new OrbitConnection(tinycloudHost, authn);
       const response = await orbit.get(path);
       return response;
-    } catch (error) {
-      const { status, msg } = error;
+    } catch (error: any) {
+      const status = error?.status;
+      const msg = error?.msg ?? error?.message ?? String(error);
       if (status !== 404) {
         dispatchSDKEvent.error(
           "storage.sharing_link_retrieval_failed",
