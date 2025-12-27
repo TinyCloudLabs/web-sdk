@@ -165,11 +165,19 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
     this.tinycloudModule = tinycloudModule;
     this.sessionManager = sessionManager;
 
-    const address = await tcw.provider.getSigner().getAddress();
-    const chain = await tcw.provider.getSigner().getChainId();
+    const signer = tcw.provider.getSigner();
+    const address = await signer.getAddress();
+    const chain = await signer.getChainId();
 
-    this.namespaceId = makeNamespaceId(address, chain, "default");
-    this.domain = tcw.config.siweConfig?.domain;
+    if (!address || typeof address !== 'string') {
+      throw new Error(`TinyCloud: Invalid wallet address: ${address}`);
+    }
+    if (chain === undefined || chain === null) {
+      throw new Error(`TinyCloud: Invalid chain ID: ${chain}`);
+    }
+
+    this.namespaceId = makeNamespaceId(address, Number(chain), "default");
+    this.domain = tcw.config.siweConfig?.domain || window.location.hostname;
     return {};
   }
 
@@ -200,13 +208,33 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
       this.sessionManager = sessionManager;
     }
 
+    // Validate required fields before calling WASM
+    if (!this.namespaceId || typeof this.namespaceId !== 'string') {
+      throw new Error(`TinyCloud: Invalid namespaceId: ${this.namespaceId}. Did afterConnect complete?`);
+    }
+    if (!tcwSession.siwe || typeof tcwSession.siwe !== 'string') {
+      throw new Error(`TinyCloud: Invalid SIWE message: ${tcwSession.siwe}`);
+    }
+    if (!tcwSession.signature || typeof tcwSession.signature !== 'string') {
+      throw new Error(`TinyCloud: Invalid signature: ${tcwSession.signature}`);
+    }
+    if (!tcwSession.sessionKey) {
+      throw new Error('TinyCloud: Missing session key');
+    }
+
+    const siweMessage = new SiweMessage(tcwSession.siwe);
+    const verificationMethod = siweMessage.uri;
+    if (!verificationMethod || typeof verificationMethod !== 'string') {
+      throw new Error(`TinyCloud: Invalid verification method from SIWE: ${verificationMethod}`);
+    }
+
     const sessionData = {
       jwk: JSON.parse(tcwSession.sessionKey),
       namespaceId: this.namespaceId,
       service: "kv",
       siwe: tcwSession.siwe,
       signature: tcwSession.signature,
-      verificationMethod: new SiweMessage(tcwSession.siwe).uri,
+      verificationMethod,
     };
 
     const session = this.tinycloudModule.completeSessionSetup(sessionData);
@@ -214,7 +242,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
       debug.error('Session created without delegationHeader:', {
         hasDelegationCid: !!session?.delegationCid,
         hasJwk: !!session?.jwk,
-        orbitId: this.orbitId,
+        namespaceId: this.namespaceId,
       });
     }
     return session;
@@ -240,7 +268,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
     debug.log('Activating session:', {
       host: tinycloudHost,
       hasDelegationHeader: !!session?.delegationHeader,
-      orbitId: this.orbitId,
+      namespaceId: this.namespaceId,
     });
 
     let authn;
@@ -287,6 +315,13 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
       );
 
       if (!persistedSession?.tinycloudSession) {
+        return null;
+      }
+
+      // Clear sessions from before orbit→namespace migration that have orbitId instead of namespaceId
+      if (!persistedSession.tinycloudSession.namespaceId) {
+        debug.log('Clearing legacy session without namespaceId');
+        await this.sessionPersistence.clearSession(tcwSession.address);
         return null;
       }
 
@@ -542,7 +577,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
       onCreateNamespace: async () => {
         await this.hostNamespace(tcwSession);
         // If we reach here, namespace creation succeeded
-        dispatchSDKEvent.success("Namespace created successfully");
+        dispatchSDKEvent.success("TinyCloud Namespace created successfully");
       },
       onDismiss: () => {
         // Modal dismissed without creating namespace
@@ -566,10 +601,10 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
     if (hostStatus !== 200) {
       dispatchSDKEvent.error(
         "storage.namespace_creation_failed",
-        "Failed to open new TinyCloud Namespace",
+        "Failed to create your TinyCloud Namespace",
         statusText
       );
-      throw new Error(`Failed to open new TinyCloud Namespace: ${statusText}`);
+      throw new Error(`Failed to create your TinyCloud Namespace: ${statusText}`);
     }
 
     const sessionActivated = await this.activateSession(tcwSession, () => {

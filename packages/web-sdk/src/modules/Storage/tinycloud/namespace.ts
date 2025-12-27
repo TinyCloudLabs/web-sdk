@@ -275,15 +275,41 @@ export const hostNamespace = async (
   namespaceId: string,
   domain: string = window.location.hostname
 ): Promise<Response> => {
+  // Validate required parameters
+  if (!namespaceId || typeof namespaceId !== 'string') {
+    throw new Error(`TinyCloud: Invalid namespaceId: ${namespaceId}`);
+  }
+  if (!domain || typeof domain !== 'string') {
+    throw new Error(`TinyCloud: Invalid domain: ${domain}`);
+  }
+
   const address = await wallet.getAddress();
   const chainId = await wallet.getChainId();
+
+  if (!address || typeof address !== 'string') {
+    throw new Error(`TinyCloud: Invalid wallet address: ${address}`);
+  }
+  if (chainId === undefined || chainId === null) {
+    throw new Error(`TinyCloud: Invalid chain ID: ${chainId}`);
+  }
+
   const issuedAt = new Date(Date.now()).toISOString();
-  const peerId = await fetch(
+  const peerResponse = await fetch(
     tinycloudUrl + `/peer/generate/${encodeURIComponent(namespaceId)}`
-  ).then((res: FetchResponse) => res.text());
+  );
+
+  if (!peerResponse.ok) {
+    throw new Error(`TinyCloud: Failed to generate peer ID: ${peerResponse.status} ${peerResponse.statusText}`);
+  }
+
+  const peerId = await peerResponse.text();
+  if (!peerId || typeof peerId !== 'string') {
+    throw new Error(`TinyCloud: Invalid peer ID received: ${peerId}`);
+  }
+
   const config: HostConfig = {
     address,
-    chainId,
+    chainId: Number(chainId),
     domain,
     issuedAt,
     namespaceId,

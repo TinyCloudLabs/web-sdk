@@ -55,7 +55,7 @@ export class TinyCloudNamespaceModal extends HTMLElement {
                   <path d="M8 12l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
               </div>
-              <h2 class="modal-title">Create Your Namespace</h2>
+              <h2 class="modal-title">Create Your TinyCloud Namespace</h2>
               <button class="modal-close" aria-label="Close">
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M1 1L13 13M13 1L1 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
@@ -65,11 +65,11 @@ export class TinyCloudNamespaceModal extends HTMLElement {
 
             <div class="modal-body">
               <p class="modal-description">
-                A namespace is a zone where your signature is required to access the data there.
-                It's owned by you, the person creating it with this signature.
+                A TinyCloud Namespace is your personal data container where only you control access.
+                Your signature is required for any operations on the data stored there.
               </p>
               <p class="modal-subdescription">
-                You'll need to sign a message to create your personal data space.
+                Sign a message to create your namespace and start storing data.
               </p>
             </div>
 
@@ -78,7 +78,7 @@ export class TinyCloudNamespaceModal extends HTMLElement {
                 Learn More
               </button>
               <button class="modal-button modal-button--primary" data-action="create">
-                <span class="button-text">Create Namespace</span>
+                <span class="button-text">Create TinyCloud Namespace</span>
                 <span class="button-spinner" data-state="hidden">
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="9.42 9.42" opacity="0.25"/>
@@ -377,11 +377,7 @@ export class TinyCloudNamespaceModal extends HTMLElement {
       this.resolveResult?.({ success: true, dismissed: false });
       this.hide();
     } catch (error) {
-<<<<<<< Updated upstream:packages/web-sdk/src/notifications/OrbitCreationModal.ts
-      debug.error('Failed to create orbit:', error);
-=======
-      console.error('Failed to create namespace:', error);
->>>>>>> Stashed changes:packages/web-sdk/src/notifications/NamespaceCreationModal.ts
+      debug.error('Failed to create TinyCloud Namespace:', error);
       // Don't close modal on error - let user try again or dismiss manually
       // Error handling will be managed elsewhere as per requirements
     } finally {
