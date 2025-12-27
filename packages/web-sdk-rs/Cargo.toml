@@ -19,8 +19,8 @@ getrandom = { version = "0.2", features = ["js"] }
 hex = "0.4.3"
 iri-string = "0.7.8"
 js-sys = "0.3.59"
-tinycloud-sdk-rs = { git = "https://github.com/tinycloudlabs/tinycloud-node.git", rev = "f424608" }
-tinycloud-sdk-wasm = { git = "https://github.com/tinycloudlabs/tinycloud-node.git", rev = "f424608" }
+tinycloud-sdk-rs = { git = "https://github.com/tinycloudlabs/tinycloud-node.git", rev = "ed0a99b" }
+tinycloud-sdk-wasm = { git = "https://github.com/tinycloudlabs/tinycloud-node.git", rev = "ed0a99b" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.83"
 serde-wasm-bindgen = "0.6.5"

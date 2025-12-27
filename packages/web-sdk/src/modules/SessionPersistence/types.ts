@@ -10,8 +10,8 @@ export interface PersistedTinyCloudSession {
   delegationHeader: { Authorization: string };
   /** The delegation reference from the user to the session key */
   delegationCid: string;
-  /** The orbit that the session key is permitted to perform actions against */
-  orbitId: string;
+  /** The namespace that the session key is permitted to perform actions against */
+  namespaceId: string;
   /** The verification method of the session key */
   verificationMethod: string;
 }
