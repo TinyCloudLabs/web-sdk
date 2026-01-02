@@ -19,6 +19,7 @@
     "web-core": "bun --cwd packages/web-core -c",
     "web-sdk": "bun --cwd packages/web-sdk -c",
     "web-sdk-rs": "bun --cwd packages/web-sdk-rs -c",
+    "node-sdk-wasm": "bun --cwd packages/node-sdk-wasm -c",
     "clean-docs": "./scripts/clean-docs.sh",
     "github-pub": "./scripts/switch-registry.sh github",
     "npm-pub": "./scripts/switch-registry.sh npm",
@@ -40,6 +41,7 @@
     "@tinycloudlabs/web-core": "workspace:*",
     "@tinycloudlabs/web-sdk": "workspace:*",
     "@tinycloudlabs/web-sdk-wasm": "workspace:*",
+    "@tinycloudlabs/node-sdk-wasm": "workspace:*",
     "turbo": "^2.5.4"
   },
   "keywords": [],

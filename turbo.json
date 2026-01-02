@@ -18,7 +18,7 @@
     },
     "build:wasm": {
       "dependsOn": ["setup"],
-      "outputs": ["pkg/**"]
+      "outputs": ["pkg/**", "pkg-browser/**", "pkg-nodejs/**"]
     },
     "bundle": {
       "dependsOn": ["build:wasm"],
@@ -37,7 +37,7 @@
     "test": {
       "dependsOn": ["build"],
       "outputs": ["coverage/**"],
-      "inputs": ["src/**/*.tsx", "src/**/*.ts", "test/**/*.ts", "test/**/*.tsx"]
+      "inputs": ["src/**/*.tsx", "src/**/*.ts", "test/**/*.ts", "test/**/*.tsx", "tests/**/*.ts"]
     },
     "lint": {
       "dependsOn": ["^build"],

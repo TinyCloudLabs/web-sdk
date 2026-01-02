@@ -1,5 +1,9 @@
 pub use tinycloud_sdk_wasm;
+pub mod platform;
 pub mod session;
+
+#[cfg(feature = "nodejs")]
+pub mod keys;
 
 use wasm_bindgen::prelude::*;
 

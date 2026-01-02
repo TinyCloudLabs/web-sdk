@@ -106,3 +106,27 @@ impl TCWSessionManager {
     //     self.manager.update_session(session, key_id)
     // }
 }
+
+// Internal methods for key management (not exposed to wasm_bindgen directly)
+impl TCWSessionManager {
+    /// Import a session key (internal method for use by keys module)
+    #[cfg(feature = "nodejs")]
+    pub fn import_session_key_internal(
+        &mut self,
+        key: tinycloud_sdk_rs::tinycloud_lib::ssi::jwk::JWK,
+        key_id: Option<String>,
+        override_existing: bool,
+    ) -> Result<String, String> {
+        self.manager.import_session_key(key, key_id, override_existing)
+    }
+
+    /// Get the JWK for a key ID (internal method for use by keys module)
+    #[cfg(feature = "nodejs")]
+    pub fn get_jwk(
+        &self,
+        key_id: Option<String>,
+    ) -> Result<tinycloud_sdk_rs::tinycloud_lib::ssi::jwk::JWK, String> {
+        let jwk_str = self.manager.jwk(key_id).ok_or("Key not found")?;
+        serde_json::from_str(&jwk_str).map_err(|e| format!("Failed to parse JWK: {}", e))
+    }
+}

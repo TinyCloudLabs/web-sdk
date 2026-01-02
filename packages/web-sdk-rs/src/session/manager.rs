@@ -9,8 +9,8 @@ use tinycloud_sdk_rs::tinycloud_lib::{
     ssi::{dids::DIDKey, jwk::JWK},
 };
 use wasm_bindgen::prelude::*;
-use web_sys::console::error_1 as console_error;
 
+use crate::platform::log_error;
 use super::types::*;
 
 use tinycloud_sdk_wasm::session::Session;
@@ -149,7 +149,7 @@ impl SessionManager {
                 action.parse::<Ability>().unwrap(),
                 Vec::<std::collections::BTreeMap<String, Value>>::new(),
             ) {
-                console_error(&format!("Failed to add targeted action: {}", e).into());
+                log_error(&format!("Failed to add targeted action: {}", e));
                 return false;
             }
         }
@@ -256,7 +256,7 @@ impl SessionManager {
         match serde_json::to_string(&self.get_private_key(key_id).unwrap()) {
             Ok(s) => Some(s),
             Err(e) => {
-                console_error(&e.to_string().into());
+                log_error(&e.to_string());
                 None
             }
         }
@@ -280,7 +280,7 @@ impl SessionManager {
 }
 
 fn string_conversion_error() {
-    console_error(&"error converting UTF-16 into UTF-8".into());
+    log_error("error converting UTF-16 into UTF-8");
 }
 
 #[cfg(test)]
