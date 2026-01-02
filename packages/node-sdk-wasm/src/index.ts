@@ -9,7 +9,7 @@
 
 // Import from wasm-pack nodejs output (CommonJS, auto-initializes synchronously)
 // @ts-ignore - wasm-pack generates this file
-import * as wasm from "../../web-sdk-rs/pkg-nodejs/tinycloud_web_sdk_rs.js";
+import * as wasm from "../../sdk-rs/node-sdk-wasm/tinycloud_web_sdk_rs.js";
 
 // Re-export the session manager
 export const TCWSessionManager = wasm.TCWSessionManager;

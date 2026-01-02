@@ -1,7 +1,7 @@
 {
-  "name": "@tinycloudlabs/node-sdk-wasm",
+  "name": "@tinycloudlabs/sdk-core",
   "version": "0.1.0",
-  "description": "TinyCloud SDK for Node.js - WASM bindings",
+  "description": "Core TinyCloud SDK - shared interfaces and TinyCloud class",
   "author": "TinyCloud, Inc.",
   "license": "Apache-2.0 OR MIT",
   "type": "module",
@@ -15,18 +15,17 @@
       "require": "./dist/index.cjs"
     }
   },
-  "engines": {
-    "node": ">=18"
-  },
-  "scripts": {
-    "build:wasm": "cd ../sdk-rs && wasm-pack build --release --target nodejs --out-dir node-sdk-wasm -- --features nodejs",
-    "build": "bun run build:wasm && tsc",
-    "test": "bun test",
-    "clean": "rm -rf dist"
-  },
   "files": [
     "dist"
   ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@tinycloudlabs/web-core": "workspace:*"
+  },
   "devDependencies": {
     "@types/node": "^20",
     "typescript": "^5.0.0"

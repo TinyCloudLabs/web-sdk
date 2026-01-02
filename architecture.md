@@ -31,7 +31,7 @@ graph TB
         end
         
         subgraph "Security Layer"
-            E["web-sdk-rs WASM"]
+            E["sdk-rs WASM"]
             E1[Session Manager]
             E2[Cryptographic Operations]
             E3[SIWE Implementation]
@@ -74,8 +74,9 @@ The project follows a Bun workspace configuration with the following packages:
 ```
 tc-sdk/
 ├── packages/
-│   ├── web-sdk-rs/         # Rust/WASM cryptographic layer
-│   ├── web-core/           # TypeScript core types and utilities  
+│   ├── sdk-rs/             # Rust/WASM cryptographic layer
+│   ├── node-sdk-wasm/      # Node.js WASM bindings
+│   ├── web-core/           # TypeScript core types and utilities
 │   └── web-sdk/            # Main SDK interface
 ├── examples/
 │   └── web-sdk-example/    # React demonstration app
@@ -90,7 +91,7 @@ graph LR
     subgraph "Workspace Dependencies"
         WS[web-sdk]
         WC[web-core]
-        WR[web-sdk-rs]
+        WR[sdk-rs]
         EX[example-app]
     end
     
@@ -234,7 +235,7 @@ function getProvider(config: TCWRPCProvider): providers.BaseProvider
 function tcwResolveEns(provider: providers.BaseProvider, address: string): Promise<TCWEnsData>
 ```
 
-### 3. web-sdk-rs: Security & Performance Layer
+### 3. sdk-rs: Security & Performance Layer
 
 **Purpose**: WebAssembly module providing cryptographic primitives, secure session management, and performance-critical operations.
 
@@ -516,7 +517,7 @@ bun run build         # Build all packages
 ./scripts/build.sh    # Alternative build script
 
 # Package-specific
-web-sdk-rs:  bun run build-dev | build-release
+sdk-rs:      bun run build-dev | build-release
 web-core:    bun run build
 web-sdk:     bun run build
 

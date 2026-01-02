@@ -10,6 +10,11 @@ import {
   ITCWConnected,
   TCWExtension,
 } from "@tinycloudlabs/web-core/client";
+import {
+  IUserAuthorization as ICoreUserAuthorization,
+  SiweMessage as CoreSiweMessage,
+  PartialSiweMessage,
+} from "@tinycloudlabs/sdk-core";
 import { dispatchSDKEvent } from "../notifications/ErrorHandler";
 import { WasmInitializer } from "./WasmInitializer";
 import { debug } from "../utils/debug";
@@ -347,7 +352,7 @@ const TCW_DEFAULT_CONFIG: TCWClientConfig = {
   },
 };
 
-class UserAuthorization implements IUserAuthorization {
+class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
   /** The Ethereum provider */
   public provider: providers.Web3Provider;
 

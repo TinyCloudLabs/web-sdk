@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
-  "packages/web-sdk-rs",
+  "packages/sdk-rs",
 ]
 
 # Optimization profile for WASM size reduction

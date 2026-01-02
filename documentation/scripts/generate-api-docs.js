@@ -29,7 +29,7 @@ const GUIDES_DIR = join(DOCS_DIR, 'guides');
 const EXAMPLES_DIR = join(DOCS_DIR, 'examples');
 const WEB_CORE_DIR = join(PACKAGES_DIR, 'web-core');
 const WEB_SDK_DIR = join(PACKAGES_DIR, 'web-sdk');
-const WEB_SDK_RS_DIR = join(PACKAGES_DIR, 'web-sdk-rs');
+const SDK_RS_DIR = join(PACKAGES_DIR, 'sdk-rs');
 const TEMP_DIR = join(DOCUMENTATION_DIR, 'temp');
 const EXAMPLES_SOURCE_DIR = join(ROOT_DIR, 'examples/web-sdk-example/src');
 

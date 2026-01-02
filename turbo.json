@@ -14,11 +14,11 @@
     },
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", "build/**", "pkg/**"]
+      "outputs": ["dist/**", "build/**", "web-sdk-wasm/**"]
     },
     "build:wasm": {
       "dependsOn": ["setup"],
-      "outputs": ["pkg/**", "pkg-browser/**", "pkg-nodejs/**"]
+      "outputs": ["web-sdk-wasm/**", "node-sdk-wasm/**"]
     },
     "bundle": {
       "dependsOn": ["build:wasm"],
@@ -60,7 +60,7 @@
     },
     "release": {
       "dependsOn": ["build", "test", "lint"],
-      "outputs": ["dist/**", "pkg/**"]
+      "outputs": ["dist/**", "web-sdk-wasm/**"]
     }
   }
 }

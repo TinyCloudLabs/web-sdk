@@ -22,7 +22,8 @@ This monorepo contains the following packages:
 |---------|-------------|
 | [`@tinycloudlabs/web-sdk`](./packages/web-sdk/) | The main TinyCloud Web SDK package |
 | [`@tinycloudlabs/web-core`](./packages/web-core/) | Core utilities and types for TinyCloud SDKs |
-| [`@tinycloudlabs/web-sdk-rs`](./packages/web-sdk-rs/) | Rust/WASM components for the TinyCloud Web SDK |
+| [`@tinycloudlabs/web-sdk-wasm`](./packages/sdk-rs/) | Rust/WASM components for the TinyCloud SDK |
+| [`@tinycloudlabs/node-sdk-wasm`](./packages/node-sdk-wasm/) | Node.js WASM bindings for the TinyCloud SDK |
 
 ## Quick Start
 
@@ -67,7 +68,7 @@ Check out our [examples directory](./examples/) for complete working examples of
 ### Prerequisites
 
 - [Bun](https://bun.sh) (recommended) or Node.js v16+
-- Rust for web-sdk-rs package
+- Rust for sdk-rs package
 
 ### Building the SDK
 

@@ -4,7 +4,10 @@
 packages=(
   "packages/web-sdk"
   "packages/web-core"
-  "packages/web-sdk-rs"
+  "packages/sdk-core"
+  "packages/sdk-rs"
+  "packages/node-sdk-wasm"
+  "packages/node-sdk"
   "apps/web-sdk-example"
 )
 
@@ -13,7 +16,8 @@ for package in "${packages[@]}"; do
   rm -rf "$package/node_modules"
   rm -rf "$package/dist"
   rm -rf "$package/temp"
-  rm -rf "$package/pkg"
+  rm -rf "$package/web-sdk-wasm"
+  rm -rf "$package/node-sdk-wasm"
 done
 
 # Clean root node_modules

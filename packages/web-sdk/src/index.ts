@@ -13,3 +13,15 @@ export {
   TCWClientSession as TCWSession,
 } from '@tinycloudlabs/web-core/client';
 export { SiweMessage } from 'siwe';
+
+// Re-export sdk-core interfaces for platform-agnostic code
+export {
+  TinyCloud,
+  ISigner,
+  ISessionStorage,
+  IUserAuthorization as ICoreUserAuthorization,
+  ITinyCloudStorage,
+  PersistedSessionData,
+  SiweConfig,
+  PartialSiweMessage,
+} from '@tinycloudlabs/sdk-core';

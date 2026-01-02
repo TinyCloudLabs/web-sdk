@@ -5,9 +5,12 @@
   "type": "module",
   "scripts": {
     "demo": "bun run src/demo.ts",
+    "demo:legacy": "bun run src/demo-legacy.ts",
     "keygen": "bun run src/keygen.ts"
   },
   "dependencies": {
+    "@tinycloudlabs/sdk-core": "workspace:*",
+    "@tinycloudlabs/node-sdk": "workspace:*",
     "@tinycloudlabs/node-sdk-wasm": "workspace:*"
   },
   "devDependencies": {
