@@ -1,6 +1,6 @@
 #!/bin/sh
-# This script is called from packages/web or packages/node directories
-# The WASM output is at ../../web-sdk-wasm/ or ../../node-sdk-wasm/
+# Fix type declarations for web-sdk-wasm
+# The WASM output is at ../../web-sdk-wasm/
 cp ../../web-sdk-wasm/tinycloud_web_sdk_rs.d.ts dist/ && ( echo '
 var fs = require("fs");
 const re = new RegExp("\\.\\./\\.\\./\\.\\./web-sdk-wasm", "g");
@@ -17,4 +17,3 @@ while (true) {
     fs.writeFileSync(filepath, replaced);
   }
 }' | node )
-

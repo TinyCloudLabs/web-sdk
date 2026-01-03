@@ -1,79 +1,24 @@
 import { ISigner } from "./signer";
 import { ISessionStorage, PersistedSessionData } from "./storage";
 
-/**
- * Extension interface for adding capabilities to sessions.
- */
-export interface TCWExtension {
-  /** Unique namespace identifier for this extension */
-  namespace: string;
-  /** Default abilities granted by this extension */
-  defaultAbilities?: Record<string, string[]>;
-  /** Hook called after connection is established */
-  afterConnect?: (context: unknown) => Promise<void>;
-  /** Hook called after sign-in completes */
-  afterSignIn?: (session: TCWClientSession) => Promise<void>;
-}
+// Re-export types from web-core to ensure type compatibility
+// Client types are exported from the /client subpath
+export {
+  TCWClientSession,
+  TCWExtension,
+  SiweConfig,
+  ConfigOverrides,
+} from "@tinycloudlabs/web-core/client";
 
-/**
- * ENS resolution data.
- */
-export interface TCWEnsData {
-  /** ENS name if resolved */
-  name?: string;
-  /** ENS avatar URL if available */
-  avatar?: string;
-}
+// Root types (ENS, SiweMessage) are exported from the main entry
+export { TCWEnsData, SiweMessage } from "@tinycloudlabs/web-core";
 
-/**
- * Active session representation.
- */
-export interface TCWClientSession {
-  /** User address (DID or Ethereum address) */
-  address: string;
-  /** Original wallet address without delegation */
-  walletAddress: string;
-  /** Chain ID the session is bound to */
-  chainId: number;
-  /** Session key identifier */
-  sessionKey: string;
-  /** SIWE message string */
-  siwe: string;
-  /** Signature of the SIWE message */
-  signature: string;
-  /** ENS data if resolved */
-  ens?: TCWEnsData;
-  /** Delegation header containing UCAN */
-  delegationHeader?: { Authorization: string };
-  /** Delegation CID */
-  delegationCid?: string;
-  /** Namespace ID */
-  namespaceId?: string;
-  /** Verification method DID */
-  verificationMethod?: string;
-}
-
-/**
- * SIWE message configuration.
- */
-export interface SiweConfig {
-  /** RFC 4501 DNS authority */
-  domain?: string;
-  /** ISO 8601 datetime for when the message was issued */
-  issuedAt?: string;
-  /** ISO 8601 datetime for when the message expires */
-  expirationTime?: string;
-  /** ISO 8601 datetime for when the message becomes valid */
-  notBefore?: string;
-  /** Randomized nonce for replay protection */
-  nonce?: string;
-  /** System-specific request identifier */
-  requestId?: string;
-  /** Human-readable statement */
-  statement?: string;
-  /** Resources the user is requesting access to */
-  resources?: string[];
-}
+import type {
+  TCWClientSession,
+  TCWExtension,
+  SiweConfig,
+} from "@tinycloudlabs/web-core/client";
+import type { SiweMessage } from "@tinycloudlabs/web-core";
 
 /**
  * Partial SIWE message for overrides.
@@ -178,18 +123,6 @@ export interface IUserAuthorization {
    * @returns true if session data exists
    */
   isSessionPersisted(address: string): boolean;
-}
-
-/**
- * SIWE message object (simplified for sdk-core).
- * Full implementation provided by siwe package.
- */
-export interface SiweMessage extends SiweConfig {
-  address: string;
-  chainId: number;
-  uri: string;
-  version: string;
-  prepareMessage(): string;
 }
 
 /**

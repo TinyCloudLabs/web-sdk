@@ -88,12 +88,12 @@ interface IUserAuthorization {
   /**
    * Generates a SIWE message for authentication with session key capabilities.
    * @param address - Ethereum address performing the signing
-   * @param partialSiweMessage - Optional partial SIWE message to override defaults
+   * @param partial - Optional partial SIWE message to override defaults
    * @returns SiweMessage object ready for signing
    */
   generateSiweMessage(
     address: string,
-    partialSiweMessage?: Partial<SiweMessage>
+    partial?: PartialSiweMessage
   ): Promise<SiweMessage>;
   /**
    * Sign in to the SDK using a pre-signed SIWE message.
@@ -580,12 +580,12 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
    * applies extension capabilities, and builds a SIWE message for signing.
    *
    * @param address - Ethereum address performing the signing
-   * @param partialSiweMessage - Optional partial SIWE message to override defaults
+   * @param partial - Optional partial SIWE message to override defaults
    * @returns SiweMessage object ready for signing
    */
   public async generateSiweMessage(
     address: string,
-    partialSiweMessage?: Partial<SiweMessage>
+    partial?: PartialSiweMessage
   ): Promise<SiweMessage> {
     try {
       // Validate address format
@@ -629,9 +629,9 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
 
       // Build SIWE message with defaults
       const domain =
-        partialSiweMessage?.domain ||
+        partial?.domain ||
         (typeof window !== "undefined" ? window.location.host : "localhost");
-      const nonce = partialSiweMessage?.nonce || generateNonce();
+      const nonce = partial?.nonce || generateNonce();
       const issuedAt = new Date().toISOString();
 
       const siweMessageData = {
@@ -640,9 +640,9 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
         domain,
         nonce,
         issuedAt,
-        uri: partialSiweMessage?.uri || `https://${domain}`,
+        uri: partial?.uri || `https://${domain}`,
         version: "1",
-        ...partialSiweMessage, // Override with any provided partial data
+        ...partial, // Override with any provided partial data
       };
 
       // Store session state for later retrieval

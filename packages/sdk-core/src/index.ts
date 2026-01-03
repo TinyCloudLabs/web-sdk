@@ -17,6 +17,7 @@ export { ISigner, Bytes } from "./signer";
 export {
   ISessionStorage,
   PersistedSessionData,
+  PersistedTinyCloudSession,
 } from "./storage";
 
 // User authorization interface and types
@@ -26,6 +27,7 @@ export {
   TCWEnsData,
   TCWClientSession,
   SiweConfig,
+  ConfigOverrides,
   PartialSiweMessage,
   SiweMessage,
   UserAuthorizationConfig,

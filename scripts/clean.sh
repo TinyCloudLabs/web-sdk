@@ -6,7 +6,8 @@ packages=(
   "packages/web-core"
   "packages/sdk-core"
   "packages/sdk-rs"
-  "packages/node-sdk-wasm"
+  "packages/sdk-rs/packages/web"
+  "packages/sdk-rs/packages/node"
   "packages/node-sdk"
   "apps/web-sdk-example"
 )

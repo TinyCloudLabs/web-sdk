@@ -15,6 +15,13 @@ module.exports = {
         use: "ts-loader",
         exclude: /node_modules/,
       },
+      {
+        // Disable strict ESM resolution for workspace packages
+        test: /\.m?js$/,
+        resolve: {
+          fullySpecified: false,
+        },
+      },
     ],
   },
   resolve: {

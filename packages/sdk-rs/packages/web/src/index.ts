@@ -1,8 +1,8 @@
-import init from "../web-sdk-wasm/tinycloud_web_sdk_rs.js";
+import init from "../../../web-sdk-wasm/tinycloud_web_sdk_rs.js";
 // @ts-ignore
-import wasm from "../web-sdk-wasm/tinycloud_web_sdk_rs_bg.wasm";
+import wasm from "../../../web-sdk-wasm/tinycloud_web_sdk_rs_bg.wasm";
 
-import * as lib from "../web-sdk-wasm/tinycloud_web_sdk_rs.js";
+import * as lib from "../../../web-sdk-wasm/tinycloud_web_sdk_rs.js";
 
 export const initialized: Promise<void> = init(wasm()).then(() =>
   lib.initPanicHook()

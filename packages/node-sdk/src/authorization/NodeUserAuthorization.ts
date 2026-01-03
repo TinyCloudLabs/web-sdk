@@ -222,7 +222,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
     // Collect resources from extensions
     const resources: string[] = [...(partial?.resources ?? [])];
     for (const ext of this.extensions) {
-      if (ext.defaultAbilities) {
+      if (ext.namespace) {
         // Add extension namespace as resource
         resources.push(`urn:${ext.namespace}`);
       }
@@ -294,7 +294,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
       signature,
     });
 
-    // Create client session
+    // Create client session (web-core compatible)
     const clientSession: TCWClientSession = {
       address,
       walletAddress: address,
@@ -302,24 +302,26 @@ export class NodeUserAuthorization implements IUserAuthorization {
       sessionKey: keyId,
       siwe: siweMessage.prepareMessage(),
       signature,
-      delegationHeader: session.delegationHeader,
-      delegationCid: session.delegationCid,
-      namespaceId,
-      verificationMethod: this.sessionManager.getDID(keyId),
     };
 
-    // Persist session
+    // Persist session with TinyCloud-specific data
     const persistedData: PersistedSessionData = {
-      sessionKey: jwk,
-      delegationHeader: session.delegationHeader,
-      delegationCid: session.delegationCid,
-      namespaceId,
-      verificationMethod: clientSession.verificationMethod!,
+      address,
+      chainId,
+      sessionKey: JSON.stringify(jwk),
+      siwe: clientSession.siwe,
+      signature,
+      tinycloudSession: {
+        delegationHeader: session.delegationHeader,
+        delegationCid: session.delegationCid,
+        namespaceId,
+        verificationMethod: this.sessionManager.getDID(keyId),
+      },
       expiresAt:
         siweMessage.expirationTime ??
         new Date(Date.now() + this.sessionExpirationMs).toISOString(),
       createdAt: siweMessage.issuedAt ?? new Date().toISOString(),
-      chainId,
+      version: "1.0",
     };
     await this.sessionStorage.save(address, persistedData);
 
@@ -360,18 +362,14 @@ export class NodeUserAuthorization implements IUserAuthorization {
     this.sessionManager = new TCWSessionManager();
     this.sessionManager.renameSessionKeyId("default", keyId);
 
-    // Create client session from persisted data
+    // Create client session from persisted data (web-core compatible)
     const clientSession: TCWClientSession = {
       address,
       walletAddress: address,
       chainId: persisted.chainId,
       sessionKey: keyId,
-      siwe: "", // Not persisted, would need to regenerate if needed
-      signature: "", // Not persisted
-      delegationHeader: persisted.delegationHeader,
-      delegationCid: persisted.delegationCid,
-      namespaceId: persisted.namespaceId,
-      verificationMethod: persisted.verificationMethod,
+      siwe: persisted.siwe,
+      signature: persisted.signature,
       ens: persisted.ens,
     };
 

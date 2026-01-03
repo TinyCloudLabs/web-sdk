@@ -1,11 +1,7 @@
 /**
- * Persisted session data structure.
- *
- * Contains all data needed to restore a session without re-authentication.
+ * TinyCloud-specific session data that's persisted alongside the base session.
  */
-export interface PersistedSessionData {
-  /** The session key JWK */
-  sessionKey: object;
+export interface PersistedTinyCloudSession {
   /** The delegation header containing the UCAN */
   delegationHeader: { Authorization: string };
   /** The delegation CID */
@@ -14,16 +10,37 @@ export interface PersistedSessionData {
   namespaceId: string;
   /** The verification method DID */
   verificationMethod: string;
+}
+
+/**
+ * Persisted session data structure.
+ *
+ * Contains all data needed to restore a session without re-authentication.
+ * Aligned with web-sdk's PersistedSession structure.
+ */
+export interface PersistedSessionData {
+  /** User's Ethereum address */
+  address: string;
+  /** EIP-155 Chain ID */
+  chainId: number;
+  /** Session key in JWK format (stringified) */
+  sessionKey: string;
+  /** The signed SIWE message */
+  siwe: string;
+  /** User's signature of the SIWE message */
+  signature: string;
+  /** TinyCloud delegation data if available */
+  tinycloudSession?: PersistedTinyCloudSession;
   /** Session expiration timestamp (ISO 8601) */
   expiresAt: string;
   /** Session creation timestamp (ISO 8601) */
   createdAt: string;
-  /** Chain ID the session is bound to */
-  chainId: number;
+  /** Schema version for migrations */
+  version: string;
   /** Optional ENS data */
   ens?: {
-    name?: string;
-    avatar?: string;
+    domain?: string | null;
+    avatarUrl?: string | null;
   };
 }
 
