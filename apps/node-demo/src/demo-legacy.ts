@@ -13,9 +13,9 @@
  *
  * Environment Variables:
  *   TINYCLOUD_URL              - TinyCloud server URL (default: http://localhost:4000)
- *   TINYCLOUD_DEMO_KEY_ALICE   - Alice's base64-encoded JWK (optional, generates if not set)
- *   TINYCLOUD_DEMO_KEY_BOB     - Bob's base64-encoded JWK (optional, generates if not set)
- *   TINYCLOUD_ETH_PRIVATE_KEY  - Ethereum private key for signing (base64, 32 bytes)
+ *   TINYCLOUD_DEMO_KEY_ALICE   - Alice's JWK JSON string (optional, generates if not set)
+ *   TINYCLOUD_DEMO_KEY_BOB     - Bob's JWK JSON string (optional, generates if not set)
+ *   TINYCLOUD_ETH_PRIVATE_KEY  - Ethereum private key for signing (hex, 32 bytes)
  *
  * Usage:
  *   bun run demo
@@ -23,9 +23,8 @@
 
 import {
   TCWSessionManager,
-  exportKeyAsBase64,
-  importKeyFromBase64,
-  loadKeyFromEnv,
+  exportKey,
+  importKey,
   prepareSession,
   completeSessionSetup,
   invoke,
@@ -50,11 +49,9 @@ const DOMAIN = "demo.tinycloud.xyz";
 const DEMO_ETH_ADDRESS = "0x1234567890123456789012345678901234567890";
 
 // Demo Ethereum private key (DO NOT USE IN PRODUCTION)
-// 32 bytes of deterministic test data, base64 encoded
-const DEMO_ETH_PRIVATE_KEY = Buffer.from(
-  "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-  "hex"
-).toString("base64");
+// 32 bytes of deterministic test data as hex string
+const DEMO_ETH_PRIVATE_KEY =
+  "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
 // ============================================================================
 // Helpers
@@ -90,7 +87,7 @@ class DemoWallet {
   }
 
   async signMessage(message: string): Promise<string> {
-    // Sign with Ethereum message prefix
+    // Sign with Ethereum message prefix - WASM now accepts hex directly
     return signEthereumMessage(message, this.privateKey);
   }
 }
@@ -107,7 +104,8 @@ function getOrCreateSessionKey(
   if (process.env[envVar]) {
     try {
       const envValue = process.env[envVar]!;
-      importKeyFromBase64(manager, envValue, keyId);
+      // Now accepts plain JWK JSON string (no base64)
+      importKey(manager, envValue, keyId);
       log(keyId, `Loaded key from ${envVar}`);
       return { manager, isNew: false };
     } catch (e) {
@@ -243,7 +241,7 @@ async function runDemo() {
   console.log(`Chain ID: ${CHAIN_ID}`);
   console.log(`Domain: ${DOMAIN}`);
 
-  // Create wallet
+  // Create wallet - now using hex private key directly
   const wallet = new DemoWallet(
     DEMO_ETH_ADDRESS,
     process.env.TINYCLOUD_ETH_PRIVATE_KEY || DEMO_ETH_PRIVATE_KEY
@@ -261,8 +259,8 @@ async function runDemo() {
   const aliceDid = aliceManager.getDID("alice");
   log("Alice", `DID: ${aliceDid}`);
 
-  // Export for reference
-  const aliceKey = exportKeyAsBase64(aliceManager, "alice");
+  // Export for reference - now returns plain JWK JSON
+  const aliceKey = exportKey(aliceManager, "alice");
   log("Alice", `Key exported (${aliceKey.length} chars)`);
 
   // ========================================================================
@@ -462,8 +460,8 @@ async function runDemo() {
   console.log(`  TINYCLOUD_URL=http://your-server:4000 bun run demo`);
   console.log();
   console.log("To use pre-generated keys:");
-  console.log(`  export TINYCLOUD_DEMO_KEY_ALICE=$(bun run keygen alice)`);
-  console.log(`  export TINYCLOUD_DEMO_KEY_BOB=$(bun run keygen bob)`);
+  console.log(`  export TINYCLOUD_DEMO_KEY_ALICE='$(bun run keygen alice)'`);
+  console.log(`  export TINYCLOUD_DEMO_KEY_BOB='$(bun run keygen bob)'`);
   console.log(`  bun run demo`);
   console.log();
 }
