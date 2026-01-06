@@ -96,7 +96,6 @@ interface IStorage extends TCWExtension {
 
 // TODO: Document this interface
 export interface ITinyCloud extends IStorage {
-  hostNamespace(tcwSession?: TCWClientSession): Promise<void>;
   activateSession(
     tcwSession?: TCWClientSession,
     onError?: () => void
@@ -122,13 +121,6 @@ interface ITinyCloudStorageConfig extends IStorageConfig {
    * @default 'https://node.tinycloud.xyz'
    */
   hosts?: string[];
-  /**
-   * Automatically create a new namespace if one does not exist.
-   * If this is false, you will need to manually create a namespace before using
-   * the storage operations on TinyCloudDataVault.
-   * @default true
-   */
-  autoCreateNewNamespace?: boolean;
 }
 
 export { IStorage, IStorageConfig, ITinyCloudStorageConfig };

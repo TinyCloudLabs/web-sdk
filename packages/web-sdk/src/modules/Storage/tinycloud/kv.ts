@@ -1,6 +1,23 @@
 import { Authenticator } from "./authenticator";
 import { invoke } from "./tinycloud";
 
+/**
+ * @deprecated Use KVService from @tinycloudlabs/sdk-core instead.
+ * This class is maintained for backward compatibility only.
+ *
+ * Migration example:
+ * ```typescript
+ * // Old usage (deprecated):
+ * import { KV } from "@tinycloudlabs/web-sdk";
+ * const kv = new KV(url, authenticator);
+ * await kv.get("key");
+ *
+ * // New usage:
+ * import { createKVService } from "@tinycloudlabs/web-sdk";
+ * const kvService = createKVService(host, session);
+ * await kvService.get("key");
+ * ```
+ */
 export class KV {
   constructor(private url: string, private auth: Authenticator) {}
 

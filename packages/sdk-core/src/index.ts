@@ -62,3 +62,27 @@ export {
   submitHostDelegation,
   activateSessionWithHost,
 } from "./namespace";
+
+// Services
+export {
+  // Types
+  ServiceType,
+  ServiceHeaders,
+  ServiceSession,
+  InvokeFunction,
+  FetchFunction,
+  FetchRequestInit,
+  FetchResponse,
+  // KV Service
+  IKVService,
+  KVResponse,
+  KVResponseHeaders,
+  KVGetOptions,
+  KVPutOptions,
+  KVListOptions,
+  KVService,
+  KVServiceConfig,
+  // Factory
+  ServiceFactory,
+  BaseServiceConfig,
+} from "./services";

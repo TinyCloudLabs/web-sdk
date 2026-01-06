@@ -72,3 +72,24 @@ export {
   EventEmitterStrategy,
   defaultSignStrategy,
 } from "./authorization/strategies";
+
+// High-level API
+export { TinyCloudNode, TinyCloudNodeConfig } from "./TinyCloudNode";
+
+// Delegation
+export { DelegatedAccess } from "./DelegatedAccess";
+export {
+  PortableDelegation,
+  serializeDelegation,
+  deserializeDelegation,
+} from "./delegation";
+
+// Re-export KV service for direct usage
+export {
+  IKVService,
+  KVService,
+  KVServiceConfig,
+  KVResponse,
+  ServiceType,
+  ServiceFactory,
+} from "@tinycloudlabs/sdk-core";

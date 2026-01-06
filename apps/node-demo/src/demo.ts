@@ -1,37 +1,33 @@
 #!/usr/bin/env bun
 /**
- * TinyCloud Node.js SDK Demo
+ * TinyCloud Node.js SDK Demo - Delegation Chain
  *
- * Demonstrates the full TinyCloud flow:
+ * Demonstrates the full TinyCloud delegation chain:
  * 1. Alice creates a namespace and stores data
- * 2. Alice delegates read+write access to Bob
+ * 2. Alice delegates access to Bob (with sub-delegation enabled)
  * 3. Bob reads Alice's data and writes a response
+ * 4. Bob sub-delegates access to Charlie
+ * 5. Charlie writes to Alice's namespace via the delegation chain
+ * 6. Alice reads messages from both Bob and Charlie
  *
  * Prerequisites:
  * - A running TinyCloud server (default: http://localhost:8000)
  *
  * Environment Variables (auto-generated if missing):
- *   TINYCLOUD_URL       - TinyCloud server URL (default: http://localhost:8000)
- *   ALICE_PRIVATE_KEY   - Alice's Ethereum private key (hex string, no 0x)
- *   BOB_PRIVATE_KEY     - Bob's Ethereum private key (hex string, no 0x)
+ *   TINYCLOUD_URL         - TinyCloud server URL (default: http://localhost:8000)
+ *   ALICE_PRIVATE_KEY     - Alice's Ethereum private key (hex string, no 0x)
+ *   BOB_PRIVATE_KEY       - Bob's Ethereum private key (hex string, no 0x)
+ *   CHARLIE_PRIVATE_KEY   - Charlie's Ethereum private key (hex string, no 0x)
  *
  * Usage:
  *   bun run demo
  */
 
-import { TinyCloud } from "@tinycloudlabs/sdk-core";
 import {
-  NodeUserAuthorization,
-  PrivateKeySigner,
-  FileSessionStorage,
-  TinyCloudSession,
+  TinyCloudNode,
+  serializeDelegation,
+  deserializeDelegation,
 } from "@tinycloudlabs/node-sdk";
-import {
-  invoke,
-  prepareSession,
-  completeSessionSetup,
-  TCWSessionManager,
-} from "@tinycloudlabs/node-sdk-wasm";
 import { Wallet } from "ethers";
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
@@ -41,7 +37,6 @@ import { join } from "path";
 // ============================================================================
 
 const TINYCLOUD_URL = process.env.TINYCLOUD_URL || "http://localhost:8000";
-const DOMAIN = "demo.tinycloud.xyz";
 const ENV_PATH = join(import.meta.dir, "..", ".env");
 
 // ============================================================================
@@ -51,6 +46,7 @@ const ENV_PATH = join(import.meta.dir, "..", ".env");
 interface UserKeys {
   alice: string;
   bob: string;
+  charlie: string;
 }
 
 function generateKey(): string {
@@ -75,242 +71,55 @@ function parseEnvFile(content: string): Record<string, string> {
 function ensureKeys(): UserKeys {
   let aliceKey = process.env.ALICE_PRIVATE_KEY;
   let bobKey = process.env.BOB_PRIVATE_KEY;
+  let charlieKey = process.env.CHARLIE_PRIVATE_KEY;
   let needsWrite = false;
-  let envContent = "";
 
-  // Load existing .env file and parse it
+  // Load existing .env file
   if (existsSync(ENV_PATH)) {
-    envContent = readFileSync(ENV_PATH, "utf-8");
-    const parsed = parseEnvFile(envContent);
-    // Use values from .env file if not in process.env
-    if (!aliceKey && parsed.ALICE_PRIVATE_KEY) {
-      aliceKey = parsed.ALICE_PRIVATE_KEY;
-    }
-    if (!bobKey && parsed.BOB_PRIVATE_KEY) {
-      bobKey = parsed.BOB_PRIVATE_KEY;
-    }
+    const parsed = parseEnvFile(readFileSync(ENV_PATH, "utf-8"));
+    aliceKey = aliceKey || parsed.ALICE_PRIVATE_KEY;
+    bobKey = bobKey || parsed.BOB_PRIVATE_KEY;
+    charlieKey = charlieKey || parsed.CHARLIE_PRIVATE_KEY;
   }
 
+  // Generate missing keys
   if (!aliceKey) {
     aliceKey = generateKey();
-    const aliceWallet = new Wallet(`0x${aliceKey}`);
-    log("KeyGen", `Generated Alice's key: ${aliceWallet.address}`);
+    console.log(`[KeyGen] Generated Alice's key: ${new Wallet(`0x${aliceKey}`).address}`);
     needsWrite = true;
   }
-
   if (!bobKey) {
     bobKey = generateKey();
-    const bobWallet = new Wallet(`0x${bobKey}`);
-    log("KeyGen", `Generated Bob's key: ${bobWallet.address}`);
+    console.log(`[KeyGen] Generated Bob's key: ${new Wallet(`0x${bobKey}`).address}`);
+    needsWrite = true;
+  }
+  if (!charlieKey) {
+    charlieKey = generateKey();
+    console.log(`[KeyGen] Generated Charlie's key: ${new Wallet(`0x${charlieKey}`).address}`);
     needsWrite = true;
   }
 
+  // Write keys to .env
   if (needsWrite) {
-    const newContent = generateEnvContent(aliceKey, bobKey, envContent);
-    writeFileSync(ENV_PATH, newContent);
-    log("KeyGen", `Keys saved to ${ENV_PATH}`);
-  }
-
-  return { alice: aliceKey, bob: bobKey };
-}
-
-function generateEnvContent(aliceKey: string, bobKey: string, existingContent: string): string {
-  const aliceWallet = new Wallet(`0x${aliceKey}`);
-  const bobWallet = new Wallet(`0x${bobKey}`);
-
-  if (existingContent && !existingContent.includes("ALICE_PRIVATE_KEY")) {
-    return `${existingContent}
-# TinyCloud Demo Keys (auto-generated)
-ALICE_PRIVATE_KEY=${aliceKey}
-# Alice's address: ${aliceWallet.address}
-
-BOB_PRIVATE_KEY=${bobKey}
-# Bob's address: ${bobWallet.address}
-`;
-  }
-
-  return `# TinyCloud Demo Environment
+    const content = `# TinyCloud Demo Environment
 # Auto-generated by demo.ts
 
 TINYCLOUD_URL=http://localhost:8000
 
 ALICE_PRIVATE_KEY=${aliceKey}
-# Alice's address: ${aliceWallet.address}
+# Alice's address: ${new Wallet(`0x${aliceKey}`).address}
 
 BOB_PRIVATE_KEY=${bobKey}
-# Bob's address: ${bobWallet.address}
+# Bob's address: ${new Wallet(`0x${bobKey}`).address}
+
+CHARLIE_PRIVATE_KEY=${charlieKey}
+# Charlie's address: ${new Wallet(`0x${charlieKey}`).address}
 `;
-}
-
-// ============================================================================
-// Helpers
-// ============================================================================
-
-function log(section: string, message: string) {
-  console.log(`[${section}] ${message}`);
-}
-
-function logStep(step: number, title: string) {
-  console.log();
-  console.log("=".repeat(60));
-  console.log(`Step ${step}: ${title}`);
-  console.log("=".repeat(60));
-}
-
-// ============================================================================
-// User Setup
-// ============================================================================
-
-interface DemoUser {
-  name: string;
-  signer: PrivateKeySigner;
-  auth: NodeUserAuthorization;
-  tinycloud: TinyCloud;
-  address: string;
-}
-
-async function setupUser(name: string, privateKey: string): Promise<DemoUser> {
-  const signer = new PrivateKeySigner(privateKey);
-  const address = await signer.getAddress();
-
-  const sessionDir = join(import.meta.dir, "..", ".sessions", name.toLowerCase());
-  const sessionStorage = new FileSessionStorage(sessionDir);
-
-  const auth = new NodeUserAuthorization({
-    signer,
-    signStrategy: { type: "auto-sign" },
-    sessionStorage,
-    domain: DOMAIN,
-    namespacePrefix: `demo-${name.toLowerCase()}`,
-    tinycloudHosts: [TINYCLOUD_URL],
-  });
-
-  const tinycloud = new TinyCloud(auth);
-
-  return { name, signer, auth, tinycloud, address };
-}
-
-// ============================================================================
-// TinyCloud Operations
-// ============================================================================
-
-async function activateSession(session: TinyCloudSession): Promise<void> {
-  const response = await fetch(`${TINYCLOUD_URL}/delegate`, {
-    method: "POST",
-    headers: session.delegationHeader,
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to activate session: ${response.status} - ${error}`);
-  }
-}
-
-async function kvPut(
-  session: TinyCloudSession,
-  path: string,
-  data: any
-): Promise<void> {
-  const headers = invoke(session, "kv", path, "tinycloud.kv/put");
-  const response = await fetch(`${TINYCLOUD_URL}/invoke`, {
-    method: "POST",
-    headers,
-    body: new Blob([JSON.stringify(data)], { type: "application/json" }),
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to put data: ${response.status} - ${error}`);
-  }
-}
-
-async function kvGet(
-  session: TinyCloudSession,
-  path: string
-): Promise<any> {
-  const headers = invoke(session, "kv", path, "tinycloud.kv/get");
-  const response = await fetch(`${TINYCLOUD_URL}/invoke`, {
-    method: "POST",
-    headers,
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to get data: ${response.status} - ${error}`);
+    writeFileSync(ENV_PATH, content);
+    console.log(`[KeyGen] Keys saved to ${ENV_PATH}`);
   }
 
-  return response.json();
-}
-
-/**
- * Create a delegation from one user's session to another user's DID.
- * This allows the delegate to perform actions on the delegator's namespace.
- */
-async function createDelegation(
-  delegatorSession: TinyCloudSession,
-  delegatorSigner: PrivateKeySigner,
-  delegateDID: string,
-  path: string,
-  actions: string[]
-): Promise<TinyCloudSession> {
-  // Create a new session manager for the delegation
-  const sessionManager = new TCWSessionManager();
-  const keyId = `delegation-${Date.now()}`;
-  sessionManager.renameSessionKeyId("default", keyId);
-
-  // Get the JWK for the new session key
-  const jwkString = sessionManager.jwk(keyId);
-  if (!jwkString) {
-    throw new Error("Failed to create session key for delegation");
-  }
-  const jwk = JSON.parse(jwkString);
-
-  // Build abilities for the delegation
-  const abilities: Record<string, Record<string, string[]>> = {
-    kv: {
-      [path]: actions,
-    },
-  };
-
-  const now = new Date();
-  const expirationTime = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour
-
-  // Prepare the delegation session
-  const prepared = prepareSession({
-    abilities,
-    address: delegatorSession.address,
-    chainId: delegatorSession.chainId,
-    domain: DOMAIN,
-    issuedAt: now.toISOString(),
-    expirationTime: expirationTime.toISOString(),
-    namespaceId: delegatorSession.namespaceId,
-    jwk,
-    parents: [delegatorSession.delegationCid],
-  });
-
-  // Sign the SIWE message
-  const signature = await delegatorSigner.signMessage(prepared.siweMessage);
-
-  // Complete the session setup
-  const session = completeSessionSetup({
-    ...prepared,
-    signature,
-  });
-
-  // Create the TinyCloud session for the delegate
-  const delegateSession: TinyCloudSession = {
-    address: delegatorSession.address, // Actions are performed on delegator's namespace
-    chainId: delegatorSession.chainId,
-    sessionKey: keyId,
-    namespaceId: delegatorSession.namespaceId,
-    delegationCid: session.delegationCid,
-    delegationHeader: session.delegationHeader,
-    verificationMethod: sessionManager.getDID(keyId),
-    siwe: prepared.siweMessage,
-    signature,
-  };
-
-  return delegateSession;
+  return { alice: aliceKey, bob: bobKey, charlie: charlieKey };
 }
 
 // ============================================================================
@@ -319,200 +128,143 @@ async function createDelegation(
 
 async function runDemo() {
   console.log();
-  console.log("╔════════════════════════════════════════════════════════════╗");
-  console.log("║        TinyCloud Node.js SDK Demo (Alice & Bob)            ║");
-  console.log("╚════════════════════════════════════════════════════════════╝");
+  console.log("TinyCloud Node.js SDK Demo - Delegation Chain");
+  console.log("=".repeat(50));
+  console.log(`Server: ${TINYCLOUD_URL}`);
   console.log();
-  console.log(`TinyCloud URL: ${TINYCLOUD_URL}`);
-  console.log(`Domain: ${DOMAIN}`);
 
-  // ========================================================================
-  // Step 1: Ensure ETH keys exist
-  // ========================================================================
-  logStep(1, "Ensure ETH Keys");
-
+  // Step 1: Ensure keys exist
   const keys = ensureKeys();
-  log("Keys", "Alice and Bob keys ready");
 
-  // ========================================================================
-  // Step 2: Initialize Users
-  // ========================================================================
-  logStep(2, "Initialize Users");
+  // Step 2: Create TinyCloudNode instances for each user
+  const alice = new TinyCloudNode({
+    privateKey: keys.alice,
+    host: TINYCLOUD_URL,
+    prefix: "demo-alice",
+  });
 
-  const alice = await setupUser("Alice", keys.alice);
-  log("Alice", `Address: ${alice.address}`);
+  const bob = new TinyCloudNode({
+    privateKey: keys.bob,
+    host: TINYCLOUD_URL,
+    prefix: "demo-bob",
+  });
 
-  const bob = await setupUser("Bob", keys.bob);
-  log("Bob", `Address: ${bob.address}`);
+  const charlie = new TinyCloudNode({
+    privateKey: keys.charlie,
+    host: TINYCLOUD_URL,
+    prefix: "demo-charlie",
+  });
 
-  // ========================================================================
-  // Step 3: Alice Signs In and Creates Namespace
-  // ========================================================================
-  logStep(3, "Alice Signs In");
+  // Step 3: All users sign in (creates their namespaces)
+  console.log("[Alice] Signing in...");
+  await alice.signIn();
+  console.log(`[Alice] Namespace: ${alice.namespaceId}`);
 
-  // Check for existing session
-  const aliceHasSession = alice.auth.isSessionPersisted(alice.address);
-  log("Alice", `Existing session: ${aliceHasSession}`);
+  console.log("[Bob] Signing in...");
+  await bob.signIn();
+  console.log(`[Bob] Namespace: ${bob.namespaceId}`);
 
-  if (aliceHasSession) {
-    const resumed = await alice.auth.tryResumeSession(alice.address);
-    if (resumed && alice.auth.tinyCloudSession) {
-      log("Alice", `Session resumed!`);
-    }
-  }
-
-  if (!alice.auth.session) {
-    log("Alice", "Signing in...");
-    await alice.tinycloud.signIn();
-  }
-
-  const aliceSession = alice.auth.tinyCloudSession;
-  if (!aliceSession) {
-    throw new Error("Alice sign-in failed - no TinyCloud session");
-  }
-
-  log("Alice", `Namespace: ${aliceSession.namespaceId}`);
-  log("Alice", `Delegation CID: ${aliceSession.delegationCid}`);
-
-  // ========================================================================
-  // Step 4: Alice Activates Session with Server
-  // ========================================================================
-  logStep(4, "Alice Activates Session");
-
-  log("Alice", "Activating session with server...");
-  await activateSession(aliceSession);
-  log("Alice", "Session activated successfully!");
-
-  // ========================================================================
-  // Step 5: Alice Stores Data
-  // ========================================================================
-  logStep(5, "Alice Stores Data");
-
-  const aliceData = {
-    message: "Hello Bob! This is Alice's shared data.",
-    timestamp: new Date().toISOString(),
-    sharedWith: ["bob"],
-  };
-
-  log("Alice", `Storing data at 'shared/greeting':`);
-  log("Alice", `  ${JSON.stringify(aliceData)}`);
-  await kvPut(aliceSession, "shared/greeting", aliceData);
-  log("Alice", "Data stored successfully!");
-
-  // ========================================================================
-  // Step 6: Bob Signs In
-  // ========================================================================
-  logStep(6, "Bob Signs In");
-
-  const bobHasSession = bob.auth.isSessionPersisted(bob.address);
-  log("Bob", `Existing session: ${bobHasSession}`);
-
-  if (bobHasSession) {
-    const resumed = await bob.auth.tryResumeSession(bob.address);
-    if (resumed && bob.auth.tinyCloudSession) {
-      log("Bob", `Session resumed!`);
-    }
-  }
-
-  if (!bob.auth.session) {
-    log("Bob", "Signing in...");
-    await bob.tinycloud.signIn();
-  }
-
-  const bobSession = bob.auth.tinyCloudSession;
-  if (!bobSession) {
-    throw new Error("Bob sign-in failed - no TinyCloud session");
-  }
-
-  log("Bob", `Namespace: ${bobSession.namespaceId}`);
-
-  // ========================================================================
-  // Step 7: Alice Delegates Access to Bob
-  // ========================================================================
-  logStep(7, "Alice Delegates Access to Bob");
-
-  log("Alice", `Creating delegation for Bob...`);
-  log("Alice", `  Delegate DID: ${bobSession.verificationMethod}`);
-  log("Alice", `  Path: shared/`);
-  log("Alice", `  Actions: read + write`);
-
-  const bobDelegatedSession = await createDelegation(
-    aliceSession,
-    alice.signer,
-    bobSession.verificationMethod,
-    "shared/",
-    ["tinycloud.kv/get", "tinycloud.kv/put", "tinycloud.kv/list"]
-  );
-
-  // Activate the delegation with the server
-  log("Alice", "Activating delegation with server...");
-  await activateSession(bobDelegatedSession);
-  log("Alice", "Delegation activated!");
-  log("Alice", `Delegation CID: ${bobDelegatedSession.delegationCid}`);
-
-  // ========================================================================
-  // Step 8: Bob Reads Alice's Data
-  // ========================================================================
-  logStep(8, "Bob Reads Alice's Data");
-
-  log("Bob", "Reading data from Alice's namespace...");
-  const readData = await kvGet(bobDelegatedSession, "shared/greeting");
-  log("Bob", `Received: ${JSON.stringify(readData)}`);
-
-  // ========================================================================
-  // Step 9: Bob Writes a Response
-  // ========================================================================
-  logStep(9, "Bob Writes a Response");
-
-  const bobResponse = {
-    message: "Thanks Alice! Here's my response.",
-    from: bob.address,
-    timestamp: new Date().toISOString(),
-    originalMessage: readData.message,
-  };
-
-  log("Bob", `Writing response to Alice's namespace:`);
-  log("Bob", `  ${JSON.stringify(bobResponse)}`);
-  await kvPut(bobDelegatedSession, "shared/bob-response", bobResponse);
-  log("Bob", "Response written successfully!");
-
-  // ========================================================================
-  // Step 10: Alice Reads Bob's Response
-  // ========================================================================
-  logStep(10, "Alice Reads Bob's Response");
-
-  log("Alice", "Reading Bob's response from her namespace...");
-  const bobsResponse = await kvGet(aliceSession, "shared/bob-response");
-  log("Alice", `Received: ${JSON.stringify(bobsResponse)}`);
-
-  // ========================================================================
-  // Summary
-  // ========================================================================
+  console.log("[Charlie] Signing in...");
+  await charlie.signIn();
+  console.log(`[Charlie] Namespace: ${charlie.namespaceId}`);
   console.log();
-  console.log("╔════════════════════════════════════════════════════════════╗");
-  console.log("║                      Demo Complete                         ║");
-  console.log("╚════════════════════════════════════════════════════════════╝");
+
+  // Step 4: Alice stores data in her namespace
+  console.log("[Alice] Storing greeting...");
+  await alice.kv.put("shared/greeting", {
+    message: "Hello from Alice!",
+    timestamp: new Date().toISOString(),
+  });
+  console.log("[Alice] Data stored at 'shared/greeting'");
+  console.log();
+
+  // Step 5: Alice creates delegation for Bob (with sub-delegation enabled)
+  console.log("[Alice] Creating delegation for Bob...");
+  const delegationForBob = await alice.createDelegation({
+    path: "shared/",
+    actions: ["tinycloud.kv/get", "tinycloud.kv/put"],
+    delegateDID: bob.did,
+    allowSubDelegation: true,
+  });
+  console.log(`[Alice] Delegation created: ${delegationForBob.delegationCid}`);
+  console.log();
+
+  // --- TRANSPORT BOUNDARY ---
+  // In a real app, Alice would send this delegation to Bob over a secure channel.
+  // We simulate this by serializing and deserializing the delegation.
+  const serializedForBob = serializeDelegation(delegationForBob);
+  const receivedByBob = deserializeDelegation(serializedForBob);
+
+  // Step 6: Bob uses the delegation to access Alice's namespace
+  console.log("[Bob] Using delegation from Alice...");
+  const bobAccessToAlice = await bob.useDelegation(receivedByBob);
+
+  // Bob reads Alice's data
+  const greetingResponse = await bobAccessToAlice.kv.get<{ message: string }>("greeting");
+  console.log(`[Bob] Read from Alice: "${greetingResponse.data?.message}"`);
+
+  // Bob writes a response
+  await bobAccessToAlice.kv.put("bob-was-here", {
+    from: "Bob",
+    message: "Thanks for sharing, Alice!",
+    timestamp: new Date().toISOString(),
+  });
+  console.log("[Bob] Wrote response to Alice's namespace");
+  console.log();
+
+  // Step 7: Bob creates sub-delegation for Charlie
+  console.log("[Bob] Creating sub-delegation for Charlie...");
+  const delegationForCharlie = await bob.createSubDelegation(receivedByBob, {
+    path: "shared/",
+    actions: ["tinycloud.kv/put"],
+    delegateDID: charlie.did,
+  });
+  console.log(`[Bob] Sub-delegation created: ${delegationForCharlie.delegationCid}`);
+  console.log();
+
+  // --- TRANSPORT BOUNDARY ---
+  // Bob sends the sub-delegation to Charlie
+  const serializedForCharlie = serializeDelegation(delegationForCharlie);
+  const receivedByCharlie = deserializeDelegation(serializedForCharlie);
+
+  // Step 8: Charlie uses the delegation chain to write to Alice's namespace
+  console.log("[Charlie] Using delegation chain...");
+  const charlieAccessToAlice = await charlie.useDelegation(receivedByCharlie);
+
+  await charlieAccessToAlice.kv.put("charlie-was-here", {
+    from: "Charlie",
+    message: "Hello from the end of the chain!",
+    timestamp: new Date().toISOString(),
+  });
+  console.log("[Charlie] Wrote to Alice's namespace via delegation chain");
+  console.log();
+
+  // Step 9: Alice reads messages from both Bob and Charlie
+  console.log("[Alice] Reading responses...");
+  const bobResponse = await alice.kv.get<{ from: string; message: string }>("shared/bob-was-here");
+  const charlieResponse = await alice.kv.get<{ from: string; message: string }>("shared/charlie-was-here");
+  console.log(`[Alice] From Bob: "${bobResponse.data?.message}"`);
+  console.log(`[Alice] From Charlie: "${charlieResponse.data?.message}"`);
+  console.log();
+
+  // Summary
+  console.log("=".repeat(50));
+  console.log("Demo Complete!");
   console.log();
   console.log("What happened:");
-  console.log("  1. Alice signed in and created her namespace");
-  console.log("  2. Alice stored data at 'shared/greeting'");
-  console.log("  3. Alice created a delegation for Bob (read+write on 'shared/')");
-  console.log("  4. Bob read Alice's data using the delegation");
-  console.log("  5. Bob wrote a response to Alice's namespace");
-  console.log("  6. Alice read Bob's response from her namespace");
-  console.log();
-  console.log("Keys stored in:", ENV_PATH);
-  console.log("Sessions stored in:", join(import.meta.dir, "..", ".sessions"));
+  console.log("  1. Alice, Bob, and Charlie each signed in (created namespaces)");
+  console.log("  2. Alice stored data and delegated access to Bob");
+  console.log("  3. Bob read Alice's data and wrote a response");
+  console.log("  4. Bob sub-delegated write access to Charlie");
+  console.log("  5. Charlie wrote to Alice's namespace via the chain");
+  console.log("  6. Alice read messages from both Bob and Charlie");
   console.log();
 }
 
 // Run the demo
 runDemo().catch((error) => {
   console.error();
-  console.error("╔════════════════════════════════════════════════════════════╗");
-  console.error("║                      Demo Failed                           ║");
-  console.error("╚════════════════════════════════════════════════════════════╝");
-  console.error();
+  console.error("Demo Failed!");
   console.error("Error:", error.message);
   console.error();
   console.error("Make sure the TinyCloud server is running at:", TINYCLOUD_URL);

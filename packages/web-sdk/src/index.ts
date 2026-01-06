@@ -25,3 +25,14 @@ export {
   SiweConfig,
   PartialSiweMessage,
 } from '@tinycloudlabs/sdk-core';
+
+// Re-export KV service types for direct usage
+export {
+  IKVService,
+  KVService,
+  KVResponse,
+  ServiceType,
+} from '@tinycloudlabs/sdk-core';
+
+// Adapter for web-sdk
+export { createKVService } from './modules/Storage/tinycloud/KVServiceAdapter';

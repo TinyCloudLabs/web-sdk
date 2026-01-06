@@ -96,5 +96,11 @@ declare module "@tinycloudlabs/web-core/client" {
   interface TCWClientConfig {
     /** Session persistence configuration */
     persistence?: Partial<SessionPersistenceConfig>;
+    /** Whether to automatically create namespace if it doesn't exist (default: true) */
+    autoCreateNamespace?: boolean;
+    /** TinyCloud server endpoints (default: ["https://node.tinycloud.xyz"]) */
+    tinycloudHosts?: string[];
+    /** Namespace prefix for new sessions (default: "default") */
+    namespacePrefix?: string;
   }
 }
