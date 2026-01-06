@@ -23,4 +23,15 @@ export {
   exportKey,
   importKey,
   importKeyFromEnvValue,
+  // Namespace hosting
+  generateHostSIWEMessage,
+  siweToDelegationHeaders,
+} from "../../../node-sdk-wasm/tinycloud_web_sdk_rs.js";
+
+// Re-export types for TypeScript consumers
+export type {
+  HostConfig,
+  Session,
+  SessionConfig,
+  SiweConfig,
 } from "../../../node-sdk-wasm/tinycloud_web_sdk_rs.js";

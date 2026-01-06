@@ -9,6 +9,9 @@ import {
   PartialSiweMessage,
   PersistedSessionData,
   TinyCloudSession,
+  fetchPeerId,
+  submitHostDelegation,
+  activateSessionWithHost,
 } from "@tinycloudlabs/sdk-core";
 import {
   TCWSessionManager,
@@ -17,6 +20,8 @@ import {
   ensureEip55,
   makeNamespaceId,
   initPanicHook,
+  generateHostSIWEMessage,
+  siweToDelegationHeaders,
 } from "@tinycloudlabs/node-sdk-wasm";
 import {
   SignStrategy,
@@ -48,6 +53,10 @@ export interface NodeUserAuthorizationConfig {
   defaultActions?: Record<string, Record<string, string[]>>;
   /** Session expiration time in milliseconds (default: 1 hour) */
   sessionExpirationMs?: number;
+  /** Automatically create namespace if it doesn't exist (default: true) */
+  autoCreateNamespace?: boolean;
+  /** TinyCloud server endpoints (default: ["https://node.tinycloud.xyz"]) */
+  tinycloudHosts?: string[];
 }
 
 /**
@@ -95,6 +104,8 @@ export class NodeUserAuthorization implements IUserAuthorization {
   private readonly namespacePrefix: string;
   private readonly defaultActions: Record<string, Record<string, string[]>>;
   private readonly sessionExpirationMs: number;
+  private readonly autoCreateNamespace: boolean;
+  private readonly tinycloudHosts: string[];
 
   private sessionManager: TCWSessionManager;
   private extensions: TCWExtension[] = [];
@@ -129,6 +140,8 @@ export class NodeUserAuthorization implements IUserAuthorization {
       },
     };
     this.sessionExpirationMs = config.sessionExpirationMs ?? 60 * 60 * 1000;
+    this.autoCreateNamespace = config.autoCreateNamespace ?? true;
+    this.tinycloudHosts = config.tinycloudHosts ?? ["https://node.tinycloud.xyz"];
 
     // Initialize session manager
     this.sessionManager = new TCWSessionManager();
@@ -154,6 +167,114 @@ export class NodeUserAuthorization implements IUserAuthorization {
    */
   extend(extension: TCWExtension): void {
     this.extensions.push(extension);
+  }
+
+  /**
+   * Get the namespace ID for the current session.
+   */
+  getNamespaceId(): string | undefined {
+    return this._tinyCloudSession?.namespaceId;
+  }
+
+  /**
+   * Create the namespace on the TinyCloud server (host delegation).
+   * This registers the user as the owner of the namespace.
+   */
+  private async hostNamespace(): Promise<boolean> {
+    if (!this._tinyCloudSession || !this._address || !this._chainId) {
+      throw new Error("Must be signed in to host namespace");
+    }
+
+    const host = this.tinycloudHosts[0];
+    const namespaceId = this._tinyCloudSession.namespaceId;
+
+    // Get peer ID from TinyCloud server
+    const peerId = await fetchPeerId(host, namespaceId);
+
+    // Generate host SIWE message
+    const siwe = generateHostSIWEMessage({
+      address: this._address,
+      chainId: this._chainId,
+      domain: this.domain,
+      issuedAt: new Date().toISOString(),
+      namespaceId,
+      peerId,
+    });
+
+    // Sign the message
+    const signature = await this.signMessage(siwe);
+
+    // Convert to delegation headers and submit
+    const headers = siweToDelegationHeaders({ siwe, signature });
+    const result = await submitHostDelegation(host, headers);
+
+    return result.success;
+  }
+
+  /**
+   * Ensure the user's namespace exists on the TinyCloud server.
+   * Creates the namespace if it doesn't exist and autoCreateNamespace is enabled.
+   *
+   * @throws Error if namespace creation fails or is disabled and namespace doesn't exist
+   */
+  async ensureNamespaceExists(): Promise<void> {
+    if (!this._tinyCloudSession) {
+      throw new Error("Must be signed in to ensure namespace exists");
+    }
+
+    const host = this.tinycloudHosts[0];
+    console.log(`[ensureNamespaceExists] host=${host}, namespaceId=${this._tinyCloudSession.namespaceId}`);
+
+    // Try to activate the session (this checks if namespace exists)
+    const result = await activateSessionWithHost(
+      host,
+      this._tinyCloudSession.delegationHeader
+    );
+
+    console.log(`[ensureNamespaceExists] activation result: status=${result.status}, success=${result.success}, error=${result.error}`);
+
+    if (result.success) {
+      // Namespace exists and session is activated
+      return;
+    }
+
+    if (result.status === 404) {
+      // Namespace doesn't exist
+      if (!this.autoCreateNamespace) {
+        throw new Error(
+          `Namespace does not exist: ${this._tinyCloudSession.namespaceId}. ` +
+            `Set autoCreateNamespace: true to create it automatically.`
+        );
+      }
+
+      // Create the namespace
+      const created = await this.hostNamespace();
+      if (!created) {
+        throw new Error(
+          `Failed to create namespace: ${this._tinyCloudSession.namespaceId}`
+        );
+      }
+
+      // Small delay to allow namespace creation to propagate
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Retry activation after creating namespace
+      const retryResult = await activateSessionWithHost(
+        host,
+        this._tinyCloudSession.delegationHeader
+      );
+
+      if (!retryResult.success) {
+        throw new Error(
+          `Failed to activate session after creating namespace: ${retryResult.error}`
+        );
+      }
+
+      return;
+    }
+
+    // Other error
+    throw new Error(`Failed to activate session: ${result.error}`);
   }
 
   /**
@@ -371,6 +492,9 @@ export class NodeUserAuthorization implements IUserAuthorization {
       }
     }
 
+    // Ensure namespace exists (creates if needed when autoCreateNamespace is true)
+    await this.ensureNamespaceExists();
+
     return clientSession;
   }
 
@@ -425,6 +549,9 @@ export class NodeUserAuthorization implements IUserAuthorization {
     this._session = clientSession;
     this._address = address;
     this._chainId = persisted.chainId;
+
+    // Activate session with server (namespace should already exist for resumed sessions)
+    await this.ensureNamespaceExists();
 
     return clientSession;
   }

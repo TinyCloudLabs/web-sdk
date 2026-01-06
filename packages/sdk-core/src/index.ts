@@ -54,3 +54,11 @@ export {
   TinyCloudConfig,
   StorageFactory,
 } from "./TinyCloud";
+
+// Namespace utilities
+export {
+  NamespaceHostResult,
+  fetchPeerId,
+  submitHostDelegation,
+  activateSessionWithHost,
+} from "./namespace";

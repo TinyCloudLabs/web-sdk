@@ -123,6 +123,19 @@ export interface IUserAuthorization {
    * @returns true if session data exists
    */
   isSessionPersisted(address: string): boolean;
+
+  /**
+   * Get the current namespace ID.
+   * @returns Namespace ID or undefined if not available
+   */
+  getNamespaceId?(): string | undefined;
+
+  /**
+   * Ensure the user's namespace exists on the TinyCloud server.
+   * Creates the namespace if it doesn't exist (when autoCreateNamespace is true).
+   * This is called automatically during sign-in but can be invoked manually.
+   */
+  ensureNamespaceExists?(): Promise<void>;
 }
 
 /**

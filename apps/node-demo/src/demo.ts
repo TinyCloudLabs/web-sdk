@@ -182,6 +182,7 @@ async function setupUser(name: string, privateKey: string): Promise<DemoUser> {
     sessionStorage,
     domain: DOMAIN,
     namespacePrefix: `demo-${name.toLowerCase()}`,
+    tinycloudHosts: [TINYCLOUD_URL],
   });
 
   const tinycloud = new TinyCloud(auth);
