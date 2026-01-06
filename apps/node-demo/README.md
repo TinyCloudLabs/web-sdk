@@ -1,11 +1,13 @@
 # TinyCloud Node.js SDK Demo
 
-Demonstrates the full TinyCloud flow using the Node.js SDK:
+Demonstrates the full TinyCloud delegation chain using the Node.js SDK:
 
 1. **Alice** creates a namespace and stores data
-2. **Alice** delegates read-only access to **Bob**
-3. **Bob** reads data from Alice's namespace
-4. **Bob** tries to write (fails - read-only access)
+2. **Alice** delegates access to **Bob** (with sub-delegation enabled)
+3. **Bob** reads Alice's data and writes a response
+4. **Bob** sub-delegates write access to **Charlie**
+5. **Charlie** writes to Alice's namespace via the delegation chain
+6. **Alice** reads messages from both Bob and Charlie
 
 ## Quick Start
 
@@ -18,42 +20,28 @@ cd apps/node-demo
 bun run demo
 ```
 
-## Generate Keys
-
-Generate a new Ed25519 session key:
-
-```bash
-# Generate with default key ID
-bun run keygen
-
-# Generate with custom key ID
-bun run keygen alice
-```
-
-**One-liner to export a key:**
-
-```bash
-export TINYCLOUD_DEMO_KEY_ALICE=$(bun run keygen alice 2>/dev/null | grep -A1 "Base64-encoded" | tail -1)
-```
 
 ## Environment Variables
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `TINYCLOUD_URL` | TinyCloud server URL | `http://localhost:4000` |
-| `TINYCLOUD_DEMO_KEY_ALICE` | Alice's base64-encoded JWK | Auto-generated |
-| `TINYCLOUD_DEMO_KEY_BOB` | Bob's base64-encoded JWK | Auto-generated |
-| `TINYCLOUD_ETH_PRIVATE_KEY` | Ethereum private key (base64) | Demo key |
+| `TINYCLOUD_URL` | TinyCloud server URL | `http://localhost:8000` |
+| `ALICE_PRIVATE_KEY` | Alice's Ethereum private key (hex, no 0x) | Auto-generated |
+| `BOB_PRIVATE_KEY` | Bob's Ethereum private key (hex, no 0x) | Auto-generated |
+| `CHARLIE_PRIVATE_KEY` | Charlie's Ethereum private key (hex, no 0x) | Auto-generated |
+
+Keys are automatically generated and saved to `apps/node-demo/.env` on first run.
 
 ## Running with a Live Server
 
 ```bash
 # Start your TinyCloud server, then:
-TINYCLOUD_URL=http://localhost:4000 bun run demo
+TINYCLOUD_URL=http://localhost:8000 bun run demo
 
-# Or with pre-generated keys for reproducibility:
-export TINYCLOUD_DEMO_KEY_ALICE="eyJraWQiOiJhbGljZSIsImt0eSI6Ik9LUCIsImNydiI6IkVkMjU1MTkiLC..."
-export TINYCLOUD_DEMO_KEY_BOB="eyJraWQiOiJib2IiLCJrdHkiOiJPS1AiLCJjcnYiOiJFZDI1NTE5IiwieCI..."
+# Or with custom keys for reproducibility:
+export ALICE_PRIVATE_KEY="your-alice-key"
+export BOB_PRIVATE_KEY="your-bob-key"
+export CHARLIE_PRIVATE_KEY="your-charlie-key"
 bun run demo
 ```
 
@@ -61,23 +49,30 @@ bun run demo
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                         TinyCloud Demo                          │
+│                   TinyCloud Delegation Chain                    │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│   Ethereum Wallet (owner)                                       │
-│         │                                                       │
-│         │ signs SIWE message                                    │
-│         ▼                                                       │
 │   ┌───────────┐                                                 │
-│   │   Alice   │  Session Key (Ed25519)                         │
-│   │   (DID)   │  Full KV access: put, get, del, list           │
+│   │   Alice   │  Ethereum Wallet (namespace owner)             │
+│   │  (Owner)  │  Full KV access: put, get, del, list           │
 │   └─────┬─────┘                                                 │
 │         │                                                       │
-│         │ delegates with attenuation                            │
+│         │ delegates (with sub-delegation enabled)               │
+│         │ Actions: tinycloud.kv/get, tinycloud.kv/put          │
+│         │ Path: shared/                                         │
 │         ▼                                                       │
 │   ┌───────────┐                                                 │
-│   │    Bob    │  Session Key (Ed25519)                         │
-│   │   (DID)   │  Read-only access: get, list, metadata         │
+│   │    Bob    │  Ethereum Wallet (delegate)                    │
+│   │(Delegate) │  Read/Write access to shared/                  │
+│   └─────┬─────┘                                                 │
+│         │                                                       │
+│         │ sub-delegates                                         │
+│         │ Actions: tinycloud.kv/put (attenuated)               │
+│         │ Path: shared/                                         │
+│         ▼                                                       │
+│   ┌───────────┐                                                 │
+│   │  Charlie  │  Ethereum Wallet (sub-delegate)                │
+│   │   (Sub)   │  Write-only access to shared/                  │
 │   └───────────┘                                                 │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
@@ -85,65 +80,105 @@ bun run demo
 
 ## SDK Usage Examples
 
-### Create a Session Manager
+### Initialize TinyCloudNode
 
 ```typescript
-import {
-  TCWSessionManager,
-  exportKeyAsBase64,
-  loadKeyFromEnv,
-} from "@tinycloudlabs/node-sdk-wasm";
+import { TinyCloudNode } from "@tinycloudlabs/node-sdk";
+import { Wallet } from "ethers";
 
-// Create new session with auto-generated key
-const manager = new TCWSessionManager();
-const did = manager.getDID();
-
-// Or load from environment
-loadKeyFromEnv(manager, "MY_TINYCLOUD_KEY", "my-key");
-```
-
-### Prepare a Session
-
-```typescript
-import { prepareSession, completeSessionSetup } from "@tinycloudlabs/node-sdk-wasm";
-
-const config = {
-  abilities: {
-    kv: { "my-data/": ["tinycloud.kv/get", "tinycloud.kv/put"] }
-  },
-  address: "0x...",
-  chainId: 1,
-  domain: "myapp.com",
-  issuedAt: new Date().toISOString(),
-  expirationTime: new Date(Date.now() + 3600000).toISOString(),
-  namespaceId: "tinycloud:pkh:eip155:1:0x...:default",
-  jwk: JSON.parse(manager.jwk()!),
-};
-
-const prepared = prepareSession(config);
-const signature = await wallet.signMessage(prepared.siwe);
-const session = completeSessionSetup({ ...prepared, signature });
-```
-
-### Make Invocations
-
-```typescript
-import { invoke } from "@tinycloudlabs/node-sdk-wasm";
-
-// Get headers for an invocation
-const headers = invoke(session, "kv", "my-data/key", "tinycloud.kv/get");
-
-// Make the request
-const response = await fetch("https://tinycloud.example/invoke", {
-  method: "POST",
-  headers,
+// Create instance with private key
+const tc = new TinyCloudNode({
+  privateKey: "your-ethereum-private-key-hex",
+  host: "http://localhost:8000",
+  prefix: "my-app",
+  autoCreateNamespace: true,
 });
+
+// Sign in (creates namespace if autoCreateNamespace is true)
+await tc.signIn();
+console.log("Namespace:", tc.namespaceId);
+console.log("PKH DID:", tc.pkhDid);
+```
+
+### KV Storage Operations
+
+```typescript
+// Store data
+await tc.kv.put("shared/greeting", {
+  message: "Hello from Alice!",
+  timestamp: new Date().toISOString(),
+});
+
+// Retrieve data
+const result = await tc.kv.get<{ message: string }>("shared/greeting");
+console.log(result.data?.message);
+
+// List keys
+const keys = await tc.kv.list({ prefix: "shared/" });
+console.log(keys);
+
+// Delete data
+await tc.kv.delete("shared/greeting");
+```
+
+### Create Delegations
+
+```typescript
+// Create delegation for another user
+const delegation = await tc.createDelegation({
+  path: "shared/",
+  actions: ["tinycloud.kv/get", "tinycloud.kv/put"],
+  delegateDID: bobClient.pkhDid, // Use pkhDid for user-to-user
+  allowSubDelegation: true, // Allow Bob to sub-delegate
+});
+
+console.log("Delegation CID:", delegation.delegationCid);
+
+// Serialize to send to the delegate
+import { serializeDelegation } from "@tinycloudlabs/node-sdk";
+const serialized = serializeDelegation(delegation);
+// Send `serialized` to Bob via secure channel
+```
+
+### Use Delegations
+
+```typescript
+import { deserializeDelegation } from "@tinycloudlabs/node-sdk";
+
+// Bob receives serialized delegation from Alice
+const delegation = deserializeDelegation(serialized);
+
+// Use the delegation to access Alice's namespace
+const accessToAlice = await bobClient.useDelegation(delegation);
+
+// Read and write with delegation
+const greeting = await accessToAlice.kv.get("greeting");
+await accessToAlice.kv.put("bob-was-here", { from: "Bob" });
+```
+
+### Create Sub-Delegations
+
+```typescript
+// Bob creates sub-delegation for Charlie (attenuated permissions)
+const subDelegation = await bobClient.createSubDelegation(delegation, {
+  path: "shared/",
+  actions: ["tinycloud.kv/put"], // More restrictive: write-only
+  delegateDID: charlieClient.pkhDid,
+});
+
+// Charlie can now use the delegation chain
+const charlieAccess = await charlieClient.useDelegation(subDelegation);
+await charlieAccess.kv.put("charlie-was-here", { from: "Charlie" });
 ```
 
 ## Key Concepts
 
-- **Session Key**: An Ed25519 key pair used for signing invocations
-- **DID**: Decentralized Identifier derived from the session key (did:key:...)
-- **Namespace**: A data container identified by `tinycloud:pkh:eip155:{chainId}:{address}:{name}`
-- **Delegation**: SIWE-ReCap message chain authorizing session keys
-- **Abilities**: Permitted actions (e.g., `tinycloud.kv/get`) on paths
+- **Namespace**: A user-owned data container identified by `tinycloud:pkh:eip155:{chainId}:{address}:{name}`
+- **Namespace Owner**: The Ethereum address that controls a namespace
+- **Delegation**: Authorization to access another user's namespace with specific permissions
+- **Sub-Delegation**: A delegation created from an existing delegation (with attenuated permissions)
+- **Attenuation**: Reducing permissions when creating a sub-delegation (e.g., read/write → write-only)
+- **PKH DID**: Public Key Hash DID (`did:pkh:eip155:1:0x...`) identifying an Ethereum address
+- **Session Key**: An Ed25519 key pair managed by the SDK for signing invocations
+- **Actions**: Permitted operations (e.g., `tinycloud.kv/get`, `tinycloud.kv/put`) on resource paths
+- **Delegation Chain**: A sequence of delegations (Alice → Bob → Charlie) with cumulative attestations

@@ -53,7 +53,7 @@ export interface NodeUserAuthorizationConfig {
   defaultActions?: Record<string, Record<string, string[]>>;
   /** Session expiration time in milliseconds (default: 1 hour) */
   sessionExpirationMs?: number;
-  /** Automatically create namespace if it doesn't exist (default: true) */
+  /** Automatically create namespace if it doesn't exist (default: false) */
   autoCreateNamespace?: boolean;
   /** TinyCloud server endpoints (default: ["https://node.tinycloud.xyz"]) */
   tinycloudHosts?: string[];
@@ -140,7 +140,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
       },
     };
     this.sessionExpirationMs = config.sessionExpirationMs ?? 60 * 60 * 1000;
-    this.autoCreateNamespace = config.autoCreateNamespace ?? true;
+    this.autoCreateNamespace = config.autoCreateNamespace ?? false;
     this.tinycloudHosts = config.tinycloudHosts ?? ["https://node.tinycloud.xyz"];
 
     // Initialize session manager

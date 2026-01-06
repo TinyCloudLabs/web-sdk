@@ -223,8 +223,8 @@ export class TinyCloudNode {
     actions: string[];
     /** DID of the recipient (from their TinyCloudNode.did) */
     delegateDID: string;
-    /** Whether the recipient can create sub-delegations (default: false) */
-    allowSubDelegation?: boolean;
+    /** Whether to prevent the recipient from creating sub-delegations (default: false) */
+    disableSubDelegation?: boolean;
     /** Expiration time in milliseconds from now (default: 1 hour) */
     expiryMs?: number;
   }): Promise<PortableDelegation> {
@@ -285,7 +285,7 @@ export class TinyCloudNode {
       namespaceId: session.namespaceId,
       path: params.path,
       actions: params.actions,
-      allowSubDelegation: params.allowSubDelegation ?? false,
+      disableSubDelegation: params.disableSubDelegation ?? false,
       expiry: expirationTime,
       delegateDID: params.delegateDID,
       ownerAddress: session.address,
@@ -396,8 +396,8 @@ export class TinyCloudNode {
       actions: string[];
       /** DID of the recipient */
       delegateDID: string;
-      /** Whether the recipient can create further sub-delegations */
-      allowSubDelegation?: boolean;
+      /** Whether to prevent the recipient from creating further sub-delegations */
+      disableSubDelegation?: boolean;
       /** Expiration time in milliseconds from now (must be before parent's expiry) */
       expiryMs?: number;
     }
@@ -407,7 +407,7 @@ export class TinyCloudNode {
     }
 
     // Validate sub-delegation is allowed
-    if (!parentDelegation.allowSubDelegation) {
+    if (parentDelegation.disableSubDelegation) {
       throw new Error("Parent delegation does not allow sub-delegation");
     }
 
@@ -485,7 +485,7 @@ export class TinyCloudNode {
       namespaceId: parentDelegation.namespaceId,
       path: params.path,
       actions: params.actions,
-      allowSubDelegation: params.allowSubDelegation ?? false,
+      disableSubDelegation: params.disableSubDelegation ?? false,
       expiry: actualExpiry,
       delegateDID: params.delegateDID,
       ownerAddress: parentDelegation.ownerAddress,

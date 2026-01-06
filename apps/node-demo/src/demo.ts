@@ -141,6 +141,7 @@ async function runDemo() {
     privateKey: keys.alice,
     host: TINYCLOUD_URL,
     prefix: "demo-alice",
+    autoCreateNamespace: true,
   });
 
   const bob = new TinyCloudNode({
@@ -178,14 +179,13 @@ async function runDemo() {
   console.log("[Alice] Data stored at 'shared/greeting'");
   console.log();
 
-  // Step 5: Alice creates delegation for Bob (with sub-delegation enabled)
+  // Step 5: Alice creates delegation for Bob (sub-delegation allowed by default)
   // Note: Use pkhDid (not did) for user-to-user delegations
   console.log("[Alice] Creating delegation for Bob...");
   const delegationForBob = await alice.createDelegation({
     path: "shared/",
     actions: ["tinycloud.kv/get", "tinycloud.kv/put"],
     delegateDID: bob.pkhDid,
-    allowSubDelegation: true,
   });
   console.log(`[Alice] Delegation created: ${delegationForBob.delegationCid}`);
   console.log();

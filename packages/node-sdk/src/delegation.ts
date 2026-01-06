@@ -18,8 +18,8 @@ export interface PortableDelegation {
   /** The actions this delegation authorizes */
   actions: string[];
 
-  /** Whether the recipient can further delegate (sub-delegate) */
-  allowSubDelegation: boolean;
+  /** Whether the recipient is prevented from creating sub-delegations (default: false allows sub-delegation) */
+  disableSubDelegation: boolean;
 
   /** When this delegation expires */
   expiry: Date;

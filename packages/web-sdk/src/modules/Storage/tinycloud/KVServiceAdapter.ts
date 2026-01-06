@@ -28,6 +28,7 @@ export function createKVService(host: string, session: Session): IKVService {
     delegationCid: session.delegationCid,
     namespaceId: session.namespaceId,
     verificationMethod: session.verificationMethod,
+    jwk: session.jwk,
   };
 
   return new KVService({
