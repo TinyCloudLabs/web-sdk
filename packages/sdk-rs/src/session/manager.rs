@@ -9,8 +9,8 @@ use tinycloud_sdk_rs::tinycloud_lib::{
     ssi::{dids::DIDKey, jwk::JWK},
 };
 use wasm_bindgen::prelude::*;
-use web_sys::console::error_1 as console_error;
 
+use crate::platform::log_error;
 use super::types::*;
 
 use tinycloud_sdk_wasm::session::Session;
@@ -149,7 +149,7 @@ impl SessionManager {
                 action.parse::<Ability>().unwrap(),
                 Vec::<std::collections::BTreeMap<String, Value>>::new(),
             ) {
-                console_error(&format!("Failed to add targeted action: {}", e).into());
+                log_error(&format!("Failed to add targeted action: {}", e));
                 return false;
             }
         }
@@ -226,17 +226,13 @@ impl SessionManager {
     pub fn get_did(&self, key_id: Option<String>) -> Result<String, String> {
         let did = DIDKey::generate(&self.get_private_key(key_id)?)
             .map_err(|e| format!("unable to generate the DID of the session key: {e}"))?;
-        // let did_vm = get_verification_method(&did, &didkey).await.ok_or(format!(
-        //     "unable to generate the DID verification method from the DID '{}'",
-        //     &did
-        // ))?;
-        // let uri = did_vm.parse().map_err(|e| {
-        //     format!(
-        //         "failed to parse the DID verification method as a URI: {}",
-        //         e
-        //     )
-        // })?;
-        Ok(did.to_string())
+        // Create a proper DID URL with fragment: did:key:z6Mk...#z6Mk...
+        let did_str = did.to_string();
+        let fragment = did_str
+            .rsplit_once(':')
+            .ok_or_else(|| "Failed to extract DID fragment".to_string())?
+            .1;
+        Ok(format!("{}#{}", did_str, fragment))
     }
 
     fn get_private_key(&self, key_id: Option<String>) -> Result<JWK, String> {
@@ -256,7 +252,7 @@ impl SessionManager {
         match serde_json::to_string(&self.get_private_key(key_id).unwrap()) {
             Ok(s) => Some(s),
             Err(e) => {
-                console_error(&e.to_string().into());
+                log_error(&e.to_string());
                 None
             }
         }
@@ -280,7 +276,7 @@ impl SessionManager {
 }
 
 fn string_conversion_error() {
-    console_error(&"error converting UTF-16 into UTF-8".into());
+    log_error("error converting UTF-16 into UTF-8");
 }
 
 #[cfg(test)]

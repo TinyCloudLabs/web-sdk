@@ -1,4 +1,4 @@
-# TinyCloud SDK
+# TinyCloud Javascript SDK
 
 <img src="https://github.com/TinyCloudLabs/web-sdk/blob/master/documentation/static/img/tinycloudheader.png?raw=true" alt="TinyCloud" width="100%" />
 
@@ -8,9 +8,12 @@ TinyCloud SDK is a comprehensive toolkit for building decentralized applications
 
 ## Features
 
-- **Decentralized Storage** - Store and retrieve data using TinyCloud's storage protocol
-- **Web3 Authentication** - Sign-in with Ethereum (SIWE) integration
-- **Wallet Integration** - Seamless connection with popular Ethereum wallets
+- **Web3 Authentication** - Sign-in with Ethereum (SIWE) using your wallet
+- **Namespace Management** - Create and manage user-owned data namespaces
+- **KV Storage** - Store and retrieve key-value data with your namespace
+- **Delegation System** - Share access to your data with fine-grained permissions
+- **Wallet Integration** - Seamless connection with popular Ethereum wallets (browser SDK)
+- **Server Support** - Node.js SDK for server-side delegation chains and automation
 - **Type Safety** - Written in TypeScript with comprehensive type definitions
 - **Easy to Use** - Simple API for common decentralized application needs
 
@@ -18,16 +21,34 @@ TinyCloud SDK is a comprehensive toolkit for building decentralized applications
 
 This monorepo contains the following packages:
 
+### Core SDKs
+
+| Package | Description | Platform |
+|---------|-------------|----------|
+| [`@tinycloudlabs/web-sdk`](./packages/web-sdk/) | Browser SDK with wallet integration | Browser |
+| [`@tinycloudlabs/node-sdk`](./packages/node-sdk/) | Node.js SDK for server-side applications | Node.js |
+
+### Core Libraries
+
 | Package | Description |
 |---------|-------------|
-| [`@tinycloudlabs/web-sdk`](./packages/web-sdk/) | The main TinyCloud Web SDK package |
-| [`@tinycloudlabs/web-core`](./packages/web-core/) | Core utilities and types for TinyCloud SDKs |
-| [`@tinycloudlabs/web-sdk-rs`](./packages/web-sdk-rs/) | Rust/WASM components for the TinyCloud Web SDK |
+| [`@tinycloudlabs/web-core`](./packages/web-core/) | Shared types and utilities for browser SDK |
+| [`@tinycloudlabs/sdk-core`](./packages/sdk-core/) | Core utilities and types shared across all SDKs |
+| [`@tinycloudlabs/sdk-rs`](./packages/sdk-rs/) | Rust implementation with cryptographic primitives |
+
+### WASM Bindings
+
+| Package | Description |
+|---------|-------------|
+| [`@tinycloudlabs/web-sdk-wasm`](./packages/sdk-rs/web-sdk-wasm/) | WASM bindings for browser environments |
+| [`@tinycloudlabs/node-sdk-wasm`](./packages/sdk-rs/node-sdk-wasm/) | WASM bindings for Node.js environments |
 
 ## Quick Start
 
+### Browser SDK
+
 ```bash
-# Install the SDK
+# Install the browser SDK
 npm install @tinycloudlabs/web-sdk
 ```
 
@@ -45,6 +66,39 @@ const storage = tc.storage;
 await storage.put('myKey', { hello: 'world' });
 const result = await storage.get('myKey');
 console.log(result.data); // { hello: 'world' }
+```
+
+### Node.js SDK
+
+```bash
+# Install the Node.js SDK
+npm install @tinycloudlabs/node-sdk
+```
+
+```typescript
+import { TinyCloudNode } from '@tinycloudlabs/node-sdk';
+
+// Initialize with private key
+const tc = new TinyCloudNode({
+  privateKey: 'your-ethereum-private-key',
+  host: 'https://node.tinycloud.xyz',
+  autoCreateNamespace: true,
+});
+
+// Sign in and create namespace
+await tc.signIn();
+
+// Use KV storage
+await tc.kv.put('myKey', { hello: 'world' });
+const result = await tc.kv.get('myKey');
+console.log(result.data); // { hello: 'world' }
+
+// Create delegations
+const delegation = await tc.createDelegation({
+  path: 'shared/',
+  actions: ['tinycloud.kv/get', 'tinycloud.kv/put'],
+  delegateDID: 'did:pkh:eip155:1:0x...',
+});
 ```
 
 ## Documentation
@@ -67,7 +121,7 @@ Check out our [examples directory](./examples/) for complete working examples of
 ### Prerequisites
 
 - [Bun](https://bun.sh) (recommended) or Node.js v16+
-- Rust for web-sdk-rs package
+- Rust for sdk-rs package
 
 ### Building the SDK
 

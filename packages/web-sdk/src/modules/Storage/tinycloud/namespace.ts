@@ -6,9 +6,25 @@ import { Capabilities, CapSummary } from './capabilities';
 import { HostConfig } from './types';
 
 /**
- * a connection to a namespace in a TinyCloud instance.
+ * A connection to a namespace in a TinyCloud instance.
  *
  * This class provides methods for interacting with a namespace. Construct an instance of this class using {@link TinyCloud.namespace}.
+ *
+ * @deprecated The KV methods on this class (get, put, delete, list, head) are deprecated.
+ * For new code, use the KVService from @tinycloudlabs/sdk-core instead:
+ *
+ * ```typescript
+ * import { createKVService } from "@tinycloudlabs/web-sdk";
+ *
+ * // After getting a session, create a KVService
+ * const kvService = createKVService(host, session);
+ *
+ * // Use the modern API
+ * await kvService.put("key", { data: "value" });
+ * const result = await kvService.get<MyType>("key");
+ * ```
+ *
+ * The session management (id()) and capability methods (sessions()) remain available.
  */
 export class NamespaceConnection {
   private namespaceId: string;

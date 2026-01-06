@@ -10,23 +10,37 @@ repository = "https://github.com/tinycloudlabs/web-sdk/"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = []
+browser = ["web-sys", "getrandom/js", "rand/wasm-bindgen"]
+nodejs = ["k256", "sha3", "base64"]
 
 [dependencies]
 console_error_panic_hook = "0.1"
-rand = { version = "0.7", features = ["wasm-bindgen"] }
-getrandom = { version = "0.2", features = ["js"] }
 hex = "0.4.3"
 iri-string = "0.7.8"
 js-sys = "0.3.59"
-tinycloud-sdk-rs = { git = "https://github.com/tinycloudlabs/tinycloud-node.git", rev = "4633d65" }
-tinycloud-sdk-wasm = { git = "https://github.com/tinycloudlabs/tinycloud-node.git", rev = "4633d65" }
+tinycloud-sdk-rs = { git = "https://github.com/tinycloudlabs/tinycloud-node.git", rev = "25bbc16" }
+tinycloud-sdk-wasm = { git = "https://github.com/tinycloudlabs/tinycloud-node.git", rev = "25bbc16" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.83"
 serde-wasm-bindgen = "0.6.5"
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4.34"
-web-sys = { version = "0.3.59", features = ["console"] }
+
+# Random number generation (features enabled per-target)
+rand = "0.7"
+getrandom = "0.2"
+
+# Browser-only (optional)
+web-sys = { version = "0.3.59", features = ["console"], optional = true }
+
+# Node.js - Ethereum signing (optional)
+k256 = { version = "0.13", features = ["ecdsa", "std"], optional = true }
+sha3 = { version = "0.10", optional = true }
+base64 = { version = "0.21", optional = true }
 
 [dev-dependencies]
 tokio = { version = "1.45", features = ["full"] }

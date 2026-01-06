@@ -1,0 +1,43 @@
+{
+  "name": "@tinycloudlabs/node-sdk",
+  "version": "0.1.0",
+  "description": "TinyCloud SDK for Node.js with configurable authorization strategies",
+  "author": "TinyCloud, Inc.",
+  "license": "Apache-2.0 OR MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@tinycloudlabs/sdk-core": "workspace:*",
+    "@tinycloudlabs/node-sdk-wasm": "workspace:*",
+    "@tinycloudlabs/web-core": "workspace:*",
+    "siwe": "^2.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "typescript": "^5.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tinycloudlabs/web-sdk"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "name": "@tinycloudlabs/node-sdk-wasm",
+  "version": "0.1.0",
+  "description": "TinyCloud WASM bindings for Node.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "author": "TinyCloud, Inc.",
+  "license": "Apache-2.0 OR MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@tinycloudlabs/sdk-rs": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "typescript": "^5.7.0"
+  },
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tinycloudlabs/web-sdk"
+  }
+}

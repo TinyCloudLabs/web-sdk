@@ -11,7 +11,6 @@ import { generateNonce, SiweMessage } from "siwe";
 import {
   NamespaceConnection,
   activateSession,
-  hostNamespace,
   Response,
   Session,
   Authenticator,
@@ -27,7 +26,6 @@ import {
 } from "./interfaces";
 import { IUserAuthorization, UserAuthorizationConnected } from "../..";
 import { dispatchSDKEvent } from "../../notifications/ErrorHandler";
-import { showNamespaceCreationModal } from "../../notifications/ModalManager";
 import { debug } from "../../utils/debug";
 import {
   SessionPersistence,
@@ -85,12 +83,6 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
   private hosts: string[];
 
   /**
-   * Whether to automatically create a new namespace if one doesn't exist.
-   * @private
-   */
-  private autoCreateNewNamespace: boolean;
-
-  /**
    * User authorization service for authentication.
    * @private
    */
@@ -138,7 +130,6 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
    * @param config - Configuration options for TinyCloud storage
    * @param config.hosts - Optional array of TinyCloud host endpoints
    * @param config.prefix - Optional prefix to use for all storage operations
-   * @param config.autoCreateNewNamespace - Whether to automatically create a new namespace if one doesn't exist
    * @param userAuth - User authorization interface for authentication
    *
    * @public
@@ -147,10 +138,6 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
     this.userAuth = userAuth;
     this.hosts = [...(config?.hosts || []), "https://node.tinycloud.xyz"];
     this.prefix = config?.prefix || "";
-    this.autoCreateNewNamespace =
-      config?.autoCreateNewNamespace === undefined
-        ? true
-        : config?.autoCreateNewNamespace;
 
     // Initialize session persistence
     this.sessionPersistence = new SessionPersistence();
@@ -275,31 +262,21 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
     try {
       authn = await activateSession(session, tinycloudHost);
     } catch (error: any) {
-      const status = error?.status;
       const msg = error?.msg ?? error?.message ?? String(error);
-      if (status !== 404) {
-        dispatchSDKEvent.error(
-          "storage.session_delegation_failed",
-          "Failed to submit session key delegation to TinyCloud",
-          msg
-        );
-        throw new Error(
-          `Failed to submit session key delegation to TinyCloud: ${msg}`
-        );
-      }
-
-      if (this.autoCreateNewNamespace === true) {
-        await this.showNamespaceCreationModal(tcwSession);
-        return;
-      }
+      dispatchSDKEvent.error(
+        "storage.session_delegation_failed",
+        "Failed to submit session key delegation to TinyCloud",
+        msg
+      );
+      throw new Error(
+        `Failed to submit session key delegation to TinyCloud: ${msg}`
+      );
     }
 
-    if (authn) {
-      this._namespace = new NamespaceConnection(tinycloudHost, authn);
+    this._namespace = new NamespaceConnection(tinycloudHost, authn);
 
-      // Persist the new TinyCloud session
-      await this.persistTinyCloudSession(session, tcwSession);
-    }
+    // Persist the new TinyCloud session
+    await this.persistTinyCloudSession(session, tcwSession);
   }
 
   /**
@@ -567,57 +544,6 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
         onError();
       }
       return false;
-    }
-  }
-
-  private async showNamespaceCreationModal(
-    tcwSession: TCWClientSession
-  ): Promise<void> {
-    const result = await showNamespaceCreationModal({
-      onCreateNamespace: async () => {
-        await this.hostNamespace(tcwSession);
-        // If we reach here, namespace creation succeeded
-        dispatchSDKEvent.success("TinyCloud Namespace created successfully");
-      },
-      onDismiss: () => {
-        // Modal dismissed without creating namespace
-        // No further action needed as per requirements
-      },
-    });
-
-    // Modal completed - either namespace was created or user dismissed
-    // In both cases, afterSignIn() can now complete
-  }
-
-  public async hostNamespace(tcwSession?: TCWClientSession): Promise<void> {
-    const tinycloudHost = this.hosts[0];
-    const { status: hostStatus, statusText } = await hostNamespace(
-      this.userAuth.getSigner(),
-      tinycloudHost,
-      this.namespaceId,
-      this.domain
-    );
-
-    if (hostStatus !== 200) {
-      dispatchSDKEvent.error(
-        "storage.namespace_creation_failed",
-        "Failed to create your TinyCloud Namespace",
-        statusText
-      );
-      throw new Error(`Failed to create your TinyCloud Namespace: ${statusText}`);
-    }
-
-    const sessionActivated = await this.activateSession(tcwSession, () => {
-      dispatchSDKEvent.error(
-        "storage.session_not_found",
-        "Session not found. You must be signed in to host a namespace"
-      );
-    });
-
-    if (!sessionActivated) {
-      throw new Error(
-        "Session not found. You must be signed in to host a namespace"
-      );
     }
   }
 

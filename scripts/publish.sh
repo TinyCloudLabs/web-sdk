@@ -94,9 +94,9 @@ cd "$ROOT_DIR/packages/web-core"
 CORE_VERSION=$(cat package.json | grep '"version"' | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[[:space:]]')
 git tag "web-core-v$CORE_VERSION" || echo "Tag web-core-v$CORE_VERSION already exists"
 
-cd "$ROOT_DIR/packages/web-sdk-rs"
+cd "$ROOT_DIR/packages/sdk-rs"
 SDK_RS_VERSION=$(cat package.json | grep '"version"' | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[[:space:]]')
-git tag "web-sdk-rs-v$SDK_RS_VERSION" || echo "Tag web-sdk-rs-v$SDK_RS_VERSION already exists"
+git tag "sdk-rs-v$SDK_RS_VERSION" || echo "Tag sdk-rs-v$SDK_RS_VERSION already exists"
 
 cd "$ROOT_DIR/packages/web-sdk"
 SDK_VERSION=$(cat package.json | grep '"version"' | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[[:space:]]')
@@ -138,11 +138,11 @@ else
     --notes "Release notes for web-core v$CORE_VERSION" \
     --draft
   
-  # Create draft release for web-sdk-rs
-  echo "Creating draft release for web-sdk-rs v$SDK_RS_VERSION..."
-  gh release create "web-sdk-rs-v$SDK_RS_VERSION" \
-    --title "Web SDK RS v$SDK_RS_VERSION" \
-    --notes "Release notes for web-sdk-rs v$SDK_RS_VERSION" \
+  # Create draft release for sdk-rs
+  echo "Creating draft release for sdk-rs v$SDK_RS_VERSION..."
+  gh release create "sdk-rs-v$SDK_RS_VERSION" \
+    --title "SDK RS v$SDK_RS_VERSION" \
+    --notes "Release notes for sdk-rs v$SDK_RS_VERSION" \
     --draft
   
   # Create draft release for web-sdk

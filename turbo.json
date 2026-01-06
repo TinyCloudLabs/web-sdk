@@ -14,11 +14,11 @@
     },
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", "build/**", "pkg/**"]
+      "outputs": ["dist/**", "build/**", "web-sdk-wasm/**"]
     },
     "build:wasm": {
       "dependsOn": ["setup"],
-      "outputs": ["pkg/**"]
+      "outputs": ["web-sdk-wasm/**", "node-sdk-wasm/**"]
     },
     "bundle": {
       "dependsOn": ["build:wasm"],
@@ -37,7 +37,7 @@
     "test": {
       "dependsOn": ["build"],
       "outputs": ["coverage/**"],
-      "inputs": ["src/**/*.tsx", "src/**/*.ts", "test/**/*.ts", "test/**/*.tsx"]
+      "inputs": ["src/**/*.tsx", "src/**/*.ts", "test/**/*.ts", "test/**/*.tsx", "tests/**/*.ts"]
     },
     "lint": {
       "dependsOn": ["^build"],
@@ -60,7 +60,7 @@
     },
     "release": {
       "dependsOn": ["build", "test", "lint"],
-      "outputs": ["dist/**", "pkg/**"]
+      "outputs": ["dist/**", "web-sdk-wasm/**"]
     }
   }
 }

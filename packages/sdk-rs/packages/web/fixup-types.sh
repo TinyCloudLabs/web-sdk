@@ -1,7 +1,9 @@
 #!/bin/sh
-cp pkg/tinycloud_web_sdk_rs.d.ts dist/ && ( echo '
+# Fix type declarations for web-sdk-wasm
+# The WASM output is at ../../web-sdk-wasm/
+cp ../../web-sdk-wasm/tinycloud_web_sdk_rs.d.ts dist/ && ( echo '
 var fs = require("fs");
-const re = new RegExp("../pkg", "g");
+const re = new RegExp("\\.\\./\\.\\./\\.\\./web-sdk-wasm", "g");
 const dist = fs.opendirSync("./dist");
 while (true) {
   const entry = dist.readSync();
@@ -15,4 +17,3 @@ while (true) {
     fs.writeFileSync(filepath, replaced);
   }
 }' | node )
-

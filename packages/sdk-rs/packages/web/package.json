@@ -1,0 +1,30 @@
+{
+  "name": "@tinycloudlabs/web-sdk-wasm",
+  "version": "0.3.0",
+  "description": "TinyCloud WASM bindings for web browsers",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "author": "TinyCloud, Inc.",
+  "license": "Apache-2.0 OR MIT",
+  "scripts": {
+    "build": "rollup -c && ./fixup-types.sh",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@tinycloudlabs/sdk-rs": "workspace:*"
+  },
+  "devDependencies": {
+    "@rollup/plugin-wasm": "^5.2.0",
+    "rollup": "^2.79.2",
+    "rollup-plugin-typescript2": "^0.32.1",
+    "tslib": "^2.8.1",
+    "typescript": "^4.9.5"
+  },
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tinycloudlabs/web-sdk"
+  }
+}

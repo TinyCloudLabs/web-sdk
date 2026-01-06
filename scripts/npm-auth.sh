@@ -29,10 +29,10 @@ echo "registry=https://registry.npmjs.org/" > packages/web-core/.npmrc
 echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> packages/web-core/.npmrc
 echo "always-auth=true" >> packages/web-core/.npmrc
 
-mkdir -p packages/web-sdk-rs
-echo "registry=https://registry.npmjs.org/" > packages/web-sdk-rs/.npmrc
-echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> packages/web-sdk-rs/.npmrc
-echo "always-auth=true" >> packages/web-sdk-rs/.npmrc
+mkdir -p packages/sdk-rs
+echo "registry=https://registry.npmjs.org/" > packages/sdk-rs/.npmrc
+echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> packages/sdk-rs/.npmrc
+echo "always-auth=true" >> packages/sdk-rs/.npmrc
 
 mkdir -p packages/web-sdk
 echo "registry=https://registry.npmjs.org/" > packages/web-sdk/.npmrc

@@ -1,8 +1,13 @@
-# TinyCloud Web SDK Architecture
+# TinyCloud SDK Architecture
 
 ## Executive Summary
 
-The TinyCloud Web SDK is a sophisticated, multi-layered TypeScript/Rust SDK that enables Web3 applications to integrate decentralized storage and user-controlled data management. The architecture follows a modular monorepo design with clear separation of concerns across three core packages, leveraging WebAssembly for security-critical operations.
+The TinyCloud SDK is a sophisticated, multi-layered TypeScript/Rust toolkit that enables Web3 applications to integrate decentralized storage and user-controlled data management. The architecture provides two primary SDKs:
+
+- **web-sdk**: Browser-focused SDK with wallet integration for client-side applications
+- **node-sdk**: Server-focused SDK for delegation chains, automation, and backend services
+
+The architecture follows a modular monorepo design with clear separation of concerns across seven packages, leveraging WebAssembly for security-critical operations and protocol implementation.
 
 ## System Overview
 
@@ -11,57 +16,72 @@ The TinyCloud Web SDK is a sophisticated, multi-layered TypeScript/Rust SDK that
 ```mermaid
 graph TB
     subgraph "User Applications"
-        A[React/Vue/JS Apps]
-        B[Example App]
+        A[Browser Apps]
+        B[Node.js Services]
     end
-    
-    subgraph "TinyCloud Web SDK"
-        subgraph "Public API Layer"
+
+    subgraph "TinyCloud SDK"
+        subgraph "Browser SDK"
             C[web-sdk]
             C1[TinyCloudWeb]
-            C2[UserAuthorization]
-            C3[TinyCloudStorage]
+            C2[Wallet Integration]
+            C3[Storage API]
         end
-        
-        subgraph "Core Layer"
+
+        subgraph "Node.js SDK"
+            N[node-sdk]
+            N1[TinyCloudNode]
+            N2[Delegation Chains]
+            N3[KV Operations]
+        end
+
+        subgraph "Core Layers"
             D[web-core]
-            D1[Types & Interfaces]
-            D2[Provider Utilities]
-            D3[ENS Resolution]
+            SC[sdk-core]
+            D1[Types & Utilities]
         end
-        
-        subgraph "Security Layer"
-            E["web-sdk-rs WASM"]
-            E1[Session Manager]
-            E2[Cryptographic Operations]
-            E3[SIWE Implementation]
+
+        subgraph "WASM Layer"
+            E[sdk-rs]
+            E1[web-sdk-wasm]
+            E2[node-sdk-wasm]
+            E3[Crypto & Protocol]
         end
     end
-    
+
     subgraph "External Dependencies"
         F[Wallet Providers]
         G[Ethereum Network]
         H[TinyCloud Nodes]
     end
-    
+
     A --> C
-    B --> C
+    B --> N
     C --> D
-    C --> E
+    C --> E1
+    N --> SC
+    N --> E2
+    D --> SC
     C --> F
     C --> G
     C --> H
-    
+    N --> G
+    N --> H
+    E1 --> E
+    E2 --> E
+
     classDef userApp fill:#e1f5fe
-    classDef publicAPI fill:#f3e5f5
+    classDef browserSDK fill:#f3e5f5
+    classDef nodeSDK fill:#e8eaf6
     classDef coreLayer fill:#e8f5e8
-    classDef securityLayer fill:#fff3e0
+    classDef wasmLayer fill:#fff3e0
     classDef external fill:#fce4ec
-    
+
     class A,B userApp
-    class C,C1,C2,C3 publicAPI
-    class D,D1,D2,D3 coreLayer
-    class E,E1,E2,E3 securityLayer
+    class C,C1,C2,C3 browserSDK
+    class N,N1,N2,N3 nodeSDK
+    class D,SC,D1 coreLayer
+    class E,E1,E2,E3 wasmLayer
     class F,G,H external
 ```
 
@@ -72,57 +92,87 @@ graph TB
 The project follows a Bun workspace configuration with the following packages:
 
 ```
-tc-sdk/
+web-sdk/
 ├── packages/
-│   ├── web-sdk-rs/         # Rust/WASM cryptographic layer
-│   ├── web-core/           # TypeScript core types and utilities  
-│   └── web-sdk/            # Main SDK interface
-├── examples/
-│   └── web-sdk-example/    # React demonstration app
-├── documentation/          # Docusaurus documentation site
-└── scripts/               # Build and deployment scripts
+│   ├── sdk-rs/                    # Rust/WASM cryptographic layer
+│   │   ├── web-sdk-wasm/          # WASM bindings for browser
+│   │   └── node-sdk-wasm/         # WASM bindings for Node.js
+│   ├── sdk-core/                  # Shared core utilities
+│   ├── web-core/                  # Browser-specific core types
+│   ├── web-sdk/                   # Browser SDK interface
+│   └── node-sdk/                  # Node.js SDK interface
+├── apps/
+│   ├── node-demo/                 # Node.js delegation chain demo
+│   └── tinydropbox/               # Browser example app
+├── documentation/                 # Docusaurus documentation site
+└── scripts/                       # Build and deployment scripts
 ```
 
 ### Dependency Graph
 
 ```mermaid
-graph LR
-    subgraph "Workspace Dependencies"
-        WS[web-sdk]
-        WC[web-core]
-        WR[web-sdk-rs]
-        EX[example-app]
+graph TB
+    subgraph "Applications"
+        TD[tinydropbox]
+        ND[node-demo]
     end
-    
+
+    subgraph "Public SDK Interfaces"
+        WS[web-sdk]
+        NS[node-sdk]
+    end
+
+    subgraph "Core Libraries"
+        WC[web-core]
+        SC[sdk-core]
+    end
+
+    subgraph "WASM Layer"
+        SR[sdk-rs]
+        WSW[web-sdk-wasm]
+        NSW[node-sdk-wasm]
+    end
+
     subgraph "External Dependencies"
         ET[ethers.js]
         SW[siwe]
-        AX[axios]
-        TC[tinycloud-sdk-rs]
+        TC[tinycloud-node git]
     end
-    
+
+    TD --> WS
+    ND --> NS
+
     WS --> WC
-    WS --> WR
-    WC --> WR
+    WS --> WSW
+    NS --> SC
+    NS --> NSW
+
+    WC --> SC
     WC --> ET
     WC --> SW
-    WC --> AX
-    WR --> TC
-    WR --> SW
-    EX --> WS
-    
-    classDef workspace fill:#e3f2fd
-    classDef external fill:#f1f8e9
-    
-    class WS,WC,WR,EX workspace
-    class ET,SW,AX,TC external
+
+    SR --> TC
+    WSW -.builds from.-> SR
+    NSW -.builds from.-> SR
+
+    classDef app fill:#e1f5fe
+    classDef sdk fill:#f3e5f5
+    classDef core fill:#e8f5e8
+    classDef wasm fill:#fff3e0
+    classDef external fill:#fce4ec
+
+    class TD,ND app
+    class WS,NS sdk
+    class WC,SC core
+    class SR,WSW,NSW wasm
+    class ET,SW,TC external
 ```
 
 ## Core Components Deep Dive
 
-### 1. web-sdk: Public API Layer
+### 1. web-sdk: Browser SDK Layer
 
-**Purpose**: Primary consumer interface providing high-level abstractions for Web3 authentication and decentralized storage.
+**Purpose**: Browser-focused SDK providing wallet integration, authentication, and decentralized storage for client-side applications.
 
 **Key Classes**:
 
@@ -181,9 +231,65 @@ interface TinyCloudStorage {
 }
 ```
 
-### 2. web-core: Foundation Layer
+### 2. node-sdk: Server SDK Layer
 
-**Purpose**: Shared types, interfaces, and utilities that define the SDK's contract and provide common functionality.
+**Purpose**: Node.js-focused SDK for server-side applications, enabling delegation management and automated workflows without browser wallet integration.
+
+**Key Classes**:
+
+#### TinyCloudNode (Main SDK Entry Point)
+```typescript
+interface TinyCloudNode {
+  // Initialization with private key
+  constructor(config: {
+    privateKey: string,
+    host: string,
+    prefix?: string,
+    autoCreateNamespace?: boolean,
+  })
+
+  // Authentication
+  signIn(): Promise<void>
+  signOut(): Promise<void>
+
+  // Identity
+  namespaceId: string
+  pkhDid: string  // did:pkh:eip155:chainId:address
+  sessionDid: string  // did:key:... (session key)
+
+  // KV Storage
+  kv: KVInterface
+
+  // Delegation Management
+  createDelegation(config: DelegationConfig): Promise<Delegation>
+  createSubDelegation(parent: Delegation, config: DelegationConfig): Promise<Delegation>
+  useDelegation(delegation: Delegation): Promise<DelegatedAccess>
+}
+```
+
+#### DelegatedAccess (Namespace Access via Delegation)
+```typescript
+interface DelegatedAccess {
+  // KV operations with inherited permissions
+  kv: KVInterface
+
+  // Delegation metadata
+  delegationCid: string
+  targetNamespaceId: string
+  permissions: string[]
+}
+```
+
+**Use Cases**:
+- Server-side delegation chain management
+- Automated data synchronization between namespaces
+- Backend services that interact with user namespaces
+- Testing and development workflows
+- CI/CD integration for namespace operations
+
+### 3. web-core: Foundation Layer
+
+**Purpose**: Shared types, interfaces, and utilities for browser-based SDK, providing wallet integration and Web3 provider abstractions.
 
 **Architecture Modules**:
 
@@ -234,9 +340,19 @@ function getProvider(config: TCWRPCProvider): providers.BaseProvider
 function tcwResolveEns(provider: providers.BaseProvider, address: string): Promise<TCWEnsData>
 ```
 
-### 3. web-sdk-rs: Security & Performance Layer
+### 4. sdk-core: Shared Utilities Layer
 
-**Purpose**: WebAssembly module providing cryptographic primitives, secure session management, and performance-critical operations.
+**Purpose**: Common utilities and types shared across both web-sdk and node-sdk, providing a consistent API surface.
+
+**Key Modules**:
+- Type definitions for KV operations
+- Serialization utilities for delegations
+- Common error types and handling
+- Namespace ID formatting and validation
+
+### 5. sdk-rs: Security & Performance Layer
+
+**Purpose**: Rust implementation providing cryptographic primitives, WASM compilation for browser and Node.js, and integration with tinycloud-node protocol.
 
 **Rust Module Architecture**:
 
@@ -263,11 +379,32 @@ pub struct TCWSessionManager {
 
 #### Integration with TinyCloud Protocol
 ```rust
-use tinycloud_sdk_wasm::{
-    makeNamespaceId, prepareSession, completeSessionSetup,
-    invoke, generateHostSIWEMessage, siweToDelegationHeaders
-};
+// The sdk-rs package depends on tinycloud-node via git:
+// [dependencies]
+// tinycloud-sdk-rs = { git = "https://github.com/tinycloudlabs/tinycloud-node", rev = "..." }
+
+// Key functions re-exported from tinycloud-sdk-rs:
+// - makeNamespaceId: Create namespace identifier from address
+// - prepareSession: Generate SIWE message with ReCap capabilities
+// - completeSessionSetup: Finalize session with signature
+// - invoke: Create invocation headers for API calls
+// - createDelegation: Generate delegation with UCAN chain
+// - useDelegation: Parse and validate delegation chain
 ```
+
+#### WASM Compilation Targets
+
+The sdk-rs package builds two separate WASM targets:
+
+**web-sdk-wasm**: For browser environments
+- Target: `wasm32-unknown-unknown`
+- Uses `wasm-bindgen` for JavaScript interop
+- Outputs ES modules compatible with bundlers
+
+**node-sdk-wasm**: For Node.js environments
+- Target: `wasm32-wasi` (or `wasm32-unknown-unknown` with Node.js shims)
+- Includes Node.js-specific bindings
+- Supports CommonJS and ESM module systems
 
 ## Authentication & Session Flow
 
@@ -516,7 +653,7 @@ bun run build         # Build all packages
 ./scripts/build.sh    # Alternative build script
 
 # Package-specific
-web-sdk-rs:  bun run build-dev | build-release
+sdk-rs:      bun run build-dev | build-release
 web-core:    bun run build
 web-sdk:     bun run build
 
@@ -533,9 +670,11 @@ bun run docs:dev            # Development server
 
 ## Integration Patterns
 
-### Recommended Usage Pattern
+### Browser SDK Usage Pattern
 
 ```typescript
+import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
+
 // 1. SDK Initialization
 const tcw = new TinyCloudWeb({
   providers: {
@@ -547,7 +686,7 @@ const tcw = new TinyCloudWeb({
   }
 });
 
-// 2. Authentication Flow
+// 2. Authentication Flow (with wallet)
 await tcw.signIn();
 
 // 3. Storage Operations
@@ -558,12 +697,51 @@ const preferences = await tcw.storage.get('user-preferences');
 tcw.extend(customExtension);
 ```
 
+### Node.js SDK Usage Pattern
+
+```typescript
+import { TinyCloudNode, serializeDelegation } from '@tinycloudlabs/node-sdk';
+
+// 1. SDK Initialization (with private key)
+const tc = new TinyCloudNode({
+  privateKey: process.env.ETHEREUM_PRIVATE_KEY,
+  host: 'https://tinycloud.example.com',
+  autoCreateNamespace: true,
+});
+
+// 2. Authentication Flow (no wallet needed)
+await tc.signIn();
+
+// 3. Storage Operations
+await tc.kv.put('user-preferences', { theme: 'dark' });
+const preferences = await tc.kv.get('user-preferences');
+
+// 4. Delegation Management
+const delegation = await tc.createDelegation({
+  path: 'shared/',
+  actions: ['tinycloud.kv/get', 'tinycloud.kv/put'],
+  delegateDID: 'did:pkh:eip155:1:0x...',
+  allowSubDelegation: true,
+});
+
+// 5. Serialize and share delegation
+const serialized = serializeDelegation(delegation);
+// Send to delegate via secure channel
+```
+
 ### Framework Integration
 
+**Browser Frameworks**:
 - **React**: Hooks for authentication state and storage operations
-- **Vue**: Composables for reactive SDK integration  
+- **Vue**: Composables for reactive SDK integration
 - **Vanilla JS**: Direct SDK usage with Promise-based API
 - **TypeScript**: Comprehensive type definitions for all interfaces
+
+**Node.js Frameworks**:
+- **Express**: Middleware for delegation validation and namespace operations
+- **NestJS**: Injectable services for TinyCloud integration
+- **CLI Tools**: Command-line utilities for namespace management
+- **Serverless**: Lambda/Edge functions with delegation-based access
 
 ## Future Architecture Considerations
 
@@ -579,4 +757,4 @@ tcw.extend(customExtension);
 
 ---
 
-This architecture enables developers to build user-controlled applications with confidence, knowing that security, performance, and developer experience have been carefully balanced through a well-designed, layered architecture.
+This architecture enables developers to build user-controlled applications across both browser and server environments with confidence. The dual SDK approach (web-sdk for browsers, node-sdk for servers) provides the right abstractions for each platform while sharing core cryptographic and protocol implementations. Security, performance, and developer experience have been carefully balanced through a well-designed, layered architecture that scales from simple client applications to complex delegation chains.
