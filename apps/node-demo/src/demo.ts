@@ -179,11 +179,12 @@ async function runDemo() {
   console.log();
 
   // Step 5: Alice creates delegation for Bob (with sub-delegation enabled)
+  // Note: Use pkhDid (not did) for user-to-user delegations
   console.log("[Alice] Creating delegation for Bob...");
   const delegationForBob = await alice.createDelegation({
     path: "shared/",
     actions: ["tinycloud.kv/get", "tinycloud.kv/put"],
-    delegateDID: bob.did,
+    delegateDID: bob.pkhDid,
     allowSubDelegation: true,
   });
   console.log(`[Alice] Delegation created: ${delegationForBob.delegationCid}`);
@@ -213,11 +214,12 @@ async function runDemo() {
   console.log();
 
   // Step 7: Bob creates sub-delegation for Charlie
+  // Note: Use pkhDid (not did) for user-to-user delegations
   console.log("[Bob] Creating sub-delegation for Charlie...");
   const delegationForCharlie = await bob.createSubDelegation(receivedByBob, {
     path: "shared/",
     actions: ["tinycloud.kv/put"],
-    delegateDID: charlie.did,
+    delegateDID: charlie.pkhDid,
   });
   console.log(`[Bob] Sub-delegation created: ${delegationForCharlie.delegationCid}`);
   console.log();

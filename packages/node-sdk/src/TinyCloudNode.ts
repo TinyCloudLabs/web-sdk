@@ -144,6 +144,19 @@ export class TinyCloudNode {
   }
 
   /**
+   * Get the PKH DID for this user (based on Ethereum address).
+   * Use this for user-to-user delegations.
+   * Format: did:pkh:eip155:{chainId}:{address}
+   * Available after signIn().
+   */
+  get pkhDid(): string {
+    if (!this._address) {
+      throw new Error("Not signed in. Call signIn() first.");
+    }
+    return `did:pkh:eip155:${this._chainId}:${this._address}`;
+  }
+
+  /**
    * Get the namespace ID for this user.
    * Available after signIn().
    */
@@ -220,18 +233,6 @@ export class TinyCloudNode {
       throw new Error("Not signed in. Call signIn() first.");
     }
 
-    // Create a new session manager for the delegation key
-    const delegationManager = new TCWSessionManager();
-    const keyId = `delegation-${Date.now()}`;
-    delegationManager.renameSessionKeyId("default", keyId);
-
-    // Get the JWK for the new session key
-    const jwkString = delegationManager.jwk(keyId);
-    if (!jwkString) {
-      throw new Error("Failed to create session key for delegation");
-    }
-    const jwk = JSON.parse(jwkString);
-
     // Build abilities for the delegation
     const abilities: Record<string, Record<string, string[]>> = {
       kv: {
@@ -243,7 +244,9 @@ export class TinyCloudNode {
     const expiryMs = params.expiryMs ?? 60 * 60 * 1000; // Default 1 hour
     const expirationTime = new Date(now.getTime() + expiryMs);
 
-    // Prepare the delegation session with parent reference
+    // Prepare the delegation session with:
+    // - delegateUri: target the recipient's DID directly (for user-to-user delegation)
+    // - parents: reference our session CID for chain validation
     const prepared = prepareSession({
       abilities,
       address: ensureEip55(session.address),
@@ -252,12 +255,12 @@ export class TinyCloudNode {
       issuedAt: now.toISOString(),
       expirationTime: expirationTime.toISOString(),
       namespaceId: session.namespaceId,
-      jwk,
+      delegateUri: params.delegateDID,
       parents: [session.delegationCid],
     });
 
     // Sign the SIWE message with this user's signer
-    const signature = await this.signer.signMessage(prepared.siweMessage);
+    const signature = await this.signer.signMessage(prepared.siwe);
 
     // Complete the session setup
     const delegationSession = completeSessionSetup({
@@ -300,21 +303,14 @@ export class TinyCloudNode {
    * @returns A DelegatedAccess instance for performing operations
    */
   async useDelegation(delegation: PortableDelegation): Promise<DelegatedAccess> {
-    if (!this._address) {
+    const mySession = this.auth.tinyCloudSession;
+    if (!mySession) {
       throw new Error("Not signed in. Call signIn() first.");
     }
 
-    // Create a new session manager for the invoker key
-    const invokerManager = new TCWSessionManager();
-    const keyId = `invoker-${Date.now()}`;
-    invokerManager.renameSessionKeyId("default", keyId);
-
-    // Get the JWK for the new session key
-    const jwkString = invokerManager.jwk(keyId);
-    if (!jwkString) {
-      throw new Error("Failed to create session key for invocation");
-    }
-    const jwk = JSON.parse(jwkString);
+    // Use our existing session key - the delegation targets our DID from signIn
+    // We must use the same key that the delegation was created for
+    const jwk = mySession.jwk;
 
     // Build abilities from the delegation
     const abilities: Record<string, Record<string, string[]>> = {
@@ -331,11 +327,12 @@ export class TinyCloudNode {
     // Prepare the session with:
     // - THIS user's address (we are the invoker)
     // - The delegation owner's namespace (where we're accessing data)
+    // - Our existing session key (must match the DID the delegation targets)
     // - Parent reference to the received delegation
     const prepared = prepareSession({
       abilities,
-      address: ensureEip55(this._address),
-      chainId: this._chainId,
+      address: ensureEip55(mySession.address),
+      chainId: mySession.chainId,
       domain: new URL(this.config.host).hostname,
       issuedAt: now.toISOString(),
       expirationTime: expirationTime.toISOString(),
@@ -345,7 +342,7 @@ export class TinyCloudNode {
     });
 
     // Sign with THIS user's signer
-    const signature = await this.signer.signMessage(prepared.siweMessage);
+    const signature = await this.signer.signMessage(prepared.siwe);
 
     // Complete the session setup
     const invokerSession = completeSessionSetup({
@@ -365,14 +362,15 @@ export class TinyCloudNode {
 
     // Create TinyCloudSession for the delegated access
     const session: TinyCloudSession = {
-      address: this._address,
-      chainId: this._chainId,
-      sessionKey: keyId,
+      address: mySession.address,
+      chainId: mySession.chainId,
+      sessionKey: mySession.sessionKey,
       namespaceId: delegation.namespaceId,
       delegationCid: invokerSession.delegationCid,
       delegationHeader: invokerSession.delegationHeader,
-      verificationMethod: invokerManager.getDID(keyId),
-      siwe: prepared.siweMessage,
+      verificationMethod: mySession.verificationMethod,
+      jwk,
+      siwe: prepared.siwe,
       signature,
     };
 
@@ -430,27 +428,13 @@ export class TinyCloudNode {
       }
     }
 
-    // Validate expiry is before parent's expiry
+    // Calculate expiry - cap at parent's expiry
     const now = new Date();
     const expiryMs = params.expiryMs ?? 60 * 60 * 1000;
     const requestedExpiry = new Date(now.getTime() + expiryMs);
-    if (requestedExpiry > parentDelegation.expiry) {
-      throw new Error(
-        `Sub-delegation expiry (${requestedExpiry.toISOString()}) must be before parent's expiry (${parentDelegation.expiry.toISOString()})`
-      );
-    }
-
-    // Create a new session manager for the sub-delegation key
-    const subDelegationManager = new TCWSessionManager();
-    const keyId = `subdelegation-${Date.now()}`;
-    subDelegationManager.renameSessionKeyId("default", keyId);
-
-    // Get the JWK for the new session key
-    const jwkString = subDelegationManager.jwk(keyId);
-    if (!jwkString) {
-      throw new Error("Failed to create session key for sub-delegation");
-    }
-    const jwk = JSON.parse(jwkString);
+    // Sub-delegation cannot outlive parent, so cap at parent's expiry
+    const actualExpiry =
+      requestedExpiry > parentDelegation.expiry ? parentDelegation.expiry : requestedExpiry;
 
     // Build abilities for the sub-delegation
     const abilities: Record<string, Record<string, string[]>> = {
@@ -461,6 +445,7 @@ export class TinyCloudNode {
 
     // Prepare the sub-delegation session
     // Uses THIS user's address (who received the delegation and is now sub-delegating)
+    // Targets the recipient's PKH DID (delegateUri)
     // References the parent delegation as the chain
     const prepared = prepareSession({
       abilities,
@@ -468,14 +453,14 @@ export class TinyCloudNode {
       chainId: this._chainId,
       domain: new URL(this.config.host).hostname,
       issuedAt: now.toISOString(),
-      expirationTime: requestedExpiry.toISOString(),
+      expirationTime: actualExpiry.toISOString(),
       namespaceId: parentDelegation.namespaceId,
-      jwk,
+      delegateUri: params.delegateDID,
       parents: [parentDelegation.delegationCid],
     });
 
     // Sign with THIS user's signer
-    const signature = await this.signer.signMessage(prepared.siweMessage);
+    const signature = await this.signer.signMessage(prepared.siwe);
 
     // Complete the session setup
     const subDelegationSession = completeSessionSetup({
@@ -501,7 +486,7 @@ export class TinyCloudNode {
       path: params.path,
       actions: params.actions,
       allowSubDelegation: params.allowSubDelegation ?? false,
-      expiry: requestedExpiry,
+      expiry: actualExpiry,
       delegateDID: params.delegateDID,
       ownerAddress: parentDelegation.ownerAddress,
       chainId: parentDelegation.chainId,

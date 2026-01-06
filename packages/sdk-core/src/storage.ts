@@ -33,6 +33,8 @@ export interface TinyCloudSession {
   delegationHeader: { Authorization: string };
   /** The verification method DID */
   verificationMethod: string;
+  /** The session key JWK (required for invoke operations) */
+  jwk: object;
   /** The signed SIWE message */
   siwe: string;
   /** User's signature of the SIWE message */

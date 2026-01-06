@@ -29,6 +29,8 @@ export interface ServiceSession {
   namespaceId: string;
   /** The verification method DID */
   verificationMethod: string;
+  /** The session key JWK (required for invoke) */
+  jwk: object;
 }
 
 /**

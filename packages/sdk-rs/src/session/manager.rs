@@ -226,17 +226,13 @@ impl SessionManager {
     pub fn get_did(&self, key_id: Option<String>) -> Result<String, String> {
         let did = DIDKey::generate(&self.get_private_key(key_id)?)
             .map_err(|e| format!("unable to generate the DID of the session key: {e}"))?;
-        // let did_vm = get_verification_method(&did, &didkey).await.ok_or(format!(
-        //     "unable to generate the DID verification method from the DID '{}'",
-        //     &did
-        // ))?;
-        // let uri = did_vm.parse().map_err(|e| {
-        //     format!(
-        //         "failed to parse the DID verification method as a URI: {}",
-        //         e
-        //     )
-        // })?;
-        Ok(did.to_string())
+        // Create a proper DID URL with fragment: did:key:z6Mk...#z6Mk...
+        let did_str = did.to_string();
+        let fragment = did_str
+            .rsplit_once(':')
+            .ok_or_else(|| "Failed to extract DID fragment".to_string())?
+            .1;
+        Ok(format!("{}#{}", did_str, fragment))
     }
 
     fn get_private_key(&self, key_id: Option<String>) -> Result<JWK, String> {

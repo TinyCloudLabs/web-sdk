@@ -279,25 +279,126 @@ export class NodeUserAuthorization implements IUserAuthorization {
 
   /**
    * Sign in and create a new session.
+   *
+   * This follows the correct SIWE-ReCap flow:
+   * 1. Create session key and get JWK
+   * 2. Call prepareSession() which generates the SIWE with ReCap capabilities
+   * 3. Sign the SIWE string from prepareSession
+   * 4. Call completeSessionSetup() with the prepared session + signature
    */
   async signIn(): Promise<TCWClientSession> {
     // Get signer address and chain ID
     this._address = await this.signer.getAddress();
     this._chainId = await this.signer.getChainId();
 
-    // Generate SIWE message
-    const siweMessage = await this.generateSiweMessage(this._address);
+    const address = ensureEip55(this._address);
+    const chainId = this._chainId;
 
-    // Get signature based on strategy
+    // Create a session key
+    const keyId = `session-${Date.now()}`;
+    this.sessionManager.renameSessionKeyId("default", keyId);
+
+    // Get JWK for session key
+    const jwkString = this.sessionManager.jwk(keyId);
+    if (!jwkString) {
+      throw new Error("Failed to create session key");
+    }
+    const jwk = JSON.parse(jwkString);
+
+    // Create namespace ID
+    const namespaceId = makeNamespaceId(address, chainId, this.namespacePrefix);
+
+    const now = new Date();
+    const expirationTime = new Date(now.getTime() + this.sessionExpirationMs);
+
+    // Prepare session - this creates the SIWE message with ReCap capabilities
+    const prepared = prepareSession({
+      abilities: this.defaultActions,
+      address,
+      chainId,
+      domain: this.domain,
+      issuedAt: now.toISOString(),
+      expirationTime: expirationTime.toISOString(),
+      namespaceId,
+      jwk,
+    });
+
+    // Sign the SIWE message from prepareSession (NOT a separately generated SIWE)
     const signature = await this.requestSignature({
-      address: this._address,
-      chainId: this._chainId,
-      message: siweMessage.prepareMessage(),
+      address,
+      chainId,
+      message: prepared.siwe,
       type: "siwe",
     });
 
-    // Complete sign-in
-    return this.signInWithSignature(siweMessage, signature);
+    // Complete session setup with the prepared session + signature
+    const session = completeSessionSetup({
+      ...prepared,
+      signature,
+    });
+
+    // Create client session (web-core compatible)
+    const clientSession: TCWClientSession = {
+      address,
+      walletAddress: address,
+      chainId,
+      sessionKey: keyId,
+      siwe: prepared.siwe,
+      signature,
+    };
+
+    // Create TinyCloud session with full delegation data
+    // Use sessionManager.getDID(keyId) for verificationMethod to get properly formatted DID URL
+    // The prepared.verificationMethod from Rust WASM has a bug that doubles the DID fragment
+    const tinyCloudSession: TinyCloudSession = {
+      address,
+      chainId,
+      sessionKey: keyId,
+      namespaceId,
+      delegationCid: session.delegationCid,
+      delegationHeader: session.delegationHeader,
+      verificationMethod: this.sessionManager.getDID(keyId),
+      jwk,
+      siwe: prepared.siwe,
+      signature,
+    };
+
+    // Persist session with TinyCloud-specific data
+    const persistedData: PersistedSessionData = {
+      address,
+      chainId,
+      sessionKey: JSON.stringify(jwk),
+      siwe: prepared.siwe,
+      signature,
+      tinycloudSession: {
+        delegationHeader: session.delegationHeader,
+        delegationCid: session.delegationCid,
+        namespaceId,
+        verificationMethod: this.sessionManager.getDID(keyId),
+      },
+      expiresAt: expirationTime.toISOString(),
+      createdAt: now.toISOString(),
+      version: "1.0",
+    };
+    await this.sessionStorage.save(address, persistedData);
+
+    // Set current session
+    this._session = clientSession;
+    this._tinyCloudSession = tinyCloudSession;
+    this._address = address;
+    this._chainId = chainId;
+
+    // Call extension hooks
+    for (const ext of this.extensions) {
+      if (ext.afterSignIn) {
+        await ext.afterSignIn(clientSession);
+      }
+    }
+
+    // Ensure namespace exists (creates if needed when autoCreateNamespace is true)
+    await this.ensureNamespaceExists();
+
+    return clientSession;
   }
 
   /**
@@ -345,6 +446,13 @@ export class NodeUserAuthorization implements IUserAuthorization {
 
   /**
    * Generate a SIWE message for custom signing flows.
+   *
+   * @deprecated This method generates a plain SIWE message without ReCap capabilities.
+   * For TinyCloud sessions, use `signIn()` instead, which uses `prepareSession()` to
+   * generate the correct SIWE message with ReCap capabilities embedded.
+   *
+   * If you need a custom signing flow, call `prepareSession()` directly and sign
+   * the returned `siwe` string, then pass both to `signInWithPreparedSession()`.
    */
   async generateSiweMessage(
     address: string,
@@ -389,24 +497,62 @@ export class NodeUserAuthorization implements IUserAuthorization {
 
   /**
    * Complete sign-in with a pre-signed message.
+   *
+   * @deprecated This method is broken and should not be used. The signature must be
+   * over the SIWE message generated by `prepareSession()`, not a separately generated
+   * SIWE message. Use `signIn()` for automatic signing or `signInWithPreparedSession()`
+   * for custom signing flows where you need to sign externally.
+   *
+   * The issue: This method calls `prepareSession()` internally which creates a NEW
+   * SIWE message with ReCap capabilities. The signature you provide was for a
+   * different SIWE message, so the server will fail to verify it.
+   *
+   * @throws Error always - this method is no longer functional
    */
   async signInWithSignature(
-    siweMessage: SiweMessage,
-    signature: string
+    _siweMessage: SiweMessage,
+    _signature: string
   ): Promise<TCWClientSession> {
-    const address = siweMessage.address;
-    const chainId = siweMessage.chainId;
+    throw new Error(
+      "signInWithSignature is deprecated and broken. " +
+        "Use signIn() for automatic signing, or use signInWithPreparedSession() " +
+        "with a prepared session from prepareSession(). " +
+        "See the documentation for the correct SIWE-ReCap signing flow."
+    );
+  }
+
+  /**
+   * Prepare a session for external signing.
+   *
+   * Use this method when you need to sign the SIWE message externally (e.g., via
+   * a hardware wallet, multi-sig, or external service). After obtaining the signature,
+   * call `signInWithPreparedSession()` to complete the sign-in.
+   *
+   * @example
+   * ```typescript
+   * const { prepared, keyId, jwk } = await auth.prepareSessionForSigning();
+   * const signature = await externalSigner.signMessage(prepared.siwe);
+   * const session = await auth.signInWithPreparedSession(prepared, signature, keyId, jwk);
+   * ```
+   */
+  async prepareSessionForSigning(): Promise<{
+    prepared: {
+      siwe: string;
+      jwk: object;
+      namespaceId: string;
+      verificationMethod: string;
+    };
+    keyId: string;
+    jwk: object;
+    address: string;
+    chainId: number;
+  }> {
+    const address = ensureEip55(await this.signer.getAddress());
+    const chainId = await this.signer.getChainId();
 
     // Create a session key
     const keyId = `session-${Date.now()}`;
     this.sessionManager.renameSessionKeyId("default", keyId);
-
-    // Create namespace ID
-    const namespaceId = makeNamespaceId(
-      ensureEip55(address),
-      chainId,
-      this.namespacePrefix
-    );
 
     // Get JWK for session key
     const jwkString = this.sessionManager.jwk(keyId);
@@ -415,25 +561,66 @@ export class NodeUserAuthorization implements IUserAuthorization {
     }
     const jwk = JSON.parse(jwkString);
 
-    // Prepare session
+    // Create namespace ID
+    const namespaceId = makeNamespaceId(address, chainId, this.namespacePrefix);
+
+    const now = new Date();
+    const expirationTime = new Date(now.getTime() + this.sessionExpirationMs);
+
+    // Prepare session - this creates the SIWE message with ReCap capabilities
     const prepared = prepareSession({
       abilities: this.defaultActions,
-      address: ensureEip55(address),
+      address,
       chainId,
       domain: this.domain,
-      issuedAt: siweMessage.issuedAt ?? new Date().toISOString(),
-      expirationTime:
-        siweMessage.expirationTime ??
-        new Date(Date.now() + this.sessionExpirationMs).toISOString(),
+      issuedAt: now.toISOString(),
+      expirationTime: expirationTime.toISOString(),
       namespaceId,
       jwk,
     });
 
-    // Complete session setup
+    return {
+      prepared,
+      keyId,
+      jwk,
+      address,
+      chainId,
+    };
+  }
+
+  /**
+   * Complete sign-in with a prepared session and signature.
+   *
+   * Use this method after obtaining a signature for the SIWE message from
+   * `prepareSessionForSigning()`. The signature MUST be over `prepared.siwe`.
+   *
+   * @param prepared - The prepared session from `prepareSessionForSigning()`
+   * @param signature - The signature over `prepared.siwe`
+   * @param keyId - The session key ID from `prepareSessionForSigning()`
+   * @param jwk - The JWK from `prepareSessionForSigning()`
+   */
+  async signInWithPreparedSession(
+    prepared: {
+      siwe: string;
+      jwk: object;
+      namespaceId: string;
+      verificationMethod: string;
+    },
+    signature: string,
+    keyId: string,
+    jwk: object
+  ): Promise<TCWClientSession> {
+    // Complete session setup with the prepared session + signature
     const session = completeSessionSetup({
       ...prepared,
       signature,
     });
+
+    // Parse address and chainId from the prepared session
+    // The SIWE message contains this info, but we need to extract it
+    // For now, we'll get it from the signer since it should match
+    const address = ensureEip55(await this.signer.getAddress());
+    const chainId = await this.signer.getChainId();
 
     // Create client session (web-core compatible)
     const clientSession: TCWClientSession = {
@@ -441,40 +628,48 @@ export class NodeUserAuthorization implements IUserAuthorization {
       walletAddress: address,
       chainId,
       sessionKey: keyId,
-      siwe: siweMessage.prepareMessage(),
+      siwe: prepared.siwe,
       signature,
     };
 
     // Create TinyCloud session with full delegation data
+    // Use sessionManager.getDID(keyId) for properly formatted DID URL
     const tinyCloudSession: TinyCloudSession = {
       address,
       chainId,
       sessionKey: keyId,
-      namespaceId,
+      namespaceId: prepared.namespaceId,
       delegationCid: session.delegationCid,
       delegationHeader: session.delegationHeader,
       verificationMethod: this.sessionManager.getDID(keyId),
-      siwe: clientSession.siwe,
+      jwk,
+      siwe: prepared.siwe,
       signature,
     };
+
+    // Extract expiration from SIWE message (parse the string)
+    const expirationMatch = prepared.siwe.match(/Expiration Time: (.+)/);
+    const issuedAtMatch = prepared.siwe.match(/Issued At: (.+)/);
+    const expiresAt =
+      expirationMatch?.[1] ??
+      new Date(Date.now() + this.sessionExpirationMs).toISOString();
+    const createdAt = issuedAtMatch?.[1] ?? new Date().toISOString();
 
     // Persist session with TinyCloud-specific data
     const persistedData: PersistedSessionData = {
       address,
       chainId,
       sessionKey: JSON.stringify(jwk),
-      siwe: clientSession.siwe,
+      siwe: prepared.siwe,
       signature,
       tinycloudSession: {
         delegationHeader: session.delegationHeader,
         delegationCid: session.delegationCid,
-        namespaceId,
+        namespaceId: prepared.namespaceId,
         verificationMethod: this.sessionManager.getDID(keyId),
       },
-      expiresAt:
-        siweMessage.expirationTime ??
-        new Date(Date.now() + this.sessionExpirationMs).toISOString(),
-      createdAt: siweMessage.issuedAt ?? new Date().toISOString(),
+      expiresAt,
+      createdAt,
       version: "1.0",
     };
     await this.sessionStorage.save(address, persistedData);
@@ -533,6 +728,8 @@ export class NodeUserAuthorization implements IUserAuthorization {
 
     // Restore TinyCloud session if available
     if (persisted.tinycloudSession) {
+      // Parse JWK from persisted session key
+      const jwk = JSON.parse(persisted.sessionKey);
       this._tinyCloudSession = {
         address,
         chainId: persisted.chainId,
@@ -541,6 +738,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
         delegationCid: persisted.tinycloudSession.delegationCid,
         delegationHeader: persisted.tinycloudSession.delegationHeader,
         verificationMethod: persisted.tinycloudSession.verificationMethod,
+        jwk,
         siwe: persisted.siwe,
         signature: persisted.signature,
       };
