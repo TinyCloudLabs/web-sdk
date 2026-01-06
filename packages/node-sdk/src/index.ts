@@ -44,6 +44,7 @@ export {
   TCWClientSession,
   TCWExtension,
   PersistedSessionData,
+  TinyCloudSession,
 } from "@tinycloudlabs/sdk-core";
 
 // Signers

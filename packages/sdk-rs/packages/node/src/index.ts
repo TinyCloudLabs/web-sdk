@@ -18,8 +18,9 @@ export {
   makeNamespaceId,
   ensureEip55,
   signEthereumMessage,
+  signSecp256k1,
   initPanicHook,
-  exportKeyAsBase64,
-  importKeyFromBase64,
+  exportKey,
+  importKey,
   importKeyFromEnvValue,
 } from "../../../node-sdk-wasm/tinycloud_web_sdk_rs.js";

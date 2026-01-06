@@ -18,6 +18,7 @@ export {
   ISessionStorage,
   PersistedSessionData,
   PersistedTinyCloudSession,
+  TinyCloudSession,
 } from "./storage";
 
 // User authorization interface and types

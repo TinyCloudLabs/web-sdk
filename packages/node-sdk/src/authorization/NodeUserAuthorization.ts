@@ -8,6 +8,7 @@ import {
   TCWExtension,
   PartialSiweMessage,
   PersistedSessionData,
+  TinyCloudSession,
 } from "@tinycloudlabs/sdk-core";
 import {
   TCWSessionManager,
@@ -15,6 +16,7 @@ import {
   completeSessionSetup,
   ensureEip55,
   makeNamespaceId,
+  initPanicHook,
 } from "@tinycloudlabs/node-sdk-wasm";
 import {
   SignStrategy,
@@ -81,6 +83,9 @@ export interface NodeUserAuthorizationConfig {
  * ```
  */
 export class NodeUserAuthorization implements IUserAuthorization {
+  /** Flag to ensure WASM panic hook is only initialized once */
+  private static wasmInitialized = false;
+
   private readonly signer: ISigner;
   private readonly signStrategy: SignStrategy;
   private readonly sessionStorage: ISessionStorage;
@@ -94,10 +99,17 @@ export class NodeUserAuthorization implements IUserAuthorization {
   private sessionManager: TCWSessionManager;
   private extensions: TCWExtension[] = [];
   private _session?: TCWClientSession;
+  private _tinyCloudSession?: TinyCloudSession;
   private _address?: string;
   private _chainId?: number;
 
   constructor(config: NodeUserAuthorizationConfig) {
+    // Initialize WASM panic hook once (improves error messages from WASM)
+    if (!NodeUserAuthorization.wasmInitialized) {
+      initPanicHook();
+      NodeUserAuthorization.wasmInitialized = true;
+    }
+
     this.signer = config.signer;
     this.signStrategy = config.signStrategy ?? defaultSignStrategy;
     this.sessionStorage = config.sessionStorage ?? new MemorySessionStorage();
@@ -123,10 +135,18 @@ export class NodeUserAuthorization implements IUserAuthorization {
   }
 
   /**
-   * The current active session.
+   * The current active session (web-core compatible).
    */
   get session(): TCWClientSession | undefined {
     return this._session;
+  }
+
+  /**
+   * The current TinyCloud session with full delegation data.
+   * Includes namespaceId, delegationHeader, and delegationCid.
+   */
+  get tinyCloudSession(): TinyCloudSession | undefined {
+    return this._tinyCloudSession;
   }
 
   /**
@@ -304,6 +324,19 @@ export class NodeUserAuthorization implements IUserAuthorization {
       signature,
     };
 
+    // Create TinyCloud session with full delegation data
+    const tinyCloudSession: TinyCloudSession = {
+      address,
+      chainId,
+      sessionKey: keyId,
+      namespaceId,
+      delegationCid: session.delegationCid,
+      delegationHeader: session.delegationHeader,
+      verificationMethod: this.sessionManager.getDID(keyId),
+      siwe: clientSession.siwe,
+      signature,
+    };
+
     // Persist session with TinyCloud-specific data
     const persistedData: PersistedSessionData = {
       address,
@@ -327,6 +360,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
 
     // Set current session
     this._session = clientSession;
+    this._tinyCloudSession = tinyCloudSession;
     this._address = address;
     this._chainId = chainId;
 
@@ -372,6 +406,21 @@ export class NodeUserAuthorization implements IUserAuthorization {
       signature: persisted.signature,
       ens: persisted.ens,
     };
+
+    // Restore TinyCloud session if available
+    if (persisted.tinycloudSession) {
+      this._tinyCloudSession = {
+        address,
+        chainId: persisted.chainId,
+        sessionKey: keyId,
+        namespaceId: persisted.tinycloudSession.namespaceId,
+        delegationCid: persisted.tinycloudSession.delegationCid,
+        delegationHeader: persisted.tinycloudSession.delegationHeader,
+        verificationMethod: persisted.tinycloudSession.verificationMethod,
+        siwe: persisted.siwe,
+        signature: persisted.signature,
+      };
+    }
 
     this._session = clientSession;
     this._address = address;

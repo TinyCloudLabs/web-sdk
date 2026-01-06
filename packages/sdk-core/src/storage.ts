@@ -13,6 +13,33 @@ export interface PersistedTinyCloudSession {
 }
 
 /**
+ * Full TinyCloud session with delegation data.
+ *
+ * This extends the base web-core session with TinyCloud-specific fields
+ * needed for making invocations and delegations.
+ */
+export interface TinyCloudSession {
+  /** User's Ethereum address */
+  address: string;
+  /** EIP-155 Chain ID */
+  chainId: number;
+  /** Session key ID */
+  sessionKey: string;
+  /** The namespace ID for this session */
+  namespaceId: string;
+  /** The delegation CID */
+  delegationCid: string;
+  /** The delegation header for API calls */
+  delegationHeader: { Authorization: string };
+  /** The verification method DID */
+  verificationMethod: string;
+  /** The signed SIWE message */
+  siwe: string;
+  /** User's signature of the SIWE message */
+  signature: string;
+}
+
+/**
  * Persisted session data structure.
  *
  * Contains all data needed to restore a session without re-authentication.
