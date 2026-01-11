@@ -25,8 +25,8 @@ export interface ServiceSession {
   delegationHeader: { Authorization: string };
   /** The delegation CID */
   delegationCid: string;
-  /** The namespace ID for this session */
-  namespaceId: string;
+  /** The space ID for this session */
+  spaceId: string;
   /** The verification method DID */
   verificationMethod: string;
   /** The session key JWK (required for invoke) */

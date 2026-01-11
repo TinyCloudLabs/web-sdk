@@ -3,9 +3,9 @@
  * TinyCloud Node.js SDK Demo
  *
  * Demonstrates the full TinyCloud flow:
- * 1. Alice creates a namespace and stores data
+ * 1. Alice creates a space and stores data
  * 2. Alice delegates access to Bob
- * 3. Bob invokes actions on Alice's namespace
+ * 3. Bob invokes actions on Alice's space
  *
  * Prerequisites:
  * - A running TinyCloud server (default: http://localhost:4000)
@@ -28,7 +28,7 @@ import {
   prepareSession,
   completeSessionSetup,
   invoke,
-  makeNamespaceId,
+  makeSpaceId,
   ensureEip55,
   signEthereumMessage,
   initPanicHook,
@@ -126,7 +126,7 @@ async function startSession(
   wallet: DemoWallet,
   manager: TCWSessionManager,
   keyId: string,
-  namespaceId: string,
+  spaceId: string,
   actions: { [service: string]: { [path: string]: string[] } }
 ): Promise<{ session: any; delegationHeader: { Authorization: string } }> {
   const address = await wallet.getAddress();
@@ -149,11 +149,11 @@ async function startSession(
     domain: DOMAIN,
     issuedAt: now.toISOString(),
     expirationTime: expiration.toISOString(),
-    namespaceId,
+    spaceId,
     jwk,
   };
 
-  log(keyId, `Preparing session for namespace: ${namespaceId}`);
+  log(keyId, `Preparing session for space: ${spaceId}`);
 
   // Prepare session (generates SIWE message)
   const prepared = prepareSession(sessionConfig);
@@ -192,7 +192,7 @@ async function activateSession(
     if (response.ok) {
       return true;
     } else if (response.status === 404) {
-      // Namespace doesn't exist, need to create it
+      // Space doesn't exist, need to create it
       return false;
     } else {
       throw new Error(`Failed to activate session: ${response.status}`);
@@ -276,16 +276,16 @@ async function runDemo() {
   log("Bob", `DID: ${bobDid}`);
 
   // ========================================================================
-  // Step 3: Create Alice's namespace
+  // Step 3: Create Alice's space
   // ========================================================================
-  logStep(3, "Create Alice's Namespace");
+  logStep(3, "Create Alice's Space");
 
-  const namespaceId = makeNamespaceId(
+  const spaceId = makeSpaceId(
     ensureEip55(await wallet.getAddress()),
     await wallet.getChainId(),
     "demo"
   );
-  log("Namespace", `ID: ${namespaceId}`);
+  log("Space", `ID: ${spaceId}`);
 
   // Define Alice's full access
   const aliceActions = {
@@ -302,7 +302,7 @@ async function runDemo() {
 
   // Start Alice's session
   const { session: aliceSession, delegationHeader: aliceDelegation } =
-    await startSession(wallet, aliceManager, "alice", namespaceId, aliceActions);
+    await startSession(wallet, aliceManager, "alice", spaceId, aliceActions);
 
   // Try to activate the session
   log("Alice", "Activating session...");
@@ -311,8 +311,8 @@ async function runDemo() {
     if (activated) {
       log("Alice", "Session activated successfully!");
     } else {
-      log("Alice", "Namespace not found - would need to create it");
-      log("Alice", "(Namespace creation requires additional server interaction)");
+      log("Alice", "Space not found - would need to create it");
+      log("Alice", "(Space creation requires additional server interaction)");
     }
   } catch (error: any) {
     log("Alice", `Session activation: ${error.message}`);
@@ -374,7 +374,7 @@ async function runDemo() {
     domain: DOMAIN,
     issuedAt: now.toISOString(),
     expirationTime: new Date(now.getTime() + 30 * 60 * 1000).toISOString(), // 30 min
-    namespaceId,
+    spaceId,
     jwk: bobJwk, // Delegate to Bob's key
     parents: [aliceSession.delegationCid], // Chain from Alice's delegation
   };
@@ -451,7 +451,7 @@ async function runDemo() {
   console.log("╚════════════════════════════════════════════════════════════╝");
   console.log();
   console.log("Summary:");
-  console.log(`  - Alice's namespace: ${namespaceId}`);
+  console.log(`  - Alice's space: ${spaceId}`);
   console.log(`  - Alice's DID: ${aliceDid}`);
   console.log(`  - Bob's DID: ${bobDid}`);
   console.log(`  - Delegation chain: wallet -> Alice -> Bob`);

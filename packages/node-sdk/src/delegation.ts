@@ -1,6 +1,6 @@
 /**
  * A portable delegation that can be transported between users.
- * This is a serializable credential that grants access to a namespace.
+ * This is a serializable credential that grants access to a space.
  */
 export interface PortableDelegation {
   /** The CID of this delegation */
@@ -9,10 +9,10 @@ export interface PortableDelegation {
   /** The authorization header for this delegation */
   delegationHeader: { Authorization: string };
 
-  /** The namespace this grants access to (the owner's namespace) */
-  namespaceId: string;
+  /** The space this grants access to (the owner's space) */
+  spaceId: string;
 
-  /** The path within the namespace this grants access to */
+  /** The path within the space this grants access to */
   path: string;
 
   /** The actions this delegation authorizes */
@@ -27,7 +27,7 @@ export interface PortableDelegation {
   /** The DID of who this delegation is for (the recipient) */
   delegateDID: string;
 
-  /** The address of the namespace owner */
+  /** The address of the space owner */
   ownerAddress: string;
 
   /** The chain ID */

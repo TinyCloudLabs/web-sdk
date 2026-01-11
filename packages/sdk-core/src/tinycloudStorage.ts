@@ -55,8 +55,8 @@ export interface TinyCloudStorageConfig {
   hosts?: string[];
   /** Default prefix for all operations */
   prefix?: string;
-  /** Automatically create namespace if not exists */
-  autoCreateNewNamespace?: boolean;
+  /** Automatically create space if not exists */
+  autoCreateNewSpace?: boolean;
   /** Domain for SIWE messages */
   domain?: string;
 }
@@ -93,8 +93,8 @@ export interface DelegateResponse {
  * Defines the core storage operations that both web and node SDKs implement.
  */
 export interface ITinyCloudStorage extends TCWExtension {
-  /** The namespace ID for this storage instance */
-  namespaceId?: string;
+  /** The space ID for this storage instance */
+  spaceId?: string;
 
   /**
    * Get a value by key.
@@ -145,10 +145,10 @@ export interface ITinyCloudStorage extends TCWExtension {
   ): Promise<boolean>;
 
   /**
-   * Host a namespace (register as a host).
+   * Host a space (register as a host).
    * @param session - Optional client session
    */
-  hostNamespace(session?: TCWClientSession): Promise<void>;
+  hostSpace(session?: TCWClientSession): Promise<void>;
 
   /**
    * Generate a sharing link for a key.

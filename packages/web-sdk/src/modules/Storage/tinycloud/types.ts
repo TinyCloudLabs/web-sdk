@@ -12,8 +12,8 @@ export type SessionConfig = {
   domain: string;
   /** Current time for SIWE message. */
   issuedAt: string;
-  /** The namespace that is the target resource of the delegation. */
-  namespaceId: string;
+  /** The space that is the target resource of the delegation. */
+  spaceId: string;
   /** The earliest time that the session will be valid from. */
   notBefore?: string;
   /** The latest time that the session will be valid until. */
@@ -34,14 +34,14 @@ export type Session = {
   delegationCid: string;
   /** The session key. */
   jwk: object;
-  /** The namespace that the session key is permitted to perform actions against. */
-  namespaceId: string;
+  /** The space that the session key is permitted to perform actions against. */
+  spaceId: string;
   /** The verification method of the session key. */
   verificationMethod: string;
 };
 
 /**
- * Configuration object for generating a Namespace Host Delegation SIWE message.
+ * Configuration object for generating a Space Host Delegation SIWE message.
  */
 export type HostConfig = {
   /** Ethereum address. */
@@ -52,8 +52,8 @@ export type HostConfig = {
   domain: string;
   /** Current time for SIWE message. */
   issuedAt: string;
-  /** The namespace that is the target resource of the delegation. */
-  namespaceId: string;
+  /** The space that is the target resource of the delegation. */
+  spaceId: string;
   /** The peer that is the target/invoker in the delegation. */
   peerId: string;
 };

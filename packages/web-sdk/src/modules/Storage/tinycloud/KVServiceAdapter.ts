@@ -14,7 +14,7 @@ import { Session } from "./types";
  *
  * @example
  * ```typescript
- * const session = await tinycloud.namespace();
+ * const session = await tinycloud.space();
  * const kvService = createKVService("https://tinycloud.example.com", session);
  *
  * // Use the KV service
@@ -26,7 +26,7 @@ export function createKVService(host: string, session: Session): IKVService {
   const serviceSession: ServiceSession = {
     delegationHeader: session.delegationHeader,
     delegationCid: session.delegationCid,
-    namespaceId: session.namespaceId,
+    spaceId: session.spaceId,
     verificationMethod: session.verificationMethod,
     jwk: session.jwk,
   };

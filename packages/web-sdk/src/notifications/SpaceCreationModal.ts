@@ -1,35 +1,35 @@
 import { debug } from "../utils/debug";
 
-export interface NamespaceCreationModalOptions {
-  onCreateNamespace: () => Promise<void>;
+export interface SpaceCreationModalOptions {
+  onCreateSpace: () => Promise<void>;
   onDismiss?: () => void;
 }
 
-export interface NamespaceCreationResult {
+export interface SpaceCreationResult {
   success: boolean;
   dismissed: boolean;
 }
 
-export class TinyCloudNamespaceModal extends HTMLElement {
-  private options: NamespaceCreationModalOptions;
+export class TinyCloudSpaceModal extends HTMLElement {
+  private options: SpaceCreationModalOptions;
   private isVisible: boolean = false;
   private isCreating: boolean = false;
-  private resolveResult: ((result: NamespaceCreationResult) => void) | null = null;
-  private completionPromise: Promise<NamespaceCreationResult>;
+  private resolveResult: ((result: SpaceCreationResult) => void) | null = null;
+  private completionPromise: Promise<SpaceCreationResult>;
 
-  constructor(options: NamespaceCreationModalOptions) {
+  constructor(options: SpaceCreationModalOptions) {
     super();
     this.options = options;
     this.attachShadow({ mode: 'open' });
     this.render();
 
     // Create completion promise
-    this.completionPromise = new Promise<NamespaceCreationResult>((resolve) => {
+    this.completionPromise = new Promise<SpaceCreationResult>((resolve) => {
       this.resolveResult = resolve;
     });
   }
 
-  public getCompletionPromise(): Promise<NamespaceCreationResult> {
+  public getCompletionPromise(): Promise<SpaceCreationResult> {
     return this.completionPromise;
   }
 
@@ -55,7 +55,7 @@ export class TinyCloudNamespaceModal extends HTMLElement {
                   <path d="M8 12l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
               </div>
-              <h2 class="modal-title">Create Your TinyCloud Namespace</h2>
+              <h2 class="modal-title">Create Your TinyCloud Space</h2>
               <button class="modal-close" aria-label="Close">
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M1 1L13 13M13 1L1 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
@@ -65,11 +65,11 @@ export class TinyCloudNamespaceModal extends HTMLElement {
 
             <div class="modal-body">
               <p class="modal-description">
-                A TinyCloud Namespace is your personal data container where only you control access.
+                A TinyCloud Space is your personal data container where only you control access.
                 Your signature is required for any operations on the data stored there.
               </p>
               <p class="modal-subdescription">
-                Sign a message to create your namespace and start storing data.
+                Sign a message to create your space and start storing data.
               </p>
             </div>
 
@@ -78,7 +78,7 @@ export class TinyCloudNamespaceModal extends HTMLElement {
                 Learn More
               </button>
               <button class="modal-button modal-button--primary" data-action="create">
-                <span class="button-text">Create TinyCloud Namespace</span>
+                <span class="button-text">Create TinyCloud Space</span>
                 <span class="button-spinner" data-state="hidden">
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="9.42 9.42" opacity="0.25"/>
@@ -350,7 +350,7 @@ export class TinyCloudNamespaceModal extends HTMLElement {
 
     createButton?.addEventListener('click', () => {
       if (!this.isCreating) {
-        this.handleCreateNamespace();
+        this.handleCreateSpace();
       }
     });
 
@@ -364,7 +364,7 @@ export class TinyCloudNamespaceModal extends HTMLElement {
     }
   };
 
-  private async handleCreateNamespace(): Promise<void> {
+  private async handleCreateSpace(): Promise<void> {
     this.isCreating = true;
     const createButton = this.shadowRoot!.querySelector('[data-action="create"]') as HTMLElement;
 
@@ -372,12 +372,12 @@ export class TinyCloudNamespaceModal extends HTMLElement {
     createButton.setAttribute('disabled', 'true');
 
     try {
-      await this.options.onCreateNamespace();
-      // Namespace creation succeeded
+      await this.options.onCreateSpace();
+      // Space creation succeeded
       this.resolveResult?.({ success: true, dismissed: false });
       this.hide();
     } catch (error) {
-      debug.error('Failed to create TinyCloud Namespace:', error);
+      debug.error('Failed to create TinyCloud Space:', error);
       // Don't close modal on error - let user try again or dismiss manually
       // Error handling will be managed elsewhere as per requirements
     } finally {
@@ -417,4 +417,4 @@ export class TinyCloudNamespaceModal extends HTMLElement {
   }
 }
 
-customElements.define('tinycloud-namespace-modal', TinyCloudNamespaceModal);
+customElements.define('tinycloud-space-modal', TinyCloudSpaceModal);

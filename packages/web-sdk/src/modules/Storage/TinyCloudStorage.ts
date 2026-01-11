@@ -9,13 +9,13 @@ import {
 } from "@tinycloudlabs/web-core/client";
 import { generateNonce, SiweMessage } from "siwe";
 import {
-  NamespaceConnection,
+  SpaceConnection,
   activateSession,
   Response,
   Session,
   Authenticator,
 } from "./tinycloud";
-import { makeNamespaceId } from "./tinycloud/module";
+import { makeSpaceId } from "./tinycloud/module";
 import {
   IStorage,
   ITinyCloud,
@@ -95,16 +95,16 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
   private tinycloudModule?: any;
 
   /**
-   * The user's namespace identifier.
+   * The user's space identifier.
    * @public
    */
-  public namespaceId?: string;
+  public spaceId?: string;
 
   /**
-   * The connection to the namespace.
+   * The connection to the space.
    * @private
    */
-  private _namespace?: NamespaceConnection;
+  private _space?: SpaceConnection;
 
   /**
    * Session Manager. Holds session keys and session objects.
@@ -163,7 +163,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
       throw new Error(`TinyCloud: Invalid chain ID: ${chain}`);
     }
 
-    this.namespaceId = makeNamespaceId(address, Number(chain), "default");
+    this.spaceId = makeSpaceId(address, Number(chain), "default");
     this.domain = tcw.config.siweConfig?.domain || window.location.hostname;
     return {};
   }
@@ -171,10 +171,10 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
   public async targetedActions(): Promise<{ [target: string]: string[] }> {
     const actions = {};
 
-    actions[`${this.namespaceId}/capabilities/all`] = [
+    actions[`${this.spaceId}/capabilities/all`] = [
       "tinycloud.capabilities/read",
     ];
-    actions[`${this.namespaceId}/kv/${this.prefix}`] = [
+    actions[`${this.spaceId}/kv/${this.prefix}`] = [
       "tinycloud.kv/put",
       "tinycloud.kv/get",
       "tinycloud.kv/list",
@@ -196,8 +196,8 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
     }
 
     // Validate required fields before calling WASM
-    if (!this.namespaceId || typeof this.namespaceId !== 'string') {
-      throw new Error(`TinyCloud: Invalid namespaceId: ${this.namespaceId}. Did afterConnect complete?`);
+    if (!this.spaceId || typeof this.spaceId !== 'string') {
+      throw new Error(`TinyCloud: Invalid spaceId: ${this.spaceId}. Did afterConnect complete?`);
     }
     if (!tcwSession.siwe || typeof tcwSession.siwe !== 'string') {
       throw new Error(`TinyCloud: Invalid SIWE message: ${tcwSession.siwe}`);
@@ -217,7 +217,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
 
     const sessionData = {
       jwk: JSON.parse(tcwSession.sessionKey),
-      namespaceId: this.namespaceId,
+      spaceId: this.spaceId,
       service: "kv",
       siwe: tcwSession.siwe,
       signature: tcwSession.signature,
@@ -229,7 +229,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
       debug.error('Session created without delegationHeader:', {
         hasDelegationCid: !!session?.delegationCid,
         hasJwk: !!session?.jwk,
-        namespaceId: this.namespaceId,
+        spaceId: this.spaceId,
       });
     }
     return session;
@@ -245,7 +245,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
     if (persistedSession) {
       // Use existing delegation
       const authn = new Authenticator(persistedSession);
-      this._namespace = new NamespaceConnection(tinycloudHost, authn);
+      this._space = new SpaceConnection(tinycloudHost, authn);
       return;
     }
 
@@ -255,7 +255,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
     debug.log('Activating session:', {
       host: tinycloudHost,
       hasDelegationHeader: !!session?.delegationHeader,
-      namespaceId: this.namespaceId,
+      spaceId: this.spaceId,
     });
 
     let authn;
@@ -273,7 +273,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
       );
     }
 
-    this._namespace = new NamespaceConnection(tinycloudHost, authn);
+    this._space = new SpaceConnection(tinycloudHost, authn);
 
     // Persist the new TinyCloud session
     await this.persistTinyCloudSession(session, tcwSession);
@@ -295,9 +295,9 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
         return null;
       }
 
-      // Clear sessions from before orbit→namespace migration that have orbitId instead of namespaceId
-      if (!persistedSession.tinycloudSession.namespaceId) {
-        debug.log('Clearing legacy session without namespaceId');
+      // Clear sessions from before orbit->namespace->space migration that have orbitId/namespaceId instead of spaceId
+      if (!persistedSession.tinycloudSession.spaceId) {
+        debug.log('Clearing legacy session without spaceId');
         await this.sessionPersistence.clearSession(tcwSession.address);
         return null;
       }
@@ -306,7 +306,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
         delegationHeader: persistedSession.tinycloudSession.delegationHeader,
         delegationCid: persistedSession.tinycloudSession.delegationCid,
         jwk: JSON.parse(tcwSession.sessionKey),
-        namespaceId: persistedSession.tinycloudSession.namespaceId,
+        spaceId: persistedSession.tinycloudSession.spaceId,
         verificationMethod:
           persistedSession.tinycloudSession.verificationMethod,
       };
@@ -334,7 +334,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
       const tinycloudSessionData = {
         delegationHeader: session.delegationHeader,
         delegationCid: session.delegationCid,
-        namespaceId: session.namespaceId,
+        spaceId: session.spaceId,
         verificationMethod: session.verificationMethod,
       };
 
@@ -366,13 +366,13 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
   }
 
   /**
-   * Gets the active namespace connection.
-   * Note: This is the TinyCloud user namespace (data container), not to be confused with
+   * Gets the active space connection.
+   * Note: This is the TinyCloud user space (data container), not to be confused with
    * ReCap ability namespaces (action categories like "kv", "tinycloud.kv").
    * @private
    */
-  get namespaceConnection(): NamespaceConnection {
-    if (!this._namespace) {
+  get spaceConnection(): SpaceConnection {
+    if (!this._space) {
       dispatchSDKEvent.error(
         "storage.not_connected",
         "TinyCloudStorage is not connected",
@@ -380,7 +380,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
       );
       throw new Error("TinyCloudStorage is not connected");
     }
-    return this._namespace;
+    return this._space;
   }
 
   /**
@@ -406,7 +406,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
       prefix: this.prefix,
     };
     const { prefix, request } = { ...defaultOptions, ...options };
-    return this.namespaceConnection.get(`${prefix}/${key}`, request);
+    return this.spaceConnection.get(`${prefix}/${key}`, request);
   }
 
   /**
@@ -435,7 +435,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
     };
     const { prefix, request } = { ...defaultOptions, ...options };
     try {
-      const response = await this.namespaceConnection.put(
+      const response = await this.spaceConnection.put(
         `${prefix || this.prefix}/${key}`,
         value,
         request
@@ -483,7 +483,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
       ...options,
     };
     const p = path ? `${prefix}/${path}` : `${prefix}/`;
-    const response = await this.namespaceConnection.list(prefix, request);
+    const response = await this.spaceConnection.list(prefix, request);
     // remove prefix from keys
     return removePrefix
       ? { ...response, data: response.data.map((key) => key.slice(p.length)) }
@@ -512,14 +512,14 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
       prefix: this.prefix,
     };
     const { prefix, request } = { ...defaultOptions, ...options };
-    return this.namespaceConnection.delete(`${prefix}/${key}`, request);
+    return this.spaceConnection.delete(`${prefix}/${key}`, request);
   }
 
   public async deleteAll(prefix?: string): Promise<Response[]> {
     if (prefix) {
-      return this.namespaceConnection.deleteAll(`${this.prefix}/${prefix}`);
+      return this.spaceConnection.deleteAll(`${this.prefix}/${prefix}`);
     } else {
-      return this.namespaceConnection.deleteAll(this.prefix);
+      return this.spaceConnection.deleteAll(this.prefix);
     }
   }
 
@@ -536,7 +536,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
 
       const tinycloudHost = this.hosts[0];
       await activateSession(session, tinycloudHost).then((authn) => {
-        this._namespace = new NamespaceConnection(tinycloudHost, authn);
+        this._space = new SpaceConnection(tinycloudHost, authn);
       });
       return true;
     } catch (error) {
@@ -599,7 +599,7 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
     const delegateDID = await this.sessionManager.getDID(keyId);
 
     // get file target + permissions
-    const target = `${this.namespaceId}/kv/${path}`;
+    const target = `${this.spaceId}/kv/${path}`;
     const actions = ["kv/get", "kv/metadata"];
 
     // delegate permission to target
@@ -662,8 +662,8 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
     // activate session and retrieve data
     try {
       const authn = await activateSession(session, tinycloudHost);
-      const namespace = new NamespaceConnection(tinycloudHost, authn);
-      const response = await namespace.get(path);
+      const space = new SpaceConnection(tinycloudHost, authn);
+      const response = await space.get(path);
       return response;
     } catch (error: any) {
       const status = error?.status;

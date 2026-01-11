@@ -6,9 +6,9 @@ import { Capabilities, CapSummary } from './capabilities';
 import { HostConfig } from './types';
 
 /**
- * A connection to a namespace in a TinyCloud instance.
+ * A connection to a space in a TinyCloud instance.
  *
- * This class provides methods for interacting with a namespace. Construct an instance of this class using {@link TinyCloud.namespace}.
+ * This class provides methods for interacting with a space. Construct an instance of this class using {@link TinyCloud.space}.
  *
  * @deprecated The KV methods on this class (get, put, delete, list, head) are deprecated.
  * For new code, use the KVService from @tinycloudlabs/sdk-core instead:
@@ -26,41 +26,41 @@ import { HostConfig } from './types';
  *
  * The session management (id()) and capability methods (sessions()) remain available.
  */
-export class NamespaceConnection {
-  private namespaceId: string;
+export class SpaceConnection {
+  private spaceId: string;
   private kv: KV;
   private caps: Capabilities;
 
   /** @ignore */
   constructor(tinycloudUrl: string, authn: Authenticator) {
-    this.namespaceId = authn.getNamespaceId();
+    this.spaceId = authn.getSpaceId();
     this.kv = new KV(tinycloudUrl, authn);
     this.caps = new Capabilities(tinycloudUrl, authn);
   }
 
-  /** Get the id of the connected namespace.
+  /** Get the id of the connected space.
    *
-   * @returns The id of the connected namespace.
+   * @returns The id of the connected space.
    */
   id(): string {
-    return this.namespaceId;
+    return this.spaceId;
   }
 
-  /** Store an object in the connected namespace.
+  /** Store an object in the connected space.
    *
    * Supports storing values that are of type string,
    * {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object | Object},
    * and values that are a {@link https://developer.mozilla.org/en-US/docs/Web/API/Blob | Blob} or Blob-like
    * (e.g. {@link https://developer.mozilla.org/en-US/docs/Web/API/File | File}).
    * ```ts
-   * await namespaceConnection.put('a', 'value');
-   * await namespaceConnection.put('b', {x: 10});
+   * await spaceConnection.put('a', 'value');
+   * await spaceConnection.put('b', {x: 10});
    *
    * let blob: Blob = new Blob(['value'], {type: 'text/plain'});
-   * await namespaceConnection.put('c', blob);
+   * await spaceConnection.put('c', blob);
    *
    * let file: File = fileList[0];
-   * await namespaceConnection.put('d', file);
+   * await spaceConnection.put('d', file);
    * ```
    *
    * @param key The key with which the object is indexed.
@@ -96,40 +96,40 @@ export class NamespaceConnection {
     return this.kv.put(key, blob, req?.headers || {}).then(transformResponse);
   }
 
-  /** Retrieve an object from the connected namespace.
+  /** Retrieve an object from the connected space.
    *
    * String and Object values, along with
    * {@link https://developer.mozilla.org/en-US/docs/Web/API/Blob | Blobs}
    * of type `text/plain` or `application/json` are converted into their respective
    * types on retrieval:
    * ```ts
-   * await namespaceConnection.put('string', 'value');
-   * await namespaceConnection.put('json', {x: 10});
+   * await spaceConnection.put('string', 'value');
+   * await spaceConnection.put('json', {x: 10});
    *
    * let blob = new Blob(['value'], {type: 'text/plain'});
-   * await namespaceConnection.put('stringBlob', blob);
+   * await spaceConnection.put('stringBlob', blob);
    *
    * let blob = new Blob([{x: 10}], {type: 'application/json'});
-   * await namespaceConnection.put('jsonBlob', blob);
+   * await spaceConnection.put('jsonBlob', blob);
    *
-   * let stringData: string = await namespaceConnection.get('string').then(({ data }) => data);
-   * let jsonData: {x: number} = await namespaceConnection.get('json').then(({ data }) => data);
-   * let stringBlobData: string = await namespaceConnection.get('stringBlob').then(({ data }) => data);
-   * let jsonBlobData: {x: number} = await namespaceConnection.get('jsonBlob').then(({ data }) => data);
+   * let stringData: string = await spaceConnection.get('string').then(({ data }) => data);
+   * let jsonData: {x: number} = await spaceConnection.get('json').then(({ data }) => data);
+   * let stringBlobData: string = await spaceConnection.get('stringBlob').then(({ data }) => data);
+   * let jsonBlobData: {x: number} = await spaceConnection.get('jsonBlob').then(({ data }) => data);
    * ```
    *
    * If the object has any other MIME type then a Blob will be returned:
    * ```ts
    * let blob = new Blob([new ArrayBuffer(8)], {type: 'image/gif'});
-   * await namespaceConnection.put('gif', blob);
-   * let gifData: Blob = await namespaceConnection.get('gif').then(({ data }) => data);
+   * await spaceConnection.put('gif', blob);
+   * let gifData: Blob = await spaceConnection.get('gif').then(({ data }) => data);
    * ```
    *
    * Alternatively you can retrieve any object as a
    * {@link https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream | ReadableStream},
    * by supplying request parameters:
    * ```ts
-   * let data = await namespaceConnection.get('key', {streamBody: true}).then(
+   * let data = await spaceConnection.get('key', {streamBody: true}).then(
    *   ({ data }: { data?: ReadableStream }) => {
    *     // consume the stream
    *   }
@@ -165,7 +165,7 @@ export class NamespaceConnection {
     return this.kv.get(key).then(transformResponse);
   }
 
-  /** Delete an object from the connected namespace.
+  /** Delete an object from the connected space.
    *
    * @param key The key with which the object is indexed.
    * @param req Optional request parameters (unused).
@@ -181,7 +181,7 @@ export class NamespaceConnection {
   }
 
   /**
-   * Delete all objects with the specified key prefix from the connected namespace.
+   * Delete all objects with the specified key prefix from the connected space.
    *
    * @param prefix Optional key prefix for filtering the objects to remove. Removes all objects if not specified.
    * @returns A Promise of an array of {@link Response} objects for each delete operation performed.
@@ -193,17 +193,17 @@ export class NamespaceConnection {
     return await Promise.all(keys.map(key => this.delete(key)));
   }
 
-  /** List objects in the connected namespace.
+  /** List objects in the connected space.
    *
    * The list of keys is retrieved as a list of strings:
    * ```ts
-   * let keys: string[] = await namespaceConnection.list().then(({ data }) => data);
+   * let keys: string[] = await spaceConnection.list().then(({ data }) => data);
    * ```
    * Optionally, you can retrieve the list of objects as a
    * {@link https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream | ReadableStream},
    * by supplying request parameters:
    * ```ts
-   * let data = await namespaceConnection.list("", {streamBody: true}).then(
+   * let data = await spaceConnection.list("", {streamBody: true}).then(
    *   ({ data }: { data?: ReadableStream }) => {
    *     // consume the stream
    *   }
@@ -232,7 +232,7 @@ export class NamespaceConnection {
     return this.kv.list(prefix).then(transformResponse);
   }
 
-  /** Retrieve metadata about an object from the connected namespace.
+  /** Retrieve metadata about an object from the connected space.
    *
    * @param key The key with which the object is indexed.
    * @param req Optional request parameters (unused).
@@ -254,7 +254,7 @@ export class NamespaceConnection {
 
 /** Optional request parameters.
  *
- * Not all options are applicable on every {@link NamespaceConnection} method. See the documentation
+ * Not all options are applicable on every {@link SpaceConnection} method. See the documentation
  * of each method to discover what options are supported.
  */
 export type Request = {
@@ -266,7 +266,7 @@ export type Request = {
 
 /** Response from tinycloud requests.
  *
- * The methods on {@link NamespaceConnection} return a Response that may have `data` property. See the
+ * The methods on {@link SpaceConnection} return a Response that may have `data` property. See the
  * documentation of each method to discover whether a method will return data and what type you
  * can expect.
  */
@@ -285,15 +285,15 @@ export type Response = {
 
 type FetchResponse = globalThis.Response;
 
-export const hostNamespace = async (
+export const hostSpace = async (
   wallet: WalletProvider,
   tinycloudUrl: string,
-  namespaceId: string,
+  spaceId: string,
   domain: string = window.location.hostname
 ): Promise<Response> => {
   // Validate required parameters
-  if (!namespaceId || typeof namespaceId !== 'string') {
-    throw new Error(`TinyCloud: Invalid namespaceId: ${namespaceId}`);
+  if (!spaceId || typeof spaceId !== 'string') {
+    throw new Error(`TinyCloud: Invalid spaceId: ${spaceId}`);
   }
   if (!domain || typeof domain !== 'string') {
     throw new Error(`TinyCloud: Invalid domain: ${domain}`);
@@ -311,7 +311,7 @@ export const hostNamespace = async (
 
   const issuedAt = new Date(Date.now()).toISOString();
   const peerResponse = await fetch(
-    tinycloudUrl + `/peer/generate/${encodeURIComponent(namespaceId)}`
+    tinycloudUrl + `/peer/generate/${encodeURIComponent(spaceId)}`
   );
 
   if (!peerResponse.ok) {
@@ -328,7 +328,7 @@ export const hostNamespace = async (
     chainId: Number(chainId),
     domain,
     issuedAt,
-    namespaceId,
+    spaceId,
     peerId,
   };
   const siwe = generateHostSIWEMessage(config);
