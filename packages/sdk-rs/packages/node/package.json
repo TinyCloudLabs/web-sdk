@@ -6,7 +6,7 @@
   "types": "dist/index.d.ts",
   "type": "module",
   "author": "TinyCloud, Inc.",
-  "license": "Apache-2.0 OR MIT",
+  "license": "SEE LICENSE IN LICENSE.md",
   "engines": {
     "node": ">=18"
   },

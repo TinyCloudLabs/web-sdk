@@ -3,7 +3,7 @@
   "version": "0.3.0",
   "description": "TinyCloud Web Core library",
   "author": "TinyCloud, Inc.",
-  "license": "Apache-2.0 OR MIT",
+  "license": "SEE LICENSE IN LICENSE.md",
   "homepage": "https://github.com/TinyCloudLabs/web-sdk#readme",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "TinyCloud SDK for Node.js with configurable authorization strategies",
   "author": "TinyCloud, Inc.",
-  "license": "Apache-2.0 OR MIT",
+  "license": "SEE LICENSE IN LICENSE.md",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",

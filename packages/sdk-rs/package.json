@@ -4,7 +4,7 @@
   "private": true,
   "description": "TinyCloud WASM build source - builds web-sdk-wasm and node-sdk-wasm",
   "author": "TinyCloud, Inc.",
-  "license": "Apache-2.0 OR MIT",
+  "license": "SEE LICENSE IN LICENSE.md",
   "scripts": {
     "setup": "./scripts/setup-rust.sh",
     "build": "bun run build:wasm:web && bun run build:wasm:node",
