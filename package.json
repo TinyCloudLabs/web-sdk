@@ -57,7 +57,7 @@
   },
   "keywords": [],
   "author": "TinyCloud, Inc.",
-  "license": "SEE LICENSE IN LICENSE.md",
+  "license": "EGPL",
   "trustedDependencies": [
     "@reown/appkit",
     "core-js",

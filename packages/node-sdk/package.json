@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "TinyCloud SDK for Node.js with configurable authorization strategies",
   "author": "TinyCloud, Inc.",
-  "license": "SEE LICENSE IN LICENSE.md",
+  "license": "EGPL",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",

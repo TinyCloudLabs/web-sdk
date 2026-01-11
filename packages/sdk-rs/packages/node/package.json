@@ -6,7 +6,7 @@
   "types": "dist/index.d.ts",
   "type": "module",
   "author": "TinyCloud, Inc.",
-  "license": "SEE LICENSE IN LICENSE.md",
+  "license": "EGPL",
   "engines": {
     "node": ">=18"
   },
