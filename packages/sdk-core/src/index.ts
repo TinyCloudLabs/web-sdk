@@ -55,13 +55,13 @@ export {
   StorageFactory,
 } from "./TinyCloud";
 
-// Namespace utilities
+// Space utilities
 export {
-  NamespaceHostResult,
+  SpaceHostResult,
   fetchPeerId,
   submitHostDelegation,
   activateSessionWithHost,
-} from "./namespace";
+} from "./space";
 
 // Services
 export {

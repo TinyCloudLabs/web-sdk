@@ -4,7 +4,7 @@
  * Each user has their own TinyCloudNode instance with their own key.
  * This class provides a simplified interface for:
  * - Signing in and managing sessions
- * - Key-value storage operations on own namespace
+ * - Key-value storage operations on own space
  * - Creating and using delegations
  *
  * @example
@@ -49,7 +49,7 @@ import {
   completeSessionSetup,
   ensureEip55,
   invoke,
-  makeNamespaceId,
+  makeSpaceId,
   initPanicHook,
 } from "@tinycloudlabs/node-sdk-wasm";
 import { PortableDelegation } from "./delegation";
@@ -63,19 +63,21 @@ export interface TinyCloudNodeConfig {
   privateKey: string;
   /** TinyCloud server URL (e.g., "https://node.tinycloud.xyz") */
   host: string;
-  /** Namespace prefix for this user's namespace */
+  /** Space prefix for this user's space */
   prefix: string;
   /** Domain for SIWE messages (default: derived from host) */
   domain?: string;
   /** Session expiration time in milliseconds (default: 1 hour) */
   sessionExpirationMs?: number;
+  /** Whether to automatically create space if it doesn't exist (default: false) */
+  autoCreateSpace?: boolean;
 }
 
 /**
  * High-level TinyCloud API for Node.js environments.
  *
  * Each user creates their own TinyCloudNode instance with their private key.
- * The instance manages the user's session and provides access to their namespace.
+ * The instance manages the user's session and provides access to their space.
  */
 export class TinyCloudNode {
   /** Flag to ensure WASM panic hook is only initialized once */
@@ -113,9 +115,10 @@ export class TinyCloudNode {
       signStrategy: { type: "auto-sign" },
       sessionStorage: new MemorySessionStorage(),
       domain,
-      namespacePrefix: config.prefix,
+      spacePrefix: config.prefix,
       sessionExpirationMs: config.sessionExpirationMs ?? 60 * 60 * 1000,
       tinycloudHosts: [config.host],
+      autoCreateSpace: config.autoCreateSpace,
     });
 
     this.tc = new TinyCloud(this.auth);
@@ -157,11 +160,11 @@ export class TinyCloudNode {
   }
 
   /**
-   * Get the namespace ID for this user.
+   * Get the space ID for this user.
    * Available after signIn().
    */
-  get namespaceId(): string | undefined {
-    return this.auth.tinyCloudSession?.namespaceId;
+  get spaceId(): string | undefined {
+    return this.auth.tinyCloudSession?.spaceId;
   }
 
   /**
@@ -174,7 +177,7 @@ export class TinyCloudNode {
 
   /**
    * Sign in and create a new session.
-   * This creates the user's namespace if it doesn't exist.
+   * This creates the user's space if it doesn't exist.
    */
   async signIn(): Promise<void> {
     this._address = await this.signer.getAddress();
@@ -190,7 +193,7 @@ export class TinyCloudNode {
   }
 
   /**
-   * Key-value storage operations on this user's namespace.
+   * Key-value storage operations on this user's space.
    */
   get kv(): IKVService {
     if (!this._kv) {
@@ -211,13 +214,13 @@ export class TinyCloudNode {
    * Create a delegation from this user to another user.
    *
    * The delegation grants the recipient access to a specific path and actions
-   * within this user's namespace.
+   * within this user's space.
    *
    * @param params - Delegation parameters
    * @returns A portable delegation that can be sent to the recipient
    */
   async createDelegation(params: {
-    /** Path within the namespace to delegate access to */
+    /** Path within the space to delegate access to */
     path: string;
     /** Actions to allow (e.g., ["tinycloud.kv/get", "tinycloud.kv/put"]) */
     actions: string[];
@@ -254,7 +257,7 @@ export class TinyCloudNode {
       domain: new URL(this.config.host).hostname,
       issuedAt: now.toISOString(),
       expirationTime: expirationTime.toISOString(),
-      namespaceId: session.namespaceId,
+      spaceId: session.spaceId,
       delegateUri: params.delegateDID,
       parents: [session.delegationCid],
     });
@@ -282,7 +285,7 @@ export class TinyCloudNode {
     return {
       delegationCid: delegationSession.delegationCid,
       delegationHeader: delegationSession.delegationHeader,
-      namespaceId: session.namespaceId,
+      spaceId: session.spaceId,
       path: params.path,
       actions: params.actions,
       disableSubDelegation: params.disableSubDelegation ?? false,
@@ -297,7 +300,7 @@ export class TinyCloudNode {
    * Use a delegation received from another user.
    *
    * This creates a new session key for this user that chains from the
-   * received delegation, allowing operations on the delegator's namespace.
+   * received delegation, allowing operations on the delegator's space.
    *
    * @param delegation - The portable delegation received from another user
    * @returns A DelegatedAccess instance for performing operations
@@ -326,7 +329,7 @@ export class TinyCloudNode {
 
     // Prepare the session with:
     // - THIS user's address (we are the invoker)
-    // - The delegation owner's namespace (where we're accessing data)
+    // - The delegation owner's space (where we're accessing data)
     // - Our existing session key (must match the DID the delegation targets)
     // - Parent reference to the received delegation
     const prepared = prepareSession({
@@ -336,7 +339,7 @@ export class TinyCloudNode {
       domain: new URL(this.config.host).hostname,
       issuedAt: now.toISOString(),
       expirationTime: expirationTime.toISOString(),
-      namespaceId: delegation.namespaceId,
+      spaceId: delegation.spaceId,
       jwk,
       parents: [delegation.delegationCid],
     });
@@ -365,7 +368,7 @@ export class TinyCloudNode {
       address: mySession.address,
       chainId: mySession.chainId,
       sessionKey: mySession.sessionKey,
-      namespaceId: delegation.namespaceId,
+      spaceId: delegation.spaceId,
       delegationCid: invokerSession.delegationCid,
       delegationHeader: invokerSession.delegationHeader,
       verificationMethod: mySession.verificationMethod,
@@ -454,7 +457,7 @@ export class TinyCloudNode {
       domain: new URL(this.config.host).hostname,
       issuedAt: now.toISOString(),
       expirationTime: actualExpiry.toISOString(),
-      namespaceId: parentDelegation.namespaceId,
+      spaceId: parentDelegation.spaceId,
       delegateUri: params.delegateDID,
       parents: [parentDelegation.delegationCid],
     });
@@ -482,7 +485,7 @@ export class TinyCloudNode {
     return {
       delegationCid: subDelegationSession.delegationCid,
       delegationHeader: subDelegationSession.delegationHeader,
-      namespaceId: parentDelegation.namespaceId,
+      spaceId: parentDelegation.spaceId,
       path: params.path,
       actions: params.actions,
       disableSubDelegation: params.disableSubDelegation ?? false,

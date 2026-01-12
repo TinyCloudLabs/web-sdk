@@ -117,6 +117,11 @@ function Home() {
       modules,
     };
 
+    // Add TinyCloud hosts at top level for UserAuthorization
+    if (tinyCloudHost.trim()) {
+      tcwConfig.tinycloudHosts = [tinyCloudHost.trim()];
+    }
+
     return tcwConfig;
   };
 

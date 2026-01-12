@@ -1,14 +1,14 @@
 /**
- * Shared namespace utilities for TinyCloud.
+ * Shared space utilities for TinyCloud.
  *
  * These functions are platform-agnostic and can be used by both
- * web-sdk and node-sdk for namespace hosting and session activation.
+ * web-sdk and node-sdk for space hosting and session activation.
  */
 
 /**
- * Result of a namespace hosting or session activation attempt.
+ * Result of a space hosting or session activation attempt.
  */
-export interface NamespaceHostResult {
+export interface SpaceHostResult {
   /** Whether the operation succeeded (2xx status) */
   success: boolean;
   /** HTTP status code */
@@ -18,21 +18,21 @@ export interface NamespaceHostResult {
 }
 
 /**
- * Fetch the peer ID from TinyCloud server for namespace hosting.
+ * Fetch the peer ID from TinyCloud server for space hosting.
  *
- * The peer ID identifies the TinyCloud server instance that will host the namespace.
+ * The peer ID identifies the TinyCloud server instance that will host the space.
  *
  * @param host - TinyCloud server URL (e.g., "https://node.tinycloud.xyz")
- * @param namespaceId - The namespace ID to host
+ * @param spaceId - The space ID to host
  * @returns The peer ID string
  * @throws Error if the request fails
  */
 export async function fetchPeerId(
   host: string,
-  namespaceId: string
+  spaceId: string
 ): Promise<string> {
   const res = await fetch(
-    `${host}/peer/generate/${encodeURIComponent(namespaceId)}`
+    `${host}/peer/generate/${encodeURIComponent(spaceId)}`
   );
 
   if (!res.ok) {
@@ -44,9 +44,9 @@ export async function fetchPeerId(
 }
 
 /**
- * Submit a namespace hosting delegation to TinyCloud server.
+ * Submit a space hosting delegation to TinyCloud server.
  *
- * This registers a new namespace with the server, allowing the user
+ * This registers a new space with the server, allowing the user
  * to store data in it.
  *
  * @param host - TinyCloud server URL
@@ -56,7 +56,7 @@ export async function fetchPeerId(
 export async function submitHostDelegation(
   host: string,
   headers: Record<string, string>
-): Promise<NamespaceHostResult> {
+): Promise<SpaceHostResult> {
   const res = await fetch(`${host}/delegate`, {
     method: "POST",
     headers,
@@ -77,12 +77,12 @@ export async function submitHostDelegation(
  *
  * @param host - TinyCloud server URL
  * @param delegationHeader - Session delegation header (from session.delegationHeader)
- * @returns Result indicating success/failure (404 means namespace doesn't exist)
+ * @returns Result indicating success/failure (404 means space doesn't exist)
  */
 export async function activateSessionWithHost(
   host: string,
   delegationHeader: { Authorization: string }
-): Promise<NamespaceHostResult> {
+): Promise<SpaceHostResult> {
   const res = await fetch(`${host}/delegate`, {
     method: "POST",
     headers: delegationHeader,

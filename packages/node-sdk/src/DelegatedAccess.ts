@@ -8,10 +8,10 @@ import { invoke } from "@tinycloudlabs/node-sdk-wasm";
 import { PortableDelegation } from "./delegation";
 
 /**
- * Provides access to a namespace via a received delegation.
+ * Provides access to a space via a received delegation.
  *
  * This is returned by TinyCloudNode.useDelegation() and provides
- * KV operations on the delegated namespace.
+ * KV operations on the delegated space.
  */
 export class DelegatedAccess {
   private session: TinyCloudSession;
@@ -37,10 +37,10 @@ export class DelegatedAccess {
   }
 
   /**
-   * The namespace ID this access is for.
+   * The space ID this access is for.
    */
-  get namespaceId(): string {
-    return this.delegation.namespaceId;
+  get spaceId(): string {
+    return this.delegation.spaceId;
   }
 
   /**
@@ -51,7 +51,7 @@ export class DelegatedAccess {
   }
 
   /**
-   * KV operations on the delegated namespace.
+   * KV operations on the delegated space.
    */
   get kv(): IKVService {
     return this._kv;

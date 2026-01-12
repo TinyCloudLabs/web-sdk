@@ -18,7 +18,7 @@ import {
   prepareSession,
   completeSessionSetup,
   ensureEip55,
-  makeNamespaceId,
+  makeSpaceId,
   initPanicHook,
   generateHostSIWEMessage,
   siweToDelegationHeaders,
@@ -47,14 +47,14 @@ export interface NodeUserAuthorizationConfig {
   uri?: string;
   /** Statement included in SIWE messages */
   statement?: string;
-  /** Namespace prefix for new sessions */
-  namespacePrefix?: string;
+  /** Space prefix for new sessions */
+  spacePrefix?: string;
   /** Default actions for sessions */
   defaultActions?: Record<string, Record<string, string[]>>;
   /** Session expiration time in milliseconds (default: 1 hour) */
   sessionExpirationMs?: number;
-  /** Automatically create namespace if it doesn't exist (default: false) */
-  autoCreateNamespace?: boolean;
+  /** Automatically create space if it doesn't exist (default: false) */
+  autoCreateSpace?: boolean;
   /** TinyCloud server endpoints (default: ["https://node.tinycloud.xyz"]) */
   tinycloudHosts?: string[];
 }
@@ -101,10 +101,10 @@ export class NodeUserAuthorization implements IUserAuthorization {
   private readonly domain: string;
   private readonly uri: string;
   private readonly statement?: string;
-  private readonly namespacePrefix: string;
+  private readonly spacePrefix: string;
   private readonly defaultActions: Record<string, Record<string, string[]>>;
   private readonly sessionExpirationMs: number;
-  private readonly autoCreateNamespace: boolean;
+  private readonly autoCreateSpace: boolean;
   private readonly tinycloudHosts: string[];
 
   private sessionManager: TCWSessionManager;
@@ -127,7 +127,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
     this.domain = config.domain;
     this.uri = config.uri ?? `https://${config.domain}`;
     this.statement = config.statement;
-    this.namespacePrefix = config.namespacePrefix ?? "default";
+    this.spacePrefix = config.spacePrefix ?? "default";
     this.defaultActions = config.defaultActions ?? {
       kv: {
         "": [
@@ -140,7 +140,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
       },
     };
     this.sessionExpirationMs = config.sessionExpirationMs ?? 60 * 60 * 1000;
-    this.autoCreateNamespace = config.autoCreateNamespace ?? false;
+    this.autoCreateSpace = config.autoCreateSpace ?? false;
     this.tinycloudHosts = config.tinycloudHosts ?? ["https://node.tinycloud.xyz"];
 
     // Initialize session manager
@@ -156,7 +156,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
 
   /**
    * The current TinyCloud session with full delegation data.
-   * Includes namespaceId, delegationHeader, and delegationCid.
+   * Includes spaceId, delegationHeader, and delegationCid.
    */
   get tinyCloudSession(): TinyCloudSession | undefined {
     return this._tinyCloudSession;
@@ -170,26 +170,26 @@ export class NodeUserAuthorization implements IUserAuthorization {
   }
 
   /**
-   * Get the namespace ID for the current session.
+   * Get the space ID for the current session.
    */
-  getNamespaceId(): string | undefined {
-    return this._tinyCloudSession?.namespaceId;
+  getSpaceId(): string | undefined {
+    return this._tinyCloudSession?.spaceId;
   }
 
   /**
-   * Create the namespace on the TinyCloud server (host delegation).
-   * This registers the user as the owner of the namespace.
+   * Create the space on the TinyCloud server (host delegation).
+   * This registers the user as the owner of the space.
    */
-  private async hostNamespace(): Promise<boolean> {
+  private async hostSpace(): Promise<boolean> {
     if (!this._tinyCloudSession || !this._address || !this._chainId) {
-      throw new Error("Must be signed in to host namespace");
+      throw new Error("Must be signed in to host space");
     }
 
     const host = this.tinycloudHosts[0];
-    const namespaceId = this._tinyCloudSession.namespaceId;
+    const spaceId = this._tinyCloudSession.spaceId;
 
     // Get peer ID from TinyCloud server
-    const peerId = await fetchPeerId(host, namespaceId);
+    const peerId = await fetchPeerId(host, spaceId);
 
     // Generate host SIWE message
     const siwe = generateHostSIWEMessage({
@@ -197,7 +197,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
       chainId: this._chainId,
       domain: this.domain,
       issuedAt: new Date().toISOString(),
-      namespaceId,
+      spaceId,
       peerId,
     });
 
@@ -212,53 +212,53 @@ export class NodeUserAuthorization implements IUserAuthorization {
   }
 
   /**
-   * Ensure the user's namespace exists on the TinyCloud server.
-   * Creates the namespace if it doesn't exist and autoCreateNamespace is enabled.
+   * Ensure the user's space exists on the TinyCloud server.
+   * Creates the space if it doesn't exist and autoCreateSpace is enabled.
    *
-   * @throws Error if namespace creation fails or is disabled and namespace doesn't exist
+   * @throws Error if space creation fails or is disabled and space doesn't exist
    */
-  async ensureNamespaceExists(): Promise<void> {
+  async ensureSpaceExists(): Promise<void> {
     if (!this._tinyCloudSession) {
-      throw new Error("Must be signed in to ensure namespace exists");
+      throw new Error("Must be signed in to ensure space exists");
     }
 
     const host = this.tinycloudHosts[0];
-    console.log(`[ensureNamespaceExists] host=${host}, namespaceId=${this._tinyCloudSession.namespaceId}`);
+    console.log(`[ensureSpaceExists] host=${host}, spaceId=${this._tinyCloudSession.spaceId}`);
 
-    // Try to activate the session (this checks if namespace exists)
+    // Try to activate the session (this checks if space exists)
     const result = await activateSessionWithHost(
       host,
       this._tinyCloudSession.delegationHeader
     );
 
-    console.log(`[ensureNamespaceExists] activation result: status=${result.status}, success=${result.success}, error=${result.error}`);
+    console.log(`[ensureSpaceExists] activation result: status=${result.status}, success=${result.success}, error=${result.error}`);
 
     if (result.success) {
-      // Namespace exists and session is activated
+      // Space exists and session is activated
       return;
     }
 
     if (result.status === 404) {
-      // Namespace doesn't exist
-      if (!this.autoCreateNamespace) {
+      // Space doesn't exist
+      if (!this.autoCreateSpace) {
         throw new Error(
-          `Namespace does not exist: ${this._tinyCloudSession.namespaceId}. ` +
-            `Set autoCreateNamespace: true to create it automatically.`
+          `Space does not exist: ${this._tinyCloudSession.spaceId}. ` +
+            `Set autoCreateSpace: true to create it automatically.`
         );
       }
 
-      // Create the namespace
-      const created = await this.hostNamespace();
+      // Create the space
+      const created = await this.hostSpace();
       if (!created) {
         throw new Error(
-          `Failed to create namespace: ${this._tinyCloudSession.namespaceId}`
+          `Failed to create space: ${this._tinyCloudSession.spaceId}`
         );
       }
 
-      // Small delay to allow namespace creation to propagate
+      // Small delay to allow space creation to propagate
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      // Retry activation after creating namespace
+      // Retry activation after creating space
       const retryResult = await activateSessionWithHost(
         host,
         this._tinyCloudSession.delegationHeader
@@ -266,7 +266,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
 
       if (!retryResult.success) {
         throw new Error(
-          `Failed to activate session after creating namespace: ${retryResult.error}`
+          `Failed to activate session after creating space: ${retryResult.error}`
         );
       }
 
@@ -305,8 +305,8 @@ export class NodeUserAuthorization implements IUserAuthorization {
     }
     const jwk = JSON.parse(jwkString);
 
-    // Create namespace ID
-    const namespaceId = makeNamespaceId(address, chainId, this.namespacePrefix);
+    // Create space ID
+    const spaceId = makeSpaceId(address, chainId, this.spacePrefix);
 
     const now = new Date();
     const expirationTime = new Date(now.getTime() + this.sessionExpirationMs);
@@ -319,7 +319,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
       domain: this.domain,
       issuedAt: now.toISOString(),
       expirationTime: expirationTime.toISOString(),
-      namespaceId,
+      spaceId,
       jwk,
     });
 
@@ -354,7 +354,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
       address,
       chainId,
       sessionKey: keyId,
-      namespaceId,
+      spaceId,
       delegationCid: session.delegationCid,
       delegationHeader: session.delegationHeader,
       verificationMethod: this.sessionManager.getDID(keyId),
@@ -373,7 +373,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
       tinycloudSession: {
         delegationHeader: session.delegationHeader,
         delegationCid: session.delegationCid,
-        namespaceId,
+        spaceId,
         verificationMethod: this.sessionManager.getDID(keyId),
       },
       expiresAt: expirationTime.toISOString(),
@@ -395,8 +395,8 @@ export class NodeUserAuthorization implements IUserAuthorization {
       }
     }
 
-    // Ensure namespace exists (creates if needed when autoCreateNamespace is true)
-    await this.ensureNamespaceExists();
+    // Ensure space exists (creates if needed when autoCreateSpace is true)
+    await this.ensureSpaceExists();
 
     return clientSession;
   }
@@ -539,7 +539,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
     prepared: {
       siwe: string;
       jwk: object;
-      namespaceId: string;
+      spaceId: string;
       verificationMethod: string;
     };
     keyId: string;
@@ -561,8 +561,8 @@ export class NodeUserAuthorization implements IUserAuthorization {
     }
     const jwk = JSON.parse(jwkString);
 
-    // Create namespace ID
-    const namespaceId = makeNamespaceId(address, chainId, this.namespacePrefix);
+    // Create space ID
+    const spaceId = makeSpaceId(address, chainId, this.spacePrefix);
 
     const now = new Date();
     const expirationTime = new Date(now.getTime() + this.sessionExpirationMs);
@@ -575,7 +575,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
       domain: this.domain,
       issuedAt: now.toISOString(),
       expirationTime: expirationTime.toISOString(),
-      namespaceId,
+      spaceId,
       jwk,
     });
 
@@ -603,7 +603,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
     prepared: {
       siwe: string;
       jwk: object;
-      namespaceId: string;
+      spaceId: string;
       verificationMethod: string;
     },
     signature: string,
@@ -638,7 +638,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
       address,
       chainId,
       sessionKey: keyId,
-      namespaceId: prepared.namespaceId,
+      spaceId: prepared.spaceId,
       delegationCid: session.delegationCid,
       delegationHeader: session.delegationHeader,
       verificationMethod: this.sessionManager.getDID(keyId),
@@ -665,7 +665,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
       tinycloudSession: {
         delegationHeader: session.delegationHeader,
         delegationCid: session.delegationCid,
-        namespaceId: prepared.namespaceId,
+        spaceId: prepared.spaceId,
         verificationMethod: this.sessionManager.getDID(keyId),
       },
       expiresAt,
@@ -687,8 +687,8 @@ export class NodeUserAuthorization implements IUserAuthorization {
       }
     }
 
-    // Ensure namespace exists (creates if needed when autoCreateNamespace is true)
-    await this.ensureNamespaceExists();
+    // Ensure space exists (creates if needed when autoCreateSpace is true)
+    await this.ensureSpaceExists();
 
     return clientSession;
   }
@@ -734,7 +734,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
         address,
         chainId: persisted.chainId,
         sessionKey: keyId,
-        namespaceId: persisted.tinycloudSession.namespaceId,
+        spaceId: persisted.tinycloudSession.spaceId,
         delegationCid: persisted.tinycloudSession.delegationCid,
         delegationHeader: persisted.tinycloudSession.delegationHeader,
         verificationMethod: persisted.tinycloudSession.verificationMethod,
@@ -748,8 +748,8 @@ export class NodeUserAuthorization implements IUserAuthorization {
     this._address = address;
     this._chainId = persisted.chainId;
 
-    // Activate session with server (namespace should already exist for resumed sessions)
-    await this.ensureNamespaceExists();
+    // Activate session with server (space should already exist for resumed sessions)
+    await this.ensureSpaceExists();
 
     return clientSession;
   }

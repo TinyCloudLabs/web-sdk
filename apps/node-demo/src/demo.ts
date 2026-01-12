@@ -3,11 +3,11 @@
  * TinyCloud Node.js SDK Demo - Delegation Chain
  *
  * Demonstrates the full TinyCloud delegation chain:
- * 1. Alice creates a namespace and stores data
+ * 1. Alice creates a space and stores data
  * 2. Alice delegates access to Bob (with sub-delegation enabled)
  * 3. Bob reads Alice's data and writes a response
  * 4. Bob sub-delegates access to Charlie
- * 5. Charlie writes to Alice's namespace via the delegation chain
+ * 5. Charlie writes to Alice's space via the delegation chain
  * 6. Alice reads messages from both Bob and Charlie
  *
  * Prerequisites:
@@ -141,7 +141,7 @@ async function runDemo() {
     privateKey: keys.alice,
     host: TINYCLOUD_URL,
     prefix: "demo-alice",
-    autoCreateNamespace: true,
+    autoCreateSpace: true,
   });
 
   const bob = new TinyCloudNode({
@@ -156,21 +156,21 @@ async function runDemo() {
     prefix: "demo-charlie",
   });
 
-  // Step 3: All users sign in (creates their namespaces)
+  // Step 3: All users sign in (creates their spaces)
   console.log("[Alice] Signing in...");
   await alice.signIn();
-  console.log(`[Alice] Namespace: ${alice.namespaceId}`);
+  console.log(`[Alice] Space: ${alice.spaceId}`);
 
   console.log("[Bob] Signing in...");
   await bob.signIn();
-  console.log(`[Bob] Namespace: ${bob.namespaceId}`);
+  console.log(`[Bob] Space: ${bob.spaceId}`);
 
   console.log("[Charlie] Signing in...");
   await charlie.signIn();
-  console.log(`[Charlie] Namespace: ${charlie.namespaceId}`);
+  console.log(`[Charlie] Space: ${charlie.spaceId}`);
   console.log();
 
-  // Step 4: Alice stores data in her namespace
+  // Step 4: Alice stores data in her space
   console.log("[Alice] Storing greeting...");
   await alice.kv.put("shared/greeting", {
     message: "Hello from Alice!",
@@ -196,7 +196,7 @@ async function runDemo() {
   const serializedForBob = serializeDelegation(delegationForBob);
   const receivedByBob = deserializeDelegation(serializedForBob);
 
-  // Step 6: Bob uses the delegation to access Alice's namespace
+  // Step 6: Bob uses the delegation to access Alice's space
   console.log("[Bob] Using delegation from Alice...");
   const bobAccessToAlice = await bob.useDelegation(receivedByBob);
 
@@ -210,7 +210,7 @@ async function runDemo() {
     message: "Thanks for sharing, Alice!",
     timestamp: new Date().toISOString(),
   });
-  console.log("[Bob] Wrote response to Alice's namespace");
+  console.log("[Bob] Wrote response to Alice's space");
   console.log();
 
   // Step 7: Bob creates sub-delegation for Charlie
@@ -229,7 +229,7 @@ async function runDemo() {
   const serializedForCharlie = serializeDelegation(delegationForCharlie);
   const receivedByCharlie = deserializeDelegation(serializedForCharlie);
 
-  // Step 8: Charlie uses the delegation chain to write to Alice's namespace
+  // Step 8: Charlie uses the delegation chain to write to Alice's space
   console.log("[Charlie] Using delegation chain...");
   const charlieAccessToAlice = await charlie.useDelegation(receivedByCharlie);
 
@@ -238,7 +238,7 @@ async function runDemo() {
     message: "Hello from the end of the chain!",
     timestamp: new Date().toISOString(),
   });
-  console.log("[Charlie] Wrote to Alice's namespace via delegation chain");
+  console.log("[Charlie] Wrote to Alice's space via delegation chain");
   console.log();
 
   // Step 9: Alice reads messages from both Bob and Charlie
@@ -254,11 +254,11 @@ async function runDemo() {
   console.log("Demo Complete!");
   console.log();
   console.log("What happened:");
-  console.log("  1. Alice, Bob, and Charlie each signed in (created namespaces)");
+  console.log("  1. Alice, Bob, and Charlie each signed in (created spaces)");
   console.log("  2. Alice stored data and delegated access to Bob");
   console.log("  3. Bob read Alice's data and wrote a response");
   console.log("  4. Bob sub-delegated write access to Charlie");
-  console.log("  5. Charlie wrote to Alice's namespace via the chain");
+  console.log("  5. Charlie wrote to Alice's space via the chain");
   console.log("  6. Alice read messages from both Bob and Charlie");
   console.log();
 }

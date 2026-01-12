@@ -10,8 +10,8 @@ export interface PersistedTinyCloudSession {
   delegationHeader: { Authorization: string };
   /** The delegation reference from the user to the session key */
   delegationCid: string;
-  /** The namespace that the session key is permitted to perform actions against */
-  namespaceId: string;
+  /** The space that the session key is permitted to perform actions against */
+  spaceId: string;
   /** The verification method of the session key */
   verificationMethod: string;
 }
@@ -96,11 +96,11 @@ declare module "@tinycloudlabs/web-core/client" {
   interface TCWClientConfig {
     /** Session persistence configuration */
     persistence?: Partial<SessionPersistenceConfig>;
-    /** Whether to automatically create namespace if it doesn't exist (default: true) */
-    autoCreateNamespace?: boolean;
+    /** Whether to automatically create space if it doesn't exist (default: true) */
+    autoCreateSpace?: boolean;
     /** TinyCloud server endpoints (default: ["https://node.tinycloud.xyz"]) */
     tinycloudHosts?: string[];
-    /** Namespace prefix for new sessions (default: "default") */
-    namespacePrefix?: string;
+    /** Space prefix for new sessions (default: "default") */
+    spacePrefix?: string;
   }
 }

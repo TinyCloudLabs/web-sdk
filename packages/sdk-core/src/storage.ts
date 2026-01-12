@@ -6,8 +6,8 @@ export interface PersistedTinyCloudSession {
   delegationHeader: { Authorization: string };
   /** The delegation CID */
   delegationCid: string;
-  /** The namespace ID for this session */
-  namespaceId: string;
+  /** The space ID for this session */
+  spaceId: string;
   /** The verification method DID */
   verificationMethod: string;
 }
@@ -25,8 +25,8 @@ export interface TinyCloudSession {
   chainId: number;
   /** Session key ID */
   sessionKey: string;
-  /** The namespace ID for this session */
-  namespaceId: string;
+  /** The space ID for this session */
+  spaceId: string;
   /** The delegation CID */
   delegationCid: string;
   /** The delegation header for API calls */

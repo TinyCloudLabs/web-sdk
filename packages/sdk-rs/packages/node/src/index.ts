@@ -15,7 +15,7 @@ export {
   prepareSession,
   completeSessionSetup,
   invoke,
-  makeNamespaceId,
+  makeSpaceId,
   ensureEip55,
   signEthereumMessage,
   signSecp256k1,
@@ -23,7 +23,7 @@ export {
   exportKey,
   importKey,
   importKeyFromEnvValue,
-  // Namespace hosting
+  // Space hosting
   generateHostSIWEMessage,
   siweToDelegationHeaders,
 } from "../../../node-sdk-wasm/tinycloud_web_sdk_rs.js";

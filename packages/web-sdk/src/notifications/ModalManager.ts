@@ -1,8 +1,8 @@
-import { TinyCloudNamespaceModal, type NamespaceCreationModalOptions, type NamespaceCreationResult } from './NamespaceCreationModal';
+import { TinyCloudSpaceModal, type SpaceCreationModalOptions, type SpaceCreationResult } from './SpaceCreationModal';
 
 export class ModalManager {
   private static instance: ModalManager;
-  private activeModal: TinyCloudNamespaceModal | null = null;
+  private activeModal: TinyCloudSpaceModal | null = null;
 
   private constructor() {}
 
@@ -13,12 +13,12 @@ export class ModalManager {
     return ModalManager.instance;
   }
 
-  public showNamespaceCreationModal(options: NamespaceCreationModalOptions): Promise<NamespaceCreationResult> {
+  public showSpaceCreationModal(options: SpaceCreationModalOptions): Promise<SpaceCreationResult> {
     // Close any existing modal first
     this.closeActiveModal();
 
     // Create and show new modal
-    const modal = new TinyCloudNamespaceModal({
+    const modal = new TinyCloudSpaceModal({
       ...options,
       onDismiss: () => {
         this.activeModal = null;
@@ -49,6 +49,6 @@ export class ModalManager {
 }
 
 // Export convenience function
-export const showNamespaceCreationModal = (options: NamespaceCreationModalOptions): Promise<NamespaceCreationResult> => {
-  return ModalManager.getInstance().showNamespaceCreationModal(options);
+export const showSpaceCreationModal = (options: SpaceCreationModalOptions): Promise<SpaceCreationResult> => {
+  return ModalManager.getInstance().showSpaceCreationModal(options);
 };
