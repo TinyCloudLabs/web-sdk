@@ -173,7 +173,8 @@ function Home() {
     if (!walletClient || tcw) return;
 
     setLoading(true);
-    setResumeStatus("checking");
+    // Skip session resume check - go directly to sign-in
+    // setResumeStatus("checking");
 
     try {
       const signer = walletClientToEthers5Signer(walletClient as any);
@@ -187,31 +188,24 @@ function Home() {
 
       const tcwProvider = new TinyCloudWeb(tcwConfig);
 
-      // First, try to resume an existing session
-      const walletAddress = await signer.getAddress();
-      console.log("Attempting to resume session for address:", walletAddress);
+      // COMMENTED OUT: Session resume check - for debugging space creation flow
+      // const walletAddress = await signer.getAddress();
+      // console.log("Attempting to resume session for address:", walletAddress);
+      // const resumedSession = await tcwProvider.tryResumeSession(walletAddress);
+      // if (resumedSession) {
+      //   setResumeStatus("resumed");
+      //   setTinyCloudWeb(tcwProvider);
+      //   setTimeout(() => setResumeStatus(null), 3000);
+      // } else {
 
-      // Use tcwProvider.tryResumeSession to ensure KV service is initialized
-      const resumedSession = await tcwProvider.tryResumeSession(walletAddress);
+      console.log("Skipping session resume, proceeding with normal sign-in");
 
-      if (resumedSession) {
-        setResumeStatus("resumed");
-        setTinyCloudWeb(tcwProvider);
+      // Proceed with normal sign-in
+      // signIn() will initialize KV service automatically
+      await tcwProvider.signIn();
+      setTinyCloudWeb(tcwProvider);
 
-        // Clear resume status after 3 seconds
-        setTimeout(() => setResumeStatus(null), 3000);
-      } else {
-        console.log("No existing session found, proceeding with normal sign-in");
-        setResumeStatus("failed");
-
-        // No existing session, proceed with normal sign-in
-        // signIn() will initialize KV service automatically
-        await tcwProvider.signIn();
-        setTinyCloudWeb(tcwProvider);
-
-        // Clear resume status after 2 seconds
-        setTimeout(() => setResumeStatus(null), 2000);
-      }
+      // }
     } catch (err) {
       console.error("Sign-in failed:", err);
       setResumeStatus(null);
@@ -228,13 +222,13 @@ function Home() {
     // eslint-disable-next-line
   }, [isConnected]);
 
-  // Auto sign-in to TinyCloud when wallet connects and user intended to sign in
-  useEffect(() => {
-    if (isConnected && walletClient && !tcw) {
-      resumeSession();
-    }
-    // eslint-disable-next-line
-  }, [isConnected, walletClient, tcw]);
+  // COMMENTED OUT: Auto-resume session when wallet connects - for debugging space creation flow
+  // useEffect(() => {
+  //   if (isConnected && walletClient && !tcw) {
+  //     resumeSession();
+  //   }
+  //   // eslint-disable-next-line
+  // }, [isConnected, walletClient, tcw]);
 
   const tcwHandler = async () => {
     if (!isConnected || !walletClient) {

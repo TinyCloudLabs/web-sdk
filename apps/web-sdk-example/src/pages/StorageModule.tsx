@@ -25,8 +25,8 @@ function StorageModule({ tcw }: IStorageModule) {
   const [sharingLink, setSharingLink] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
 
-  // Get prefix from config (used for display purposes)
-  const prefix = tcw.config?.kvPrefix || '';
+  // Get prefix from tcw (used for display purposes)
+  const prefix = tcw.kvPrefix;
 
   useEffect(() => {
     const getContentList = async () => {

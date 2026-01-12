@@ -14,14 +14,12 @@
  * @packageDocumentation
  */
 
-import { initialized, tcwSession } from "@tinycloudlabs/web-sdk-wasm";
-import { generateNonce, SiweMessage } from "siwe";
+import { tcwSession } from "@tinycloudlabs/web-sdk-wasm";
 import { activateSession } from "./Storage/tinycloud/authenticator";
 import { SpaceConnection } from "./Storage/tinycloud/space";
 import {
   prepareSession,
   completeSessionSetup,
-  makeSpaceId,
 } from "./Storage/tinycloud/module";
 import type { Session } from "./Storage/tinycloud/types";
 import type { IUserAuthorization } from "./UserAuthorization";
@@ -203,17 +201,29 @@ export class SharingService {
    * });
    * ```
    */
-  async generate(key: string, params?: SharingGenerateParams): Promise<string> {
+  async generate(key: string, params?: SharingGenerateParams): Promise<SharingResult<string>> {
     // Validate input
     if (!key) {
-      throw new Error("Key is required for generating a share");
+      return {
+        ok: false,
+        error: createError(
+          SharingErrorCodes.INVALID_INPUT,
+          "Key is required for generating a share"
+        ),
+      };
     }
 
     // Validate user is signed in
     const address = this.userAuth.address();
     const chainId = this.userAuth.chainId();
     if (!address || !chainId) {
-      throw new Error("User must be signed in to generate a share");
+      return {
+        ok: false,
+        error: createError(
+          SharingErrorCodes.NOT_SIGNED_IN,
+          "User must be signed in to generate a share"
+        ),
+      };
     }
 
     const actions = params?.actions ?? DEFAULT_READ_ACTIONS;
@@ -227,15 +237,26 @@ export class SharingService {
     try {
       keyId = this.sessionManager.createSessionKey(shareKeyId);
     } catch (err) {
-      throw new Error(
-        `Failed to create session key: ${err instanceof Error ? err.message : String(err)}`
-      );
+      return {
+        ok: false,
+        error: createError(
+          SharingErrorCodes.KEY_GENERATION_FAILED,
+          `Failed to create session key: ${err instanceof Error ? err.message : String(err)}`,
+          err instanceof Error ? err : undefined
+        ),
+      };
     }
 
     // Get JWK and DID for the share session key
     const jwkString = this.sessionManager.jwk(keyId);
     if (!jwkString) {
-      throw new Error("Failed to get JWK for session key");
+      return {
+        ok: false,
+        error: createError(
+          SharingErrorCodes.KEY_GENERATION_FAILED,
+          "Failed to get JWK for session key"
+        ),
+      };
     }
     const jwk = JSON.parse(jwkString);
 
@@ -243,15 +264,26 @@ export class SharingService {
     try {
       delegateDID = this.sessionManager.getDID(keyId);
     } catch (err) {
-      throw new Error(
-        `Failed to get DID for session key: ${err instanceof Error ? err.message : String(err)}`
-      );
+      return {
+        ok: false,
+        error: createError(
+          SharingErrorCodes.KEY_GENERATION_FAILED,
+          `Failed to get DID for session key: ${err instanceof Error ? err.message : String(err)}`,
+          err instanceof Error ? err : undefined
+        ),
+      };
     }
 
     // Get the space ID from the current session
     const spaceId = this.userAuth.getSpaceId();
     if (!spaceId) {
-      throw new Error("Space ID not available. Ensure space exists.");
+      return {
+        ok: false,
+        error: createError(
+          SharingErrorCodes.NOT_SIGNED_IN,
+          "Space ID not available. Ensure space exists."
+        ),
+      };
     }
 
     // Get domain for SIWE message
@@ -266,32 +298,61 @@ export class SharingService {
 
     // Prepare the session with ReCap capabilities for the specific path
     const now = new Date();
-    const prepared = prepareSession({
-      actions: actionsMap,
-      address,
-      chainId,
-      domain,
-      issuedAt: now.toISOString(),
-      expirationTime: expiry.toISOString(),
-      spaceId,
-      jwk,
-    });
+    let prepared;
+    try {
+      prepared = prepareSession({
+        actions: actionsMap,
+        address,
+        chainId,
+        domain,
+        issuedAt: now.toISOString(),
+        expirationTime: expiry.toISOString(),
+        spaceId,
+        jwk,
+      });
+    } catch (err) {
+      return {
+        ok: false,
+        error: createError(
+          SharingErrorCodes.KEY_GENERATION_FAILED,
+          `Failed to prepare session: ${err instanceof Error ? err.message : String(err)}`,
+          err instanceof Error ? err : undefined
+        ),
+      };
+    }
 
     // Sign the SIWE message
     let signature: string;
     try {
       signature = await this.userAuth.signMessage(prepared.siwe);
     } catch (err) {
-      throw new Error(
-        `Failed to sign share delegation: ${err instanceof Error ? err.message : String(err)}`
-      );
+      return {
+        ok: false,
+        error: createError(
+          SharingErrorCodes.SIGNING_FAILED,
+          `Failed to sign share delegation: ${err instanceof Error ? err.message : String(err)}`,
+          err instanceof Error ? err : undefined
+        ),
+      };
     }
 
     // Complete session setup
-    const completedSession = completeSessionSetup({
-      ...prepared,
-      signature,
-    });
+    let completedSession;
+    try {
+      completedSession = completeSessionSetup({
+        ...prepared,
+        signature,
+      });
+    } catch (err) {
+      return {
+        ok: false,
+        error: createError(
+          SharingErrorCodes.KEY_GENERATION_FAILED,
+          `Failed to complete session setup: ${err instanceof Error ? err.message : String(err)}`,
+          err instanceof Error ? err : undefined
+        ),
+      };
+    }
 
     // Create the session object to bundle
     const session: Session = {
@@ -306,9 +367,14 @@ export class SharingService {
     try {
       await activateSession(session, host);
     } catch (err) {
-      throw new Error(
-        `Failed to activate share session: ${err instanceof Error ? err.message : String(err)}`
-      );
+      return {
+        ok: false,
+        error: createError(
+          SharingErrorCodes.ACTIVATION_FAILED,
+          `Failed to activate share session: ${err instanceof Error ? err.message : String(err)}`,
+          err instanceof Error ? err : undefined
+        ),
+      };
     }
 
     // Bundle and encode
@@ -318,8 +384,19 @@ export class SharingService {
       session,
     };
 
-    const encoded = this.encodeBundle(bundle);
-    return encoded;
+    try {
+      const encoded = this.encodeBundle(bundle);
+      return { ok: true, data: encoded };
+    } catch (err) {
+      return {
+        ok: false,
+        error: createError(
+          SharingErrorCodes.ENCODING_FAILED,
+          `Failed to encode share bundle: ${err instanceof Error ? err.message : String(err)}`,
+          err instanceof Error ? err : undefined
+        ),
+      };
+    }
   }
 
   /**

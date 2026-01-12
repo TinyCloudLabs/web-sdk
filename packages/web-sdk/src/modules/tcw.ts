@@ -133,6 +133,13 @@ export class TinyCloudWeb {
   }
 
   /**
+   * Get the KV prefix configured for this instance.
+   */
+  public get kvPrefix(): string {
+    return this.config.kvPrefix || '';
+  }
+
+  /**
    * Get the sharing service for generating and retrieving sharing links.
    * Must be signed in for the service to be available.
    *

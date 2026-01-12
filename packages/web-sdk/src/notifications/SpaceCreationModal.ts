@@ -365,6 +365,7 @@ export class TinyCloudSpaceModal extends HTMLElement {
   };
 
   private async handleCreateSpace(): Promise<void> {
+    console.log("[TinyCloud] SpaceCreationModal: handleCreateSpace called");
     this.isCreating = true;
     const createButton = this.shadowRoot!.querySelector('[data-action="create"]') as HTMLElement;
 
@@ -372,18 +373,21 @@ export class TinyCloudSpaceModal extends HTMLElement {
     createButton.setAttribute('disabled', 'true');
 
     try {
+      console.log("[TinyCloud] SpaceCreationModal: calling onCreateSpace callback");
       await this.options.onCreateSpace();
+      console.log("[TinyCloud] SpaceCreationModal: onCreateSpace succeeded, resolving with success");
       // Space creation succeeded
       this.resolveResult?.({ success: true, dismissed: false });
       this.hide();
     } catch (error) {
-      debug.error('Failed to create TinyCloud Space:', error);
+      console.error('[TinyCloud] SpaceCreationModal: onCreateSpace failed:', error);
       // Don't close modal on error - let user try again or dismiss manually
       // Error handling will be managed elsewhere as per requirements
     } finally {
       this.isCreating = false;
       createButton.removeAttribute('data-state');
       createButton.removeAttribute('disabled');
+      console.log("[TinyCloud] SpaceCreationModal: handleCreateSpace finished");
     }
   }
 
