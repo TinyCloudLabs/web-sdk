@@ -146,8 +146,8 @@ function Home() {
 
       console.log("Attempting to resume session for address:", walletAddress);
 
-      const resumedSession =
-        await tcwProvider.userAuthorization.tryResumeSession(walletAddress);
+      // Use tcwProvider.tryResumeSession to ensure KV service is initialized
+      const resumedSession = await tcwProvider.tryResumeSession(walletAddress);
 
       if (resumedSession) {
         setResumeStatus("resumed");
@@ -156,12 +156,12 @@ function Home() {
         // Clear resume status after 3 seconds
         setTimeout(() => setResumeStatus(null), 3000);
       } else {
-        console.log("⚠️ No existing session found");
+        console.log("No existing session found");
         setResumeStatus("failed");
         setTimeout(() => setResumeStatus(null), 2000);
       }
     } catch (err) {
-      console.error("❌ Resume session failed:", err);
+      console.error("Resume session failed:", err);
       setResumeStatus("failed");
       setTimeout(() => setResumeStatus(null), 2000);
     }
@@ -191,8 +191,8 @@ function Home() {
       const walletAddress = await signer.getAddress();
       console.log("Attempting to resume session for address:", walletAddress);
 
-      const resumedSession =
-        await tcwProvider.userAuthorization.tryResumeSession(walletAddress);
+      // Use tcwProvider.tryResumeSession to ensure KV service is initialized
+      const resumedSession = await tcwProvider.tryResumeSession(walletAddress);
 
       if (resumedSession) {
         setResumeStatus("resumed");
@@ -201,12 +201,11 @@ function Home() {
         // Clear resume status after 3 seconds
         setTimeout(() => setResumeStatus(null), 3000);
       } else {
-        console.log(
-          "⚠️ No existing session found, proceeding with normal sign-in"
-        );
+        console.log("No existing session found, proceeding with normal sign-in");
         setResumeStatus("failed");
 
         // No existing session, proceed with normal sign-in
+        // signIn() will initialize KV service automatically
         await tcwProvider.signIn();
         setTinyCloudWeb(tcwProvider);
 
@@ -214,7 +213,7 @@ function Home() {
         setTimeout(() => setResumeStatus(null), 2000);
       }
     } catch (err) {
-      console.error("❌ Sign-in failed:", err);
+      console.error("Sign-in failed:", err);
       setResumeStatus(null);
     }
     setLoading(false);

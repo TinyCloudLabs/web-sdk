@@ -8,6 +8,12 @@ interface IStorageModule {
   tcw: TinyCloudWeb;
 }
 
+/**
+ * StorageModule demonstrates the new sdk-services KV API with Result pattern.
+ *
+ * Uses tcw.kv for basic operations (get, put, list, delete)
+ * Uses tcw.storage for sharing functionality (generateSharingLink)
+ */
 function StorageModule({ tcw }: IStorageModule) {
   const [contentList, setContentList] = useState<Array<string>>([]);
   const [selectedContent, setSelectedContent] = useState<string | null>(null);
@@ -17,26 +23,39 @@ function StorageModule({ tcw }: IStorageModule) {
   const [allowPost, setAllowPost] = useState<boolean>(false);
   const [removePrefix, setRemovePrefix] = useState<boolean>(false);
   const [sharingLink, setSharingLink] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
+
+  // Get prefix from storage (still used for display and sharing)
+  const prefix = tcw.storage?.prefix || '';
 
   useEffect(() => {
     const getContentList = async () => {
-      const res = await tcw.storage.list({ removePrefix });
-      if (res.ok && res.data) {
-        setContentList(res.data);
+      setError(null);
+      try {
+        // Use new kv.list() with Result pattern
+        const result = await tcw.kv.list({ removePrefix });
+        if (result.ok) {
+          setContentList(result.data.keys);
+        } else {
+          console.error('Failed to list:', result.error.code, result.error.message);
+          setError(`Failed to list keys: ${result.error.message}`);
+        }
+      } catch (err) {
+        // KV service may not be ready yet (not signed in)
+        console.error('Error listing content:', err);
       }
     };
     getContentList();
   }, [tcw, removePrefix]);
 
   const handleShareContent = async (content: string) => {
-    const prefix = tcw.storage.prefix;
+    setError(null);
     let base64Content;
     try {
+      // Sharing still uses the old storage API since it's not in sdk-services yet
       let reference = removePrefix ? content : content.replace(new RegExp(`^${prefix}/`), '');
-      reference = prefix ? `${prefix}/${reference}` : reference
-      base64Content = await tcw.storage.generateSharingLink(
-        reference
-      );
+      reference = prefix ? `${prefix}/${reference}` : reference;
+      base64Content = await tcw.storage.generateSharingLink(reference);
     } catch (err) {
       console.error(err);
       alert('Failed to generate sharing link. Please refresh the page and try again.');
@@ -46,7 +65,7 @@ function StorageModule({ tcw }: IStorageModule) {
     setSharingLink(link);
     return;
   };
-  
+
   const handleCopyLink = async () => {
     if (sharingLink) {
       await navigator.clipboard.writeText(sharingLink);
@@ -55,48 +74,76 @@ function StorageModule({ tcw }: IStorageModule) {
   };
 
   const handleGetContent = async (content: string) => {
-    let reference = removePrefix ? content : content.replace(new RegExp(`^${tcw.storage.prefix}/`), '');
-    const { data } = await tcw.storage.get(reference);
-    setAllowPost(true);
-    setSelectedContent(content);
-    setName(content);
-    setText(data);
-    setViewingList(false);
+    setError(null);
+    let reference = removePrefix ? content : content.replace(new RegExp(`^${prefix}/`), '');
+
+    // Use new kv.get() with Result pattern
+    const result = await tcw.kv.get<string>(reference);
+
+    if (result.ok) {
+      setAllowPost(true);
+      setSelectedContent(content);
+      setName(content);
+      setText(result.data.data ?? '');
+      setViewingList(false);
+    } else {
+      console.error('Failed to get:', result.error.code, result.error.message);
+      setError(`Failed to get key: ${result.error.message}`);
+    }
   };
 
   const handleDeleteContent = async (content: string) => {
-    let reference = removePrefix ? content : content.replace(new RegExp(`^${tcw.storage.prefix}/`), '');
-    await tcw.storage.delete(reference);
-    setContentList(prevList => prevList.filter(c => c !== content));
-    setSelectedContent(null);
-    setName('');
-    setText('');
-    setSharingLink('');
+    setError(null);
+    let reference = removePrefix ? content : content.replace(new RegExp(`^${prefix}/`), '');
+
+    // Use new kv.delete() with Result pattern
+    const result = await tcw.kv.delete(reference);
+
+    if (result.ok) {
+      setContentList(prevList => prevList.filter(c => c !== content));
+      setSelectedContent(null);
+      setName('');
+      setText('');
+      setSharingLink('');
+    } else {
+      console.error('Failed to delete:', result.error.code, result.error.message);
+      setError(`Failed to delete key: ${result.error.message}`);
+    }
   };
 
   const handlePostContent = async () => {
+    setError(null);
     // check for invalid key
     if (!name || !text || name.includes(' ')) {
       alert('Invalid key or text');
       return;
     }
-    await tcw.storage.put(name, text);
-    if (selectedContent) {
-      setContentList(prevList =>
-        prevList.map(c => (c === selectedContent ? name : c))
-      );
-      setSelectedContent(null);
+
+    // Use new kv.put() with Result pattern
+    const result = await tcw.kv.put(name, text);
+
+    if (result.ok) {
+      if (selectedContent) {
+        setContentList(prevList =>
+          prevList.map(c => (c === selectedContent ? name : c))
+        );
+        setSelectedContent(null);
+      } else {
+        setContentList(prevList => [...prevList, name]);
+      }
+      setName('');
+      setText('');
+      setSharingLink('');
+      setViewingList(true);
     } else {
-      setContentList(prevList => [...prevList, name]);
+      console.error('Failed to put:', result.error.code, result.error.message);
+      setError(`Failed to save: ${result.error.message}`);
     }
-    setName('');
-    setText('');
-    setSharingLink('');
-    setViewingList(true);
   };
 
   const handlePostNewContent = (e: any) => {
     e.preventDefault();
+    setError(null);
     setAllowPost(true);
     setSelectedContent(null);
     setName('');
@@ -108,10 +155,10 @@ function StorageModule({ tcw }: IStorageModule) {
     <div className="w-full">
       <div className="space-y-6">
         <div className="space-y-3">
-          <h3 className="text-xl font-heading text-text">Storage Prefix: <span className="font-mono">{tcw.storage.prefix}</span></h3>
+          <h3 className="text-xl font-heading text-text">Storage Prefix: <span className="font-mono">{prefix}</span></h3>
           <p className="text-sm text-text/70">
             The storage prefix is where the keys below live. It's like a folder name for the keys.{' '}
-            <code className="rounded bg-main/10 px-1 py-0.5 font-mono text-xs">"{tcw.storage.prefix}/key" = value</code>
+            <code className="rounded bg-main/10 px-1 py-0.5 font-mono text-xs">"{prefix}/key" = value</code>
           </p>
           <RadioGroup
             label="Remove Prefix"
@@ -122,13 +169,19 @@ function StorageModule({ tcw }: IStorageModule) {
             className="mt-4"
           />
         </div>
-        
+
+        {error && (
+          <div className="rounded-base border-2 border-red-300 bg-red-50 p-3">
+            <p className="text-sm text-red-800">{error}</p>
+          </div>
+        )}
+
         <div className="h-px w-full bg-border/20" />
-        
+
         {viewingList ? (
           <div className="space-y-4">
             <h3 className="text-lg font-heading text-text">Key Value Store</h3>
-            
+
             {sharingLink && (
               <div className="mb-4 rounded-base border-2 border-main/30 bg-main/10 p-3">
                 <div className="flex flex-col space-y-2">
@@ -160,7 +213,7 @@ function StorageModule({ tcw }: IStorageModule) {
                 </div>
               </div>
             )}
-            
+
             {contentList.length === 0 ? (
               <div className="rounded-base border-2 border-dashed border-border/50 bg-bw/50 p-8 text-center">
                 <p className="text-text/70">No content available. Add new content to get started.</p>
@@ -168,7 +221,7 @@ function StorageModule({ tcw }: IStorageModule) {
             ) : (
               <div className="space-y-2">
                 {contentList.map(content => (
-                  <div 
+                  <div
                     key={content}
                     className="flex items-center justify-between rounded-base border-2 border-border/30 bg-bw p-3"
                   >
@@ -200,8 +253,8 @@ function StorageModule({ tcw }: IStorageModule) {
                 ))}
               </div>
             )}
-            
-            <Button 
+
+            <Button
               variant="default"
               onClick={handlePostNewContent}
               className="mt-4 w-full"
@@ -214,24 +267,24 @@ function StorageModule({ tcw }: IStorageModule) {
             <h3 className="text-lg font-heading text-text">
               {selectedContent ? 'Edit Content' : 'Add New Content'}
             </h3>
-            
+
             <div className="space-y-4">
-              <Input 
-                label="Key" 
-                value={name} 
-                onChange={setName} 
+              <Input
+                label="Key"
+                value={name}
+                onChange={setName}
                 className="w-full"
               />
-              <Input 
-                label="Value" 
-                value={text} 
-                onChange={setText} 
+              <Input
+                label="Value"
+                value={text}
+                onChange={setText}
                 className="w-full"
               />
-              
+
               <div className="flex space-x-3 pt-2">
                 {allowPost && (
-                  <Button 
+                  <Button
                     variant="default"
                     onClick={handlePostContent}
                     className="flex-1"
@@ -239,7 +292,7 @@ function StorageModule({ tcw }: IStorageModule) {
                     {selectedContent ? 'Update' : 'Save'}
                   </Button>
                 )}
-                <Button 
+                <Button
                   variant="neutral"
                   onClick={() => {
                     setSharingLink('');
