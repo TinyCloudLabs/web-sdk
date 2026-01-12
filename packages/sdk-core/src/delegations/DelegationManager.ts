@@ -8,12 +8,12 @@
  * @packageDocumentation
  */
 
-import {
-  ServiceSession,
+import type {
   FetchFunction,
   FetchResponse,
   InvokeFunction,
-} from "../services/types";
+  ServiceSession,
+} from "@tinycloudlabs/sdk-services";
 import {
   Result,
   DelegationError,

@@ -1,13 +1,17 @@
 /**
  * Delegation management types for TinyCloud SDK.
  *
- * These types support the delegation and sharing link functionality
- * extracted from ITinyCloudStorage into a dedicated module.
+ * These types support the delegation and sharing link functionality.
  *
  * @packageDocumentation
  */
 
-import { ServiceSession, FetchFunction, InvokeFunction } from "../services/types";
+import type {
+  FetchFunction,
+  IKVService,
+  InvokeFunction,
+  ServiceSession,
+} from "@tinycloudlabs/sdk-services";
 
 /**
  * Result type pattern for delegation operations.
@@ -73,6 +77,10 @@ export const DelegationErrorCodes = {
   REVOCATION_FAILED: "REVOCATION_FAILED",
   /** Invalid sharing link token */
   INVALID_TOKEN: "INVALID_TOKEN",
+  /** KV service not available for data retrieval */
+  KV_SERVICE_UNAVAILABLE: "KV_SERVICE_UNAVAILABLE",
+  /** Data fetch failed */
+  DATA_FETCH_FAILED: "DATA_FETCH_FAILED",
 } as const;
 
 export type DelegationErrorCode =
@@ -191,11 +199,40 @@ export interface DelegationManagerConfig {
 }
 
 /**
+ * Provider interface for cryptographic key operations.
+ *
+ * Allows injection of platform-specific key generation (e.g., WASM-based
+ * session manager in web-sdk, native crypto in node-sdk).
+ */
+export interface KeyProvider {
+  /** Generate a new session key, returns key ID */
+  createSessionKey(name: string): Promise<string>;
+  /** Get JWK for a key */
+  getJWK(keyId: string): object;
+  /** Get DID for a key */
+  getDID(keyId: string): Promise<string>;
+}
+
+/**
+ * Function that returns an IKVService instance.
+ * Used for lazy initialization when KVService may not be available at construction time.
+ */
+export type KVServiceGetter = () => IKVService | undefined;
+
+/**
  * Configuration for SharingLinks.
  */
 export interface SharingLinksConfig {
   /** Base URL for generating sharing links (e.g., "https://share.myapp.com") */
   baseUrl: string;
+  /** Optional key provider for cryptographic operations */
+  keyProvider?: KeyProvider;
+  /**
+   * Function to get the KVService for fetching shared data.
+   * Required for retrieve() to actually fetch data.
+   * Can be provided lazily since KVService may not exist at construction time.
+   */
+  getKVService?: KVServiceGetter;
 }
 
 /**

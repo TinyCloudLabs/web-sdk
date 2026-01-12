@@ -5,7 +5,6 @@ import {
   SiweMessage,
   PartialSiweMessage,
 } from "./userAuthorization";
-import { ITinyCloudStorage, TinyCloudStorageConfig } from "./tinycloudStorage";
 import {
   ServiceContext,
   IService,
@@ -24,8 +23,6 @@ import {
  * Configuration for the TinyCloud SDK.
  */
 export interface TinyCloudConfig {
-  /** Storage configuration */
-  storage?: TinyCloudStorageConfig;
   /** Whether to automatically resolve ENS names */
   resolveEns?: boolean;
 
@@ -83,15 +80,6 @@ export interface TinyCloudConfig {
 }
 
 /**
- * Factory function type for creating storage instances.
- * Different platforms provide their own implementation.
- */
-export type StorageFactory = (
-  config: TinyCloudStorageConfig,
-  auth: IUserAuthorization
-) => ITinyCloudStorage;
-
-/**
  * TinyCloud SDK - Unified entry point for web and node.
  *
  * This class provides the main SDK interface. Platform-specific behavior
@@ -108,7 +96,7 @@ export type StorageFactory = (
  * const auth = new WebUserAuthorization({ ... });
  * const tc = new TinyCloud(auth);
  * await tc.signIn();
- * await tc.storage.put('key', 'value');
+ * const result = await tc.kv.put('key', 'value');
  *
  * // Node usage
  * import { TinyCloud } from '@tinycloudlabs/sdk-core';
@@ -130,12 +118,6 @@ export class TinyCloud {
    * Provides authentication and signing capabilities.
    */
   public readonly userAuthorization: IUserAuthorization;
-
-  /**
-   * Storage module.
-   * Set after initialization with a storage factory.
-   */
-  private _storage?: ITinyCloudStorage;
 
   /**
    * SDK configuration.
@@ -316,38 +298,6 @@ export class TinyCloud {
       verificationMethod: tcSession.verificationMethod,
       jwk: tcSession.jwk,
     };
-  }
-
-  /**
-   * Initialize storage with a platform-specific factory.
-   * Called by web-sdk or node-sdk during setup.
-   *
-   * @param factory - Factory function to create storage instance
-   */
-  public initializeStorage(factory: StorageFactory): void {
-    this._storage = factory(
-      this.config.storage || {},
-      this.userAuthorization
-    );
-
-    // Register storage as an extension
-    if (this._storage) {
-      this.extend(this._storage);
-    }
-  }
-
-  /**
-   * Get the storage module.
-   * @throws Error if storage is not initialized
-   */
-  public get storage(): ITinyCloudStorage {
-    if (!this._storage) {
-      throw new Error(
-        "Storage not initialized. Call initializeStorage() first, " +
-          "or use TinyCloudWeb/TinyCloudNode which handles this automatically."
-      );
-    }
-    return this._storage;
   }
 
   /**

@@ -65,6 +65,8 @@ export {
   // Configuration types
   DelegationManagerConfig,
   SharingLinksConfig,
+  KeyProvider,
+  KVServiceGetter,
 } from "./types";
 
 // Classes

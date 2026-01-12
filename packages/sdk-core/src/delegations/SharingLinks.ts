@@ -17,8 +17,11 @@ import {
   SharingLinkData,
   GenerateSharingLinkParams,
   SharingLinksConfig,
+  KeyProvider,
+  KVServiceGetter,
 } from "./types";
 import { DelegationManager } from "./DelegationManager";
+import type { IKVService } from "@tinycloudlabs/sdk-services";
 
 /**
  * Default actions for read-only sharing links.
@@ -103,7 +106,9 @@ function generateToken(): string {
 export class SharingLinks {
   private delegationManager: DelegationManager;
   private baseUrl: string;
-  private tokenToDelegation: Map<string, { cid: string; key: string }> = new Map();
+  private keyProvider?: KeyProvider;
+  private getKVService?: KVServiceGetter;
+  private tokenToDelegation: Map<string, { cid: string; key: string; keyId?: string }> = new Map();
 
   /**
    * Creates a new SharingLinks instance.
@@ -114,6 +119,8 @@ export class SharingLinks {
   constructor(delegationManager: DelegationManager, config: SharingLinksConfig) {
     this.delegationManager = delegationManager;
     this.baseUrl = config.baseUrl.replace(/\/$/, ""); // Remove trailing slash
+    this.keyProvider = config.keyProvider;
+    this.getKVService = config.getKVService;
   }
 
   /**
@@ -156,11 +163,34 @@ export class SharingLinks {
     const actions = params.actions ?? DEFAULT_READ_ACTIONS;
     const expiry = params.expiry ?? new Date(Date.now() + DEFAULT_EXPIRY_MS);
 
+    // Determine the delegateDID based on whether a keyProvider is available
+    let delegateDID: string;
+    let keyId: string | undefined;
+
+    if (this.keyProvider) {
+      // Use keyProvider for proper key generation (e.g., WASM-based)
+      try {
+        keyId = await this.keyProvider.createSessionKey(`sharing-link:${token}`);
+        delegateDID = await this.keyProvider.getDID(keyId);
+      } catch (err) {
+        return {
+          ok: false,
+          error: createError(
+            DelegationErrorCodes.CREATION_FAILED,
+            `Failed to generate session key: ${err instanceof Error ? err.message : String(err)}`,
+            err instanceof Error ? err : undefined
+          ),
+        };
+      }
+    } else {
+      // Fallback: use synthetic DID pattern
+      // The token itself serves as the access mechanism
+      delegateDID = `did:web:share.tinycloud.xyz:token:${token}`;
+    }
+
     // Create the underlying delegation
-    // For sharing links, we use a special anonymous DID pattern
-    // The token itself serves as the access mechanism
     const delegationResult = await this.delegationManager.create({
-      delegateDID: `did:web:share.tinycloud.xyz:token:${token}`,
+      delegateDID,
       path: params.key,
       actions,
       expiry,
@@ -182,10 +212,11 @@ export class SharingLinks {
 
     const delegation = delegationResult.data;
 
-    // Store the token -> delegation mapping
+    // Store the token -> delegation mapping (including keyId if generated)
     this.tokenToDelegation.set(token, {
       cid: delegation.cid,
       key: params.key,
+      keyId,
     });
 
     const url = `${this.baseUrl}/share/${token}`;
@@ -297,19 +328,49 @@ export class SharingLinks {
       };
     }
 
-    // Note: Actual data retrieval would require making a KV request
-    // using the delegation. This is a placeholder that returns the
-    // delegation info. In a full implementation, this would:
-    // 1. Use the delegation to make an authenticated KV.get request
-    // 2. Return the actual data from the resource
+    // Verify the delegation grants access to the tinycloud.kv/get action
+    if (!delegation.actions.includes("tinycloud.kv/get")) {
+      return {
+        ok: false,
+        error: createError(
+          DelegationErrorCodes.PERMISSION_DENIED,
+          `Sharing link does not grant read access: ${token}`,
+          undefined,
+          { actions: delegation.actions }
+        ),
+      };
+    }
 
-    // For now, return a placeholder indicating the delegation is valid
-    // The actual data fetching should be done by the caller using
-    // the delegation information returned
+    // Get the KVService to fetch the actual data
+    const kvService = this.getKVService?.();
+    if (!kvService) {
+      return {
+        ok: false,
+        error: createError(
+          DelegationErrorCodes.KV_SERVICE_UNAVAILABLE,
+          "KVService not available. Ensure getKVService is configured in SharingLinksConfig."
+        ),
+      };
+    }
+
+    // Fetch the data using KVService
+    const kvResult = await kvService.get<T>(mapping.key);
+    if (!kvResult.ok) {
+      return {
+        ok: false,
+        error: createError(
+          DelegationErrorCodes.DATA_FETCH_FAILED,
+          `Failed to fetch shared data: ${kvResult.error.message}`,
+          kvResult.error.cause,
+          { key: mapping.key, kvError: kvResult.error }
+        ),
+      };
+    }
+
     return {
       ok: true,
       data: {
-        data: { _pendingFetch: true, key: mapping.key } as unknown as T,
+        data: kvResult.data.data,
         delegation,
       },
     };
@@ -382,12 +443,13 @@ export class SharingLinks {
    *
    * @returns Array of active token -> key mappings
    */
-  listActive(): Array<{ token: string; key: string; cid: string }> {
+  listActive(): Array<{ token: string; key: string; cid: string; keyId?: string }> {
     return Array.from(this.tokenToDelegation.entries()).map(
       ([token, mapping]) => ({
         token,
         key: mapping.key,
         cid: mapping.cid,
+        keyId: mapping.keyId,
       })
     );
   }

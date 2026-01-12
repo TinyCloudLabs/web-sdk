@@ -20,7 +20,6 @@ export {
   ISigner,
   ISessionStorage,
   IUserAuthorization as ICoreUserAuthorization,
-  ITinyCloudStorage,
   PersistedSessionData,
   SiweConfig,
   PartialSiweMessage,
@@ -31,7 +30,6 @@ export {
   IKVService,
   KVService,
   KVResponse,
-  ServiceType,
 } from '@tinycloudlabs/sdk-core';
 
 // Adapter for web-sdk

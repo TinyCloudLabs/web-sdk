@@ -4,7 +4,6 @@ import {
 } from '@tinycloudlabs/web-core';
 import {
   IUserAuthorization,
-  TinyCloudStorage,
   UserAuthorization,
 } from '.';
 import {
@@ -14,7 +13,7 @@ import {
 } from '@tinycloudlabs/web-core/client';
 import type { providers, Signer } from 'ethers';
 import { SDKErrorHandler, ToastManager } from '../notifications';
-import type { NotificationConfig, ToastPosition } from '../notifications/types';
+import type { NotificationConfig } from '../notifications/types';
 import { SiweMessage } from 'siwe';
 import {
   ServiceContext,
@@ -30,17 +29,11 @@ declare global {
   }
 }
 
-/**
- * Configuration for managing TCW Modules
- */
-interface TCWModuleConfig {
-  storage?: boolean | { [key: string]: any };
-}
-
 // temporary: will move to tcw-core
 interface TCWConfig extends TCWClientConfig {
-  modules?: TCWModuleConfig;
   notifications?: NotificationConfig;
+  /** Optional prefix for KV service keys */
+  kvPrefix?: string;
 }
 
 const TCW_DEFAULT_CONFIG: TCWClientConfig = {
@@ -74,9 +67,6 @@ export class TinyCloudWeb {
    */
   public userAuthorization: IUserAuthorization;
 
-  /** Storage Module */
-  public storage: TinyCloudStorage;
-
   /** Error Handler for Notifications */
   private errorHandler: SDKErrorHandler;
 
@@ -106,29 +96,8 @@ export class TinyCloudWeb {
         duration: config.notifications?.duration,
         maxVisible: config.notifications?.maxVisible
       });
-      
+
       this.errorHandler.setupErrorHandling();
-    }
-
-    // initialize storage module
-
-    // assume storage module default 
-    const storageConfig =
-      config?.modules?.storage === undefined ? true : config.modules.storage;
-
-    if (storageConfig !== false) {
-      if (typeof storageConfig === 'object') {
-        // Initialize storage with the provided config
-        this.storage = new TinyCloudStorage(storageConfig, this.userAuthorization);
-      } else {
-        // storage == true or undefined
-        // Initialize storage with default config when no other condition is met
-        this.storage = new TinyCloudStorage(
-          { prefix: 'default' },
-          this.userAuthorization
-        );
-      }
-      this.extend(this.storage);
     }
   }
 
@@ -171,8 +140,8 @@ export class TinyCloudWeb {
                   (this.config as any).tinycloudHosts ||
                   ['https://node.tinycloud.xyz'];
 
-    // Get prefix from storage config
-    const prefix = this.storage?.prefix || '';
+    // Get prefix from config
+    const prefix = this.config.kvPrefix || '';
 
     // Create service context
     this._serviceContext = new ServiceContext({
@@ -186,31 +155,31 @@ export class TinyCloudWeb {
     this._kvService.initialize(this._serviceContext);
     this._serviceContext.registerService('kv', this._kvService);
 
-    // Convert TCWClientSession to ServiceSession and set on context
-    const serviceSession = this.toServiceSession(session);
+    // Convert TinyCloud session to ServiceSession and set on context
+    const serviceSession = this.toServiceSession();
     if (serviceSession) {
       this._serviceContext.setSession(serviceSession);
     }
   }
 
   /**
-   * Convert TCWClientSession to ServiceSession.
+   * Convert TinyCloud session to ServiceSession.
+   * Gets session from UserAuthorization.
    * @internal
    */
-  private toServiceSession(clientSession: TCWClientSession): ServiceSession | null {
-    // The TinyCloud session data is stored in the storage module after sign-in
-    // We need to access it from the TinyCloudStorage's internal session
-    const storageSession = (this.storage as any)?._space?.authn?.session;
-    if (!storageSession) {
+  private toServiceSession(): ServiceSession | null {
+    // Get the TinyCloud session from UserAuthorization
+    const tinycloudSession = this.userAuthorization.getTinycloudSession?.();
+    if (!tinycloudSession) {
       return null;
     }
 
     return {
-      delegationHeader: storageSession.delegationHeader,
-      delegationCid: storageSession.delegationCid,
-      spaceId: storageSession.spaceId,
-      verificationMethod: storageSession.verificationMethod,
-      jwk: storageSession.jwk,
+      delegationHeader: tinycloudSession.delegationHeader,
+      delegationCid: tinycloudSession.delegationCid,
+      spaceId: tinycloudSession.spaceId,
+      verificationMethod: tinycloudSession.verificationMethod,
+      jwk: tinycloudSession.jwk,
     };
   }
 

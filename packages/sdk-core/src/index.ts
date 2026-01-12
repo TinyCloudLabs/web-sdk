@@ -34,25 +34,10 @@ export {
   UserAuthorizationConfig,
 } from "./userAuthorization";
 
-// Storage interface and types
-export {
-  ITinyCloudStorage,
-  TinyCloudStorageConfig,
-  StorageBaseOptions,
-  StorageGetOptions,
-  StoragePutOptions,
-  StorageDeleteOptions,
-  StorageListOptions,
-  StorageResponse,
-  DelegateParams,
-  DelegateResponse,
-} from "./tinycloudStorage";
-
 // Main TinyCloud class
 export {
   TinyCloud,
   TinyCloudConfig,
-  StorageFactory,
 } from "./TinyCloud";
 
 // Re-export service types from sdk-services for convenience
@@ -124,16 +109,6 @@ export {
   submitHostDelegation,
   activateSessionWithHost,
 } from "./space";
-
-// Legacy Services (deprecated - use @tinycloudlabs/sdk-services instead)
-// These are kept for backward compatibility during migration
-export {
-  ServiceType,
-  ServiceFactory,
-  BaseServiceConfig,
-} from "./services";
-// Re-export deprecated KVService from old location with different name for migration
-export { KVService as LegacyKVService } from "./services";
 
 // Delegations
 export {

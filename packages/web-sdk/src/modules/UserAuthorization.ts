@@ -33,6 +33,7 @@ import {
   makeSpaceId,
   completeSessionSetup,
 } from "./Storage/tinycloud/module";
+import { SpaceConnection, Authenticator, Session } from "./Storage/tinycloud";
 
 /**
  * Interface for tracking session state during SIWE message generation
@@ -147,6 +148,19 @@ interface IUserAuthorization {
    * Creates the space if it doesn't exist (when autoCreateSpace is true).
    */
   ensureSpaceExists(): Promise<void>;
+  /**
+   * Get the active space connection.
+   * This provides access to the user's TinyCloud space for storage operations.
+   * @returns SpaceConnection instance
+   * @throws Error if not signed in or space connection not established
+   */
+  spaceConnection: SpaceConnection;
+  /**
+   * Get the active TinyCloud session.
+   * This provides access to the session for authenticated requests.
+   * @returns Session object or undefined if not signed in
+   */
+  getTinycloudSession(): Session | undefined;
 }
 
 class UserAuthorizationInit {
@@ -415,6 +429,12 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
   /** Delegation header for the current session */
   private _delegationHeader?: { Authorization: string };
 
+  /** The TinyCloud session containing delegation and space info */
+  private _tinycloudSession?: Session;
+
+  /** The connection to the user's space */
+  private _spaceConnection?: SpaceConnection;
+
   constructor(private _config: TCWClientConfig = TCW_DEFAULT_CONFIG) {
     this.config = _config;
     this.init = new UserAuthorizationInit({
@@ -495,10 +515,11 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
           // Setup space session for resumed session
           await this.setupSpaceSession(this.session);
 
-          // Ensure space exists (activate session)
+          // Ensure space exists (activate session) and create SpaceConnection
           if (this._spaceId && this._delegationHeader) {
             try {
               await this.ensureSpaceExists();
+              await this.createSpaceConnection();
             } catch (error) {
               debug.warn("Failed to ensure space exists for resumed session:", error);
             }
@@ -554,10 +575,11 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
     // Setup space session (generates spaceId and delegation header)
     await this.setupSpaceSession(this.session);
 
-    // Ensure space exists on TinyCloud server (creates if needed)
+    // Ensure space exists on TinyCloud server (creates if needed) and create SpaceConnection
     if (this._spaceId && this._delegationHeader) {
       try {
         await this.ensureSpaceExists();
+        await this.createSpaceConnection();
       } catch (error) {
         debug.warn("Failed to ensure space exists:", error);
         // Don't throw - space creation can be retried later
@@ -611,6 +633,10 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
 
     this.session = undefined;
     this.connection = undefined;
+    this._spaceConnection = undefined;
+    this._tinycloudSession = undefined;
+    this._spaceId = undefined;
+    this._delegationHeader = undefined;
   }
 
   /**
@@ -784,11 +810,12 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
       // Setup space session (generates spaceId and delegation header)
       await this.setupSpaceSession(session);
 
-      // Ensure space exists on TinyCloud server (creates if needed)
+      // Ensure space exists on TinyCloud server (creates if needed) and create SpaceConnection
       // This must happen BEFORE extension hooks so extensions can use the space
       if (this._spaceId && this._delegationHeader) {
         try {
           await this.ensureSpaceExists();
+          await this.createSpaceConnection();
         } catch (error) {
           debug.warn("Failed to ensure space exists:", error);
           // Don't throw - space creation can be retried later
@@ -871,11 +898,12 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
       // Setup space session (generates spaceId and delegation header)
       await this.setupSpaceSession(this.session);
 
-      // Ensure space exists on TinyCloud server (creates if needed)
+      // Ensure space exists on TinyCloud server (creates if needed) and create SpaceConnection
       // This must happen BEFORE extension hooks so extensions can use the space
       if (this._spaceId && this._delegationHeader) {
         try {
           await this.ensureSpaceExists();
+          await this.createSpaceConnection();
         } catch (error) {
           debug.warn("Failed to ensure space exists during session resume:", error);
           // Don't throw - space creation can be retried later
@@ -936,6 +964,44 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
    */
   public getTinycloudHosts(): string[] {
     return this.tinycloudHosts;
+  }
+
+  /**
+   * Get the active space connection.
+   * This provides access to the user's TinyCloud space for storage operations.
+   * @returns SpaceConnection instance
+   * @throws Error if not signed in or space connection not established
+   */
+  public get spaceConnection(): SpaceConnection {
+    if (!this._spaceConnection) {
+      throw new Error("SpaceConnection not available. Please sign in first.");
+    }
+    return this._spaceConnection;
+  }
+
+  /**
+   * Get the active TinyCloud session.
+   * This provides access to the session for authenticated requests.
+   * @returns Session object or undefined if not signed in
+   */
+  public getTinycloudSession(): Session | undefined {
+    return this._tinycloudSession;
+  }
+
+  /**
+   * Creates the SpaceConnection after the TinyCloud session is established.
+   * This should be called after setupSpaceSession() and ensureSpaceExists().
+   * @private
+   */
+  private async createSpaceConnection(): Promise<void> {
+    if (!this._tinycloudSession) {
+      debug.warn("Cannot create SpaceConnection: no TinyCloud session available");
+      return;
+    }
+
+    const host = this.tinycloudHosts[0];
+    const authn = new Authenticator(this._tinycloudSession);
+    this._spaceConnection = new SpaceConnection(host, authn);
   }
 
   /**
@@ -1116,7 +1182,7 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
 
   /**
    * Generate space ID and delegation header for the current session.
-   * This sets up the internal state needed for ensureSpaceExists().
+   * This sets up the internal state needed for ensureSpaceExists() and SpaceConnection.
    * @param session - The TCWClientSession object
    */
   private async setupSpaceSession(session: TCWClientSession): Promise<void> {
@@ -1153,6 +1219,15 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
       const completedSession = completeSessionSetup(sessionData);
       if (completedSession?.delegationHeader) {
         this._delegationHeader = completedSession.delegationHeader;
+
+        // Store the full TinyCloud session for SpaceConnection
+        this._tinycloudSession = {
+          delegationHeader: completedSession.delegationHeader,
+          delegationCid: completedSession.delegationCid,
+          jwk: JSON.parse(session.sessionKey),
+          spaceId: this._spaceId,
+          verificationMethod,
+        };
       }
     } catch (error) {
       debug.warn("Failed to setup space session:", error);
