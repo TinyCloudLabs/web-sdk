@@ -4,6 +4,9 @@ import { IKVService } from "./kv/IKVService";
 
 /**
  * Base service configuration.
+ *
+ * @deprecated Use `ServiceContextConfig` from `@tinycloudlabs/sdk-services` and
+ * the `tinycloud.getService()` pattern instead.
  */
 export interface BaseServiceConfig {
   host: string;
@@ -14,13 +17,21 @@ export interface BaseServiceConfig {
 /**
  * Service factory for creating TinyCloud service instances.
  *
- * @example
+ * @deprecated Use `tinycloud.getService(KVService)` from `@tinycloudlabs/sdk-services` instead.
+ * This factory will be removed in a future major version.
+ *
+ * Migration example:
  * ```typescript
+ * // Before (deprecated)
  * const kv = ServiceFactory.createKV({
  *   host: "https://node.tinycloud.xyz",
  *   session: mySession,
  *   invoke: wasmInvoke,
  * });
+ *
+ * // After (recommended)
+ * const tinycloud = new TinyCloud({ userAuth });
+ * const kv = tinycloud.getService(KVService);
  * ```
  */
 export class ServiceFactory {

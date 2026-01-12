@@ -14,6 +14,8 @@ import {
 
 /**
  * Configuration for KVService.
+ *
+ * @deprecated Use `KVServiceConfig` from `@tinycloudlabs/sdk-services` instead.
  */
 export interface KVServiceConfig {
   /** TinyCloud host URL */
@@ -45,16 +47,20 @@ const KVAction = {
  * Uses dependency injection for the invoke function, allowing the same
  * implementation to work with both node-sdk-wasm and web-sdk-wasm.
  *
- * @example Node.js
- * ```typescript
- * import { invoke } from "@tinycloudlabs/node-sdk-wasm";
- * const kv = new KVService({ host, session, invoke });
- * ```
+ * @deprecated Use `KVService` from `@tinycloudlabs/sdk-services` instead.
+ * This class will be removed in a future major version.
  *
- * @example Browser
+ * Migration example:
  * ```typescript
- * import { invoke } from "./module"; // Proxies to web-sdk-wasm
+ * // Before (deprecated)
+ * import { KVService } from "@tinycloudlabs/sdk-core/services";
  * const kv = new KVService({ host, session, invoke });
+ *
+ * // After (recommended)
+ * import { KVService } from "@tinycloudlabs/sdk-services";
+ * const tinycloud = new TinyCloud({ userAuth });
+ * const kv = tinycloud.getService(KVService);
+ * await kv.get("mykey");
  * ```
  */
 export class KVService implements IKVService {

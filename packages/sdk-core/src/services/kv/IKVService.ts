@@ -5,6 +5,15 @@ import { KVResponse, KVGetOptions, KVPutOptions, KVListOptions } from "./types";
  *
  * Implementations use dependency injection for the invoke function,
  * allowing the same service to work with different WASM bindings.
+ *
+ * @deprecated Use `IKVService` from `@tinycloudlabs/sdk-services` instead.
+ * This interface will be removed in a future major version.
+ *
+ * Migration:
+ * ```typescript
+ * import { IKVService, KVService } from "@tinycloudlabs/sdk-services";
+ * const kv = tinycloud.getService(KVService);
+ * ```
  */
 export interface IKVService {
   /**

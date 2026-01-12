@@ -16,6 +16,13 @@ import type { providers, Signer } from 'ethers';
 import { SDKErrorHandler, ToastManager } from '../notifications';
 import type { NotificationConfig, ToastPosition } from '../notifications/types';
 import { SiweMessage } from 'siwe';
+import {
+  ServiceContext,
+  KVService,
+  IKVService,
+  ServiceSession,
+} from '@tinycloudlabs/sdk-core';
+import { invoke } from './Storage/tinycloud/module';
 
 declare global {
   interface Window {
@@ -73,6 +80,12 @@ export class TinyCloudWeb {
   /** Error Handler for Notifications */
   private errorHandler: SDKErrorHandler;
 
+  /** Service Context for sdk-services */
+  private _serviceContext?: ServiceContext;
+
+  /** KV Service instance */
+  private _kvService?: KVService;
+
   constructor(private config: TCWConfig = TCW_DEFAULT_CONFIG) {
     // TODO: pull out config validation into separate function
     // TODO: pull out userAuthorization config
@@ -120,6 +133,88 @@ export class TinyCloudWeb {
   }
 
   /**
+   * Get the KV service.
+   *
+   * Returns the new sdk-services KVService with Result pattern.
+   * Must be signed in for the service to be available.
+   *
+   * @throws Error if not signed in
+   *
+   * @example
+   * ```typescript
+   * const result = await tcw.kv.get('key');
+   * if (result.ok) {
+   *   console.log(result.data.data);
+   * } else {
+   *   console.error(result.error.code, result.error.message);
+   * }
+   * ```
+   */
+  public get kv(): IKVService {
+    if (!this._kvService) {
+      throw new Error(
+        'KV service is not available. Make sure you are signed in first.'
+      );
+    }
+    return this._kvService;
+  }
+
+  /**
+   * Initialize the sdk-services KVService.
+   * Called internally after sign-in when the session is established.
+   *
+   * @internal
+   */
+  private initializeKVService(session: TCWClientSession): void {
+    // Get hosts from userAuthorization or config
+    const hosts = this.userAuthorization.getTinycloudHosts?.() ||
+                  (this.config as any).tinycloudHosts ||
+                  ['https://node.tinycloud.xyz'];
+
+    // Get prefix from storage config
+    const prefix = this.storage?.prefix || '';
+
+    // Create service context
+    this._serviceContext = new ServiceContext({
+      invoke: invoke as any,
+      fetch: globalThis.fetch.bind(globalThis),
+      hosts,
+    });
+
+    // Create and register KV service
+    this._kvService = new KVService({ prefix });
+    this._kvService.initialize(this._serviceContext);
+    this._serviceContext.registerService('kv', this._kvService);
+
+    // Convert TCWClientSession to ServiceSession and set on context
+    const serviceSession = this.toServiceSession(session);
+    if (serviceSession) {
+      this._serviceContext.setSession(serviceSession);
+    }
+  }
+
+  /**
+   * Convert TCWClientSession to ServiceSession.
+   * @internal
+   */
+  private toServiceSession(clientSession: TCWClientSession): ServiceSession | null {
+    // The TinyCloud session data is stored in the storage module after sign-in
+    // We need to access it from the TinyCloudStorage's internal session
+    const storageSession = (this.storage as any)?._space?.authn?.session;
+    if (!storageSession) {
+      return null;
+    }
+
+    return {
+      delegationHeader: storageSession.delegationHeader,
+      delegationCid: storageSession.delegationCid,
+      spaceId: storageSession.spaceId,
+      verificationMethod: storageSession.verificationMethod,
+      jwk: storageSession.jwk,
+    };
+  }
+
+  /**
    * Extends TCW with a functions that are called after connecting and signing in.
    */
   public extend(extension: TCWExtension): void {
@@ -131,13 +226,23 @@ export class TinyCloudWeb {
    * @returns Object containing information about the session
    */
   public signIn = async (): Promise<TCWClientSession> => {
-    return this.userAuthorization.signIn();
+    const session = await this.userAuthorization.signIn();
+    // Initialize KV service after sign-in
+    this.initializeKVService(session);
+    return session;
   };
 
   /**
    * Invalidates user's session.
    */
   public signOut = async (): Promise<void> => {
+    // Abort pending operations and clear service context
+    if (this._serviceContext) {
+      this._serviceContext.abort();
+      this._serviceContext.setSession(null);
+    }
+    this._kvService = undefined;
+    this._serviceContext = undefined;
     return this.userAuthorization.signOut();
   };
 
@@ -234,6 +339,25 @@ export class TinyCloudWeb {
     siweMessage: SiweMessage,
     signature: string
   ): Promise<TCWClientSession> {
-    return this.userAuthorization.signInWithSignature(siweMessage, signature);
+    const session = await this.userAuthorization.signInWithSignature(siweMessage, signature);
+    // Initialize KV service after sign-in
+    this.initializeKVService(session);
+    return session;
+  }
+
+  /**
+   * Try to resume a previously persisted session.
+   * Initializes KV service if session is successfully resumed.
+   *
+   * @param address - The wallet address to resume session for
+   * @returns The resumed session, or null if no session exists
+   */
+  public async tryResumeSession(address: string): Promise<TCWClientSession | null> {
+    const session = await this.userAuthorization.tryResumeSession(address);
+    if (session) {
+      // Initialize KV service after session resume
+      this.initializeKVService(session);
+    }
+    return session;
   }
 }

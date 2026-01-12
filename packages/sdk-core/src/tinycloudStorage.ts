@@ -91,6 +91,21 @@ export interface DelegateResponse {
  * Platform-agnostic storage interface.
  *
  * Defines the core storage operations that both web and node SDKs implement.
+ *
+ * @deprecated Use {@link KVService} from `@tinycloudlabs/sdk-services` instead.
+ * This interface will be removed in a future major version.
+ *
+ * Migration example:
+ * ```typescript
+ * // Before (deprecated)
+ * const storage: ITinyCloudStorage = ...;
+ * await storage.get("key");
+ *
+ * // After (recommended)
+ * import { KVService } from "@tinycloudlabs/sdk-services";
+ * const kv = tinycloud.getService(KVService);
+ * const result = await kv.get("key");
+ * ```
  */
 export interface ITinyCloudStorage extends TCWExtension {
   /** The space ID for this storage instance */

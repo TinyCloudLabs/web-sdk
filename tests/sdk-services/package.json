@@ -1,7 +1,7 @@
 {
-  "name": "@tinycloudlabs/sdk-core",
+  "name": "@tinycloudlabs/sdk-services-test",
   "version": "0.1.0",
-  "description": "Core TinyCloud SDK - shared interfaces and TinyCloud class",
+  "description": "Testing utilities for TinyCloud SDK Services",
   "author": "TinyCloud, Inc.",
   "license": "EGPL",
   "type": "module",
@@ -23,11 +23,11 @@
     "clean": "rm -rf dist",
     "test": "bun test"
   },
-  "dependencies": {
-    "@tinycloudlabs/sdk-services": "workspace:*",
-    "@tinycloudlabs/web-core": "workspace:*"
+  "peerDependencies": {
+    "@tinycloudlabs/sdk-services": "^0.1.0"
   },
   "devDependencies": {
+    "@tinycloudlabs/sdk-services": "workspace:*",
     "@types/node": "^20",
     "typescript": "^5.0.0"
   },

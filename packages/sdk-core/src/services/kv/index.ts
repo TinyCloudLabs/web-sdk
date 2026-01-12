@@ -1,3 +1,8 @@
+/**
+ * @deprecated This entire module is deprecated. Use `@tinycloudlabs/sdk-services` instead.
+ * All exports from this module will be removed in a future major version.
+ * @module
+ */
 export {
   KVResponse,
   KVResponseHeaders,
