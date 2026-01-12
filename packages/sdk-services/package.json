@@ -1,0 +1,39 @@
+{
+  "name": "@tinycloudlabs/sdk-services",
+  "version": "0.1.0",
+  "description": "TinyCloud SDK Services - Platform-agnostic service implementations",
+  "author": "TinyCloud, Inc.",
+  "license": "EGPL",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./kv": {
+      "types": "./dist/kv/index.d.ts",
+      "import": "./dist/kv/index.js",
+      "default": "./dist/kv/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "typescript": "^5.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tinycloudlabs/web-sdk"
+  }
+}

@@ -16,3 +16,4 @@ packages/sdk-rs/packages/web/dist/
 packages/sdk-rs/packages/node/dist/
 packages/sdk-rs/.profile
 packages/sdk-rs/.zshenv
+packages/sdk-services/dist/

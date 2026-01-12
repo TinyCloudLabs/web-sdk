@@ -86,3 +86,27 @@ export {
   ServiceFactory,
   BaseServiceConfig,
 } from "./services";
+
+// Delegations
+export {
+  // Result pattern
+  Result,
+  DelegationError,
+  DelegationErrorCodes,
+  DelegationErrorCode,
+  // Delegation types
+  Delegation,
+  CreateDelegationParams,
+  DelegationChain,
+  DelegationApiResponse,
+  // Sharing link types
+  SharingLink,
+  GenerateSharingLinkParams,
+  SharingLinkData,
+  // Configuration types
+  DelegationManagerConfig,
+  SharingLinksConfig,
+  // Classes
+  DelegationManager,
+  SharingLinks,
+} from "./delegations";
