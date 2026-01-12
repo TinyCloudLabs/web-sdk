@@ -22,6 +22,7 @@ import {
   ServiceSession,
 } from '@tinycloudlabs/sdk-core';
 import { invoke } from './Storage/tinycloud/module';
+import { SharingService } from './SharingService';
 
 declare global {
   interface Window {
@@ -76,6 +77,9 @@ export class TinyCloudWeb {
   /** KV Service instance */
   private _kvService?: KVService;
 
+  /** Sharing Service instance */
+  private _sharingService?: SharingService;
+
   constructor(private config: TCWConfig = TCW_DEFAULT_CONFIG) {
     // TODO: pull out config validation into separate function
     // TODO: pull out userAuthorization config
@@ -129,6 +133,33 @@ export class TinyCloudWeb {
   }
 
   /**
+   * Get the sharing service for generating and retrieving sharing links.
+   * Must be signed in for the service to be available.
+   *
+   * @throws Error if not signed in
+   *
+   * @example
+   * ```typescript
+   * // Generate a sharing link
+   * const shareData = await tcw.sharing.generate('my-key');
+   *
+   * // Retrieve shared data
+   * const result = await tcw.sharing.retrieve(shareData);
+   * if (result.ok) {
+   *   console.log(result.data.data);
+   * }
+   * ```
+   */
+  public get sharing(): SharingService {
+    if (!this._sharingService) {
+      throw new Error(
+        'Sharing service is not available. Make sure you are signed in first.'
+      );
+    }
+    return this._sharingService;
+  }
+
+  /**
    * Initialize the sdk-services KVService.
    * Called internally after sign-in when the session is established.
    *
@@ -154,6 +185,16 @@ export class TinyCloudWeb {
     this._kvService = new KVService({ prefix });
     this._kvService.initialize(this._serviceContext);
     this._serviceContext.registerService('kv', this._kvService);
+
+    // Initialize sharing service
+    const sessionManager = (this.userAuthorization as any).sessionManager;
+    if (sessionManager) {
+      this._sharingService = new SharingService({
+        userAuth: this.userAuthorization,
+        hosts,
+        sessionManager,
+      });
+    }
 
     // Convert TinyCloud session to ServiceSession and set on context
     const serviceSession = this.toServiceSession();
@@ -211,6 +252,7 @@ export class TinyCloudWeb {
       this._serviceContext.setSession(null);
     }
     this._kvService = undefined;
+    this._sharingService = undefined;
     this._serviceContext = undefined;
     return this.userAuthorization.signOut();
   };

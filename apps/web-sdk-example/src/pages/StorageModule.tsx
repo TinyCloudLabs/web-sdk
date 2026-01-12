@@ -12,7 +12,7 @@ interface IStorageModule {
  * StorageModule demonstrates the new sdk-services KV API with Result pattern.
  *
  * Uses tcw.kv for basic operations (get, put, list, delete)
- * Uses tcw.storage for sharing functionality (generateSharingLink)
+ * Uses tcw.sharing for sharing functionality (generate, retrieve)
  */
 function StorageModule({ tcw }: IStorageModule) {
   const [contentList, setContentList] = useState<Array<string>>([]);
@@ -25,8 +25,8 @@ function StorageModule({ tcw }: IStorageModule) {
   const [sharingLink, setSharingLink] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
 
-  // Get prefix from storage (still used for display and sharing)
-  const prefix = tcw.storage?.prefix || '';
+  // Get prefix from config (used for display purposes)
+  const prefix = tcw.config?.kvPrefix || '';
 
   useEffect(() => {
     const getContentList = async () => {
@@ -50,20 +50,18 @@ function StorageModule({ tcw }: IStorageModule) {
 
   const handleShareContent = async (content: string) => {
     setError(null);
-    let base64Content;
-    try {
-      // Sharing still uses the old storage API since it's not in sdk-services yet
-      let reference = removePrefix ? content : content.replace(new RegExp(`^${prefix}/`), '');
-      reference = prefix ? `${prefix}/${reference}` : reference;
-      base64Content = await tcw.storage.generateSharingLink(reference);
-    } catch (err) {
-      console.error(err);
-      alert('Failed to generate sharing link. Please refresh the page and try again.');
-      return;
+    // Compute the key reference for sharing
+    let reference = removePrefix ? content : content.replace(new RegExp(`^${prefix}/`), '');
+    reference = prefix ? `${prefix}/${reference}` : reference;
+
+    const result = await tcw.sharing.generate(reference);
+    if (result.ok) {
+      const link = `${window.location.origin}/share?data=${result.data}`;
+      setSharingLink(link);
+    } else {
+      console.error('Failed to generate sharing link:', result.error.code, result.error.message);
+      setError(`Failed to generate sharing link: ${result.error.message}`);
     }
-    const link = `${window.location.origin}/share?data=${base64Content}`;
-    setSharingLink(link);
-    return;
   };
 
   const handleCopyLink = async () => {

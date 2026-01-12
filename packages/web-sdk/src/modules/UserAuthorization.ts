@@ -4,7 +4,7 @@ import merge from "lodash.merge";
 import { AxiosInstance } from "axios";
 import { generateNonce, SiweMessage } from "siwe";
 import { TCWEnsData, tcwResolveEns } from "@tinycloudlabs/web-core";
-import {
+import type {
   TCWClientSession,
   TCWClientConfig,
   ITCWConnected,
