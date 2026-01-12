@@ -41,9 +41,11 @@ web-sys = { version = "0.3.59", features = ["console"], optional = true }
 k256 = { version = "0.13", features = ["ecdsa", "std"], optional = true }
 sha3 = { version = "0.10", optional = true }
 base64 = { version = "0.21", optional = true }
+rsa = "0.9.10"
 
 [dev-dependencies]
 tokio = { version = "1.45", features = ["full"] }
+rsa = "0.9.10"
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ["-O4", "--enable-bulk-memory", "--enable-nontrapping-float-to-int"]
