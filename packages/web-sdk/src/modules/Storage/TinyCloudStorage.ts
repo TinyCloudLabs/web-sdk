@@ -136,7 +136,9 @@ export class TinyCloudStorage implements IStorage, ITinyCloud {
    */
   constructor(config: any, userAuth: IUserAuthorization) {
     this.userAuth = userAuth;
-    this.hosts = [...(config?.hosts || []), "https://node.tinycloud.xyz"];
+    // Use hosts from UserAuthorization config to ensure consistency
+    // Fall back to config.hosts for backwards compatibility, then production default
+    this.hosts = userAuth.getTinycloudHosts?.() || [...(config?.hosts || []), "https://node.tinycloud.xyz"];
     this.prefix = config?.prefix || "";
 
     // Initialize session persistence
