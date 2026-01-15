@@ -1,4 +1,4 @@
-import { createPublicClient, http, type Address, type PublicClient } from "viem";
+import { createPublicClient, http, type Address } from "viem";
 
 const REGISTRY_ABI = [
   {
@@ -27,7 +27,8 @@ export interface RegistryConfig {
  * account addresses to their associated node identifiers.
  */
 export class Registry {
-  private client: PublicClient;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private client: any;
   private contractAddress: Address;
 
   /**
