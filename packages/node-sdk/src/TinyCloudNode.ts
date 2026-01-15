@@ -38,6 +38,7 @@ import {
   KVService,
   IKVService,
   ServiceSession,
+  ServiceContext,
 } from "@tinycloudlabs/sdk-core";
 import { NodeUserAuthorization } from "./authorization/NodeUserAuthorization";
 import { PrivateKeySigner } from "./signers/PrivateKeySigner";
@@ -90,7 +91,8 @@ export class TinyCloudNode {
   private _address?: string;
   private _chainId: number = 1;
   private sessionManager?: TCWSessionManager;
-  private _kv?: IKVService;
+  private _serviceContext?: ServiceContext;
+  private _kv?: KVService;
 
   /**
    * Create a new TinyCloudNode instance.
@@ -188,8 +190,45 @@ export class TinyCloudNode {
 
     // Reset KV service so it gets recreated with new session
     this._kv = undefined;
+    this._serviceContext = undefined;
 
     await this.tc.signIn();
+
+    // Initialize service context with session
+    this.initializeServices();
+  }
+
+  /**
+   * Initialize the service context and KV service after sign-in.
+   * @internal
+   */
+  private initializeServices(): void {
+    const session = this.auth.tinyCloudSession;
+    if (!session) {
+      return;
+    }
+
+    // Create service context
+    this._serviceContext = new ServiceContext({
+      invoke,
+      fetch: globalThis.fetch.bind(globalThis),
+      hosts: [this.config.host],
+    });
+
+    // Create and register KV service
+    this._kv = new KVService({});
+    this._kv.initialize(this._serviceContext);
+    this._serviceContext.registerService('kv', this._kv);
+
+    // Set session on context
+    const serviceSession: ServiceSession = {
+      delegationHeader: session.delegationHeader,
+      delegationCid: session.delegationCid,
+      spaceId: session.spaceId,
+      verificationMethod: session.verificationMethod,
+      jwk: session.jwk,
+    };
+    this._serviceContext.setSession(serviceSession);
   }
 
   /**
@@ -197,15 +236,7 @@ export class TinyCloudNode {
    */
   get kv(): IKVService {
     if (!this._kv) {
-      const session = this.auth.tinyCloudSession;
-      if (!session) {
-        throw new Error("Not signed in. Call signIn() first.");
-      }
-      this._kv = new KVService({
-        host: this.config.host,
-        session: session as ServiceSession,
-        invoke,
-      });
+      throw new Error("Not signed in. Call signIn() first.");
     }
     return this._kv;
   }

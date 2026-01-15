@@ -29,16 +29,22 @@ function StorageModule({ tcw }: IStorageModule) {
   const prefix = tcw.kvPrefix;
 
   useEffect(() => {
+    const controller = new AbortController();
+
     const getContentList = async () => {
       setError(null);
       try {
         // Use new kv.list() with Result pattern
-        const result = await tcw.kv.list({ removePrefix });
+        // Pass abort signal to cancel on unmount (prevents React strict mode race)
+        const result = await tcw.kv.list({ removePrefix, signal: controller.signal });
         if (result.ok) {
           setContentList(result.data.keys);
         } else {
-          console.error('Failed to list:', result.error.code, result.error.message);
-          setError(`Failed to list keys: ${result.error.message}`);
+          // Don't show error if request was aborted
+          if (result.error.code !== 'ABORTED') {
+            console.error('Failed to list:', result.error.code, result.error.message);
+            setError(`Failed to list keys: ${result.error.message}`);
+          }
         }
       } catch (err) {
         // KV service may not be ready yet (not signed in)
@@ -46,6 +52,10 @@ function StorageModule({ tcw }: IStorageModule) {
       }
     };
     getContentList();
+
+    return () => {
+      controller.abort();
+    };
   }, [tcw, removePrefix]);
 
   const handleShareContent = async (content: string) => {

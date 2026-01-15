@@ -73,6 +73,7 @@ function ensureKeys(): UserKeys {
   let bobKey = process.env.BOB_PRIVATE_KEY;
   let charlieKey = process.env.CHARLIE_PRIVATE_KEY;
   let needsWrite = false;
+  const writingKeys = JSON.parse		(process.env.GENERATE_MISSING_KEYS || "false");
 
   // Load existing .env file
   if (existsSync(ENV_PATH)) {
@@ -86,17 +87,18 @@ function ensureKeys(): UserKeys {
   if (!aliceKey) {
     aliceKey = generateKey();
     console.log(`[KeyGen] Generated Alice's key: ${new Wallet(`0x${aliceKey}`).address}`);
-    needsWrite = true;
+    needsWrite = writingKeys && true;
   }
   if (!bobKey) {
     bobKey = generateKey();
     console.log(`[KeyGen] Generated Bob's key: ${new Wallet(`0x${bobKey}`).address}`);
-    needsWrite = true;
+    needsWrite = writingKeys && true;
+
   }
   if (!charlieKey) {
     charlieKey = generateKey();
     console.log(`[KeyGen] Generated Charlie's key: ${new Wallet(`0x${charlieKey}`).address}`);
-    needsWrite = true;
+    needsWrite = writingKeys && true;
   }
 
   // Write keys to .env
@@ -202,7 +204,7 @@ async function runDemo() {
 
   // Bob reads Alice's data
   const greetingResponse = await bobAccessToAlice.kv.get<{ message: string }>("greeting");
-  console.log(`[Bob] Read from Alice: "${greetingResponse.data?.message}"`);
+  console.log(`[Bob] Read from Alice: "${greetingResponse.data?.data?.message}"`);
 
   // Bob writes a response
   await bobAccessToAlice.kv.put("bob-was-here", {
@@ -245,8 +247,8 @@ async function runDemo() {
   console.log("[Alice] Reading responses...");
   const bobResponse = await alice.kv.get<{ from: string; message: string }>("shared/bob-was-here");
   const charlieResponse = await alice.kv.get<{ from: string; message: string }>("shared/charlie-was-here");
-  console.log(`[Alice] From Bob: "${bobResponse.data?.message}"`);
-  console.log(`[Alice] From Charlie: "${charlieResponse.data?.message}"`);
+  console.log(`[Alice] From Bob: "${bobResponse.data?.data?.message}"`);
+  console.log(`[Alice] From Charlie: "${charlieResponse.data?.data?.message}"`);
   console.log();
 
   // Summary

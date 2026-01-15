@@ -112,12 +112,22 @@ export class KVService extends BaseService implements IKVService {
     body?: Blob | string,
     signal?: AbortSignal
   ): Promise<FetchResponse> {
+    const session = this.context.session!;
+    console.log("[KVService] invokeOperation:", {
+      path,
+      action,
+      host: this.host,
+      sessionSpaceId: session.spaceId,
+      sessionDelegationCid: session.delegationCid,
+    });
+
     const headers = this.context.invoke(
-      this.context.session!,
+      session,
       "kv",
       path,
       action
     );
+    console.log("[KVService] invoke returned headers:", headers);
 
     return this.context.fetch(`${this.host}/invoke`, {
       method: "POST",
@@ -173,7 +183,16 @@ export class KVService extends BaseService implements IKVService {
       return (await response.text()) as unknown as T;
     }
 
-    return undefined;
+    // No content-type header - try to parse as JSON, fall back to text
+    const text = await response.text();
+    if (!text) {
+      return undefined;
+    }
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      return text as unknown as T;
+    }
   }
 
   /**

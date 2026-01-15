@@ -21,11 +21,6 @@ import {
 import { dispatchSDKEvent } from "../notifications/ErrorHandler";
 import { WasmInitializer } from "./WasmInitializer";
 import { debug } from "../utils/debug";
-import {
-  SessionPersistence,
-  PersistedSession,
-  SessionPersistenceConfig,
-} from "./SessionPersistence";
 import { showSpaceCreationModal } from "../notifications/ModalManager";
 import {
   generateHostSIWEMessage,
@@ -34,6 +29,20 @@ import {
   completeSessionSetup,
 } from "./Storage/tinycloud/module";
 import { SpaceConnection, Authenticator, Session } from "./Storage/tinycloud";
+
+/**
+ * Extended TCW Client Config with TinyCloud options
+ */
+declare module "@tinycloudlabs/web-core/client" {
+  interface TCWClientConfig {
+    /** Whether to automatically create space if it doesn't exist (default: true) */
+    autoCreateSpace?: boolean;
+    /** TinyCloud server endpoints (default: ["https://node.tinycloud.xyz"]) */
+    tinycloudHosts?: string[];
+    /** Space prefix for new sessions (default: "default") */
+    spacePrefix?: string;
+  }
+}
 
 /**
  * Interface for tracking session state during SIWE message generation
@@ -118,23 +127,6 @@ interface IUserAuthorization {
     siweMessage: SiweMessage,
     signature: string
   ): Promise<TCWClientSession>;
-  /**
-   * Attempts to resume a previously saved session.
-   * @param address - Ethereum address to resume session for
-   * @returns Promise with the TCWClientSession object or null if no valid session
-   */
-  tryResumeSession(address: string): Promise<TCWClientSession | null>;
-  /**
-   * Clears the persisted session for the given address.
-   * @param address - Ethereum address
-   */
-  clearPersistedSession(address?: string): Promise<void>;
-  /**
-   * Checks if a session is persisted for the given address.
-   * @param address - Ethereum address
-   * @returns true if session is persisted
-   */
-  isSessionPersisted(address: string): boolean;
   /**
    * Get the space ID for the current session.
    * @returns Space ID or undefined if not available
@@ -350,16 +342,25 @@ class UserAuthorizationConnected implements ITCWConnected {
    * @param prefix - Space prefix (default: "default")
    */
   public addDefaultCapabilities(address: string, chainId: number, prefix: string = "default"): void {
-    // Build resource URI in the format expected by ReCap:
-    // tinycloud:pkh:eip155:{chainId}:{address}:{prefix}/{service}/{path}
-    const spaceBase = `tinycloud:pkh:eip155:${chainId}:${address}:${prefix}`;
+    // Use makeSpaceId to ensure consistent spaceId format with setupSpaceSession
+    // This is critical - the spaceId in capabilities must match the session spaceId
+    const spaceId = makeSpaceId(address, chainId, prefix);
+
+    console.log("[TinyCloud] addDefaultCapabilities: generating capabilities", {
+      address,
+      chainId,
+      prefix,
+      spaceId,
+    });
 
     // Add KV capabilities for default path
-    const kvTarget = `${spaceBase}/kv/default/`;
+    // Note: path should be empty to match what KVService requests (spaceId/kv/)
+    const kvTarget = `${spaceId}/kv/`;
+    console.log("[TinyCloud] addDefaultCapabilities: kvTarget =", kvTarget);
     this.builder.addTargetedActions(kvTarget, UserAuthorizationConnected.DEFAULT_KV_ACTIONS);
 
     // Add capabilities access
-    const capabilitiesTarget = `${spaceBase}/capabilities/all/`;
+    const capabilitiesTarget = `${spaceId}/capabilities/all/`;
     this.builder.addTargetedActions(capabilitiesTarget, UserAuthorizationConnected.DEFAULT_CAPABILITIES_ACTIONS);
   }
 
@@ -397,7 +398,8 @@ class UserAuthorizationConnected implements ITCWConnected {
     // Add default KV capabilities now that we have address/chainId
     // This must be called before build() which creates the SIWE message with ReCap
     const address = this.config.siweConfig?.address ?? walletAddress;
-    this.addDefaultCapabilities(address, chainId);
+    const spacePrefix = this.config?.spacePrefix ?? "default";
+    this.addDefaultCapabilities(address, chainId, spacePrefix);
 
     const defaults = {
       address,
@@ -462,9 +464,6 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
   /** Pending session state for signature-based initialization */
   private pendingSession?: PendingSession;
 
-  /** Session persistence handler */
-  private sessionPersistence: SessionPersistence;
-
   /** Whether to automatically create space if it doesn't exist */
   private autoCreateSpace: boolean;
 
@@ -495,9 +494,6 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
         ...this.config?.providers,
       },
     });
-
-    // Initialize session persistence
-    this.sessionPersistence = new SessionPersistence(this.config.persistence);
 
     // Initialize space-related options with defaults
     this.autoCreateSpace = _config.autoCreateSpace ?? true;
@@ -535,60 +531,6 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
   public async signIn(): Promise<TCWClientSession> {
     await this.connect();
 
-    // Check if automatic session resumption is enabled
-    const autoResumeEnabled =
-      this.sessionPersistence.configuration.autoResumeSession;
-
-    if (autoResumeEnabled) {
-      try {
-        // Get the current wallet address to check for existing sessions
-        const currentAddress = await this.provider.getSigner().getAddress();
-
-        // Try to resume an existing session
-        const resumedSession = await this.tryResumeSession(currentAddress);
-
-        if (resumedSession) {
-          // Session resumed successfully
-          this.session = resumedSession;
-
-          // Handle ENS resolution for resumed session
-          const promises = [];
-          if (this.config.resolveEns) {
-            promises.push(this.resolveEns(this.session.address));
-          }
-
-          await Promise.all(promises).then(([ens]) => {
-            if (ens) {
-              this.session.ens = ens;
-            }
-          });
-
-          // Setup space session for resumed session
-          await this.setupSpaceSession(this.session);
-
-          // Ensure space exists (activate session) and create SpaceConnection
-          if (this._spaceId && this._delegationHeader) {
-            try {
-              await this.ensureSpaceExists();
-              await this.createSpaceConnection();
-            } catch (error) {
-              debug.warn("Failed to ensure space exists for resumed session:", error);
-            }
-          }
-
-          dispatchSDKEvent.success("Successfully resumed existing session");
-          return this.session;
-        }
-      } catch (error) {
-        // Resume failed, continue with normal sign-in flow
-        debug.warn(
-          "Session resumption failed, proceeding with normal sign-in:",
-          error
-        );
-      }
-    }
-
-    // Normal sign-in flow (when auto-resume is disabled or resumption failed)
     try {
       this.session = await this.connection.signIn();
     } catch (err) {
@@ -619,9 +561,6 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
         this.session.ens = ens;
       }
     });
-
-    // Persist session after successful sign-in
-    await this.persistSession(this.session);
 
     // Setup space session (generates spaceId and delegation header)
     await this.setupSpaceSession(this.session);
@@ -686,11 +625,6 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
         err.message
       );
       throw err;
-    }
-
-    // Clear persisted session
-    if (this.session) {
-      await this.sessionPersistence.clearSession(this.session.address);
     }
 
     this.session = undefined;
@@ -992,89 +926,6 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
   }
 
   /**
-   * Attempts to resume a previously saved session.
-   * @param address - Ethereum address to resume session for
-   * @returns Promise with the TCWClientSession object or null if no valid session
-   */
-  public async tryResumeSession(
-    address: string
-  ): Promise<TCWClientSession | null> {
-    try {
-      const persistedSession = await this.sessionPersistence.loadSession(
-        address
-      );
-
-      if (!persistedSession) {
-        return null;
-      }
-
-      this.session = {
-        address: persistedSession.address,
-        walletAddress: persistedSession.address,
-        chainId: persistedSession.chainId,
-        sessionKey: persistedSession.sessionKey,
-        siwe: persistedSession.siwe,
-        signature: persistedSession.signature,
-      };
-
-      await WasmInitializer.ensureInitialized();
-
-      // Setup space session (generates spaceId and delegation header)
-      await this.setupSpaceSession(this.session);
-
-      // Ensure space exists on TinyCloud server (creates if needed) and create SpaceConnection
-      // This must happen BEFORE extension hooks so extensions can use the space
-      if (this._spaceId && this._delegationHeader) {
-        try {
-          await this.ensureSpaceExists();
-          await this.createSpaceConnection();
-        } catch (error) {
-          debug.warn("Failed to ensure space exists during session resume:", error);
-          // Don't throw - space creation can be retried later
-        }
-      }
-
-      // Apply extension afterSignIn hooks AFTER space is ready
-      await this.applyAfterSignInHooks(this.session);
-
-      return this.session;
-    } catch (error) {
-      debug.warn("Failed to resume session:", error);
-      await this.sessionPersistence.clearSession(address);
-      return null;
-    }
-  }
-
-  /**
-   * Clears the persisted session for the given address.
-   * @param address - Ethereum address (optional, uses current session if not provided)
-   */
-  public async clearPersistedSession(address?: string): Promise<void> {
-    const targetAddress = address || this.session?.address;
-
-    if (targetAddress) {
-      await this.sessionPersistence.clearSession(targetAddress);
-    }
-  }
-
-  /**
-   * Checks if a session is persisted for the given address.
-   * @param address - Ethereum address
-   * @returns true if session is persisted
-   */
-  public isSessionPersisted(address: string): boolean {
-    // This is a synchronous check - we can't await here
-    // We'll implement a simple storage key check
-    try {
-      const storageKey = `tinycloud_session_${address.toLowerCase()}`;
-      const storage = localStorage || sessionStorage;
-      return storage.getItem(storageKey) !== null;
-    } catch {
-      return false;
-    }
-  }
-
-  /**
    * Get the space ID for the current session.
    * @returns Space ID or undefined if not available
    */
@@ -1110,84 +961,6 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
    */
   public getTinycloudSession(): Session | undefined {
     return this._tinycloudSession;
-  }
-
-  /**
-   * Verifies that the space actually exists by attempting a lightweight operation.
-   * The /delegate endpoint returns 200 even for non-existent spaces, so we need
-   * to verify by attempting an actual operation.
-   *
-   * @param host - TinyCloud server URL
-   * @returns Object with exists: true if space exists, false otherwise
-   */
-  private async verifySpaceExists(host: string): Promise<{ exists: boolean; error?: string }> {
-    if (!this._tinycloudSession) {
-      return { exists: false, error: "No TinyCloud session available" };
-    }
-
-    try {
-      // Ensure WASM is initialized before using Authenticator
-      await WasmInitializer.ensureInitialized();
-
-      // Create a temporary authenticator for the verification request
-      const authn = new Authenticator(this._tinycloudSession);
-      // Use empty path for the root - this matches what KVService uses for list
-      const invocationHeaders = authn.invocationHeaders("kv", "tinycloud.kv/list", "");
-
-      // Try to list keys - this will return 404 if space doesn't exist
-      const response = await fetch(`${host}/invoke`, {
-        method: "POST",
-        headers: {
-          ...invocationHeaders,
-        },
-      });
-
-      console.log("[TinyCloud] verifySpaceExists: response", { status: response.status, ok: response.ok });
-
-      if (response.ok) {
-        console.log("[TinyCloud] verifySpaceExists: space exists (200 OK)");
-        return { exists: true };
-      }
-
-      // Read error text for all non-OK responses
-      const errorText = await response.text().catch(() => "");
-      console.log("[TinyCloud] verifySpaceExists: error response", { status: response.status, error: errorText });
-
-      // Check for "Space not found" error - can come as 404 or in error text
-      if (response.status === 404 || errorText.toLowerCase().includes("space not found")) {
-        console.log("[TinyCloud] verifySpaceExists: space not found");
-        return { exists: false, error: errorText };
-      }
-
-      // For 401 Unauthorized, the space might not exist OR the action isn't authorized
-      // We should NOT assume space exists - return false to trigger creation flow
-      // The hostSpace() modal will show and if space actually exists, the delegation will just succeed
-      if (response.status === 401) {
-        console.log("[TinyCloud] verifySpaceExists: got 401, assuming space does not exist");
-        return { exists: false, error: errorText };
-      }
-
-      // Other errors (5xx, network issues) - assume space might exist to avoid false prompts
-      console.log("[TinyCloud] verifySpaceExists: got unexpected error, assuming space exists", {
-        status: response.status,
-        error: errorText
-      });
-      return { exists: true };
-    } catch (error) {
-      // Log the actual error for debugging
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.warn("[TinyCloud] verifySpaceExists: error during verification", errorMessage);
-
-      // If it's a WASM initialization error, we should NOT assume space exists
-      // Instead, return false to trigger space creation flow
-      if (errorMessage.includes("TinyCloud") && errorMessage.includes("initialised")) {
-        console.warn("[TinyCloud] verifySpaceExists: WASM not initialized, assuming space does not exist");
-        return { exists: false, error: errorMessage };
-      }
-
-      // On actual network error, assume space might exist to avoid false prompts
-      return { exists: true };
-    }
   }
 
   /**
@@ -1316,6 +1089,9 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
    * Ensure the user's space exists on the TinyCloud server.
    * Creates the space if it doesn't exist and autoCreateSpace is enabled.
    *
+   * Strategy: Try to activate the session first. If it returns 404 (space not found),
+   * create the space via hostSpace modal, then try activation again.
+   *
    * @throws Error if space creation fails or is disabled and space doesn't exist
    */
   public async ensureSpaceExists(): Promise<void> {
@@ -1324,75 +1100,21 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
     }
 
     const host = this.tinycloudHosts[0];
-    console.log("[TinyCloud] ensureSpaceExists: checking space", { spaceId: this._spaceId, host });
+    console.log("[TinyCloud] ensureSpaceExists: attempting activation", { spaceId: this._spaceId, host });
 
-    // Try to activate the session (this checks if space exists)
-    const result = await activateSessionWithHost(host, this._delegationHeader);
-    console.log("[TinyCloud] ensureSpaceExists: activation result", { success: result.success, status: result.status, error: result.error });
+    // Try to activate the session - this will return 404 if space doesn't exist
+    let result = await activateSessionWithHost(host, this._delegationHeader);
+    console.log("[TinyCloud] ensureSpaceExists: first activation result", { success: result.success, status: result.status, error: result.error });
 
     if (result.success) {
-      // Session activation succeeded, but we need to verify the space actually exists
-      // because /delegate returns 200 even for non-existent spaces
-      console.log("[TinyCloud] ensureSpaceExists: session activated, verifying space exists...");
-
-      // Do a lightweight verification by checking capabilities (this will fail if space doesn't exist)
-      const verifyResult = await this.verifySpaceExists(host);
-      if (verifyResult.exists) {
-        console.log("[TinyCloud] ensureSpaceExists: space verified to exist");
-        return;
-      }
-
-      // Space doesn't actually exist - fall through to creation flow
-      console.log("[TinyCloud] ensureSpaceExists: space does NOT exist (verified), will show creation modal");
-      if (!this.autoCreateSpace) {
-        throw new Error(
-          `Space does not exist: ${this._spaceId}. ` +
-            `Set autoCreateSpace: true to create it automatically.`
-        );
-      }
-
-      // Create the space with modal
-      console.log("[TinyCloud] ensureSpaceExists: calling hostSpace() to show modal");
-      const created = await this.hostSpace();
-      if (!created) {
-        // User dismissed modal
-        console.log("[TinyCloud] ensureSpaceExists: user dismissed space creation modal");
-        return;
-      }
-
-      // Wait for space creation to propagate and verify it exists
-      console.log("[TinyCloud] ensureSpaceExists: space hosted, waiting for propagation...");
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // Verify the space was actually created by trying to access it
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        console.log(`[TinyCloud] ensureSpaceExists: verifying space exists (attempt ${attempt}/3)...`);
-        const verifyAfterCreate = await this.verifySpaceExists(host);
-        if (verifyAfterCreate.exists) {
-          console.log("[TinyCloud] ensureSpaceExists: space verified to exist after creation");
-          break;
-        }
-        if (attempt < 3) {
-          console.log("[TinyCloud] ensureSpaceExists: space not yet available, waiting...");
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-        } else {
-          console.warn("[TinyCloud] ensureSpaceExists: space creation may have failed - could not verify existence");
-        }
-      }
-
-      // Retry activation after creating space
-      const retryResult = await activateSessionWithHost(host, this._delegationHeader);
-      if (!retryResult.success) {
-        throw new Error(
-          `Failed to activate session after creating space: ${retryResult.error}`
-        );
-      }
+      console.log("[TinyCloud] ensureSpaceExists: session activated successfully (space exists)");
       return;
     }
 
+    // If 404, the space doesn't exist - create it
     if (result.status === 404) {
-      // Space doesn't exist
-      console.log("[TinyCloud] ensureSpaceExists: space not found (404), will show creation modal");
+      console.log("[TinyCloud] ensureSpaceExists: space not found, will show creation modal");
+
       if (!this.autoCreateSpace) {
         throw new Error(
           `Space does not exist: ${this._spaceId}. ` +
@@ -1403,74 +1125,34 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
       // Create the space with modal
       console.log("[TinyCloud] ensureSpaceExists: calling hostSpace() to show modal");
       const created = await this.hostSpace();
+      console.log(created)
       if (!created) {
         // User dismissed modal - this is not an error, just means they chose not to create
         debug.log("User dismissed space creation modal");
         return;
       }
 
-      // Small delay to allow space creation to propagate
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Space created, now try activation again
+      console.log("[TinyCloud] ensureSpaceExists: space created, retrying activation");
+      result = await activateSessionWithHost(host, this._delegationHeader);
+      console.log("[TinyCloud] ensureSpaceExists: second activation result", { success: result.success, status: result.status, error: result.error });
 
-      // Retry activation after creating space
-      const retryResult = await activateSessionWithHost(
-        host,
-        this._delegationHeader
-      );
+      if (result.success) {
+        console.log("[TinyCloud] ensureSpaceExists: session activated after space creation");
+        return;
+      }
 
-      if (!retryResult.success) {
+      // If still 404, something is wrong
+      if (result.status === 404) {
         throw new Error(
-          `Failed to activate session after creating space: ${retryResult.error}`
+          `Space not found after creation. The space ID in the delegation may not match ` +
+          `the space created by hostSpace. SpaceId: ${this._spaceId}`
         );
       }
-
-      return;
     }
 
-    // Other error - NOT 404, so we don't show the modal
-    console.warn("[TinyCloud] ensureSpaceExists: unexpected error (not 404)", { status: result.status, error: result.error });
-    throw new Error(`Failed to activate session: ${result.error}`);
-  }
-
-  /**
-   * Persists the current session to storage
-   * @param session - The TCWClientSession to persist
-   */
-  private async persistSession(session: TCWClientSession): Promise<void> {
-    try {
-      const existingSession = await this.sessionPersistence.loadSession(
-        session.address
-      );
-
-      if (existingSession) {
-        existingSession.address = session.address;
-        existingSession.chainId = session.chainId;
-        existingSession.sessionKey = session.sessionKey;
-        existingSession.siwe = session.siwe;
-        existingSession.signature = session.signature;
-
-        await this.sessionPersistence.saveSession(existingSession);
-      } else {
-        const expirationTime = new Date(
-          Date.now() + 24 * 60 * 60 * 1000
-        ).toISOString();
-
-        const persistedSession: PersistedSession = {
-          address: session.address,
-          chainId: session.chainId,
-          sessionKey: session.sessionKey,
-          siwe: session.siwe,
-          signature: session.signature,
-          expiresAt: expirationTime,
-          createdAt: new Date().toISOString(),
-          version: "1.0.0",
-        };
-
-        await this.sessionPersistence.saveSession(persistedSession);
-      }
-    } catch (error) {
-      debug.warn("Failed to persist session:", error);
-    }
+    // For other errors, throw with details
+    throw new Error(`Failed to activate session: ${result.status} - ${result.error}`);
   }
 
   /**
@@ -1528,6 +1210,10 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
       };
 
       const completedSession = completeSessionSetup(sessionData);
+      console.log("[TinyCloud] setupSpaceSession: completeSessionSetup returned", {
+        hasDelegationHeader: !!completedSession?.delegationHeader,
+        delegationCid: completedSession?.delegationCid,
+      });
       if (completedSession?.delegationHeader) {
         this._delegationHeader = completedSession.delegationHeader;
         console.log("[TinyCloud] setupSpaceSession: delegation header set successfully");
@@ -1540,6 +1226,11 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
           spaceId: this._spaceId,
           verificationMethod,
         };
+        console.log("[TinyCloud] setupSpaceSession: _tinycloudSession created", {
+          spaceId: this._tinycloudSession.spaceId,
+          delegationCid: this._tinycloudSession.delegationCid,
+          verificationMethod: this._tinycloudSession.verificationMethod,
+        });
       } else {
         console.warn("[TinyCloud] setupSpaceSession: completeSessionSetup did not return delegationHeader", { completedSession });
       }

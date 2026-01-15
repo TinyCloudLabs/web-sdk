@@ -413,36 +413,4 @@ export class TinyCloud {
 
     return session;
   }
-
-  /**
-   * Try to resume a previously persisted session.
-   * Notifies services if session is successfully resumed.
-   */
-  public async tryResumeSession(
-    address: string
-  ): Promise<TCWClientSession | null> {
-    const session = await this.userAuthorization.tryResumeSession(address);
-
-    // Notify services if session was resumed
-    if (session) {
-      const serviceSession = this.toServiceSession(session);
-      this.notifyServicesOfSessionChange(serviceSession);
-    }
-
-    return session;
-  }
-
-  /**
-   * Clear persisted session data.
-   */
-  public async clearPersistedSession(address?: string): Promise<void> {
-    return this.userAuthorization.clearPersistedSession(address);
-  }
-
-  /**
-   * Check if a session is persisted for an address.
-   */
-  public isSessionPersisted(address: string): boolean {
-    return this.userAuthorization.isSessionPersisted(address);
-  }
 }

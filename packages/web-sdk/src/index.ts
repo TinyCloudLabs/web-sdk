@@ -1,7 +1,6 @@
 export * from './modules/tcw';
 export * from './modules';
 export * from './notifications';
-export * from './modules/SessionPersistence';
 export * from '@tinycloudlabs/web-core/client';
 export * from '@tinycloudlabs/web-core';
 export {

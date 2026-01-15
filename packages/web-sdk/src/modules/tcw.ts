@@ -218,17 +218,31 @@ export class TinyCloudWeb {
   private toServiceSession(): ServiceSession | null {
     // Get the TinyCloud session from UserAuthorization
     const tinycloudSession = this.userAuthorization.getTinycloudSession?.();
+    console.log("[TinyCloud] toServiceSession: getTinycloudSession returned", {
+      hasSession: !!tinycloudSession,
+      spaceId: tinycloudSession?.spaceId,
+      delegationCid: tinycloudSession?.delegationCid,
+      verificationMethod: tinycloudSession?.verificationMethod,
+      hasDelegationHeader: !!tinycloudSession?.delegationHeader,
+      hasJwk: !!tinycloudSession?.jwk,
+    });
     if (!tinycloudSession) {
       return null;
     }
 
-    return {
+    const serviceSession = {
       delegationHeader: tinycloudSession.delegationHeader,
       delegationCid: tinycloudSession.delegationCid,
       spaceId: tinycloudSession.spaceId,
       verificationMethod: tinycloudSession.verificationMethod,
       jwk: tinycloudSession.jwk,
     };
+    console.log("[TinyCloud] toServiceSession: returning ServiceSession", {
+      spaceId: serviceSession.spaceId,
+      delegationCid: serviceSession.delegationCid,
+      verificationMethod: serviceSession.verificationMethod,
+    });
+    return serviceSession;
   }
 
   /**
@@ -363,19 +377,4 @@ export class TinyCloudWeb {
     return session;
   }
 
-  /**
-   * Try to resume a previously persisted session.
-   * Initializes KV service if session is successfully resumed.
-   *
-   * @param address - The wallet address to resume session for
-   * @returns The resumed session, or null if no session exists
-   */
-  public async tryResumeSession(address: string): Promise<TCWClientSession | null> {
-    const session = await this.userAuthorization.tryResumeSession(address);
-    if (session) {
-      // Initialize KV service after session resume
-      this.initializeKVService(session);
-    }
-    return session;
-  }
 }
