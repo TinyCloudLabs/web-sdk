@@ -113,21 +113,12 @@ export class KVService extends BaseService implements IKVService {
     signal?: AbortSignal
   ): Promise<FetchResponse> {
     const session = this.context.session!;
-    console.log("[KVService] invokeOperation:", {
-      path,
-      action,
-      host: this.host,
-      sessionSpaceId: session.spaceId,
-      sessionDelegationCid: session.delegationCid,
-    });
-
     const headers = this.context.invoke(
       session,
       "kv",
       path,
       action
     );
-    console.log("[KVService] invoke returned headers:", headers);
 
     return this.context.fetch(`${this.host}/invoke`, {
       method: "POST",

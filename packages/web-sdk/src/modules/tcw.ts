@@ -218,31 +218,17 @@ export class TinyCloudWeb {
   private toServiceSession(): ServiceSession | null {
     // Get the TinyCloud session from UserAuthorization
     const tinycloudSession = this.userAuthorization.getTinycloudSession?.();
-    console.log("[TinyCloud] toServiceSession: getTinycloudSession returned", {
-      hasSession: !!tinycloudSession,
-      spaceId: tinycloudSession?.spaceId,
-      delegationCid: tinycloudSession?.delegationCid,
-      verificationMethod: tinycloudSession?.verificationMethod,
-      hasDelegationHeader: !!tinycloudSession?.delegationHeader,
-      hasJwk: !!tinycloudSession?.jwk,
-    });
     if (!tinycloudSession) {
       return null;
     }
 
-    const serviceSession = {
+    return {
       delegationHeader: tinycloudSession.delegationHeader,
       delegationCid: tinycloudSession.delegationCid,
       spaceId: tinycloudSession.spaceId,
       verificationMethod: tinycloudSession.verificationMethod,
       jwk: tinycloudSession.jwk,
     };
-    console.log("[TinyCloud] toServiceSession: returning ServiceSession", {
-      spaceId: serviceSession.spaceId,
-      delegationCid: serviceSession.delegationCid,
-      verificationMethod: serviceSession.verificationMethod,
-    });
-    return serviceSession;
   }
 
   /**
