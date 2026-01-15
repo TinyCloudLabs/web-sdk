@@ -214,8 +214,10 @@ export class NodeUserAuthorization implements IUserAuthorization {
   /**
    * Ensure the user's space exists on the TinyCloud server.
    * Creates the space if it doesn't exist and autoCreateSpace is enabled.
+   * If autoCreateSpace is false and space doesn't exist, silently returns
+   * (user may be using delegations to access other spaces).
    *
-   * @throws Error if space creation fails or is disabled and space doesn't exist
+   * @throws Error if space creation fails
    */
   async ensureSpaceExists(): Promise<void> {
     if (!this._tinyCloudSession) {
@@ -223,15 +225,12 @@ export class NodeUserAuthorization implements IUserAuthorization {
     }
 
     const host = this.tinycloudHosts[0];
-    console.log(`[ensureSpaceExists] host=${host}, spaceId=${this._tinyCloudSession.spaceId}`);
 
     // Try to activate the session (this checks if space exists)
     const result = await activateSessionWithHost(
       host,
       this._tinyCloudSession.delegationHeader
     );
-
-    console.log(`[ensureSpaceExists] activation result: status=${result.status}, success=${result.success}, error=${result.error}`);
 
     if (result.success) {
       // Space exists and session is activated
@@ -241,10 +240,9 @@ export class NodeUserAuthorization implements IUserAuthorization {
     if (result.status === 404) {
       // Space doesn't exist
       if (!this.autoCreateSpace) {
-        throw new Error(
-          `Space does not exist: ${this._tinyCloudSession.spaceId}. ` +
-            `Set autoCreateSpace: true to create it automatically.`
-        );
+        // User didn't request space creation - silently return.
+        // They may be using delegations to access other spaces.
+        return;
       }
 
       // Create the space
@@ -688,67 +686,6 @@ export class NodeUserAuthorization implements IUserAuthorization {
     }
 
     // Ensure space exists (creates if needed when autoCreateSpace is true)
-    await this.ensureSpaceExists();
-
-    return clientSession;
-  }
-
-  /**
-   * Attempt to resume a previously persisted session.
-   */
-  async tryResumeSession(address: string): Promise<TCWClientSession | null> {
-    const persisted = await this.sessionStorage.load(address);
-    if (!persisted) {
-      return null;
-    }
-
-    // Check expiration
-    const expiresAt = new Date(persisted.expiresAt);
-    if (expiresAt < new Date()) {
-      await this.sessionStorage.clear(address);
-      return null;
-    }
-
-    // Restore session key
-    const keyId = `restored-${Date.now()}`;
-    // Import the JWK into a new session manager
-    this.sessionManager = new TCWSessionManager();
-    this.sessionManager.renameSessionKeyId("default", keyId);
-
-    // Create client session from persisted data (web-core compatible)
-    const clientSession: TCWClientSession = {
-      address,
-      walletAddress: address,
-      chainId: persisted.chainId,
-      sessionKey: keyId,
-      siwe: persisted.siwe,
-      signature: persisted.signature,
-      ens: persisted.ens,
-    };
-
-    // Restore TinyCloud session if available
-    if (persisted.tinycloudSession) {
-      // Parse JWK from persisted session key
-      const jwk = JSON.parse(persisted.sessionKey);
-      this._tinyCloudSession = {
-        address,
-        chainId: persisted.chainId,
-        sessionKey: keyId,
-        spaceId: persisted.tinycloudSession.spaceId,
-        delegationCid: persisted.tinycloudSession.delegationCid,
-        delegationHeader: persisted.tinycloudSession.delegationHeader,
-        verificationMethod: persisted.tinycloudSession.verificationMethod,
-        jwk,
-        siwe: persisted.siwe,
-        signature: persisted.signature,
-      };
-    }
-
-    this._session = clientSession;
-    this._address = address;
-    this._chainId = persisted.chainId;
-
-    // Activate session with server (space should already exist for resumed sessions)
     await this.ensureSpaceExists();
 
     return clientSession;

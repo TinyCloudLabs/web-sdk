@@ -4,7 +4,7 @@ import merge from "lodash.merge";
 import { AxiosInstance } from "axios";
 import { generateNonce, SiweMessage } from "siwe";
 import { TCWEnsData, tcwResolveEns } from "@tinycloudlabs/web-core";
-import {
+import type {
   TCWClientSession,
   TCWClientConfig,
   ITCWConnected,
@@ -21,11 +21,6 @@ import {
 import { dispatchSDKEvent } from "../notifications/ErrorHandler";
 import { WasmInitializer } from "./WasmInitializer";
 import { debug } from "../utils/debug";
-import {
-  SessionPersistence,
-  PersistedSession,
-  SessionPersistenceConfig,
-} from "./SessionPersistence";
 import { showSpaceCreationModal } from "../notifications/ModalManager";
 import {
   generateHostSIWEMessage,
@@ -33,13 +28,30 @@ import {
   makeSpaceId,
   completeSessionSetup,
 } from "./Storage/tinycloud/module";
+import { SpaceConnection, Authenticator, Session } from "./Storage/tinycloud";
+
+/**
+ * Extended TCW Client Config with TinyCloud options
+ */
+declare module "@tinycloudlabs/web-core/client" {
+  interface TCWClientConfig {
+    /** Whether to automatically create space if it doesn't exist (default: true) */
+    autoCreateSpace?: boolean;
+    /** TinyCloud server endpoints (default: ["https://node.tinycloud.xyz"]) */
+    tinycloudHosts?: string[];
+    /** Space prefix for new sessions (default: "default") */
+    spacePrefix?: string;
+  }
+}
 
 /**
  * Interface for tracking session state during SIWE message generation
  */
 interface PendingSession {
-  /** Instance of TCWSessionManager */
-  sessionManager: tcwSession.TCWSessionManager;
+  /** Instance of TCWSessionManager (null if consumed by build()) */
+  sessionManager: tcwSession.TCWSessionManager | null;
+  /** Session key JWK string (stored before build() consumes sessionManager) */
+  sessionKey?: string;
   /** Ethereum address for the session */
   address: string;
   /** Timestamp when session was generated */
@@ -116,23 +128,6 @@ interface IUserAuthorization {
     signature: string
   ): Promise<TCWClientSession>;
   /**
-   * Attempts to resume a previously saved session.
-   * @param address - Ethereum address to resume session for
-   * @returns Promise with the TCWClientSession object or null if no valid session
-   */
-  tryResumeSession(address: string): Promise<TCWClientSession | null>;
-  /**
-   * Clears the persisted session for the given address.
-   * @param address - Ethereum address
-   */
-  clearPersistedSession(address?: string): Promise<void>;
-  /**
-   * Checks if a session is persisted for the given address.
-   * @param address - Ethereum address
-   * @returns true if session is persisted
-   */
-  isSessionPersisted(address: string): boolean;
-  /**
    * Get the space ID for the current session.
    * @returns Space ID or undefined if not available
    */
@@ -147,6 +142,19 @@ interface IUserAuthorization {
    * Creates the space if it doesn't exist (when autoCreateSpace is true).
    */
   ensureSpaceExists(): Promise<void>;
+  /**
+   * Get the active space connection.
+   * This provides access to the user's TinyCloud space for storage operations.
+   * @returns SpaceConnection instance
+   * @throws Error if not signed in or space connection not established
+   */
+  spaceConnection: SpaceConnection;
+  /**
+   * Get the active TinyCloud session.
+   * This provides access to the session for authenticated requests.
+   * @returns Session object or undefined if not signed in
+   */
+  getTinycloudSession(): Session | undefined;
 }
 
 class UserAuthorizationInit {
@@ -280,11 +288,34 @@ class UserAuthorizationConnected implements ITCWConnected {
     // this.provider = provider;
   }
 
+  /**
+   * Default KV actions for TinyCloud services.
+   * These are added to every session to enable basic KV operations.
+   */
+  private static readonly DEFAULT_KV_ACTIONS = [
+    "tinycloud.kv/put",
+    "tinycloud.kv/get",
+    "tinycloud.kv/list",
+    "tinycloud.kv/del",
+    "tinycloud.kv/metadata",
+  ];
+
+  /**
+   * Default capabilities actions (for reading user capabilities).
+   */
+  private static readonly DEFAULT_CAPABILITIES_ACTIONS = [
+    "tinycloud.capabilities/read",
+  ];
+
   /** Applies the "afterConnect" methods and the delegated capabilities of the extensions. */
   public async applyExtensions(): Promise<void> {
     // Ensure WASM modules are initialized before calling extension hooks
     await WasmInitializer.ensureInitialized();
 
+    // NOTE: Default KV capabilities are added in signIn() after we have address/chainId
+    // to build proper resource URIs for ReCap.
+
+    // Apply extension capabilities
     for (const extension of this.extensions) {
       if (extension.afterConnect) {
         const overrides = await extension.afterConnect(this);
@@ -301,6 +332,28 @@ class UserAuthorizationConnected implements ITCWConnected {
         }
       }
     }
+  }
+
+  /**
+   * Adds default KV capabilities for the given user address and chainId.
+   * Must be called after we have address/chainId but before build().
+   * @param address - User's Ethereum address
+   * @param chainId - Chain ID
+   * @param prefix - Space prefix (default: "default")
+   */
+  public addDefaultCapabilities(address: string, chainId: number, prefix: string = "default"): void {
+    // Use makeSpaceId to ensure consistent spaceId format with setupSpaceSession
+    // This is critical - the spaceId in capabilities must match the session spaceId
+    const spaceId = makeSpaceId(address, chainId, prefix);
+
+    // Add KV capabilities for default path
+    // Note: path should be empty to match what KVService requests (spaceId/kv/)
+    const kvTarget = `${spaceId}/kv/`;
+    this.builder.addTargetedActions(kvTarget, UserAuthorizationConnected.DEFAULT_KV_ACTIONS);
+
+    // Add capabilities access
+    const capabilitiesTarget = `${spaceId}/capabilities/all/`;
+    this.builder.addTargetedActions(capabilitiesTarget, UserAuthorizationConnected.DEFAULT_CAPABILITIES_ACTIONS);
   }
 
   /**
@@ -334,8 +387,14 @@ class UserAuthorizationConnected implements ITCWConnected {
     const walletAddress = await signer.getAddress();
     const chainId = await this.provider.getSigner().getChainId();
 
+    // Add default KV capabilities now that we have address/chainId
+    // This must be called before build() which creates the SIWE message with ReCap
+    const address = this.config.siweConfig?.address ?? walletAddress;
+    const spacePrefix = this.config?.spacePrefix ?? "default";
+    this.addDefaultCapabilities(address, chainId, spacePrefix);
+
     const defaults = {
-      address: this.config.siweConfig?.address ?? walletAddress,
+      address,
       walletAddress,
       chainId,
       domain: globalThis.location.hostname,
@@ -397,9 +456,6 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
   /** Pending session state for signature-based initialization */
   private pendingSession?: PendingSession;
 
-  /** Session persistence handler */
-  private sessionPersistence: SessionPersistence;
-
   /** Whether to automatically create space if it doesn't exist */
   private autoCreateSpace: boolean;
 
@@ -415,6 +471,12 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
   /** Delegation header for the current session */
   private _delegationHeader?: { Authorization: string };
 
+  /** The TinyCloud session containing delegation and space info */
+  private _tinycloudSession?: Session;
+
+  /** The connection to the user's space */
+  private _spaceConnection?: SpaceConnection;
+
   constructor(private _config: TCWClientConfig = TCW_DEFAULT_CONFIG) {
     this.config = _config;
     this.init = new UserAuthorizationInit({
@@ -424,9 +486,6 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
         ...this.config?.providers,
       },
     });
-
-    // Initialize session persistence
-    this.sessionPersistence = new SessionPersistence(this.config.persistence);
 
     // Initialize space-related options with defaults
     this.autoCreateSpace = _config.autoCreateSpace ?? true;
@@ -464,59 +523,6 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
   public async signIn(): Promise<TCWClientSession> {
     await this.connect();
 
-    // Check if automatic session resumption is enabled
-    const autoResumeEnabled =
-      this.sessionPersistence.configuration.autoResumeSession;
-
-    if (autoResumeEnabled) {
-      try {
-        // Get the current wallet address to check for existing sessions
-        const currentAddress = await this.provider.getSigner().getAddress();
-
-        // Try to resume an existing session
-        const resumedSession = await this.tryResumeSession(currentAddress);
-
-        if (resumedSession) {
-          // Session resumed successfully
-          this.session = resumedSession;
-
-          // Handle ENS resolution for resumed session
-          const promises = [];
-          if (this.config.resolveEns) {
-            promises.push(this.resolveEns(this.session.address));
-          }
-
-          await Promise.all(promises).then(([ens]) => {
-            if (ens) {
-              this.session.ens = ens;
-            }
-          });
-
-          // Setup space session for resumed session
-          await this.setupSpaceSession(this.session);
-
-          // Ensure space exists (activate session)
-          if (this._spaceId && this._delegationHeader) {
-            try {
-              await this.ensureSpaceExists();
-            } catch (error) {
-              debug.warn("Failed to ensure space exists for resumed session:", error);
-            }
-          }
-
-          dispatchSDKEvent.success("Successfully resumed existing session");
-          return this.session;
-        }
-      } catch (error) {
-        // Resume failed, continue with normal sign-in flow
-        debug.warn(
-          "Session resumption failed, proceeding with normal sign-in:",
-          error
-        );
-      }
-    }
-
-    // Normal sign-in flow (when auto-resume is disabled or resumption failed)
     try {
       this.session = await this.connection.signIn();
     } catch (err) {
@@ -548,18 +554,16 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
       }
     });
 
-    // Persist session after successful sign-in
-    await this.persistSession(this.session);
-
     // Setup space session (generates spaceId and delegation header)
     await this.setupSpaceSession(this.session);
 
-    // Ensure space exists on TinyCloud server (creates if needed)
+    // Ensure space exists on TinyCloud server (creates if needed) and create SpaceConnection
     if (this._spaceId && this._delegationHeader) {
       try {
         await this.ensureSpaceExists();
+        await this.createSpaceConnection();
       } catch (error) {
-        debug.warn("Failed to ensure space exists:", error);
+        console.warn("[TinyCloud] Failed to ensure space exists:", error);
         // Don't throw - space creation can be retried later
       }
     }
@@ -604,13 +608,12 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
       throw err;
     }
 
-    // Clear persisted session
-    if (this.session) {
-      await this.sessionPersistence.clearSession(this.session.address);
-    }
-
     this.session = undefined;
     this.connection = undefined;
+    this._spaceConnection = undefined;
+    this._tinycloudSession = undefined;
+    this._spaceId = undefined;
+    this._delegationHeader = undefined;
   }
 
   /**
@@ -694,43 +697,67 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
         throw new Error("Failed to generate session key from WASM manager");
       }
 
-      // Apply extension capabilities
+      // Apply extension capabilities with address and chainId
+      // chainId is hardcoded to 1 for this flow as per requirements
       const extensions = this.init.extensions;
+      const chainId = 1;
       try {
-        await this.applyExtensionCapabilities(sessionManager, extensions);
+        await this.applyExtensionCapabilities(sessionManager, extensions, address, chainId);
       } catch (error) {
         debug.warn("Extension capability application failed:", error);
         // Continue with session generation as extension capabilities are not critical
       }
 
-      // Build SIWE message with defaults
+      // Build SIWE message with defaults and ReCap capabilities
       const domain =
         partial?.domain ||
         (typeof window !== "undefined" ? window.location.host : "localhost");
       const nonce = partial?.nonce || generateNonce();
       const issuedAt = new Date().toISOString();
 
-      const siweMessageData = {
+      // Build SIWE config for WASM session manager
+      const siweConfig = {
         address,
         chainId: 1, // hardcoded as per requirements
         domain,
         nonce,
         issuedAt,
-        uri: partial?.uri || `https://${domain}`,
-        version: "1",
-        ...partial, // Override with any provided partial data
+        expirationTime: partial?.expirationTime,
+        notBefore: partial?.notBefore,
+        statement: partial?.statement,
+        requestId: partial?.requestId,
+        resources: partial?.resources,
       };
 
+      // Get the JWK before calling build() since build() consumes the sessionManager
+      const jwk = sessionManager.jwk();
+      if (jwk === undefined) {
+        throw new Error("Failed to get JWK from session manager");
+      }
+
+      // Use sessionManager.build() to create SIWE with ReCap capabilities
+      // This includes all the actions added via addTargetedActions
+      // NOTE: build() consumes the sessionManager, so we stored the JWK above
+      let siweString: string;
+      try {
+        siweString = sessionManager.build(siweConfig as any);
+      } catch (error) {
+        debug.error("Failed to build SIWE message with capabilities:", error);
+        throw new Error("Failed to build SIWE message with ReCap capabilities");
+      }
+
       // Store session state for later retrieval
+      // Note: sessionManager is consumed by build(), so we store the JWK directly
       this.pendingSession = {
-        sessionManager,
+        sessionManager: null as any, // consumed by build()
+        sessionKey: jwk, // store JWK directly
         address,
         generatedAt: Date.now(),
         extensions,
       };
 
-      // Return SiweMessage instance
-      return new SiweMessage(siweMessageData);
+      // Parse the SIWE string back into a SiweMessage object
+      return new SiweMessage(siweString);
     } catch (error) {
       // Clean up any partial state on error
       this.pendingSession = undefined;
@@ -759,8 +786,8 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
     }
 
     try {
-      // Retrieve stored session key from TCWSessionManager
-      const sessionKey = this.pendingSession.sessionManager.jwk();
+      // Retrieve stored session key (stored during generateSiweMessage)
+      const sessionKey = this.pendingSession.sessionKey;
       if (sessionKey === undefined) {
         throw new Error("unable to retrieve session key from pending session");
       }
@@ -784,11 +811,12 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
       // Setup space session (generates spaceId and delegation header)
       await this.setupSpaceSession(session);
 
-      // Ensure space exists on TinyCloud server (creates if needed)
+      // Ensure space exists on TinyCloud server (creates if needed) and create SpaceConnection
       // This must happen BEFORE extension hooks so extensions can use the space
       if (this._spaceId && this._delegationHeader) {
         try {
           await this.ensureSpaceExists();
+          await this.createSpaceConnection();
         } catch (error) {
           debug.warn("Failed to ensure space exists:", error);
           // Don't throw - space creation can be retried later
@@ -808,17 +836,55 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
   }
 
   /**
+   * Default KV actions for TinyCloud services.
+   * These are added to every session to enable basic KV operations.
+   */
+  private static readonly DEFAULT_KV_ACTIONS = [
+    "tinycloud.kv/put",
+    "tinycloud.kv/get",
+    "tinycloud.kv/list",
+    "tinycloud.kv/del",
+    "tinycloud.kv/metadata",
+  ];
+
+  /**
+   * Default capabilities actions (for reading user capabilities).
+   */
+  private static readonly DEFAULT_CAPABILITIES_ACTIONS = [
+    "tinycloud.capabilities/read",
+  ];
+
+  /**
    * Applies extension capabilities (defaultActions/targetedActions) to the session manager.
-   * This method iterates through the extensions and adds their capabilities to the TCWSessionManager.
+   * This method also adds default KV and capabilities actions.
    *
    * @private
    * @param sessionManager - TCWSessionManager instance to apply capabilities to
    * @param extensions - Array of extensions to apply
+   * @param address - User's Ethereum address (for building target URIs)
+   * @param chainId - Chain ID (for building target URIs)
+   * @param prefix - Space prefix (default: "default")
    */
   private async applyExtensionCapabilities(
     sessionManager: tcwSession.TCWSessionManager,
-    extensions: TCWExtension[]
+    extensions: TCWExtension[],
+    address: string,
+    chainId: number,
+    prefix: string = "default"
   ): Promise<void> {
+    // Build resource URI base in the format expected by ReCap:
+    // tinycloud:pkh:eip155:{chainId}:{address}:{prefix}/{service}/{path}
+    const spaceBase = `tinycloud:pkh:eip155:${chainId}:${address}:${prefix}`;
+
+    // Add KV capabilities for default path
+    const kvTarget = `${spaceBase}/kv/default/`;
+    sessionManager.addTargetedActions(kvTarget, UserAuthorization.DEFAULT_KV_ACTIONS);
+
+    // Add capabilities access
+    const capabilitiesTarget = `${spaceBase}/capabilities/all/`;
+    sessionManager.addTargetedActions(capabilitiesTarget, UserAuthorization.DEFAULT_CAPABILITIES_ACTIONS);
+
+    // Apply extension capabilities
     for (const extension of extensions) {
       // Apply targeted actions if available
       if (extension.targetedActions) {
@@ -841,88 +907,6 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
   }
 
   /**
-   * Attempts to resume a previously saved session.
-   * @param address - Ethereum address to resume session for
-   * @returns Promise with the TCWClientSession object or null if no valid session
-   */
-  public async tryResumeSession(
-    address: string
-  ): Promise<TCWClientSession | null> {
-    try {
-      const persistedSession = await this.sessionPersistence.loadSession(
-        address
-      );
-
-      if (!persistedSession) {
-        return null;
-      }
-
-      this.session = {
-        address: persistedSession.address,
-        walletAddress: persistedSession.address,
-        chainId: persistedSession.chainId,
-        sessionKey: persistedSession.sessionKey,
-        siwe: persistedSession.siwe,
-        signature: persistedSession.signature,
-      };
-
-      await WasmInitializer.ensureInitialized();
-
-      // Setup space session (generates spaceId and delegation header)
-      await this.setupSpaceSession(this.session);
-
-      // Ensure space exists on TinyCloud server (creates if needed)
-      // This must happen BEFORE extension hooks so extensions can use the space
-      if (this._spaceId && this._delegationHeader) {
-        try {
-          await this.ensureSpaceExists();
-        } catch (error) {
-          debug.warn("Failed to ensure space exists during session resume:", error);
-          // Don't throw - space creation can be retried later
-        }
-      }
-
-      // Apply extension afterSignIn hooks AFTER space is ready
-      await this.applyAfterSignInHooks(this.session);
-
-      return this.session;
-    } catch (error) {
-      debug.warn("Failed to resume session:", error);
-      await this.sessionPersistence.clearSession(address);
-      return null;
-    }
-  }
-
-  /**
-   * Clears the persisted session for the given address.
-   * @param address - Ethereum address (optional, uses current session if not provided)
-   */
-  public async clearPersistedSession(address?: string): Promise<void> {
-    const targetAddress = address || this.session?.address;
-
-    if (targetAddress) {
-      await this.sessionPersistence.clearSession(targetAddress);
-    }
-  }
-
-  /**
-   * Checks if a session is persisted for the given address.
-   * @param address - Ethereum address
-   * @returns true if session is persisted
-   */
-  public isSessionPersisted(address: string): boolean {
-    // This is a synchronous check - we can't await here
-    // We'll implement a simple storage key check
-    try {
-      const storageKey = `tinycloud_session_${address.toLowerCase()}`;
-      const storage = localStorage || sessionStorage;
-      return storage.getItem(storageKey) !== null;
-    } catch {
-      return false;
-    }
-  }
-
-  /**
    * Get the space ID for the current session.
    * @returns Space ID or undefined if not available
    */
@@ -936,6 +920,44 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
    */
   public getTinycloudHosts(): string[] {
     return this.tinycloudHosts;
+  }
+
+  /**
+   * Get the active space connection.
+   * This provides access to the user's TinyCloud space for storage operations.
+   * @returns SpaceConnection instance
+   * @throws Error if not signed in or space connection not established
+   */
+  public get spaceConnection(): SpaceConnection {
+    if (!this._spaceConnection) {
+      throw new Error("SpaceConnection not available. Please sign in first.");
+    }
+    return this._spaceConnection;
+  }
+
+  /**
+   * Get the active TinyCloud session.
+   * This provides access to the session for authenticated requests.
+   * @returns Session object or undefined if not signed in
+   */
+  public getTinycloudSession(): Session | undefined {
+    return this._tinycloudSession;
+  }
+
+  /**
+   * Creates the SpaceConnection after the TinyCloud session is established.
+   * This should be called after setupSpaceSession() and ensureSpaceExists().
+   * @private
+   */
+  private async createSpaceConnection(): Promise<void> {
+    if (!this._tinycloudSession) {
+      debug.warn("Cannot create SpaceConnection: no TinyCloud session available");
+      return;
+    }
+
+    const host = this.tinycloudHosts[0];
+    const authn = new Authenticator(this._tinycloudSession);
+    this._spaceConnection = new SpaceConnection(host, authn);
   }
 
   /**
@@ -989,9 +1011,7 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
 
         dispatchSDKEvent.success("TinyCloud Space created successfully");
       },
-      onDismiss: () => {
-        // Modal dismissed without creating space
-      },
+      onDismiss: () => {},
     });
 
     return result.success;
@@ -1000,6 +1020,9 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
   /**
    * Ensure the user's space exists on the TinyCloud server.
    * Creates the space if it doesn't exist and autoCreateSpace is enabled.
+   *
+   * Strategy: Try to activate the session first. If it returns 404 (space not found),
+   * create the space via hostSpace modal, then try activation again.
    *
    * @throws Error if space creation fails or is disabled and space doesn't exist
    */
@@ -1010,16 +1033,15 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
 
     const host = this.tinycloudHosts[0];
 
-    // Try to activate the session (this checks if space exists)
-    const result = await activateSessionWithHost(host, this._delegationHeader);
+    // Try to activate the session - this will return 404 if space doesn't exist
+    let result = await activateSessionWithHost(host, this._delegationHeader);
 
     if (result.success) {
-      // Space exists and session is activated
       return;
     }
 
+    // If 404, the space doesn't exist - create it
     if (result.status === 404) {
-      // Space doesn't exist
       if (!this.autoCreateSpace) {
         throw new Error(
           `Space does not exist: ${this._spaceId}. ` +
@@ -1035,67 +1057,24 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
         return;
       }
 
-      // Small delay to allow space creation to propagate
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Space created, now try activation again
+      result = await activateSessionWithHost(host, this._delegationHeader);
 
-      // Retry activation after creating space
-      const retryResult = await activateSessionWithHost(
-        host,
-        this._delegationHeader
-      );
+      if (result.success) {
+        return;
+      }
 
-      if (!retryResult.success) {
+      // If still 404, something is wrong
+      if (result.status === 404) {
         throw new Error(
-          `Failed to activate session after creating space: ${retryResult.error}`
+          `Space not found after creation. The space ID in the delegation may not match ` +
+          `the space created by hostSpace. SpaceId: ${this._spaceId}`
         );
       }
-
-      return;
     }
 
-    // Other error
-    throw new Error(`Failed to activate session: ${result.error}`);
-  }
-
-  /**
-   * Persists the current session to storage
-   * @param session - The TCWClientSession to persist
-   */
-  private async persistSession(session: TCWClientSession): Promise<void> {
-    try {
-      const existingSession = await this.sessionPersistence.loadSession(
-        session.address
-      );
-
-      if (existingSession) {
-        existingSession.address = session.address;
-        existingSession.chainId = session.chainId;
-        existingSession.sessionKey = session.sessionKey;
-        existingSession.siwe = session.siwe;
-        existingSession.signature = session.signature;
-
-        await this.sessionPersistence.saveSession(existingSession);
-      } else {
-        const expirationTime = new Date(
-          Date.now() + 24 * 60 * 60 * 1000
-        ).toISOString();
-
-        const persistedSession: PersistedSession = {
-          address: session.address,
-          chainId: session.chainId,
-          sessionKey: session.sessionKey,
-          siwe: session.siwe,
-          signature: session.signature,
-          expiresAt: expirationTime,
-          createdAt: new Date().toISOString(),
-          version: "1.0.0",
-        };
-
-        await this.sessionPersistence.saveSession(persistedSession);
-      }
-    } catch (error) {
-      debug.warn("Failed to persist session:", error);
-    }
+    // For other errors, throw with details
+    throw new Error(`Failed to activate session: ${result.status} - ${result.error}`);
   }
 
   /**
@@ -1116,7 +1095,7 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
 
   /**
    * Generate space ID and delegation header for the current session.
-   * This sets up the internal state needed for ensureSpaceExists().
+   * This sets up the internal state needed for ensureSpaceExists() and SpaceConnection.
    * @param session - The TCWClientSession object
    */
   private async setupSpaceSession(session: TCWClientSession): Promise<void> {
@@ -1136,7 +1115,6 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
       const verificationMethod = siweMessage.uri;
 
       if (!verificationMethod) {
-        debug.warn("No verification method in SIWE message, skipping space setup");
         return;
       }
 
@@ -1153,9 +1131,18 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
       const completedSession = completeSessionSetup(sessionData);
       if (completedSession?.delegationHeader) {
         this._delegationHeader = completedSession.delegationHeader;
+
+        // Store the full TinyCloud session for SpaceConnection
+        this._tinycloudSession = {
+          delegationHeader: completedSession.delegationHeader,
+          delegationCid: completedSession.delegationCid,
+          jwk: JSON.parse(session.sessionKey),
+          spaceId: this._spaceId,
+          verificationMethod,
+        };
       }
     } catch (error) {
-      debug.warn("Failed to setup space session:", error);
+      console.warn("[TinyCloud] Failed to setup space session:", error);
       // Don't throw - this is optional functionality
     }
   }

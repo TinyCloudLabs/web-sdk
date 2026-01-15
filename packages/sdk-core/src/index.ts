@@ -34,26 +34,73 @@ export {
   UserAuthorizationConfig,
 } from "./userAuthorization";
 
-// Storage interface and types
-export {
-  ITinyCloudStorage,
-  TinyCloudStorageConfig,
-  StorageBaseOptions,
-  StorageGetOptions,
-  StoragePutOptions,
-  StorageDeleteOptions,
-  StorageListOptions,
-  StorageResponse,
-  DelegateParams,
-  DelegateResponse,
-} from "./tinycloudStorage";
-
 // Main TinyCloud class
 export {
   TinyCloud,
   TinyCloudConfig,
-  StorageFactory,
 } from "./TinyCloud";
+
+// Re-export service types from sdk-services for convenience
+export {
+  // Context
+  ServiceContext,
+  type ServiceContextConfig,
+  type IServiceContext,
+  // Service types
+  type IService,
+  BaseService,
+  type ServiceConstructor,
+  type ServiceRegistration,
+  // KV Service
+  KVService,
+  type IKVService,
+  type KVServiceConfig,
+  type KVGetOptions,
+  type KVPutOptions,
+  type KVListOptions,
+  type KVDeleteOptions,
+  type KVHeadOptions,
+  type KVResponse,
+  type KVListResponse,
+  type KVResponseHeaders,
+  KVAction,
+  // Result pattern
+  type Result,
+  ok,
+  err,
+  serviceError,
+  ErrorCodes,
+  type ErrorCode,
+  type ServiceError,
+  // Session
+  type ServiceSession,
+  // Platform dependencies
+  type InvokeFunction,
+  type FetchFunction,
+  type FetchRequestInit,
+  type FetchResponse,
+  type ServiceHeaders,
+  // Retry
+  type RetryPolicy,
+  defaultRetryPolicy,
+  // Telemetry
+  TelemetryEvents,
+  type EventHandler,
+  type ServiceRequestEvent,
+  type ServiceResponseEvent,
+  type ServiceErrorEvent,
+  type ServiceRetryEvent,
+  // Error helpers
+  authRequiredError,
+  authExpiredError,
+  networkError,
+  timeoutError,
+  abortedError,
+  notFoundError,
+  permissionDeniedError,
+  wrapError,
+  errorResult,
+} from "@tinycloudlabs/sdk-services";
 
 // Space utilities
 export {
@@ -63,26 +110,26 @@ export {
   activateSessionWithHost,
 } from "./space";
 
-// Services
+// Delegations
 export {
-  // Types
-  ServiceType,
-  ServiceHeaders,
-  ServiceSession,
-  InvokeFunction,
-  FetchFunction,
-  FetchRequestInit,
-  FetchResponse,
-  // KV Service
-  IKVService,
-  KVResponse,
-  KVResponseHeaders,
-  KVGetOptions,
-  KVPutOptions,
-  KVListOptions,
-  KVService,
-  KVServiceConfig,
-  // Factory
-  ServiceFactory,
-  BaseServiceConfig,
-} from "./services";
+  // Result pattern (aliased to avoid conflict with sdk-services Result)
+  Result as DelegationResult,
+  DelegationError,
+  DelegationErrorCodes,
+  DelegationErrorCode,
+  // Delegation types
+  Delegation,
+  CreateDelegationParams,
+  DelegationChain,
+  DelegationApiResponse,
+  // Sharing link types
+  SharingLink,
+  GenerateSharingLinkParams,
+  SharingLinkData,
+  // Configuration types
+  DelegationManagerConfig,
+  SharingLinksConfig,
+  // Classes
+  DelegationManager,
+  SharingLinks,
+} from "./delegations";

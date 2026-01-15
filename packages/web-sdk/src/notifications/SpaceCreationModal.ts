@@ -377,9 +377,8 @@ export class TinyCloudSpaceModal extends HTMLElement {
       this.resolveResult?.({ success: true, dismissed: false });
       this.hide();
     } catch (error) {
-      debug.error('Failed to create TinyCloud Space:', error);
+      console.error('[TinyCloud] Space creation failed:', error);
       // Don't close modal on error - let user try again or dismiss manually
-      // Error handling will be managed elsewhere as per requirements
     } finally {
       this.isCreating = false;
       createButton.removeAttribute('data-state');

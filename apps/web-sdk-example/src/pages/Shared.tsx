@@ -13,12 +13,19 @@ const Shared = () => {
   const [shareData, setShareData] = useState(queryParams.get('data') || "");
   const [fetchedData, setFetchedData]: [any, any] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchShareData = async () => {
     setIsLoading(true);
-    const tcw = new TinyCloudWeb({ modules: { storage: true } });
-    const data = await tcw.storage.retrieveSharingLink(shareData);
-    setFetchedData(data);
+    setError(null);
+    const tcw = new TinyCloudWeb({});
+    const result = await tcw.sharing.retrieve(shareData);
+    if (result.ok) {
+      setFetchedData(result.data);
+    } else {
+      console.error('Failed to retrieve shared content:', result.error.code, result.error.message);
+      setError(`Failed to retrieve shared content: ${result.error.message}`);
+    }
     setIsLoading(false);
   };
 
@@ -47,7 +54,13 @@ const Shared = () => {
             >
               Fetch Shared Content
             </Button>
-            
+
+            {error && (
+              <div className="rounded-base border-2 border-red-300 bg-red-50 p-3">
+                <p className="text-sm text-red-800">{error}</p>
+              </div>
+            )}
+
             {fetchedData && (
               <div className="mt-6 rounded-base border-2 border-border/30 bg-bw/50 p-4">
                 <h3 className="mb-2 text-lg font-heading text-text">Retrieved Content:</h3>

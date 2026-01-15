@@ -1,7 +1,6 @@
 export * from './modules/tcw';
 export * from './modules';
 export * from './notifications';
-export * from './modules/SessionPersistence';
 export * from '@tinycloudlabs/web-core/client';
 export * from '@tinycloudlabs/web-core';
 export {
@@ -20,7 +19,6 @@ export {
   ISigner,
   ISessionStorage,
   IUserAuthorization as ICoreUserAuthorization,
-  ITinyCloudStorage,
   PersistedSessionData,
   SiweConfig,
   PartialSiweMessage,
@@ -31,7 +29,6 @@ export {
   IKVService,
   KVService,
   KVResponse,
-  ServiceType,
 } from '@tinycloudlabs/sdk-core';
 
 // Adapter for web-sdk

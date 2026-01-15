@@ -4,7 +4,6 @@ import {
 } from '@tinycloudlabs/web-core';
 import {
   IUserAuthorization,
-  TinyCloudStorage,
   UserAuthorization,
 } from '.';
 import {
@@ -14,8 +13,16 @@ import {
 } from '@tinycloudlabs/web-core/client';
 import type { providers, Signer } from 'ethers';
 import { SDKErrorHandler, ToastManager } from '../notifications';
-import type { NotificationConfig, ToastPosition } from '../notifications/types';
+import type { NotificationConfig } from '../notifications/types';
 import { SiweMessage } from 'siwe';
+import {
+  ServiceContext,
+  KVService,
+  IKVService,
+  ServiceSession,
+} from '@tinycloudlabs/sdk-core';
+import { invoke } from './Storage/tinycloud/module';
+import { SharingService } from './SharingService';
 
 declare global {
   interface Window {
@@ -23,17 +30,11 @@ declare global {
   }
 }
 
-/**
- * Configuration for managing TCW Modules
- */
-interface TCWModuleConfig {
-  storage?: boolean | { [key: string]: any };
-}
-
 // temporary: will move to tcw-core
 interface TCWConfig extends TCWClientConfig {
-  modules?: TCWModuleConfig;
   notifications?: NotificationConfig;
+  /** Optional prefix for KV service keys */
+  kvPrefix?: string;
 }
 
 const TCW_DEFAULT_CONFIG: TCWClientConfig = {
@@ -67,11 +68,17 @@ export class TinyCloudWeb {
    */
   public userAuthorization: IUserAuthorization;
 
-  /** Storage Module */
-  public storage: TinyCloudStorage;
-
   /** Error Handler for Notifications */
   private errorHandler: SDKErrorHandler;
+
+  /** Service Context for sdk-services */
+  private _serviceContext?: ServiceContext;
+
+  /** KV Service instance */
+  private _kvService?: KVService;
+
+  /** Sharing Service instance */
+  private _sharingService?: SharingService;
 
   constructor(private config: TCWConfig = TCW_DEFAULT_CONFIG) {
     // TODO: pull out config validation into separate function
@@ -93,30 +100,135 @@ export class TinyCloudWeb {
         duration: config.notifications?.duration,
         maxVisible: config.notifications?.maxVisible
       });
-      
+
       this.errorHandler.setupErrorHandling();
     }
+  }
 
-    // initialize storage module
-
-    // assume storage module default 
-    const storageConfig =
-      config?.modules?.storage === undefined ? true : config.modules.storage;
-
-    if (storageConfig !== false) {
-      if (typeof storageConfig === 'object') {
-        // Initialize storage with the provided config
-        this.storage = new TinyCloudStorage(storageConfig, this.userAuthorization);
-      } else {
-        // storage == true or undefined
-        // Initialize storage with default config when no other condition is met
-        this.storage = new TinyCloudStorage(
-          { prefix: 'default' },
-          this.userAuthorization
-        );
-      }
-      this.extend(this.storage);
+  /**
+   * Get the KV service.
+   *
+   * Returns the new sdk-services KVService with Result pattern.
+   * Must be signed in for the service to be available.
+   *
+   * @throws Error if not signed in
+   *
+   * @example
+   * ```typescript
+   * const result = await tcw.kv.get('key');
+   * if (result.ok) {
+   *   console.log(result.data.data);
+   * } else {
+   *   console.error(result.error.code, result.error.message);
+   * }
+   * ```
+   */
+  public get kv(): IKVService {
+    if (!this._kvService) {
+      throw new Error(
+        'KV service is not available. Make sure you are signed in first.'
+      );
     }
+    return this._kvService;
+  }
+
+  /**
+   * Get the KV prefix configured for this instance.
+   */
+  public get kvPrefix(): string {
+    return this.config.kvPrefix || '';
+  }
+
+  /**
+   * Get the sharing service for generating and retrieving sharing links.
+   * Must be signed in for the service to be available.
+   *
+   * @throws Error if not signed in
+   *
+   * @example
+   * ```typescript
+   * // Generate a sharing link
+   * const shareData = await tcw.sharing.generate('my-key');
+   *
+   * // Retrieve shared data
+   * const result = await tcw.sharing.retrieve(shareData);
+   * if (result.ok) {
+   *   console.log(result.data.data);
+   * }
+   * ```
+   */
+  public get sharing(): SharingService {
+    if (!this._sharingService) {
+      throw new Error(
+        'Sharing service is not available. Make sure you are signed in first.'
+      );
+    }
+    return this._sharingService;
+  }
+
+  /**
+   * Initialize the sdk-services KVService.
+   * Called internally after sign-in when the session is established.
+   *
+   * @internal
+   */
+  private initializeKVService(session: TCWClientSession): void {
+    // Get hosts from userAuthorization or config
+    const hosts = this.userAuthorization.getTinycloudHosts?.() ||
+                  (this.config as any).tinycloudHosts ||
+                  ['https://node.tinycloud.xyz'];
+
+    // Get prefix from config
+    const prefix = this.config.kvPrefix || '';
+
+    // Create service context
+    this._serviceContext = new ServiceContext({
+      invoke: invoke as any,
+      fetch: globalThis.fetch.bind(globalThis),
+      hosts,
+    });
+
+    // Create and register KV service
+    this._kvService = new KVService({ prefix });
+    this._kvService.initialize(this._serviceContext);
+    this._serviceContext.registerService('kv', this._kvService);
+
+    // Initialize sharing service
+    const sessionManager = (this.userAuthorization as any).sessionManager;
+    if (sessionManager) {
+      this._sharingService = new SharingService({
+        userAuth: this.userAuthorization,
+        hosts,
+        sessionManager,
+      });
+    }
+
+    // Convert TinyCloud session to ServiceSession and set on context
+    const serviceSession = this.toServiceSession();
+    if (serviceSession) {
+      this._serviceContext.setSession(serviceSession);
+    }
+  }
+
+  /**
+   * Convert TinyCloud session to ServiceSession.
+   * Gets session from UserAuthorization.
+   * @internal
+   */
+  private toServiceSession(): ServiceSession | null {
+    // Get the TinyCloud session from UserAuthorization
+    const tinycloudSession = this.userAuthorization.getTinycloudSession?.();
+    if (!tinycloudSession) {
+      return null;
+    }
+
+    return {
+      delegationHeader: tinycloudSession.delegationHeader,
+      delegationCid: tinycloudSession.delegationCid,
+      spaceId: tinycloudSession.spaceId,
+      verificationMethod: tinycloudSession.verificationMethod,
+      jwk: tinycloudSession.jwk,
+    };
   }
 
   /**
@@ -131,13 +243,24 @@ export class TinyCloudWeb {
    * @returns Object containing information about the session
    */
   public signIn = async (): Promise<TCWClientSession> => {
-    return this.userAuthorization.signIn();
+    const session = await this.userAuthorization.signIn();
+    // Initialize KV service after sign-in
+    this.initializeKVService(session);
+    return session;
   };
 
   /**
    * Invalidates user's session.
    */
   public signOut = async (): Promise<void> => {
+    // Abort pending operations and clear service context
+    if (this._serviceContext) {
+      this._serviceContext.abort();
+      this._serviceContext.setSession(null);
+    }
+    this._kvService = undefined;
+    this._sharingService = undefined;
+    this._serviceContext = undefined;
     return this.userAuthorization.signOut();
   };
 
@@ -234,6 +357,10 @@ export class TinyCloudWeb {
     siweMessage: SiweMessage,
     signature: string
   ): Promise<TCWClientSession> {
-    return this.userAuthorization.signInWithSignature(siweMessage, signature);
+    const session = await this.userAuthorization.signInWithSignature(siweMessage, signature);
+    // Initialize KV service after sign-in
+    this.initializeKVService(session);
+    return session;
   }
+
 }

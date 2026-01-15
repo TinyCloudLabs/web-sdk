@@ -24,6 +24,7 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@tinycloudlabs/sdk-services": "workspace:*",
     "@tinycloudlabs/web-core": "workspace:*"
   },
   "devDependencies": {

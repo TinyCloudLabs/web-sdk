@@ -105,26 +105,6 @@ export interface IUserAuthorization {
   ): Promise<TCWClientSession>;
 
   /**
-   * Attempt to resume a previously persisted session.
-   * @param address - Ethereum address to resume for
-   * @returns The restored session or null if not available
-   */
-  tryResumeSession(address: string): Promise<TCWClientSession | null>;
-
-  /**
-   * Clear persisted session data.
-   * @param address - Optional address; if omitted, clears current session
-   */
-  clearPersistedSession(address?: string): Promise<void>;
-
-  /**
-   * Check if a session is persisted for an address.
-   * @param address - Ethereum address
-   * @returns true if session data exists
-   */
-  isSessionPersisted(address: string): boolean;
-
-  /**
    * Get the current space ID.
    * @returns Space ID or undefined if not available
    */

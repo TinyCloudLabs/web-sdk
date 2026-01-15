@@ -1,2 +1,2 @@
-export * from './TinyCloudStorage';
 export * from './interfaces';
+export * from './tinycloud';

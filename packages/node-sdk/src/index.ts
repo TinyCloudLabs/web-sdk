@@ -40,7 +40,6 @@ export {
   ISigner,
   ISessionStorage,
   IUserAuthorization,
-  ITinyCloudStorage,
   TCWClientSession,
   TCWExtension,
   PersistedSessionData,
@@ -90,6 +89,4 @@ export {
   KVService,
   KVServiceConfig,
   KVResponse,
-  ServiceType,
-  ServiceFactory,
 } from "@tinycloudlabs/sdk-core";
