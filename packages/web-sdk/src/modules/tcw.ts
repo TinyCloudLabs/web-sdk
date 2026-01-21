@@ -31,6 +31,10 @@ import {
   KeyInfo,
   Delegation,
   JWK,
+  // v2 Sharing types
+  Result,
+  DelegationError,
+  EncodedShareData,
 } from '@tinycloudlabs/sdk-core';
 import { invoke } from './Storage/tinycloud/module';
 
@@ -55,6 +59,69 @@ const TCW_DEFAULT_CONFIG: TCWClientConfig = {
   },
 };
 
+// =============================================================================
+// Share Link Utilities (for receiving v2 share links without auth)
+// =============================================================================
+
+const TC1_PREFIX = 'tc1:';
+
+/**
+ * Base64 URL decode.
+ */
+function base64UrlDecode(encoded: string): string {
+  let base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+  while (base64.length % 4) {
+    base64 += '=';
+  }
+  if (typeof atob !== 'undefined') {
+    return decodeURIComponent(escape(atob(base64)));
+  } else if (typeof Buffer !== 'undefined') {
+    return Buffer.from(base64, 'base64').toString('utf-8');
+  }
+  throw new Error('No base64 decoding available');
+}
+
+/**
+ * Decode a v2 share link (tc1:...).
+ */
+function decodeShareLink(link: string): EncodedShareData {
+  let encoded = link;
+  // Handle full URL format
+  if (link.includes('/share/')) {
+    const parts = link.split('/share/');
+    encoded = parts[parts.length - 1];
+  }
+  // Handle query parameter format
+  if (link.includes('?share=')) {
+    const url = new URL(link);
+    encoded = url.searchParams.get('share') ?? encoded;
+  }
+  if (!encoded.startsWith(TC1_PREFIX)) {
+    throw new Error(`Invalid share link format. Expected prefix '${TC1_PREFIX}'`);
+  }
+  const base64Data = encoded.slice(TC1_PREFIX.length);
+  const jsonString = base64UrlDecode(base64Data);
+  const data = JSON.parse(jsonString) as EncodedShareData;
+  if (data.version !== 1) {
+    throw new Error(`Unsupported share link version: ${data.version}`);
+  }
+  return data;
+}
+
+/**
+ * Result of receiving a share link.
+ */
+export interface ShareReceiveResult<T = unknown> {
+  /** The retrieved data */
+  data: T;
+  /** The delegation that authorized access */
+  delegation: Delegation;
+  /** The path the share grants access to */
+  path: string;
+  /** The space ID */
+  spaceId: string;
+}
+
 /** TCW: TinyCloud Web SDK
  *
  * An SDK for building user-controlled web apps.
@@ -65,6 +132,140 @@ export class TinyCloudWeb {
 
   /** Supported RPC Providers */
   public static RPCProviders = TCWRPCProviders;
+
+  /**
+   * Receive and retrieve data from a v2 share link.
+   *
+   * This static method allows receiving shared data without being signed in.
+   * The share link contains an embedded private key and delegation that
+   * grants access to the shared resource.
+   *
+   * @param link - The share link (tc1:... format or full URL)
+   * @param key - Optional specific key to retrieve within the shared path
+   * @returns Result containing the data or an error
+   *
+   * @example
+   * ```typescript
+   * // Receive shared data using just the link
+   * const result = await TinyCloudWeb.receiveShare('tc1:...');
+   * if (result.ok) {
+   *   console.log('Data:', result.data.data);
+   *   console.log('Path:', result.data.path);
+   * } else {
+   *   console.error('Error:', result.error.message);
+   * }
+   *
+   * // Or from a full URL
+   * const result = await TinyCloudWeb.receiveShare(
+   *   'https://share.example.com/share/tc1:...'
+   * );
+   * ```
+   */
+  public static async receiveShare<T = unknown>(
+    link: string,
+    key?: string
+  ): Promise<Result<ShareReceiveResult<T>, DelegationError>> {
+    try {
+      // Decode the share link
+      const shareData = decodeShareLink(link);
+
+      // Validate the embedded key has private component
+      if (!shareData.key || !shareData.key.d) {
+        return {
+          ok: false,
+          error: {
+            code: 'INVALID_TOKEN',
+            message: 'Share link does not contain a valid private key',
+            service: 'delegation',
+          },
+        };
+      }
+
+      // Check delegation expiry
+      const expiry = new Date(shareData.delegation.expiry);
+      if (expiry < new Date()) {
+        return {
+          ok: false,
+          error: {
+            code: 'AUTH_EXPIRED',
+            message: 'Share link has expired',
+            service: 'delegation',
+          },
+        };
+      }
+
+      // Check if revoked
+      if (shareData.delegation.isRevoked) {
+        return {
+          ok: false,
+          error: {
+            code: 'REVOKED',
+            message: 'Share link has been revoked',
+            service: 'delegation',
+          },
+        };
+      }
+
+      // Create a minimal session using the embedded key
+      // Note: delegationHeader will be populated by invoke when making requests
+      const session: ServiceSession = {
+        delegationHeader: { Authorization: '' },
+        delegationCid: shareData.delegation.cid,
+        spaceId: shareData.spaceId,
+        verificationMethod: shareData.keyDid,
+        jwk: shareData.key,
+      };
+
+      // Create context and KV service for fetching
+      const context = new ServiceContext({
+        invoke: invoke as any,
+        fetch: globalThis.fetch.bind(globalThis),
+        hosts: [shareData.host],
+      });
+      context.setSession(session);
+
+      const kvService = new KVService({ prefix: '' });
+      kvService.initialize(context);
+
+      // Determine the key to fetch
+      const fetchKey = key ?? shareData.path;
+
+      // Fetch the data
+      const kvResult = await kvService.get<T>(fetchKey);
+      if (kvResult.ok) {
+        return {
+          ok: true as const,
+          data: {
+            data: kvResult.data.data,
+            delegation: shareData.delegation,
+            path: shareData.path,
+            spaceId: shareData.spaceId,
+          },
+        };
+      }
+      // kvResult.ok is false here, so error is available
+      const errorResult = kvResult as { ok: false; error: { message: string; cause?: Error } };
+      return {
+        ok: false as const,
+        error: {
+          code: 'DATA_FETCH_FAILED',
+          message: `Failed to fetch shared data: ${errorResult.error.message}`,
+          service: 'delegation' as const,
+          cause: errorResult.error.cause,
+        },
+      };
+    } catch (err) {
+      return {
+        ok: false,
+        error: {
+          code: 'DECODE_FAILED',
+          message: `Failed to process share link: ${err instanceof Error ? err.message : String(err)}`,
+          service: 'delegation',
+          cause: err instanceof Error ? err : undefined,
+        },
+      };
+    }
+  }
 
   /** UserAuthorization Module
    *
