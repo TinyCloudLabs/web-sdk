@@ -29,6 +29,82 @@ export {
   IKVService,
   KVService,
   KVResponse,
+  PrefixedKVService,
+  IPrefixedKVService,
+} from '@tinycloudlabs/sdk-core';
+
+// Re-export delegation types and services from sdk-core
+export {
+  // DelegationManager (v1)
+  DelegationManager,
+  DelegationManagerConfig,
+  // v1 types
+  Delegation,
+  CreateDelegationParams,
+  DelegationChain,
+  DelegationApiResponse,
+  DelegationResult,
+  DelegationError,
+  DelegationErrorCodes,
+  DelegationErrorCode,
+  // SharingLinks (v1 - deprecated)
+  SharingLinks,
+  SharingLinksConfig,
+  SharingLink,
+  GenerateSharingLinkParams,
+  SharingLinkData,
+  // v2 SharingService from sdk-core
+  SharingService as SharingServiceV2,
+  createSharingService as createSharingServiceV2,
+  ISharingService,
+  SharingServiceConfig as SharingServiceConfigV2,
+  EncodedShareData,
+  ReceiveOptions,
+  ShareAccess,
+  // v2 types
+  JWK,
+  KeyType,
+  KeyInfo,
+  CapabilityEntry,
+  DelegationRecord,
+  DelegationChainV2,
+  DelegationDirection,
+  DelegationFilters,
+  SpaceOwnership,
+  SpaceInfo,
+  ShareSchema,
+  ShareLink,
+  ShareLinkData,
+  IngestOptions,
+  GenerateShareParams,
+} from '@tinycloudlabs/sdk-core';
+
+// Re-export CapabilityKeyRegistry from sdk-core
+export {
+  CapabilityKeyRegistry,
+  ICapabilityKeyRegistry,
+  createCapabilityKeyRegistry,
+  StoredDelegationChain,
+  CapabilityKeyRegistryErrorCodes,
+  CapabilityKeyRegistryErrorCode,
+} from '@tinycloudlabs/sdk-core';
+
+// Re-export SpaceService from sdk-core
+export {
+  SpaceService,
+  ISpaceService,
+  SpaceServiceConfig,
+  SpaceErrorCodes,
+  SpaceErrorCode,
+  createSpaceService,
+  parseSpaceUri,
+  buildSpaceUri,
+  // Space object
+  Space,
+  ISpace,
+  SpaceConfig,
+  ISpaceScopedDelegations,
+  ISpaceScopedSharing,
 } from '@tinycloudlabs/sdk-core';
 
 // Adapter for web-sdk

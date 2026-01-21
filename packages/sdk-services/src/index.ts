@@ -90,8 +90,9 @@ export type {
 } from "./base/index";
 
 // KV service
-export { KVService, IKVService, KVAction } from "./kv";
+export { KVService, PrefixedKVService, IKVService, KVAction } from "./kv";
 export type {
+  IPrefixedKVService,
   KVServiceConfig,
   KVGetOptions,
   KVPutOptions,
