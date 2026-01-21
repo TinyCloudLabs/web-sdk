@@ -12,7 +12,8 @@ interface IStorageModule {
  * StorageModule demonstrates the new sdk-services KV API with Result pattern.
  *
  * Uses tcw.kv for basic operations (get, put, list, delete)
- * Uses tcw.sharing for sharing functionality (generate, retrieve)
+ * Note: Sharing functionality (generate) requires v2 SharingService which is
+ * not yet fully integrated. Receiving shares is available via TinyCloudWeb.receiveShare().
  */
 function StorageModule({ tcw }: IStorageModule) {
   const [contentList, setContentList] = useState<Array<string>>([]);
@@ -60,18 +61,11 @@ function StorageModule({ tcw }: IStorageModule) {
 
   const handleShareContent = async (content: string) => {
     setError(null);
-    // Compute the key reference for sharing
-    let reference = removePrefix ? content : content.replace(new RegExp(`^${prefix}/`), '');
-    reference = prefix ? `${prefix}/${reference}` : reference;
-
-    const result = await tcw.sharing.generate(reference);
-    if (result.ok) {
-      const link = `${window.location.origin}/share?data=${result.data}`;
-      setSharingLink(link);
-    } else {
-      console.error('Failed to generate sharing link:', result.error.code, result.error.message);
-      setError(`Failed to generate sharing link: ${result.error.message}`);
-    }
+    // Note: v2 SharingService (generate) is not yet integrated into TinyCloudWeb
+    // This requires KeyProvider infrastructure for generating share-specific keys
+    // For now, show a message that sharing is coming soon
+    setError('Sharing functionality is being upgraded. Please check back soon!');
+    console.log('Share requested for:', content);
   };
 
   const handleCopyLink = async () => {

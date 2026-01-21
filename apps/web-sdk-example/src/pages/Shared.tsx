@@ -18,8 +18,8 @@ const Shared = () => {
   const fetchShareData = async () => {
     setIsLoading(true);
     setError(null);
-    const tcw = new TinyCloudWeb({});
-    const result = await tcw.sharing.retrieve(shareData);
+    // Use static method to receive v2 share links (no auth required)
+    const result = await TinyCloudWeb.receiveShare(shareData);
     if (result.ok) {
       setFetchedData(result.data);
     } else {
