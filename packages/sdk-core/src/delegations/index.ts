@@ -57,7 +57,7 @@ export {
   DelegationChain,
   DelegationApiResponse,
 
-  // Sharing link types
+  // Sharing link types (v1 - deprecated)
   SharingLink,
   GenerateSharingLinkParams,
   SharingLinkData,
@@ -67,8 +67,36 @@ export {
   SharingLinksConfig,
   KeyProvider,
   KVServiceGetter,
+
+  // v2 types for CapabilityKeyRegistry
+  JWK,
+  KeyType,
+  KeyInfo,
+  CapabilityEntry,
+  DelegationRecord,
+  DelegationChainV2,
+  DelegationDirection,
+  DelegationFilters,
+  SpaceOwnership,
+  SpaceInfo,
+  ShareSchema,
+  ShareLink,
+  ShareLinkData,
+  IngestOptions,
+  GenerateShareParams,
 } from "./types";
 
 // Classes
 export { DelegationManager } from "./DelegationManager";
 export { SharingLinks } from "./SharingLinks";
+
+// v2 SharingService
+export {
+  SharingService,
+  createSharingService,
+  ISharingService,
+  SharingServiceConfig,
+  EncodedShareData,
+  ReceiveOptions,
+  ShareAccess,
+} from "./SharingService";

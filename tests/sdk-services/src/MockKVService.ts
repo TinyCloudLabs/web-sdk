@@ -6,6 +6,7 @@
 
 import type {
   IKVService,
+  IPrefixedKVService,
   IServiceContext,
   ServiceSession,
   Result,
@@ -19,7 +20,7 @@ import type {
   KVListResponse,
   KVResponseHeaders,
 } from "@tinycloudlabs/sdk-services";
-import { ok, err, ErrorCodes, serviceError } from "@tinycloudlabs/sdk-services";
+import { ok, err, ErrorCodes, serviceError, PrefixedKVService } from "@tinycloudlabs/sdk-services";
 
 /**
  * Recorded operation for assertions.
@@ -306,6 +307,16 @@ export class MockKVService implements IKVService {
       data: undefined as void,
       headers: this.createHeaders(stored),
     });
+  }
+
+  /**
+   * Create a prefix-scoped view of this KV service.
+   *
+   * @param prefix - The prefix to apply to all operations
+   * @returns A PrefixedKVService scoped to the prefix
+   */
+  withPrefix(prefix: string): IPrefixedKVService {
+    return new PrefixedKVService(this, prefix);
   }
 
   // ============================================================

@@ -39,6 +39,20 @@ import {
   IKVService,
   ServiceSession,
   ServiceContext,
+  // v2 services
+  DelegationManager,
+  SpaceService,
+  ISpaceService,
+  CapabilityKeyRegistry,
+  ICapabilityKeyRegistry,
+  SharingService,
+  ISharingService,
+  // v2 types
+  Delegation,
+  CreateDelegationParams,
+  KeyInfo,
+  JWK,
+  DelegationResult,
 } from "@tinycloudlabs/sdk-core";
 import { NodeUserAuthorization } from "./authorization/NodeUserAuthorization";
 import { PrivateKeySigner } from "./signers/PrivateKeySigner";
@@ -55,6 +69,7 @@ import {
 } from "@tinycloudlabs/node-sdk-wasm";
 import { PortableDelegation } from "./delegation";
 import { DelegatedAccess } from "./DelegatedAccess";
+import { WasmKeyProvider } from "./keys/WasmKeyProvider";
 
 /**
  * Configuration for TinyCloudNode.
@@ -93,6 +108,13 @@ export class TinyCloudNode {
   private sessionManager?: TCWSessionManager;
   private _serviceContext?: ServiceContext;
   private _kv?: KVService;
+
+  // v2 services
+  private _capabilityRegistry?: CapabilityKeyRegistry;
+  private _delegationManager?: DelegationManager;
+  private _spaceService?: SpaceService;
+  private _sharingService?: SharingService;
+  private _keyProvider?: WasmKeyProvider;
 
   /**
    * Create a new TinyCloudNode instance.
@@ -229,6 +251,118 @@ export class TinyCloudNode {
       jwk: session.jwk,
     };
     this._serviceContext.setSession(serviceSession);
+
+    // Initialize v2 services
+    this.initializeV2Services(serviceSession);
+  }
+
+  /**
+   * Initialize the v2 delegation system services.
+   * @internal
+   */
+  private initializeV2Services(serviceSession: ServiceSession): void {
+    // Initialize CapabilityKeyRegistry
+    this._capabilityRegistry = new CapabilityKeyRegistry();
+
+    // Register the session key with its capabilities
+    if (this.auth.tinyCloudSession && this._address) {
+      const sessionKey: KeyInfo = {
+        id: this.auth.tinyCloudSession.sessionKey,
+        did: this.auth.tinyCloudSession.verificationMethod,
+        type: "session",
+        // Cast jwk from generic object to JWK - we know it has the required structure
+        jwk: this.auth.tinyCloudSession.jwk as JWK,
+        priority: 0, // Session keys have highest priority
+      };
+
+      // Create root delegation for the session
+      const rootDelegation: Delegation = {
+        cid: this.auth.tinyCloudSession.delegationCid,
+        delegateDID: this.auth.tinyCloudSession.verificationMethod,
+        spaceId: this.auth.tinyCloudSession.spaceId,
+        path: "", // Root access
+        actions: [
+          "tinycloud.kv/put",
+          "tinycloud.kv/get",
+          "tinycloud.kv/del",
+          "tinycloud.kv/list",
+          "tinycloud.kv/metadata",
+        ],
+        expiry: this.getSessionExpiry(),
+        isRevoked: false,
+        allowSubDelegation: true,
+      };
+
+      this._capabilityRegistry.registerKey(sessionKey, [rootDelegation]);
+    }
+
+    // Initialize DelegationManager
+    this._delegationManager = new DelegationManager({
+      hosts: [this.config.host],
+      session: serviceSession,
+      invoke,
+      fetch: globalThis.fetch.bind(globalThis),
+    });
+
+    // Initialize SpaceService
+    this._spaceService = new SpaceService({
+      hosts: [this.config.host],
+      session: serviceSession,
+      invoke,
+      fetch: globalThis.fetch.bind(globalThis),
+      capabilityRegistry: this._capabilityRegistry,
+      userDid: this.pkhDid,
+      createKVService: (spaceId: string) => {
+        // Create a new KV service scoped to the specified space
+        const kvService = new KVService({});
+        if (this._serviceContext) {
+          kvService.initialize(this._serviceContext);
+        }
+        return kvService;
+      },
+    });
+
+    // Initialize KeyProvider for SharingService
+    if (this.sessionManager) {
+      this._keyProvider = new WasmKeyProvider({
+        sessionManager: this.sessionManager,
+      });
+
+      // Initialize SharingService
+      this._sharingService = new SharingService({
+        hosts: [this.config.host],
+        session: serviceSession,
+        invoke,
+        fetch: globalThis.fetch.bind(globalThis),
+        keyProvider: this._keyProvider,
+        registry: this._capabilityRegistry,
+        delegationManager: this._delegationManager,
+        createKVService: (config) => {
+          const kvService = new KVService({});
+          if (this._serviceContext) {
+            // Create a new service context for the KV service with the provided session
+            const kvContext = new ServiceContext({
+              invoke: config.invoke,
+              fetch: config.fetch ?? globalThis.fetch.bind(globalThis),
+              hosts: config.hosts,
+            });
+            kvContext.setSession(config.session);
+            kvService.initialize(kvContext);
+          }
+          return kvService;
+        },
+      });
+    }
+  }
+
+  /**
+   * Get the session expiry time.
+   * @internal
+   */
+  private getSessionExpiry(): Date {
+    // Default to 1 hour from now if not explicitly set
+    const expirationMs = this.config.sessionExpirationMs ?? 60 * 60 * 1000;
+    return new Date(Date.now() + expirationMs);
   }
 
   /**
@@ -239,6 +373,214 @@ export class TinyCloudNode {
       throw new Error("Not signed in. Call signIn() first.");
     }
     return this._kv;
+  }
+
+  // ===========================================================================
+  // v2 Service Accessors
+  // ===========================================================================
+
+  /**
+   * Get the CapabilityKeyRegistry for managing keys and their capabilities.
+   *
+   * The registry tracks keys (session, main, ingested) and their associated
+   * delegations, enabling automatic key selection for operations.
+   *
+   * @example
+   * ```typescript
+   * const registry = alice.capabilityRegistry;
+   *
+   * // Get the best key for an operation
+   * const key = registry.getKeyForCapability(
+   *   "tinycloud://my-space/kv/data",
+   *   "tinycloud.kv/get"
+   * );
+   *
+   * // List all capabilities
+   * const capabilities = registry.getAllCapabilities();
+   * ```
+   */
+  get capabilityRegistry(): ICapabilityKeyRegistry {
+    if (!this._capabilityRegistry) {
+      throw new Error("Not signed in. Call signIn() first.");
+    }
+    return this._capabilityRegistry;
+  }
+
+  /**
+   * Get the DelegationManager for delegation CRUD operations.
+   *
+   * This is the v2 delegation service providing a cleaner API than
+   * the legacy createDelegation/useDelegation methods.
+   *
+   * @example
+   * ```typescript
+   * const delegations = alice.delegationManager;
+   *
+   * // Create a delegation
+   * const result = await delegations.create({
+   *   delegateDID: bob.pkhDid, // Important: use PKH DID
+   *   path: "shared/",
+   *   actions: ["tinycloud.kv/get", "tinycloud.kv/put"],
+   *   expiry: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+   * });
+   *
+   * // List delegations
+   * const listResult = await delegations.list();
+   *
+   * // Revoke a delegation
+   * await delegations.revoke(delegationCid);
+   * ```
+   */
+  get delegationManager(): DelegationManager {
+    if (!this._delegationManager) {
+      throw new Error("Not signed in. Call signIn() first.");
+    }
+    return this._delegationManager;
+  }
+
+  /**
+   * Get the SpaceService for managing spaces.
+   *
+   * The SpaceService provides access to owned and delegated spaces,
+   * including space creation, listing, and scoped operations.
+   *
+   * @example
+   * ```typescript
+   * const spaces = alice.spaces;
+   *
+   * // List all accessible spaces
+   * const result = await spaces.list();
+   *
+   * // Create a new space
+   * const createResult = await spaces.create('photos');
+   *
+   * // Get a space object for operations
+   * const mySpace = spaces.get('default');
+   * await mySpace.kv.put('key', 'value');
+   *
+   * // Check if a space exists
+   * const exists = await spaces.exists('photos');
+   * ```
+   */
+  get spaces(): ISpaceService {
+    if (!this._spaceService) {
+      throw new Error("Not signed in. Call signIn() first.");
+    }
+    return this._spaceService;
+  }
+
+  /**
+   * Alias for `spaces` - get the SpaceService.
+   * @see spaces
+   */
+  get spaceService(): ISpaceService {
+    return this.spaces;
+  }
+
+  /**
+   * Get the SharingService for creating and receiving v2 sharing links.
+   *
+   * The SharingService creates sharing links with embedded private keys,
+   * allowing recipients to exercise delegations without prior session setup.
+   *
+   * @example
+   * ```typescript
+   * const sharing = alice.sharing;
+   *
+   * // Generate a sharing link
+   * const result = await sharing.generate({
+   *   path: "/kv/documents/report.pdf",
+   *   actions: ["tinycloud.kv/get"],
+   *   expiry: new Date(Date.now() + 24 * 60 * 60 * 1000),
+   * });
+   *
+   * if (result.ok) {
+   *   console.log("Share URL:", result.data.url);
+   *   // Send the URL to the recipient
+   * }
+   *
+   * // Receive a sharing link
+   * const receiveResult = await sharing.receive(shareUrl);
+   * if (receiveResult.ok) {
+   *   // Use the pre-configured KV service
+   *   const data = await receiveResult.data.kv.get("report.pdf");
+   * }
+   * ```
+   */
+  get sharing(): ISharingService {
+    if (!this._sharingService) {
+      throw new Error("Not signed in. Call signIn() first.");
+    }
+    return this._sharingService;
+  }
+
+  /**
+   * Alias for `sharing` - get the SharingService.
+   * @see sharing
+   */
+  get sharingService(): ISharingService {
+    return this.sharing;
+  }
+
+  // ===========================================================================
+  // v2 Delegation Convenience Methods
+  // ===========================================================================
+
+  /**
+   * Create a delegation using the v2 DelegationManager.
+   *
+   * This is a convenience method that wraps DelegationManager.create().
+   * For more control, use `this.delegationManager` directly.
+   *
+   * @param params - Delegation parameters
+   * @returns Result containing the created Delegation
+   *
+   * @example
+   * ```typescript
+   * const result = await alice.delegate({
+   *   delegateDID: bob.pkhDid,
+   *   path: "shared/",
+   *   actions: ["tinycloud.kv/get", "tinycloud.kv/put"],
+   *   expiry: new Date(Date.now() + 24 * 60 * 60 * 1000),
+   * });
+   *
+   * if (result.ok) {
+   *   console.log("Delegation created:", result.data.cid);
+   * }
+   * ```
+   */
+  async delegate(params: CreateDelegationParams): Promise<DelegationResult<Delegation>> {
+    return this.delegationManager.create(params);
+  }
+
+  /**
+   * Revoke a delegation using the v2 DelegationManager.
+   *
+   * @param cid - The CID of the delegation to revoke
+   * @returns Result indicating success or failure
+   */
+  async revokeDelegation(cid: string): Promise<DelegationResult<void>> {
+    return this.delegationManager.revoke(cid);
+  }
+
+  /**
+   * List all delegations for the current session's space.
+   *
+   * @returns Result containing an array of Delegations
+   */
+  async listDelegations(): Promise<DelegationResult<Delegation[]>> {
+    return this.delegationManager.list();
+  }
+
+  /**
+   * Check if the current session has permission for a path and action.
+   *
+   * @param path - The resource path to check
+   * @param action - The action to check (e.g., "tinycloud.kv/get")
+   * @returns Result containing boolean permission status
+   */
+  async checkPermission(path: string, action: string): Promise<DelegationResult<boolean>> {
+    return this.delegationManager.checkPermission(path, action);
   }
 
   /**

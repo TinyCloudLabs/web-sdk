@@ -53,7 +53,9 @@ export {
   type ServiceRegistration,
   // KV Service
   KVService,
+  PrefixedKVService,
   type IKVService,
+  type IPrefixedKVService,
   type KVServiceConfig,
   type KVGetOptions,
   type KVPutOptions,
@@ -122,14 +124,74 @@ export {
   CreateDelegationParams,
   DelegationChain,
   DelegationApiResponse,
-  // Sharing link types
+  // Sharing link types (v1 - deprecated)
   SharingLink,
   GenerateSharingLinkParams,
   SharingLinkData,
   // Configuration types
   DelegationManagerConfig,
   SharingLinksConfig,
+  KeyProvider,
   // Classes
   DelegationManager,
   SharingLinks,
+  // v2 SharingService
+  SharingService,
+  createSharingService,
+  ISharingService,
+  SharingServiceConfig,
+  EncodedShareData,
+  ReceiveOptions,
+  ShareAccess,
+  // v2 types
+  JWK,
+  KeyType,
+  KeyInfo,
+  CapabilityEntry,
+  DelegationRecord,
+  DelegationChainV2,
+  DelegationDirection,
+  DelegationFilters,
+  SpaceOwnership,
+  SpaceInfo,
+  ShareSchema,
+  ShareLink,
+  ShareLinkData,
+  IngestOptions,
+  GenerateShareParams,
 } from "./delegations";
+
+// Authorization (v2 spec)
+export {
+  // Class
+  CapabilityKeyRegistry,
+  // Interface
+  ICapabilityKeyRegistry,
+  // Factory
+  createCapabilityKeyRegistry,
+  // Types
+  StoredDelegationChain,
+  // Error codes
+  CapabilityKeyRegistryErrorCodes,
+  CapabilityKeyRegistryErrorCode,
+} from "./authorization";
+
+// Spaces (v2 spec)
+export {
+  // Space object
+  Space,
+  ISpace,
+  SpaceConfig,
+  ISpaceScopedDelegations,
+  ISpaceScopedSharing,
+  // SpaceService
+  SpaceService,
+  ISpaceService,
+  SpaceServiceConfig,
+  SpaceErrorCodes,
+  SpaceErrorCode,
+  createSpaceService,
+  // URI utilities
+  parseSpaceUri,
+  buildSpaceUri,
+} from "./spaces";
