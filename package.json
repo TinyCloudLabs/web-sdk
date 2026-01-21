@@ -71,5 +71,8 @@
     "@reown/appkit",
     "core-js",
     "core-js-pure"
-  ]
+  ],
+  "dependencies": {
+    "@multiformats/multiaddr-to-uri": "^12.0.0"
+  }
 }
