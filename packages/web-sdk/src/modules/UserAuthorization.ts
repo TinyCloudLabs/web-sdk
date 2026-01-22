@@ -21,7 +21,7 @@ import {
 import { dispatchSDKEvent } from "../notifications/ErrorHandler";
 import { WasmInitializer } from "./WasmInitializer";
 import { debug } from "../utils/debug";
-import { showSpaceCreationModal } from "../notifications/ModalManager";
+import { showSpaceCreationModal, showNodeSelectionModal } from "../notifications/ModalManager";
 import {
   generateHostSIWEMessage,
   siweToDelegationHeaders,
@@ -1053,7 +1053,7 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
     }
 
     // 1. Try to find the space on any of the configured hosts
-    for (const host of this.tinycloudHosts) {
+    for (const host of this.tinycloudHosts.filter(h => h && h.length > 0)) {
       const result = await activateSessionWithHost(host, this._delegationHeader);
       if (result.success) {
         this._activeHost = host; // Found the space
@@ -1061,7 +1061,6 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
         return;
       }
 
-      // If it's not a 404, it's an unexpected error, so we should probably stop.
       if (result.status !== 404) {
         throw new Error(`Failed to activate session on ${host}: ${result.status} - ${result.error}`);
       }
@@ -1069,35 +1068,69 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
 
     // 3. If we're here, all hosts returned 404. The space doesn't exist.
     if (!this.autoCreateSpace) {
-      // We can't proceed if auto-creation is disabled.
-      // This is not an error, but we can't establish a space connection.
       debug.warn(`Space does not exist and autoCreateSpace is false. Cannot connect to space.`);
       return;
     }
 
-    // 4. Create the space on the primary host.
-    const primaryHost = this.tinycloudHosts[0];
-    debug.log(`Space not found on any host. Attempting to create on primary host: ${primaryHost}`);
-    const created = await this.hostSpace(primaryHost);
+    // 4. Determine host for creation.
+    let hostForCreation: string | undefined;
+
+    // Check if a node is set in the registry
+    const registry = new Registry({ provider: this.provider });
+    const node = await registry.addressNode();
+
+    if (node) {
+      hostForCreation = node;
+    } else {
+      // If no registry node, prompt user to select one.
+      debug.log("No registry node found, prompting user for node selection.");
+      const selection = await showNodeSelectionModal({
+        onCreateNode: async (selectedHost: string) => {
+          // No-op, logic is handled after modal closes
+        },
+        onDismiss: () => {
+          debug.log("User dismissed node selection modal.");
+        },
+      });
+
+      if (selection.dismissed || !selection.host) {
+        debug.log("Space creation aborted due to node selection dismissal.");
+        return;
+      }
+      hostForCreation = selection.host;
+    }
+    
+    if (!hostForCreation) {
+        debug.error("No valid host for space creation.");
+        dispatchSDKEvent.error(
+            "storage.space_creation_failed",
+            "Could not determine a host to create your TinyCloud Space on."
+        );
+        return;
+    }
+
+    // Now, proceed with hostSpace using hostForCreation
+    debug.log(`Space not found. Attempting to create on host: ${hostForCreation}`);
+    const created = await this.hostSpace(hostForCreation);
 
     if (!created) {
-      // User dismissed the modal. This is not an error.
+      // User dismissed the space creation modal.
       debug.log("User dismissed space creation modal. Space connection not established.");
       return;
     }
 
-    // 5. Space created, now try activation again on the primary host.
-    const finalResult = await activateSessionWithHost(primaryHost, this._delegationHeader);
+    // 5. Space created, now try activation again on the creation host.
+    const finalResult = await activateSessionWithHost(hostForCreation, this._delegationHeader);
 
     if (finalResult.success) {
-      this._activeHost = primaryHost; // Set active host after creation
-      debug.log(`Space created and activated on host: ${primaryHost}`);
+      this._activeHost = hostForCreation; // Set active host after creation
+      debug.log(`Space created and activated on host: ${hostForCreation}`);
       return;
     }
 
     // If it still fails, something is seriously wrong.
     throw new Error(
-      `Failed to activate session on ${primaryHost} even after creating the space: ` +
+      `Failed to activate session on ${hostForCreation} even after creating the space: ` +
       `${finalResult.status} - ${finalResult.error}`
     );
   }
