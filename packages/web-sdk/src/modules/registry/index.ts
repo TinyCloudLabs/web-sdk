@@ -1,7 +1,7 @@
-import { createPublicClient, encodeFunctionData, http, type Address } from "viem";
-import { multiaddrToUri } from "@multiformats/multiaddr-to-uri";
-import { TCWProviderWeb3 } from "@tinycloudlabs/web-core/client";
+import { createPublicClient, encodeFunctionData, http, zeroAddress, zeroHash, type Address } from "viem";
+import * as multiaddrToUri from "@multiformats/multiaddr-to-uri";
 import { providers } from "ethers";
+
 const REGISTRY_ABI = [
   {
     inputs: [{ internalType: "address", name: "account", type: "address" }],
@@ -72,13 +72,17 @@ export class Registry {
       chainId,
       to: contractAddress
     });
-    return multiaddrToUri(node);
+    if (node === zeroHash || !node.startsWith("/")) {
+      return "";
+    }
+    return multiaddrToUri.multiaddrToUri(node,);
   }
 
   async addressNode(): Promise<string> {
     const address = await this.provider.getSigner().getAddress();
     const node = await this.getNode(address as `0x${string}`);
-    return multiaddrToUri(node);
+
+    return node;
   }
 
 

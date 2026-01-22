@@ -29,7 +29,8 @@ import {
   completeSessionSetup,
 } from "./Storage/tinycloud/module";
 import { SpaceConnection, Authenticator, Session } from "./Storage/tinycloud";
-import Registry from "./registry/Registry";
+import Registry from "./registry/index";
+import { multiaddrToUri } from "@multiformats/multiaddr-to-uri";
 
 /**
  * Extended TCW Client Config with TinyCloud options
@@ -488,16 +489,11 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
       },
     });
 
-    const registry = new Registry({
-      provider: this.provider
-    });
-    let tinycloudHosts = [..._config.tinycloudHosts, "https://node.tinycloud.xyz"];
-    registry.addressNode().then((address) => {
-      tinycloudHosts = [address, ...tinycloudHosts];
-    });
+
+    //
     // Initialize space-related options with defaults
     this.autoCreateSpace = _config.autoCreateSpace ?? true;
-    this.tinycloudHosts = tinycloudHosts;
+    this.tinycloudHosts = _config.tinycloudHosts ? [..._config.tinycloudHosts, "https://node.tinycloud.xyz"] : ["https://node.tinycloud.xyz"];
     this.spacePrefix = _config.spacePrefix ?? "default";
   }
 
@@ -515,6 +511,14 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
     try {
       this.connection = await this.init.connect();
       this.provider = this.connection.provider;
+      const registry = new Registry({
+        provider: this.provider
+      });
+
+      let node =
+        await registry.addressNode()
+
+      this.tinycloudHosts = [node, ...this.tinycloudHosts]
     } catch (err) {
       // ERROR:
       // Something went wrong when connecting or creating Session (wasm)

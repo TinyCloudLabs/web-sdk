@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "@metamask/detect-provider": "^1.2.0",
+    "@multiformats/multiaddr-to-uri": "^12.0.0",
     "@tinycloudlabs/sdk-core": "workspace:*",
     "@tinycloudlabs/web-core": "workspace:*",
     "@tinycloudlabs/web-sdk-wasm": "workspace:*",

@@ -8,6 +8,9 @@
     "dist/**/*"
   ],
   "compilerOptions": {
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "module": "esnext",
+    // Ensure this is set to "bundler" (best for Webpack 5) or "node"
+    "moduleResolution": "bundler"
   }
 }
