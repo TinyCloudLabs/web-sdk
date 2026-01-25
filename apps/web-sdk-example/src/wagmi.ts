@@ -1,5 +1,5 @@
 import { http, createConfig } from 'wagmi'
-import { mainnet, arbitrum } from 'wagmi/chains'
+import { mainnet, arbitrum, sepolia } from 'wagmi/chains'
 import { injected, walletConnect, coinbaseWallet, safe } from 'wagmi/connectors'
 import { getDefaultConfig } from 'connectkit'
 
@@ -10,11 +10,11 @@ export const projectId = process.env.REACT_APP_PROJECT_ID || '';
 export const config = createConfig(
   getDefaultConfig({
     // Your dApps chains
-    chains: [mainnet, arbitrum],
+    chains: [mainnet, sepolia],
     transports: {
       // Use default public RPC URLs for now
       [mainnet.id]: http(),
-      [arbitrum.id]: http(),
+      [sepolia.id]: http(),
     },
 
     // Required API Keys

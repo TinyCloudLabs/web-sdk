@@ -21,7 +21,7 @@ import {
 import { dispatchSDKEvent } from "../notifications/ErrorHandler";
 import { WasmInitializer } from "./WasmInitializer";
 import { debug } from "../utils/debug";
-import { showSpaceCreationModal } from "../notifications/ModalManager";
+import { showSpaceCreationModal, showNodeSelectionModal } from "../notifications/ModalManager";
 import {
   generateHostSIWEMessage,
   siweToDelegationHeaders,
@@ -29,6 +29,8 @@ import {
   completeSessionSetup,
 } from "./Storage/tinycloud/module";
 import { SpaceConnection, Authenticator, Session } from "./Storage/tinycloud";
+import Registry from "./registry/registry";
+import { multiaddrToUri } from "../utils/multiaddr";
 
 /**
  * Extended TCW Client Config with TinyCloud options
@@ -164,7 +166,7 @@ class UserAuthorizationInit {
   /** The session representation (once signed in). */
   public session?: TCWClientSession;
 
-  constructor(private config?: TCWClientConfig) {}
+  constructor(private config?: TCWClientConfig) { }
 
   /** Extend the session with an TCW compatible extension. */
   extend(extension: TCWExtension) {
@@ -429,6 +431,7 @@ class UserAuthorizationConnected implements ITCWConnected {
     // TODO: kill sessions
   }
 }
+
 const TCW_DEFAULT_CONFIG: TCWClientConfig = {
   providers: {
     web3: {
@@ -477,6 +480,9 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
   /** The connection to the user's space */
   private _spaceConnection?: SpaceConnection;
 
+  /** The host where the user's space was found or created */
+  private _activeHost?: string;
+
   constructor(private _config: TCWClientConfig = TCW_DEFAULT_CONFIG) {
     this.config = _config;
     this.init = new UserAuthorizationInit({
@@ -489,7 +495,7 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
 
     // Initialize space-related options with defaults
     this.autoCreateSpace = _config.autoCreateSpace ?? true;
-    this.tinycloudHosts = _config.tinycloudHosts ?? ["https://node.tinycloud.xyz"];
+    this.tinycloudHosts = _config.tinycloudHosts ? [..._config.tinycloudHosts, "https://node.tinycloud.xyz", "https://tee.tinycloud.xyz"] : ["https://node.tinycloud.xyz", "https://tee.tinycloud.xyz"];
     this.spacePrefix = _config.spacePrefix ?? "default";
   }
 
@@ -507,6 +513,26 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
     try {
       this.connection = await this.init.connect();
       this.provider = this.connection.provider;
+
+      // Try to get node from registry and prepend it to hosts list
+      try {
+        const registry = new Registry({
+          provider: this.provider
+        });
+        const address = await this.provider.getSigner().getAddress();
+        const chainId = await this.provider.getNetwork().then((network) => network.chainId);
+        console.log({ address, chainId })
+        const node = await registry.addressNode()
+        console.log({ node }, "the final node")
+        if (node && !this.tinycloudHosts.includes(node)) {
+          // Prepend registry node to the beginning of the list
+          this.tinycloudHosts.unshift(node);
+          debug.log(`Added registry node to hosts: ${node}`);
+        }
+      } catch (error) {
+        debug.warn("Failed to get node from registry:", error);
+        // Continue without registry node - not a critical failure
+      }
     } catch (err) {
       // ERROR:
       // Something went wrong when connecting or creating Session (wasm)
@@ -614,6 +640,7 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
     this._tinycloudSession = undefined;
     this._spaceId = undefined;
     this._delegationHeader = undefined;
+    this._activeHost = undefined;
   }
 
   /**
@@ -887,6 +914,7 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
     // Apply extension capabilities
     for (const extension of extensions) {
       // Apply targeted actions if available
+      // Apply targeted actions if available
       if (extension.targetedActions) {
         try {
           const targetedActions = await extension.targetedActions();
@@ -895,8 +923,7 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
           }
         } catch (error) {
           debug.warn(
-            `Failed to apply targeted actions for ${
-              extension.namespace || "unknown TinyCloud extension"
+            `Failed to apply targeted actions for ${extension.namespace || "unknown TinyCloud extension"
             }:`,
             error
           );
@@ -954,127 +981,219 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
       debug.warn("Cannot create SpaceConnection: no TinyCloud session available");
       return;
     }
+    if (!this._activeHost) {
+      debug.warn("Cannot create SpaceConnection: no active host found for the space");
+      return;
+    }
 
-    const host = this.tinycloudHosts[0];
     const authn = new Authenticator(this._tinycloudSession);
-    this._spaceConnection = new SpaceConnection(host, authn);
+    this._spaceConnection = new SpaceConnection(this._activeHost, authn);
   }
 
   /**
    * Create the space on the TinyCloud server (host delegation).
    * This registers the user as the owner of the space.
    * Uses a modal to confirm with the user before creating.
+   * @param host - The host to create the space on
    * @returns Promise resolving to true if space was created, false if user dismissed
    */
-  private async hostSpace(): Promise<boolean> {
+  private async hostSpace(host: string): Promise<boolean> {
     if (!this.session || !this._spaceId) {
       throw new Error("Must be signed in to host space");
     }
 
-    const host = this.tinycloudHosts[0];
     const spaceId = this._spaceId;
     const address = this.session.address;
     const chainId = this.session.chainId;
     const domain = this.config.siweConfig?.domain || globalThis.location?.hostname || "localhost";
 
     // Show modal to get user confirmation
-    const result = await showSpaceCreationModal({
-      onCreateSpace: async () => {
-        // Get peer ID from TinyCloud server
-        const peerId = await fetchPeerId(host, spaceId);
+    try {
+      const result = await showSpaceCreationModal({
 
-        // Generate host SIWE message
-        const siwe = generateHostSIWEMessage({
-          address,
-          chainId,
-          domain,
-          issuedAt: new Date().toISOString(),
-          spaceId,
-          peerId,
-        });
+        onCreateSpace: async () => {
+          try {
+            // Get peer ID from TinyCloud server
+            const peerId = await fetchPeerId(host, spaceId);
 
-        // Sign the message
-        const signature = await this.signMessage(siwe);
+            // Generate host SIWE message
+            const siwe = generateHostSIWEMessage({
+              address,
+              chainId,
+              domain,
+              issuedAt: new Date().toISOString(),
+              spaceId,
+              peerId,
+            });
 
-        // Convert to delegation headers and submit
-        const headers = siweToDelegationHeaders({ siwe, signature });
-        const submitResult = await submitHostDelegation(host, headers);
+            // Sign the message
+            const signature = await this.signMessage(siwe);
 
-        if (!submitResult.success) {
-          dispatchSDKEvent.error(
-            "storage.space_creation_failed",
-            "Failed to create your TinyCloud Space",
-            submitResult.error
-          );
-          throw new Error(`Failed to create space: ${submitResult.error}`);
-        }
+            // Convert to delegation headers and submit
+            const headers = siweToDelegationHeaders({ siwe, signature });
+            const submitResult = await submitHostDelegation(host, headers);
 
-        dispatchSDKEvent.success("TinyCloud Space created successfully");
-      },
-      onDismiss: () => {},
-    });
+            if (!submitResult.success) {
+              dispatchSDKEvent.error(
+                "storage.space_creation_failed",
+                "Failed to create your TinyCloud Space",
+                submitResult.error
+              );
+              throw new Error(`Failed to create space: ${submitResult.error}`);
+            }
 
-    return result.success;
+            dispatchSDKEvent.success("TinyCloud Space created successfully");
+            return;
+          } catch (error) {
+            debug.error("Space creation error:", error);
+            throw error;
+          }
+        },
+        onDismiss: () => {
+          debug.log("User dismissed space creation modal");
+        },
+      });
+
+      return result.success;
+    } catch (error) {
+      debug.error("Space creation modal error:", error);
+      return false;
+    }
   }
 
   /**
    * Ensure the user's space exists on the TinyCloud server.
    * Creates the space if it doesn't exist and autoCreateSpace is enabled.
    *
-   * Strategy: Try to activate the session first. If it returns 404 (space not found),
-   * create the space via hostSpace modal, then try activation again.
+   * Strategy:
+   * 1. Iterate through all `tinycloudHosts` and try to activate the session.
+   * 2. If activation succeeds on any host, set it as the `_activeHost` and return.
+   * 3. If activation fails with 404 on all hosts, it means the space doesn't exist.
+   * 4. If `autoCreateSpace` is true, create the space on the selected host.
+   * 5. After creation, attempt to activate the session again on that host.
    *
-   * @throws Error if space creation fails or is disabled and space doesn't exist
+   * @throws Error if space creation fails or is disabled and space doesn't exist.
    */
   public async ensureSpaceExists(): Promise<void> {
     if (!this.session || !this._spaceId || !this._delegationHeader) {
       throw new Error("Must be signed in to ensure space exists");
     }
 
-    const host = this.tinycloudHosts[0];
 
-    // Try to activate the session - this will return 404 if space doesn't exist
-    let result = await activateSessionWithHost(host, this._delegationHeader);
 
-    if (result.success) {
+
+    for (const host of this.tinycloudHosts) {
+      try {
+        const result = await activateSessionWithHost(host, this._delegationHeader);
+        if (result.success) {
+          this._activeHost = host; // Found the space
+          debug.log(`Space found on host: ${host}`);
+          return;
+        }
+
+        // If not 404, it's some other error - log and continue to next host
+        if (result.status !== 404) {
+          debug.warn(`Failed to activate session on ${host}: ${result.status} - ${result.error}`);
+          continue;
+        }
+      } catch (error) {
+        debug.warn(`Error trying to activate session on ${host}:`, error);
+        continue;
+      }
+    }
+
+    // 3. If we're here, all hosts returned 404 or failed. The space doesn't exist.
+    if (!this.autoCreateSpace) {
+      debug.warn(`Space does not exist and autoCreateSpace is false. Cannot connect to space.`);
       return;
     }
 
-    // If 404, the space doesn't exist - create it
-    if (result.status === 404) {
-      if (!this.autoCreateSpace) {
-        throw new Error(
-          `Space does not exist: ${this._spaceId}. ` +
-            `Set autoCreateSpace: true to create it automatically.`
-        );
+    // 4. Determine host for creation.
+    let hostForCreation: string | undefined;
+
+    // Check if a registry node is available (should be first in the list after connect())
+    const registry = new Registry({ provider: this.provider });
+    try {
+      const registryNode = await registry.addressNode();
+      if (registryNode && this.tinycloudHosts.includes(registryNode)) {
+        hostForCreation = registryNode;
+        debug.log(`Using registry node for space creation: ${hostForCreation}`);
       }
+    } catch (error) {
+      debug.warn("Failed to get registry node for space creation:", error);
+    }
 
-      // Create the space with modal
-      const created = await this.hostSpace();
-      if (!created) {
-        // User dismissed modal - this is not an error, just means they chose not to create
-        debug.log("User dismissed space creation modal");
-        return;
-      }
+    // If no registry node, prompt user to select one
+    if (!hostForCreation) {
+      debug.log("No registry node found, prompting user for node selection.");
 
-      // Space created, now try activation again
-      result = await activateSessionWithHost(host, this._delegationHeader);
+      try {
+        const selection = await showNodeSelectionModal({
+          onCreateNode: async (selectedHost: string) => {
+            // Validation happens in the modal
+            return;
+          },
+          onDismiss: () => {
+            debug.log("User dismissed node selection modal.");
+          },
+        });
 
-      if (result.success) {
-        return;
-      }
-
-      // If still 404, something is wrong
-      if (result.status === 404) {
-        throw new Error(
-          `Space not found after creation. The space ID in the delegation may not match ` +
-          `the space created by hostSpace. SpaceId: ${this._spaceId}`
-        );
+        if (selection.dismissed || !selection.host) {
+          debug.log("Space creation aborted due to node selection dismissal.");
+          return;
+        }
+        hostForCreation = selection.host;
+      } catch (error) {
+        debug.error("Node selection modal failed:", error);
+        // Fallback to first available host
+        hostForCreation = this.tinycloudHosts[0];
       }
     }
 
-    // For other errors, throw with details
-    throw new Error(`Failed to activate session: ${result.status} - ${result.error}`);
+    if (!hostForCreation) {
+      debug.error("No valid host for space creation.");
+      dispatchSDKEvent.error(
+        "storage.space_creation_failed",
+        "Could not determine a host to create your TinyCloud Space on."
+      );
+      return;
+    }
+
+    // 5. Create the space on the selected host
+    debug.log(`Space not found. Attempting to create on host: ${hostForCreation}`);
+
+    try {
+      const created = await this.hostSpace(hostForCreation);
+
+      if (!created) {
+        // User dismissed the space creation modal.
+        debug.log("User dismissed space creation modal. Space connection not established.");
+        return;
+      }
+
+      // 6. Space created, now try activation again on the creation host.
+      const finalResult = await activateSessionWithHost(hostForCreation, this._delegationHeader);
+
+      if (finalResult.success) {
+        this._activeHost = hostForCreation; // Set active host after creation
+        debug.log(`Space created and activated on host: ${hostForCreation}`);
+        return;
+      }
+
+      // If it still fails, something is seriously wrong.
+      throw new Error(
+        `Failed to activate session on ${hostForCreation} even after creating the space: ` +
+        `${finalResult.status} - ${finalResult.error}`
+      );
+    } catch (error) {
+      debug.error("Failed to create space:", error);
+      dispatchSDKEvent.error(
+        "storage.space_creation_failed",
+        "Failed to create your TinyCloud Space",
+        error.message
+      );
+      throw error;
+    }
   }
 
   /**

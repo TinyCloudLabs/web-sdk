@@ -1,10 +1,11 @@
 import { TinyCloudSpaceModal, type SpaceCreationModalOptions, type SpaceCreationResult } from './SpaceCreationModal';
+import { TinyCloudNodeSelectionModal, type NodeSelectionModalOptions, type NodeSelectionResult } from './NodeSelectionModal';
 
 export class ModalManager {
   private static instance: ModalManager;
-  private activeModal: TinyCloudSpaceModal | null = null;
+  private activeModal: TinyCloudSpaceModal | TinyCloudNodeSelectionModal | null = null;
 
-  private constructor() {}
+  private constructor() { }
 
   public static getInstance(): ModalManager {
     if (!ModalManager.instance) {
@@ -19,6 +20,29 @@ export class ModalManager {
 
     // Create and show new modal
     const modal = new TinyCloudSpaceModal({
+      ...options,
+      onDismiss: () => {
+        this.activeModal = null;
+        options.onDismiss?.();
+      }
+    });
+
+    // Add to DOM
+    document.body.appendChild(modal);
+    this.activeModal = modal;
+
+    // Return completion promise and clean up when resolved
+    return modal.getCompletionPromise().finally(() => {
+      this.activeModal = null;
+    });
+  }
+
+  public showNodeSelectionModal(options: NodeSelectionModalOptions): Promise<NodeSelectionResult> {
+    // Close any existing modal first
+    this.closeActiveModal();
+
+    // Create and show new modal
+    const modal = new TinyCloudNodeSelectionModal({
       ...options,
       onDismiss: () => {
         this.activeModal = null;
@@ -51,4 +75,8 @@ export class ModalManager {
 // Export convenience function
 export const showSpaceCreationModal = (options: SpaceCreationModalOptions): Promise<SpaceCreationResult> => {
   return ModalManager.getInstance().showSpaceCreationModal(options);
+};
+
+export const showNodeSelectionModal = (options: NodeSelectionModalOptions): Promise<NodeSelectionResult> => {
+  return ModalManager.getInstance().showNodeSelectionModal(options);
 };
