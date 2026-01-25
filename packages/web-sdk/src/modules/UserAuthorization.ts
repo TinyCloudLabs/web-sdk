@@ -29,7 +29,8 @@ import {
   completeSessionSetup,
 } from "./Storage/tinycloud/module";
 import { SpaceConnection, Authenticator, Session } from "./Storage/tinycloud";
-import Registry from "./registry/registry";
+
+import Registry from "./registry/Registry";
 import { multiaddrToUri } from "../utils/multiaddr";
 
 /**
