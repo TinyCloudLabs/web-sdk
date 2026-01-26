@@ -915,7 +915,6 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
     // Apply extension capabilities
     for (const extension of extensions) {
       // Apply targeted actions if available
-      // Apply targeted actions if available
       if (extension.targetedActions) {
         try {
           const targetedActions = await extension.targetedActions();
