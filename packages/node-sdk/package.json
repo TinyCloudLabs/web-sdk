@@ -1,6 +1,6 @@
 {
   "name": "@tinycloudlabs/node-sdk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "TinyCloud SDK for Node.js with configurable authorization strategies",
   "author": "TinyCloud, Inc.",
   "license": "EGPL",
