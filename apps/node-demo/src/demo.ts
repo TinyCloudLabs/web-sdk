@@ -1,14 +1,17 @@
 #!/usr/bin/env bun
 /**
- * TinyCloud Node.js SDK Demo - Delegation Chain
+ * TinyCloud Node.js SDK Demo - Delegations and KV Operations
  *
- * Demonstrates the full TinyCloud delegation chain:
- * 1. Alice creates a space and stores data
- * 2. Alice delegates access to Bob (with sub-delegation enabled)
- * 3. Bob reads Alice's data and writes a response
- * 4. Bob sub-delegates access to Charlie
- * 5. Charlie writes to Alice's space via the delegation chain
- * 6. Alice reads messages from both Bob and Charlie
+ * Demonstrates the TinyCloud SDK with working delegation chains:
+ * 1. Alice creates a space and stores data using Space API
+ * 2. Alice delegates access to Bob using TinyCloudNode.createDelegation()
+ * 3. Bob accesses Alice's space via useDelegation()
+ * 4. Bob creates sub-delegation for Charlie
+ * 5. Charlie accesses Alice's space via delegation chain
+ *
+ * NOTE: Some Space API methods (delegations.list, sharing.*, spaces.list)
+ * are not yet implemented on the server side. This demo uses the working
+ * TinyCloudNode delegation methods instead.
  *
  * Prerequisites:
  * - A running TinyCloud server (default: http://localhost:8000)
@@ -73,7 +76,7 @@ function ensureKeys(): UserKeys {
   let bobKey = process.env.BOB_PRIVATE_KEY;
   let charlieKey = process.env.CHARLIE_PRIVATE_KEY;
   let needsWrite = false;
-  const writingKeys = JSON.parse		(process.env.GENERATE_MISSING_KEYS || "false");
+  const writingKeys = JSON.parse(process.env.GENERATE_MISSING_KEYS || "false");
 
   // Load existing .env file
   if (existsSync(ENV_PATH)) {
@@ -93,7 +96,6 @@ function ensureKeys(): UserKeys {
     bobKey = generateKey();
     console.log(`[KeyGen] Generated Bob's key: ${new Wallet(`0x${bobKey}`).address}`);
     needsWrite = writingKeys && true;
-
   }
   if (!charlieKey) {
     charlieKey = generateKey();
@@ -130,8 +132,8 @@ CHARLIE_PRIVATE_KEY=${charlieKey}
 
 async function runDemo() {
   console.log();
-  console.log("TinyCloud Node.js SDK Demo - Delegation Chain");
-  console.log("=".repeat(50));
+  console.log("TinyCloud Node.js SDK Demo - Space API");
+  console.log("=".repeat(70));
   console.log(`Server: ${TINYCLOUD_URL}`);
   console.log();
 
@@ -150,118 +152,253 @@ async function runDemo() {
     privateKey: keys.bob,
     host: TINYCLOUD_URL,
     prefix: "demo-bob",
+    autoCreateSpace: true,
   });
 
   const charlie = new TinyCloudNode({
     privateKey: keys.charlie,
     host: TINYCLOUD_URL,
     prefix: "demo-charlie",
+    autoCreateSpace: true,
   });
 
   // Step 3: All users sign in (creates their spaces)
   console.log("[Alice] Signing in...");
   await alice.signIn();
   console.log(`[Alice] Space: ${alice.spaceId}`);
+  console.log(`[Alice] PKH DID: ${alice.pkhDid}`);
 
+  console.log();
   console.log("[Bob] Signing in...");
   await bob.signIn();
   console.log(`[Bob] Space: ${bob.spaceId}`);
+  console.log(`[Bob] PKH DID: ${bob.pkhDid}`);
 
+  console.log();
   console.log("[Charlie] Signing in...");
   await charlie.signIn();
   console.log(`[Charlie] Space: ${charlie.spaceId}`);
+  console.log(`[Charlie] PKH DID: ${charlie.pkhDid}`);
   console.log();
 
-  // Step 4: Alice stores data in her space
-  console.log("[Alice] Storing greeting...");
-  await alice.kv.put("shared/greeting", {
+  // =========================================================================
+  // PART 1: Space API - Basic Operations
+  // =========================================================================
+  console.log();
+  console.log("=".repeat(70));
+  console.log("PART 1: Space API - Basic Operations");
+  console.log("=".repeat(70));
+  console.log();
+
+  // Step 4: Get Alice's default space
+  console.log("[Alice] Getting default space...");
+  const aliceSpace = alice.spaces.get("default");
+  console.log(`[Alice] Space ID: ${aliceSpace.id}`);
+  console.log(`[Alice] Space name: ${aliceSpace.name}`);
+  console.log();
+
+  // Step 5: Alice stores data using Space API
+  console.log("[Alice] Storing data in space...");
+  const putResult = await aliceSpace.kv.put("shared/greeting", {
     message: "Hello from Alice!",
     timestamp: new Date().toISOString(),
   });
-  console.log("[Alice] Data stored at 'shared/greeting'");
+
+  if (!putResult.ok) {
+    console.error(`[Alice] ✗ Failed to store: ${putResult.error.message}`);
+  } else {
+    console.log("[Alice] ✓ Data stored at 'shared/greeting'");
+  }
   console.log();
 
-  // Step 5: Alice creates delegation for Bob (sub-delegation allowed by default)
-  // Note: Use pkhDid (not did) for user-to-user delegations
+  // Step 6: Alice uses prefix scoping
+  console.log("[Alice] Using prefix-scoped KV...");
+  const sharedKV = aliceSpace.kv.withPrefix("shared/");
+
+  const prefixPutResult = await sharedKV.put("document.json", {
+    title: "Important Document",
+    content: "This is shared data",
+  });
+
+  if (!prefixPutResult.ok) {
+    console.error(`[Alice] ✗ Failed: ${prefixPutResult.error.message}`);
+  } else {
+    console.log("[Alice] ✓ Stored 'document.json' in shared/ prefix");
+  }
+  console.log();
+
+  // =========================================================================
+  // PART 2: Space API - Delegations
+  // =========================================================================
+  console.log();
+  console.log("=".repeat(70));
+  console.log("PART 2: Space API - Delegations");
+  console.log("=".repeat(70));
+  console.log();
+
+  // Step 7: Alice creates delegation for Bob
+  // NOTE: Using TinyCloudNode.createDelegation() because Space API's delegations.create()
+  // has a bug - it uses invocation headers instead of delegation headers for /delegate endpoint.
+  // The server expects proper SIWE-based delegation headers.
   console.log("[Alice] Creating delegation for Bob...");
-  const delegationForBob = await alice.createDelegation({
+  const portableDelegation = await alice.createDelegation({
+    delegateDID: bob.pkhDid,
     path: "shared/",
     actions: ["tinycloud.kv/get", "tinycloud.kv/put"],
-    delegateDID: bob.pkhDid,
+    expiryMs: 24 * 60 * 60 * 1000, // 24 hours
   });
-  console.log(`[Alice] Delegation created: ${delegationForBob.delegationCid}`);
+
+  console.log("[Alice] ✓ Delegation created!");
+  console.log(`  CID: ${portableDelegation.delegationCid}`);
+  console.log(`  Delegate: ${portableDelegation.delegateDID}`);
+  console.log(`  Path: ${portableDelegation.path}`);
+  console.log(`  Actions: ${portableDelegation.actions.join(", ")}`);
+  console.log(`  Expiry: ${portableDelegation.expiry.toISOString()}`);
   console.log();
 
-  // --- TRANSPORT BOUNDARY ---
-  // In a real app, Alice would send this delegation to Bob over a secure channel.
-  // We simulate this by serializing and deserializing the delegation.
-  const serializedForBob = serializeDelegation(delegationForBob);
-  const receivedByBob = deserializeDelegation(serializedForBob);
+  // Step 8: Skip delegation listing (Space API not yet implemented on server)
+  // NOTE: space.delegations.list() requires server-side support for tinycloud.delegation/list
+  // which is not yet implemented. The delegation was created successfully above.
+  console.log("[Alice] Delegation listing via Space API skipped (server not yet implemented)");
+  console.log();
 
-  // Step 6: Bob uses the delegation to access Alice's space
-  console.log("[Bob] Using delegation from Alice...");
+  // Step 9: Skip received delegation listing (Space API not yet implemented on server)
+  console.log("[Bob] Received delegation listing via Space API skipped (server not yet implemented)");
+  console.log();
+
+  // Step 10: Bob accesses Alice's space using delegation
+  console.log("[Bob] Accessing Alice's space...");
+
+  // Serialize and deserialize the delegation (simulating transfer between users)
+  const serializedForBob = serializeDelegation(portableDelegation);
+  const receivedByBob = deserializeDelegation(serializedForBob);
   const bobAccessToAlice = await bob.useDelegation(receivedByBob);
 
   // Bob reads Alice's data
-  const greetingResponse = await bobAccessToAlice.kv.get<{ message: string }>("greeting");
-  console.log(`[Bob] Read from Alice: "${greetingResponse.data?.data?.message}"`);
+  const greetingResult = await bobAccessToAlice.kv.get("greeting");
+  if (greetingResult.ok && greetingResult.data?.data) {
+    console.log(`[Bob] ✓ Read from Alice: "${greetingResult.data.data.message}"`);
+  }
 
   // Bob writes a response
-  await bobAccessToAlice.kv.put("bob-was-here", {
+  const bobWriteResult = await bobAccessToAlice.kv.put("bob-was-here", {
     from: "Bob",
     message: "Thanks for sharing, Alice!",
     timestamp: new Date().toISOString(),
   });
-  console.log("[Bob] Wrote response to Alice's space");
+
+  if (bobWriteResult.ok) {
+    console.log("[Bob] ✓ Wrote response to Alice's space");
+  }
   console.log();
 
-  // Step 7: Bob creates sub-delegation for Charlie
-  // Note: Use pkhDid (not did) for user-to-user delegations
+  // Step 11: Bob creates sub-delegation for Charlie
   console.log("[Bob] Creating sub-delegation for Charlie...");
-  const delegationForCharlie = await bob.createSubDelegation(receivedByBob, {
+  const subDelegation = await bob.createSubDelegation(receivedByBob, {
     path: "shared/",
     actions: ["tinycloud.kv/put"],
     delegateDID: charlie.pkhDid,
   });
-  console.log(`[Bob] Sub-delegation created: ${delegationForCharlie.delegationCid}`);
+  console.log(`[Bob] ✓ Sub-delegation created: ${subDelegation.delegationCid}`);
   console.log();
 
-  // --- TRANSPORT BOUNDARY ---
-  // Bob sends the sub-delegation to Charlie
-  const serializedForCharlie = serializeDelegation(delegationForCharlie);
+  // Step 12: Charlie uses delegation chain
+  const serializedForCharlie = serializeDelegation(subDelegation);
   const receivedByCharlie = deserializeDelegation(serializedForCharlie);
-
-  // Step 8: Charlie uses the delegation chain to write to Alice's space
-  console.log("[Charlie] Using delegation chain...");
   const charlieAccessToAlice = await charlie.useDelegation(receivedByCharlie);
 
-  await charlieAccessToAlice.kv.put("charlie-was-here", {
+  console.log("[Charlie] Writing to Alice's space via delegation chain...");
+  const charlieWriteResult = await charlieAccessToAlice.kv.put("charlie-was-here", {
     from: "Charlie",
     message: "Hello from the end of the chain!",
     timestamp: new Date().toISOString(),
   });
-  console.log("[Charlie] Wrote to Alice's space via delegation chain");
+
+  if (charlieWriteResult.ok) {
+    console.log("[Charlie] ✓ Wrote to Alice's space");
+  }
   console.log();
 
-  // Step 9: Alice reads messages from both Bob and Charlie
+  // Step 13: Alice reads messages from both Bob and Charlie
   console.log("[Alice] Reading responses...");
-  const bobResponse = await alice.kv.get<{ from: string; message: string }>("shared/bob-was-here");
-  const charlieResponse = await alice.kv.get<{ from: string; message: string }>("shared/charlie-was-here");
-  console.log(`[Alice] From Bob: "${bobResponse.data?.data?.message}"`);
-  console.log(`[Alice] From Charlie: "${charlieResponse.data?.data?.message}"`);
+  const bobResponse = await aliceSpace.kv.get<{ from: string; message: string }>("shared/bob-was-here");
+  const charlieResponse = await aliceSpace.kv.get<{ from: string; message: string }>("shared/charlie-was-here");
+
+  if (bobResponse.ok && bobResponse.data?.data) {
+    console.log(`[Alice] From Bob: "${bobResponse.data.data.message}"`);
+  }
+  if (charlieResponse.ok && charlieResponse.data?.data) {
+    console.log(`[Alice] From Charlie: "${charlieResponse.data.data.message}"`);
+  }
   console.log();
 
-  // Summary
-  console.log("=".repeat(50));
-  console.log("Demo Complete!");
+  // =========================================================================
+  // PART 3: Sharing Links (Skipped - Space API not yet implemented)
+  // =========================================================================
   console.log();
-  console.log("What happened:");
-  console.log("  1. Alice, Bob, and Charlie each signed in (created spaces)");
-  console.log("  2. Alice stored data and delegated access to Bob");
-  console.log("  3. Bob read Alice's data and wrote a response");
-  console.log("  4. Bob sub-delegated write access to Charlie");
-  console.log("  5. Charlie wrote to Alice's space via the chain");
-  console.log("  6. Alice read messages from both Bob and Charlie");
+  console.log("=".repeat(70));
+  console.log("PART 3: Sharing Links (Space API not yet implemented on server)");
+  console.log("=".repeat(70));
+  console.log();
+
+  // NOTE: space.sharing.generate() and space.sharing.list() require server-side
+  // support for tinycloud.share/* capabilities which are not yet implemented.
+  console.log("[Alice] Sharing link generation via Space API skipped (server not yet implemented)");
+  console.log();
+
+  // =========================================================================
+  // PART 4: Space Management (Skipped - Space API not yet implemented)
+  // =========================================================================
+  console.log();
+  console.log("=".repeat(70));
+  console.log("PART 4: Space Management (Space API not yet implemented on server)");
+  console.log("=".repeat(70));
+  console.log();
+
+  // NOTE: spaces.list() and space.info() require server-side support for
+  // tinycloud.space/* capabilities which are not yet implemented.
+  console.log("[Alice] Space listing and info via Space API skipped (server not yet implemented)");
+  console.log();
+
+  // =========================================================================
+  // Summary
+  // =========================================================================
+  console.log();
+  console.log("=".repeat(70));
+  console.log("Demo Complete!");
+  console.log("=".repeat(70));
+  console.log();
+  console.log("What was demonstrated:");
+  console.log();
+  console.log("PART 1 - Space API Basic Operations:");
+  console.log("  ✓ Got space using spaces.get('default')");
+  console.log("  ✓ Stored data using space.kv.put()");
+  console.log("  ✓ Used prefix scoping with space.kv.withPrefix()");
+  console.log();
+  console.log("PART 2 - Delegations:");
+  console.log("  ✓ Created delegation using TinyCloudNode.createDelegation()");
+  console.log("  ✓ Bob accessed Alice's space via useDelegation()");
+  console.log("  ✓ Bob created sub-delegation for Charlie");
+  console.log("  ✓ Charlie wrote via delegation chain");
+  console.log();
+  console.log("PART 3 - Sharing Links:");
+  console.log("  ⏳ Skipped (server-side tinycloud.share/* not yet implemented)");
+  console.log();
+  console.log("PART 4 - Space Management:");
+  console.log("  ⏳ Skipped (server-side tinycloud.space/* not yet implemented)");
+  console.log();
+  console.log("Working APIs Used:");
+  console.log("  • spaces.get(name) - Get Space object");
+  console.log("  • space.kv.put/get/list - Space-scoped KV operations");
+  console.log("  • space.kv.withPrefix() - Prefix-scoped KV");
+  console.log("  • TinyCloudNode.createDelegation() - Create delegation");
+  console.log("  • TinyCloudNode.useDelegation() - Use received delegation");
+  console.log("  • TinyCloudNode.createSubDelegation() - Create sub-delegation");
+  console.log();
+  console.log("Not Yet Implemented on Server:");
+  console.log("  • space.delegations.create/list/revoke (needs tinycloud.delegation/*)");
+  console.log("  • space.sharing.generate/list/revoke (needs tinycloud.share/*)");
+  console.log("  • spaces.list(), space.info() (needs tinycloud.space/*)");
   console.log();
 }
 

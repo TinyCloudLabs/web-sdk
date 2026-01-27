@@ -17,9 +17,14 @@ import type { SpaceInfo } from "../delegations/types";
  */
 export interface ISpaceScopedDelegations {
   /**
-   * List delegations within this space.
+   * List delegations created by the user in this space (outgoing).
    */
   list(): Promise<Result<import("../delegations/types").Delegation[], ServiceError>>;
+
+  /**
+   * List delegations received by the user for this space (incoming).
+   */
+  listReceived(): Promise<Result<import("../delegations/types").Delegation[], ServiceError>>;
 
   /**
    * Create a delegation within this space.

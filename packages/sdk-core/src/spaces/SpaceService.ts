@@ -761,8 +761,7 @@ export class SpaceService implements ISpaceService {
 
     return {
       async list(): Promise<Result<Delegation[], ServiceError>> {
-        // Use DelegationService.forSpace() pattern
-        // For now, return a stub that calls the delegation endpoint
+        // List outgoing delegations (created by user)
         try {
           const headers = self.invoke(
             self.session,
@@ -774,7 +773,7 @@ export class SpaceService implements ISpaceService {
           const response = await self.fetchFn(`${self.host}/invoke`, {
             method: "POST",
             headers,
-            body: JSON.stringify({ spaceId }),
+            body: JSON.stringify({ spaceId, direction: "outgoing" }),
           });
 
           if (!response.ok) {
@@ -795,6 +794,46 @@ export class SpaceService implements ISpaceService {
             serviceError(
               SpaceErrorCodes.NETWORK_ERROR,
               `Network error listing delegations: ${String(error)}`,
+              SERVICE_NAME
+            )
+          );
+        }
+      },
+
+      async listReceived(): Promise<Result<Delegation[], ServiceError>> {
+        // List incoming delegations (received by user)
+        try {
+          const headers = self.invoke(
+            self.session,
+            "delegation",
+            spaceId,
+            "tinycloud.delegation/list"
+          );
+
+          const response = await self.fetchFn(`${self.host}/invoke`, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({ spaceId, direction: "incoming" }),
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            return err(
+              serviceError(
+                SpaceErrorCodes.NETWORK_ERROR,
+                `Failed to list received delegations: ${response.status} - ${errorText}`,
+                SERVICE_NAME
+              )
+            );
+          }
+
+          const data = (await response.json()) as Delegation[];
+          return ok(data);
+        } catch (error) {
+          return err(
+            serviceError(
+              SpaceErrorCodes.NETWORK_ERROR,
+              `Network error listing received delegations: ${String(error)}`,
               SERVICE_NAME
             )
           );
