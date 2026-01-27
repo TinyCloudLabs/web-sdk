@@ -1,5 +1,8 @@
-import { createPublicClient, http, type Address } from "viem";
 
+import { createPublicClient, encodeFunctionData, fromHex, hexToString, http, zeroAddress, zeroHash, type Address } from "viem";
+
+import { providers } from "ethers";
+import { multiaddrToUri } from "@multiformats/multiaddr-to-uri"
 const REGISTRY_ABI = [
   {
     inputs: [{ internalType: "address", name: "account", type: "address" }],
@@ -16,10 +19,12 @@ const REGISTRY_ABI = [
     type: "function",
   },
 ] as const;
-
+export const REGISTRY_CONTRACT_ADDRESS = {
+  1: "0xbA1bf1B4C72d779f3dd21a8f29a70A82fD4dc3B7",
+  11155111: "0x89e5DEc611f357b7274B3d74fF3E2e03075ec1F8"
+}
 export interface RegistryConfig {
-  rpcUrl: string;
-  contractAddress: Address;
+  provider: providers.Web3Provider;
 }
 
 /**
@@ -28,9 +33,7 @@ export interface RegistryConfig {
  */
 export class Registry {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private client: any;
-  private contractAddress: Address;
-
+  provider: providers.Web3Provider;
   /**
    * Creates a new instance of the Registry class.
    *
@@ -39,10 +42,7 @@ export class Registry {
    * @param config.contractAddress - The address of the Registry contract
    */
   constructor(config: RegistryConfig) {
-    this.contractAddress = config.contractAddress;
-    this.client = createPublicClient({
-      transport: http(config.rpcUrl),
-    });
+    this.provider = config.provider;
   }
 
   /**
@@ -62,14 +62,35 @@ export class Registry {
    * ```
    */
   async getNode(account: Address): Promise<string> {
-    const node = await this.client.readContract({
-      address: this.contractAddress,
-      abi: REGISTRY_ABI,
-      functionName: "getNode",
-      args: [account],
-    });
+    const chainId = await this.provider.getSigner().getChainId();
+    const contractAddress = REGISTRY_CONTRACT_ADDRESS[chainId as keyof typeof REGISTRY_CONTRACT_ADDRESS] ?? REGISTRY_CONTRACT_ADDRESS[1];
+    const node = hexToString(await this.provider.call({
+      data: encodeFunctionData({
+        abi: REGISTRY_ABI,
+        functionName: "getNode",
+        args: [account]
+      }),
+      chainId,
+      to: contractAddress
+    }) as `0x${string}`).replace(/\0/g, '').replace("'", '').trim();
+
+
+    if (node === zeroHash || !node.includes("http")) {
+      return "";
+    }
+    return multiaddrToUri(node)
+  }
+
+  async addressNode(): Promise<string> {
+    const address = await this.provider.getSigner().getAddress();
+    const node = await this.getNode(address as `0x${string}`);
+
     return node;
   }
+
+
+
+
 
   /**
    * Checks if an account has a registered node.
@@ -86,13 +107,18 @@ export class Registry {
    * ```
    */
   async hasNode(account: Address): Promise<boolean> {
-    const result = await this.client.readContract({
-      address: this.contractAddress,
-      abi: REGISTRY_ABI,
-      functionName: "hasNode",
-      args: [account],
+    const chainId = await this.provider.getSigner().getChainId();
+    const contractAddress = REGISTRY_CONTRACT_ADDRESS[chainId as keyof typeof REGISTRY_CONTRACT_ADDRESS] ?? REGISTRY_CONTRACT_ADDRESS[1];
+    const result = await this.provider.call({
+      data: encodeFunctionData({
+        abi: REGISTRY_ABI,
+        functionName: "hasNode",
+        args: [account]
+      }),
+      chainId,
+      to: contractAddress
     });
-    return result;
+    return !!result;
   }
 }
 
