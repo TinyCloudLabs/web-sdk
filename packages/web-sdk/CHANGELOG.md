@@ -1,5 +1,66 @@
 # @tinycloudlabs/web-sdk
 
+## 0.4.0
+
+### Minor Changes
+
+- 8c448f1: Update namespace references
+- 2f7f0f4: added registry for node resolution and webpack build fix using polyfills
+
+### Patch Changes
+
+- 69fc83e: Fix space creation flow and host configuration consistency
+
+  - Fixed sign-in flow to setup space session before calling extension hooks
+  - Added `getTinycloudHosts()` method to `IUserAuthorization` interface
+  - Updated `TinyCloudStorage` to use hosts from `UserAuthorization` for consistency
+  - Fixed `tryResumeSession` to also setup space before extension hooks
+  - Updated demo app to pass `tinycloudHosts` at top level config
+
+  This ensures the space exists before `TinyCloudStorage.afterSignIn()` runs,
+  preventing "Space not found" errors during session activation.
+
+- 6cf4ef6: Update logging
+- a2b4b66: Breaking API changes for node-sdk delegation system
+
+  ### node-sdk
+
+  **BREAKING: `allowSubDelegation` → `disableSubDelegation`**
+
+  - Sub-delegation is now allowed by default (aligns with ocap/UCAN expectations)
+  - Use `disableSubDelegation: true` to prevent recipients from creating sub-delegations
+  - Before: `createDelegation({ allowSubDelegation: true })` to enable
+  - After: `createDelegation({})` enables by default, use `disableSubDelegation: true` to disable
+
+  **BREAKING: `autoCreateNamespace` default changed to `false`**
+
+  - Namespaces are no longer auto-created during sign-in
+  - Use `autoCreateNamespace: true` explicitly for namespace owners
+  - Delegates using shared namespaces should not set this flag
+
+  ### web-sdk
+
+  - Fixed `KVServiceAdapter` to include `jwk` property required by `ServiceSession`
+
+- a2b4b66: Refactor web-sdk to use shared sdk-core interfaces.
+
+  Changes:
+
+  - Add sdk-core dependency
+  - UserAuthorization now implements IUserAuthorization from sdk-core
+  - Re-export sdk-core interfaces (TinyCloud, ISigner, ISessionStorage, etc.)
+  - Web-sdk can now be used with platform-agnostic sdk-core code
+
+  Part of TC-401: IUserAuthorization shared interface implementation.
+
+- Updated dependencies [8c448f1]
+- Updated dependencies [a2b4b66]
+- Updated dependencies [a2b4b66]
+- Updated dependencies [a2b4b66]
+  - @tinycloudlabs/web-sdk-wasm@0.4.0
+  - @tinycloudlabs/sdk-core@0.2.0
+  - @tinycloudlabs/web-core@0.3.1
+
 ## 0.3.0
 
 ### Minor Changes

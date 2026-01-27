@@ -1,5 +1,13 @@
 # @tinycloudlabs/web-sdk-wasm
 
+## 0.3.1
+
+### Patch Changes
+
+- 69fc83e: Update tinycloud-node dependency to rev 8407561
+
+  Includes namespace to space migration changes in the WASM bindings.
+
 ## 0.3.0
 
 ### Minor Changes
