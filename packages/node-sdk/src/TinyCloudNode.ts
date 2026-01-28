@@ -71,16 +71,20 @@ import { PortableDelegation } from "./delegation";
 import { DelegatedAccess } from "./DelegatedAccess";
 import { WasmKeyProvider } from "./keys/WasmKeyProvider";
 
+/** Default TinyCloud host */
+const DEFAULT_HOST = "https://node.tinycloud.xyz";
+
 /**
  * Configuration for TinyCloudNode.
+ * All fields are optional - TinyCloudNode can work with zero configuration.
  */
 export interface TinyCloudNodeConfig {
-  /** Hex-encoded private key (with or without 0x prefix) */
-  privateKey: string;
-  /** TinyCloud server URL (e.g., "https://node.tinycloud.xyz") */
-  host: string;
-  /** Space prefix for this user's space */
-  prefix: string;
+  /** Hex-encoded private key (with or without 0x prefix). Optional - only needed for wallet mode and signIn() */
+  privateKey?: string;
+  /** TinyCloud server URL (default: "https://node.tinycloud.xyz") */
+  host?: string;
+  /** Space prefix for this user's space. Optional - only needed for signIn() */
+  prefix?: string;
   /** Domain for SIWE messages (default: derived from host) */
   domain?: string;
   /** Session expiration time in milliseconds (default: 1 hour) */
@@ -100,14 +104,19 @@ export class TinyCloudNode {
   private static wasmInitialized = false;
 
   private config: TinyCloudNodeConfig;
-  private signer: PrivateKeySigner;
-  private auth: NodeUserAuthorization;
-  private tc: TinyCloud;
+  private signer: PrivateKeySigner | null = null;
+  private auth: NodeUserAuthorization | null = null;
+  private tc: TinyCloud | null = null;
   private _address?: string;
   private _chainId: number = 1;
-  private sessionManager?: TCWSessionManager;
+  private sessionManager: TCWSessionManager;
   private _serviceContext?: ServiceContext;
   private _kv?: KVService;
+
+  /** Session key ID - always available */
+  private sessionKeyId: string;
+  /** Session key JWK as object - always available */
+  private sessionKeyJwk: object;
 
   // v2 services
   private _capabilityRegistry?: CapabilityKeyRegistry;
@@ -119,48 +128,95 @@ export class TinyCloudNode {
   /**
    * Create a new TinyCloudNode instance.
    *
-   * @param config - Configuration options
+   * All configuration is optional. Without a privateKey, the instance operates
+   * in "session-only" mode where it can receive delegations but cannot create
+   * its own space via signIn().
+   *
+   * @param config - Configuration options (all optional)
+   *
+   * @example
+   * ```typescript
+   * // Session-only mode - can receive delegations
+   * const bob = new TinyCloudNode();
+   * console.log(bob.did); // did:key:z6Mk... - available immediately
+   *
+   * // Wallet mode - can create own space
+   * const alice = new TinyCloudNode({
+   *   privateKey: process.env.ALICE_PRIVATE_KEY,
+   *   prefix: "myapp",
+   * });
+   * await alice.signIn();
+   * ```
    */
-  constructor(config: TinyCloudNodeConfig) {
+  constructor(config: TinyCloudNodeConfig = {}) {
     // Initialize WASM panic hook once
     if (!TinyCloudNode.wasmInitialized) {
       initPanicHook();
       TinyCloudNode.wasmInitialized = true;
     }
 
-    this.config = config;
-    this.signer = new PrivateKeySigner(config.privateKey, this._chainId);
+    // Store config with default host
+    this.config = {
+      ...config,
+      host: config.host ?? DEFAULT_HOST,
+    };
 
-    // Derive domain from host if not provided
-    const domain = config.domain ?? new URL(config.host).hostname;
+    // Always create session manager and session key immediately
+    this.sessionManager = new TCWSessionManager();
+    this.sessionKeyId = this.sessionManager.createSessionKey(undefined);
+    const jwkStr = this.sessionManager.jwk(this.sessionKeyId);
+    if (!jwkStr) {
+      throw new Error("Failed to get session key JWK");
+    }
+    this.sessionKeyJwk = JSON.parse(jwkStr);
 
-    this.auth = new NodeUserAuthorization({
-      signer: this.signer,
-      signStrategy: { type: "auto-sign" },
-      sessionStorage: new MemorySessionStorage(),
-      domain,
-      spacePrefix: config.prefix,
-      sessionExpirationMs: config.sessionExpirationMs ?? 60 * 60 * 1000,
-      tinycloudHosts: [config.host],
-      autoCreateSpace: config.autoCreateSpace,
-    });
+    // Only set up wallet/auth if privateKey is provided
+    if (config.privateKey) {
+      this.signer = new PrivateKeySigner(config.privateKey, this._chainId);
 
-    this.tc = new TinyCloud(this.auth);
+      // Derive domain from host if not provided
+      const host = this.config.host!;
+      const domain = config.domain ?? new URL(host).hostname;
+
+      this.auth = new NodeUserAuthorization({
+        signer: this.signer,
+        signStrategy: { type: "auto-sign" },
+        sessionStorage: new MemorySessionStorage(),
+        domain,
+        spacePrefix: config.prefix,
+        sessionExpirationMs: config.sessionExpirationMs ?? 60 * 60 * 1000,
+        tinycloudHosts: [host],
+        autoCreateSpace: config.autoCreateSpace,
+      });
+
+      this.tc = new TinyCloud(this.auth);
+    }
   }
 
   /**
-   * Get the DID for this user's session key.
-   * Available after signIn().
+   * Get the primary identity DID for this user.
+   * - If wallet connected and signed in: returns PKH DID (did:pkh:eip155:{chainId}:{address})
+   * - If session-only mode: returns session key DID (did:key:z6Mk...)
+   *
+   * Use this for delegations - it always returns the appropriate identity.
    */
   get did(): string {
-    if (!this.sessionManager) {
-      throw new Error("Not signed in. Call signIn() first.");
+    // If wallet is connected and signed in, return PKH (persistent identity)
+    if (this._address) {
+      return `did:pkh:eip155:${this._chainId}:${this._address}`;
     }
-    const session = this.auth.tinyCloudSession;
-    if (!session) {
-      throw new Error("No active session");
-    }
-    return session.verificationMethod;
+    // Session-only mode: return session key DID (ephemeral identity)
+    return this.sessionManager.getDID(this.sessionKeyId);
+  }
+
+  /**
+   * Get the session key DID. Always available.
+   * Format: did:key:z6Mk...#z6Mk...
+   *
+   * Use this when you specifically need the session key, not the user identity.
+   */
+  get sessionDid(): string {
+    return this.sessionManager.getDID(this.sessionKeyId);
   }
 
   /**
@@ -171,12 +227,17 @@ export class TinyCloudNode {
   }
 
   /**
+   * @deprecated Use `did` instead. The `did` getter now returns PKH DID when
+   * wallet is connected, or session key DID in session-only mode.
+   *
    * Get the PKH DID for this user (based on Ethereum address).
-   * Use this for user-to-user delegations.
    * Format: did:pkh:eip155:{chainId}:{address}
-   * Available after signIn().
+   * Only available in wallet mode after signIn().
    */
   get pkhDid(): string {
+    if (!this.signer) {
+      throw new Error("No wallet connected. pkhDid requires a privateKey in config.");
+    }
     if (!this._address) {
       throw new Error("Not signed in. Call signIn() first.");
     }
@@ -184,11 +245,20 @@ export class TinyCloudNode {
   }
 
   /**
+   * Check if this instance is in session-only mode (no wallet).
+   * In session-only mode, the instance can receive delegations but cannot
+   * create its own space via signIn().
+   */
+  get isSessionOnly(): boolean {
+    return this.signer === null;
+  }
+
+  /**
    * Get the space ID for this user.
    * Available after signIn().
    */
   get spaceId(): string | undefined {
-    return this.auth.tinyCloudSession?.spaceId;
+    return this.auth?.tinyCloudSession?.spaceId;
   }
 
   /**
@@ -196,19 +266,23 @@ export class TinyCloudNode {
    * Available after signIn().
    */
   get session(): TinyCloudSession | undefined {
-    return this.auth.tinyCloudSession;
+    return this.auth?.tinyCloudSession;
   }
 
   /**
    * Sign in and create a new session.
    * This creates the user's space if it doesn't exist.
+   * Requires wallet mode (privateKey in config).
    */
   async signIn(): Promise<void> {
+    if (!this.signer || !this.tc) {
+      throw new Error(
+        "Cannot signIn() in session-only mode. Provide a privateKey in config to create your own space."
+      );
+    }
+
     this._address = await this.signer.getAddress();
     this._chainId = await this.signer.getChainId();
-
-    // Create session manager for tracking
-    this.sessionManager = new TCWSessionManager();
 
     // Reset KV service so it gets recreated with new session
     this._kv = undefined;
@@ -225,7 +299,7 @@ export class TinyCloudNode {
    * @internal
    */
   private initializeServices(): void {
-    const session = this.auth.tinyCloudSession;
+    const session = this.auth?.tinyCloudSession;
     if (!session) {
       return;
     }
@@ -234,7 +308,7 @@ export class TinyCloudNode {
     this._serviceContext = new ServiceContext({
       invoke,
       fetch: globalThis.fetch.bind(globalThis),
-      hosts: [this.config.host],
+      hosts: [this.config.host!],
     });
 
     // Create and register KV service
@@ -264,22 +338,23 @@ export class TinyCloudNode {
     // Initialize CapabilityKeyRegistry
     this._capabilityRegistry = new CapabilityKeyRegistry();
 
+    const tcSession = this.auth?.tinyCloudSession;
     // Register the session key with its capabilities
-    if (this.auth.tinyCloudSession && this._address) {
+    if (tcSession && this._address) {
       const sessionKey: KeyInfo = {
-        id: this.auth.tinyCloudSession.sessionKey,
-        did: this.auth.tinyCloudSession.verificationMethod,
+        id: tcSession.sessionKey,
+        did: tcSession.verificationMethod,
         type: "session",
         // Cast jwk from generic object to JWK - we know it has the required structure
-        jwk: this.auth.tinyCloudSession.jwk as JWK,
+        jwk: tcSession.jwk as JWK,
         priority: 0, // Session keys have highest priority
       };
 
       // Create root delegation for the session
       const rootDelegation: Delegation = {
-        cid: this.auth.tinyCloudSession.delegationCid,
-        delegateDID: this.auth.tinyCloudSession.verificationMethod,
-        spaceId: this.auth.tinyCloudSession.spaceId,
+        cid: tcSession.delegationCid,
+        delegateDID: tcSession.verificationMethod,
+        spaceId: tcSession.spaceId,
         path: "", // Root access
         actions: [
           "tinycloud.kv/put",
@@ -298,7 +373,7 @@ export class TinyCloudNode {
 
     // Initialize DelegationManager
     this._delegationManager = new DelegationManager({
-      hosts: [this.config.host],
+      hosts: [this.config.host!],
       session: serviceSession,
       invoke,
       fetch: globalThis.fetch.bind(globalThis),
@@ -306,7 +381,7 @@ export class TinyCloudNode {
 
     // Initialize SpaceService
     this._spaceService = new SpaceService({
-      hosts: [this.config.host],
+      hosts: [this.config.host!],
       session: serviceSession,
       invoke,
       fetch: globalThis.fetch.bind(globalThis),
@@ -323,36 +398,34 @@ export class TinyCloudNode {
     });
 
     // Initialize KeyProvider for SharingService
-    if (this.sessionManager) {
-      this._keyProvider = new WasmKeyProvider({
-        sessionManager: this.sessionManager,
-      });
+    this._keyProvider = new WasmKeyProvider({
+      sessionManager: this.sessionManager,
+    });
 
-      // Initialize SharingService
-      this._sharingService = new SharingService({
-        hosts: [this.config.host],
-        session: serviceSession,
-        invoke,
-        fetch: globalThis.fetch.bind(globalThis),
-        keyProvider: this._keyProvider,
-        registry: this._capabilityRegistry,
-        delegationManager: this._delegationManager,
-        createKVService: (config) => {
-          const kvService = new KVService({});
-          if (this._serviceContext) {
-            // Create a new service context for the KV service with the provided session
-            const kvContext = new ServiceContext({
-              invoke: config.invoke,
-              fetch: config.fetch ?? globalThis.fetch.bind(globalThis),
-              hosts: config.hosts,
-            });
-            kvContext.setSession(config.session);
-            kvService.initialize(kvContext);
-          }
-          return kvService;
-        },
-      });
-    }
+    // Initialize SharingService
+    this._sharingService = new SharingService({
+      hosts: [this.config.host!],
+      session: serviceSession,
+      invoke,
+      fetch: globalThis.fetch.bind(globalThis),
+      keyProvider: this._keyProvider,
+      registry: this._capabilityRegistry,
+      delegationManager: this._delegationManager,
+      createKVService: (config) => {
+        const kvService = new KVService({});
+        if (this._serviceContext) {
+          // Create a new service context for the KV service with the provided session
+          const kvContext = new ServiceContext({
+            invoke: config.invoke,
+            fetch: config.fetch ?? globalThis.fetch.bind(globalThis),
+            hosts: config.hosts,
+          });
+          kvContext.setSession(config.session);
+          kvService.initialize(kvContext);
+        }
+        return kvService;
+      },
+    });
   }
 
   /**
@@ -604,7 +677,10 @@ export class TinyCloudNode {
     /** Expiration time in milliseconds from now (default: 1 hour) */
     expiryMs?: number;
   }): Promise<PortableDelegation> {
-    const session = this.auth.tinyCloudSession;
+    if (!this.signer) {
+      throw new Error("Cannot createDelegation() in session-only mode. Requires wallet mode.");
+    }
+    const session = this.auth?.tinyCloudSession;
     if (!session) {
       throw new Error("Not signed in. Call signIn() first.");
     }
@@ -627,7 +703,7 @@ export class TinyCloudNode {
       abilities,
       address: ensureEip55(session.address),
       chainId: session.chainId,
-      domain: new URL(this.config.host).hostname,
+      domain: new URL(this.config.host!).hostname,
       issuedAt: now.toISOString(),
       expirationTime: expirationTime.toISOString(),
       spaceId: session.spaceId,
@@ -646,7 +722,7 @@ export class TinyCloudNode {
 
     // Activate the delegation with the server
     const activateResult = await activateSessionWithHost(
-      this.config.host,
+      this.config.host!,
       delegationSession.delegationHeader
     );
 
@@ -679,7 +755,12 @@ export class TinyCloudNode {
    * @returns A DelegatedAccess instance for performing operations
    */
   async useDelegation(delegation: PortableDelegation): Promise<DelegatedAccess> {
-    const mySession = this.auth.tinyCloudSession;
+    // Currently requires wallet mode and signIn()
+    // TODO: Phase 2 will allow session-only mode to use delegations
+    if (!this.signer) {
+      throw new Error("Cannot useDelegation() in session-only mode yet. Requires wallet mode.");
+    }
+    const mySession = this.auth?.tinyCloudSession;
     if (!mySession) {
       throw new Error("Not signed in. Call signIn() first.");
     }
@@ -709,7 +790,7 @@ export class TinyCloudNode {
       abilities,
       address: ensureEip55(mySession.address),
       chainId: mySession.chainId,
-      domain: new URL(this.config.host).hostname,
+      domain: new URL(this.config.host!).hostname,
       issuedAt: now.toISOString(),
       expirationTime: expirationTime.toISOString(),
       spaceId: delegation.spaceId,
@@ -728,7 +809,7 @@ export class TinyCloudNode {
 
     // Activate with server
     const activateResult = await activateSessionWithHost(
-      this.config.host,
+      this.config.host!,
       invokerSession.delegationHeader
     );
 
@@ -750,7 +831,7 @@ export class TinyCloudNode {
       signature,
     };
 
-    return new DelegatedAccess(session, delegation, this.config.host);
+    return new DelegatedAccess(session, delegation, this.config.host!);
   }
 
   /**
@@ -778,6 +859,9 @@ export class TinyCloudNode {
       expiryMs?: number;
     }
   ): Promise<PortableDelegation> {
+    if (!this.signer) {
+      throw new Error("Cannot createSubDelegation() in session-only mode. Requires wallet mode.");
+    }
     if (!this._address) {
       throw new Error("Not signed in. Call signIn() first.");
     }
@@ -827,7 +911,7 @@ export class TinyCloudNode {
       abilities,
       address: ensureEip55(this._address),
       chainId: this._chainId,
-      domain: new URL(this.config.host).hostname,
+      domain: new URL(this.config.host!).hostname,
       issuedAt: now.toISOString(),
       expirationTime: actualExpiry.toISOString(),
       spaceId: parentDelegation.spaceId,
@@ -846,7 +930,7 @@ export class TinyCloudNode {
 
     // Activate the sub-delegation with the server
     const activateResult = await activateSessionWithHost(
-      this.config.host,
+      this.config.host!,
       subDelegationSession.delegationHeader
     );
 

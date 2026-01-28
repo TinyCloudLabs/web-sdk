@@ -167,19 +167,19 @@ async function runDemo() {
   console.log("[Alice] Signing in...");
   await alice.signIn();
   console.log(`[Alice] Space: ${alice.spaceId}`);
-  console.log(`[Alice] PKH DID: ${alice.pkhDid}`);
+  console.log(`[Alice] DID: ${alice.did}`);
 
   console.log();
   console.log("[Bob] Signing in...");
   await bob.signIn();
   console.log(`[Bob] Space: ${bob.spaceId}`);
-  console.log(`[Bob] PKH DID: ${bob.pkhDid}`);
+  console.log(`[Bob] DID: ${bob.did}`);
 
   console.log();
   console.log("[Charlie] Signing in...");
   await charlie.signIn();
   console.log(`[Charlie] Space: ${charlie.spaceId}`);
-  console.log(`[Charlie] PKH DID: ${charlie.pkhDid}`);
+  console.log(`[Charlie] DID: ${charlie.did}`);
   console.log();
 
   // =========================================================================
@@ -244,7 +244,7 @@ async function runDemo() {
   // The server expects proper SIWE-based delegation headers.
   console.log("[Alice] Creating delegation for Bob...");
   const portableDelegation = await alice.createDelegation({
-    delegateDID: bob.pkhDid,
+    delegateDID: bob.did,
     path: "shared/",
     actions: ["tinycloud.kv/get", "tinycloud.kv/put"],
     expiryMs: 24 * 60 * 60 * 1000, // 24 hours
@@ -318,7 +318,7 @@ async function runDemo() {
   const subDelegation = await bob.createSubDelegation(receivedByBob, {
     path: "shared/",
     actions: ["tinycloud.kv/put"],
-    delegateDID: charlie.pkhDid,
+    delegateDID: charlie.did,
   });
   console.log(`[Bob] ✓ Sub-delegation created: ${subDelegation.delegationCid}`);
   console.log();
