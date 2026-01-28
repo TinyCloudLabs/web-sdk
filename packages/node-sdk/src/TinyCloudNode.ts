@@ -295,6 +295,62 @@ export class TinyCloudNode {
   }
 
   /**
+   * Connect a wallet to upgrade from session-only mode to wallet mode.
+   *
+   * This allows a user who started in session-only mode to later connect
+   * a wallet and gain the ability to create their own space.
+   *
+   * Note: This does NOT automatically sign in. Call signIn() after connecting
+   * the wallet to create your space.
+   *
+   * @param privateKey - The Ethereum private key (hex string, no 0x prefix)
+   * @param options - Optional configuration
+   * @param options.prefix - Space name prefix (defaults to "default")
+   *
+   * @example
+   * ```typescript
+   * // Start in session-only mode
+   * const node = new TinyCloudNode({ host: "https://node.tinycloud.xyz" });
+   * console.log(node.did); // did:key:z6Mk... (session key)
+   *
+   * // Later, connect a wallet
+   * node.connectWallet(privateKey);
+   * await node.signIn();
+   * console.log(node.did); // did:pkh:eip155:1:0x... (PKH)
+   * ```
+   */
+  connectWallet(privateKey: string, options?: { prefix?: string }): void {
+    if (this.signer) {
+      throw new Error("Wallet already connected. Cannot connect another wallet.");
+    }
+
+    const prefix = options?.prefix ?? "default";
+    const host = this.config.host!;
+    const domain = new URL(host).hostname;
+
+    // Create signer from private key
+    this.signer = new PrivateKeySigner(privateKey);
+
+    // Create authorization handler
+    this.auth = new NodeUserAuthorization({
+      signer: this.signer,
+      signStrategy: { type: "auto-sign" },
+      sessionStorage: new MemorySessionStorage(),
+      domain,
+      spacePrefix: prefix,
+      sessionExpirationMs: this.config.sessionExpirationMs ?? 60 * 60 * 1000,
+      tinycloudHosts: [host],
+      autoCreateSpace: this.config.autoCreateSpace,
+    });
+
+    // Create TinyCloud instance
+    this.tc = new TinyCloud(this.auth);
+
+    // Update config with prefix
+    this.config.prefix = prefix;
+  }
+
+  /**
    * Initialize the service context and KV service after sign-in.
    * @internal
    */
@@ -751,15 +807,45 @@ export class TinyCloudNode {
    * This creates a new session key for this user that chains from the
    * received delegation, allowing operations on the delegator's space.
    *
+   * Works in both modes:
+   * - **Wallet mode**: Creates a SIWE sub-delegation from PKH to session key
+   * - **Session-only mode**: Uses the delegation directly (must target session key DID)
+   *
    * @param delegation - The portable delegation received from another user
    * @returns A DelegatedAccess instance for performing operations
    */
   async useDelegation(delegation: PortableDelegation): Promise<DelegatedAccess> {
-    // Currently requires wallet mode and signIn()
-    // TODO: Phase 2 will allow session-only mode to use delegations
-    if (!this.signer) {
-      throw new Error("Cannot useDelegation() in session-only mode yet. Requires wallet mode.");
+    // Session-only mode: use the delegation directly
+    // The delegation must target this user's session key DID
+    if (this.isSessionOnly) {
+      // Verify the delegation targets our session key DID
+      const myDid = this.did; // In session-only mode, this is the session key DID
+      if (delegation.delegateDID !== myDid) {
+        throw new Error(
+          `Delegation targets ${delegation.delegateDID} but this user's DID is ${myDid}. ` +
+          `The delegation must target this user's DID.`
+        );
+      }
+
+      // Create a session using the delegation directly
+      // In session-only mode, we use the received delegation as-is
+      const session: TinyCloudSession = {
+        address: delegation.ownerAddress,
+        chainId: delegation.chainId,
+        sessionKey: JSON.stringify(this.sessionKeyJwk),
+        spaceId: delegation.spaceId,
+        delegationCid: delegation.delegationCid,
+        delegationHeader: delegation.delegationHeader,
+        verificationMethod: this.sessionDid,
+        jwk: this.sessionKeyJwk as JWK,
+        siwe: "", // Not used in session-only mode
+        signature: "", // Not used in session-only mode
+      };
+
+      return new DelegatedAccess(session, delegation, this.config.host!);
     }
+
+    // Wallet mode: create a SIWE sub-delegation
     const mySession = this.auth?.tinyCloudSession;
     if (!mySession) {
       throw new Error("Not signed in. Call signIn() first.");
@@ -799,7 +885,7 @@ export class TinyCloudNode {
     });
 
     // Sign with THIS user's signer
-    const signature = await this.signer.signMessage(prepared.siwe);
+    const signature = await this.signer!.signMessage(prepared.siwe);
 
     // Complete the session setup
     const invokerSession = completeSessionSetup({
