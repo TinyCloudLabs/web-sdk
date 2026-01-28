@@ -62,3 +62,15 @@ export {
   // Default
   defaultSignStrategy,
 } from "./strategies";
+
+// Space creation handler types
+export {
+  // Context
+  SpaceCreationContext,
+  // Interface
+  ISpaceCreationHandler,
+  // Default implementation
+  AutoApproveSpaceCreationHandler,
+  // Default instance
+  defaultSpaceCreationHandler,
+} from "./spaceCreation";
