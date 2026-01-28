@@ -7,8 +7,8 @@
  * 1. Alice (wallet mode) creates a space and stores data
  * 2. Bob (session-only) receives a delegation from Alice - NO wallet needed
  * 3. Bob accesses Alice's space via useDelegation() - NO signIn() needed
- * 4. Charlie (session-only) receives a delegation from Alice - NO wallet needed
- * 5. Charlie accesses Alice's space via delegation - NO signIn() needed
+ * 4. Bob creates sub-delegation for Charlie (also session-only)
+ * 5. Charlie accesses Alice's space via delegation chain
  *
  * Key concepts demonstrated:
  * - `did` returns primary identity (PKH for wallet mode, session key for session-only)
@@ -125,10 +125,10 @@ async function runDemo() {
   });
 
   // Bob: Session-only mode (no wallet) - will receive delegations
-  const bob = new TinyCloudNode({ host: TINYCLOUD_URL });
+  const bob = new TinyCloudNode();
 
   // Charlie: Session-only mode (no wallet) - will receive sub-delegations
-  const charlie = new TinyCloudNode({ host: TINYCLOUD_URL });
+  const charlie = new TinyCloudNode();
 
   // Step 3: Only Alice signs in (creates her space)
   // Bob and Charlie are session-only - they don't sign in
@@ -254,7 +254,9 @@ async function runDemo() {
 
   // Bob reads Alice's data
   const greetingResult = await bobAccessToAlice.kv.get("greeting");
-  if (greetingResult.ok && greetingResult.data?.data) {
+  if (!greetingResult.ok) {
+    console.error(`[Bob] ✗ Failed to read greeting: ${greetingResult.error.message}`);
+  } else if (greetingResult.data?.data) {
     console.log(`[Bob] ✓ Read from Alice: "${greetingResult.data.data.message}"`);
   }
 
@@ -265,17 +267,10 @@ async function runDemo() {
     timestamp: new Date().toISOString(),
   });
 
-  if (bobWriteResult.ok) {
+  if (!bobWriteResult.ok) {
+    console.error(`[Bob] ✗ Failed to write response: ${bobWriteResult.error.message}`);
+  } else {
     console.log("[Bob] ✓ Wrote response to Alice's space");
-  }
-  console.log();
-
-  // Step 10a: Bob checks his received delegations (recipient view)
-  console.log("[Bob] Checking received delegations...");
-  const bobReceivedDelegations = bob.delegations.list();
-  console.log(`[Bob] ✓ I have access to ${bobReceivedDelegations.length} delegation(s)`);
-  for (const d of bobReceivedDelegations) {
-    console.log(`  - Space: ${d.spaceId}, Path: ${d.path}`);
   }
   console.log();
 
@@ -302,15 +297,11 @@ async function runDemo() {
     timestamp: new Date().toISOString(),
   });
 
-  if (charlieWriteResult.ok) {
+  if (!charlieWriteResult.ok) {
+    console.error(`[Charlie] ✗ Failed to write: ${charlieWriteResult.error.message}`);
+  } else {
     console.log("[Charlie] ✓ Wrote to Alice's space");
   }
-  console.log();
-
-  // Step 12a: Charlie checks his received delegations
-  console.log("[Charlie] Checking received delegations...");
-  const charlieReceivedDelegations = charlie.delegations.list();
-  console.log(`[Charlie] ✓ I have access to ${charlieReceivedDelegations.length} delegation(s)`);
   console.log();
 
   // Step 13: Alice reads messages from both Bob and Charlie
@@ -318,10 +309,14 @@ async function runDemo() {
   const bobResponse = await aliceSpace.kv.get<{ from: string; message: string }>("shared/bob-was-here");
   const charlieResponse = await aliceSpace.kv.get<{ from: string; message: string }>("shared/charlie-was-here");
 
-  if (bobResponse.ok && bobResponse.data?.data) {
+  if (!bobResponse.ok) {
+    console.error(`[Alice] ✗ Failed to read Bob's response: ${bobResponse.error.message}`);
+  } else if (bobResponse.data?.data) {
     console.log(`[Alice] From Bob: "${bobResponse.data.data.message}"`);
   }
-  if (charlieResponse.ok && charlieResponse.data?.data) {
+  if (!charlieResponse.ok) {
+    console.error(`[Alice] ✗ Failed to read Charlie's response: ${charlieResponse.error.message}`);
+  } else if (charlieResponse.data?.data) {
     console.log(`[Alice] From Charlie: "${charlieResponse.data.data.message}"`);
   }
   console.log();
@@ -384,7 +379,6 @@ async function runDemo() {
   console.log("  • node.did - Primary DID (session key in session-only mode)");
   console.log("  • node.isSessionOnly - Check if in session-only mode");
   console.log("  • node.useDelegation() - Works without signIn()");
-  console.log("  • node.delegations.list() - List received delegations (recipient view)");
   console.log();
   console.log("PART 3 - Sharing Links:");
   console.log("  ⏳ Skipped (server-side tinycloud.share/* not yet implemented)");
