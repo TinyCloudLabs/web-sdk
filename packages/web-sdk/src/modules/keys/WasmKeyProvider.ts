@@ -1,17 +1,31 @@
 /**
  * WasmKeyProvider - KeyProvider implementation using WASM session manager.
  *
- * This provider creates new session keys using the WASM session manager from web-sdk-wasm.
- * Each key is created with a fresh TCWSessionManager instance since build() consumes the manager.
+ * This provider wraps the TCWSessionManager from web-sdk-wasm to provide
+ * cryptographic key operations required by the SharingService.
+ *
+ * Supports multiple named session keys that can coexist within a single
+ * session manager instance.
  *
  * @packageDocumentation
  */
 
 import type { KeyProvider, JWK } from "@tinycloudlabs/sdk-core";
-import {
-  initialized,
-  tcwSession,
-} from "@tinycloudlabs/web-sdk-wasm";
+import { initialized, tcwSession } from "@tinycloudlabs/web-sdk-wasm";
+
+/** Type alias for TCWSessionManager from the tcwSession namespace */
+type TCWSessionManager = tcwSession.TCWSessionManager;
+
+/**
+ * Configuration for WasmKeyProvider.
+ */
+export interface WasmKeyProviderConfig {
+  /**
+   * Optional WASM session manager instance.
+   * If not provided, a new manager will be created.
+   */
+  sessionManager?: TCWSessionManager;
+}
 
 /**
  * KeyProvider implementation for web-sdk using WASM session manager.
@@ -19,50 +33,82 @@ import {
  * This allows the SharingService to create new session keys for sharing links
  * using the same cryptographic operations as the main session management.
  *
+ * Multiple named keys can coexist and are identified by their key ID for
+ * delegation targeting.
+ *
  * @example
  * ```typescript
+ * // Create with a shared session manager
+ * const sessionManager = new tcwSession.TCWSessionManager();
+ * const keyProvider = new WasmKeyProvider({ sessionManager });
+ *
+ * // Or create standalone (manages its own session manager)
  * const keyProvider = new WasmKeyProvider();
  *
- * // Create a session key for a sharing link
- * const keyId = await keyProvider.createSessionKey("share:abc123");
- * const jwk = keyProvider.getJWK(keyId);
- * const did = await keyProvider.getDID(keyId);
+ * // Create multiple named keys
+ * const keyId1 = await keyProvider.createSessionKey("share:abc123");
+ * const keyId2 = await keyProvider.createSessionKey("share:def456");
+ *
+ * // Retrieve keys by ID
+ * const jwk1 = keyProvider.getJWK(keyId1);
+ * const did1 = await keyProvider.getDID(keyId1);
+ *
+ * // List all keys
+ * console.log(keyProvider.listKeys()); // ["share:abc123", "share:def456"]
  * ```
  */
 export class WasmKeyProvider implements KeyProvider {
-  /** Map of key IDs to their JWKs */
-  private keys: Map<string, JWK> = new Map();
+  /** The WASM session manager instance */
+  private sessionManager?: TCWSessionManager;
+
+  /** Promise that resolves when initialization is complete */
+  private initPromise?: Promise<void>;
+
+  /**
+   * Create a new WasmKeyProvider.
+   *
+   * @param config - Optional configuration with session manager
+   */
+  constructor(config: WasmKeyProviderConfig = {}) {
+    if (config.sessionManager) {
+      this.sessionManager = config.sessionManager;
+    }
+  }
+
+  /**
+   * Ensure the session manager is initialized.
+   * Creates a new one if not provided in config.
+   */
+  private async ensureInitialized(): Promise<TCWSessionManager> {
+    if (this.sessionManager) {
+      return this.sessionManager;
+    }
+
+    if (!this.initPromise) {
+      this.initPromise = (async () => {
+        await initialized;
+        this.sessionManager = new tcwSession.TCWSessionManager();
+      })();
+    }
+
+    await this.initPromise;
+    return this.sessionManager!;
+  }
 
   /**
    * Generate a new session key with the given name.
    *
-   * This creates a new Ed25519 key pair using a fresh WASM session manager.
+   * This creates a new Ed25519 key pair in the WASM session manager.
    * The key can then be used for signing delegations in sharing links.
    *
    * @param name - A unique name/ID for the key (e.g., "share:timestamp:random")
    * @returns The key ID (same as the name provided)
    */
   async createSessionKey(name: string): Promise<string> {
-    // Ensure WASM is initialized
-    await initialized;
-
-    // Create a fresh session manager for this key
-    const sessionManager = new tcwSession.TCWSessionManager();
-
-    // Generate the key
-    sessionManager.createSessionKey();
-
-    // Get the JWK
-    const jwkString = sessionManager.jwk();
-    if (!jwkString) {
-      throw new Error("Failed to get JWK from session manager");
-    }
-
-    // Parse and store the JWK
-    const jwk = JSON.parse(jwkString) as JWK;
-    this.keys.set(name, jwk);
-
-    return name;
+    const manager = await this.ensureInitialized();
+    // The WASM session manager's createSessionKey accepts an optional key_id
+    // and stores the key internally for later retrieval
+    return manager.createSessionKey(name);
   }
 
   /**
@@ -76,125 +122,68 @@ export class WasmKeyProvider implements KeyProvider {
    * @throws Error if the key is not found
    */
   getJWK(keyId: string): JWK {
-    const jwk = this.keys.get(keyId);
-    if (!jwk) {
+    if (!this.sessionManager) {
+      throw new Error("WasmKeyProvider not initialized. Call createSessionKey first.");
+    }
+    // The WASM session manager returns the JWK as a JSON string
+    const jwkJson = this.sessionManager.jwk(keyId);
+    if (!jwkJson) {
       throw new Error(`Key not found: ${keyId}`);
     }
-    return jwk;
+    // Parse the JSON string to get the JWK object
+    return JSON.parse(jwkJson) as JWK;
   }
 
   /**
    * Get the DID (Decentralized Identifier) for a key.
    *
    * Returns the did:key format DID derived from the key's public key.
-   * The DID is computed from the JWK's public key components.
+   * The DID can be used as the delegatee in delegations.
    *
    * @param keyId - The key ID to get the DID for
    * @returns The did:key formatted DID string
    * @throws Error if the key is not found
    */
   async getDID(keyId: string): Promise<string> {
-    const jwk = this.getJWK(keyId);
+    const manager = await this.ensureInitialized();
+    // The WASM session manager has a synchronous getDID method
+    return manager.getDID(keyId);
+  }
 
-    // For Ed25519 keys, the DID is derived from the x (public key) value
-    // The format is did:key:z6Mk... where the suffix is the multibase-encoded public key
-    // We need to use WASM to get the proper DID format
-    await initialized;
-
-    // Create a temporary session manager just to derive the DID
-    // This is a bit wasteful but ensures we get the correct DID format
-    const sessionManager = new tcwSession.TCWSessionManager();
-    sessionManager.createSessionKey();
-
-    // Unfortunately, we can't inject a JWK into the session manager
-    // So we compute the DID from the JWK manually using the same algorithm
-
-    // For Ed25519 (OKP keys), the DID is did:key:z6Mk{base58-encoded-public-key}
-    // The public key is in the 'x' field of the JWK
-    if (jwk.kty === "OKP" && jwk.crv === "Ed25519" && jwk.x) {
-      // The x value is base64url encoded
-      // Convert to multibase multicodec format for did:key
-      // Multicodec prefix for Ed25519 public key is 0xed01
-      const publicKeyBase64 = jwk.x;
-
-      // Decode base64url to bytes
-      const publicKeyBytes = base64UrlToBytes(publicKeyBase64);
-
-      // Create multicodec-prefixed key (0xed, 0x01 for ed25519-pub)
-      const multicodecKey = new Uint8Array(2 + publicKeyBytes.length);
-      multicodecKey[0] = 0xed;
-      multicodecKey[1] = 0x01;
-      multicodecKey.set(publicKeyBytes, 2);
-
-      // Encode as base58btc with 'z' prefix (multibase)
-      const multibaseKey = "z" + base58btcEncode(multicodecKey);
-
-      return `did:key:${multibaseKey}`;
+  /**
+   * List all session keys currently held by the provider.
+   *
+   * @returns Array of key IDs
+   */
+  listKeys(): string[] {
+    if (!this.sessionManager) {
+      return [];
     }
+    const keys = this.sessionManager.listSessionKeys();
+    return Array.isArray(keys) ? keys : [];
+  }
 
-    throw new Error(`Unsupported key type: ${jwk.kty}/${(jwk as any).crv}`);
+  /**
+   * Check if a key exists in the provider.
+   *
+   * @param keyId - The key ID to check
+   * @returns True if the key exists
+   */
+  hasKey(keyId: string): boolean {
+    if (!this.sessionManager) {
+      return false;
+    }
+    const jwk = this.sessionManager.jwk(keyId);
+    return jwk !== undefined;
   }
 }
 
-// Helper: Base64URL to bytes
-function base64UrlToBytes(base64url: string): Uint8Array {
-  // Convert base64url to base64
-  let base64 = base64url.replace(/-/g, "+").replace(/_/g, "/");
-  // Add padding if needed
-  while (base64.length % 4) {
-    base64 += "=";
-  }
-
-  // Decode
-  if (typeof atob !== "undefined") {
-    const binaryString = atob(base64);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-    return bytes;
-  } else if (typeof Buffer !== "undefined") {
-    return new Uint8Array(Buffer.from(base64, "base64"));
-  }
-  throw new Error("No base64 decoding available");
-}
-
-// Helper: Base58btc encoding (Bitcoin alphabet)
-const BASE58_ALPHABET =
-  "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
-
-function base58btcEncode(bytes: Uint8Array): string {
-  const digits = [0];
-
-  for (const byte of bytes) {
-    let carry = byte;
-    for (let j = 0; j < digits.length; j++) {
-      carry += digits[j] << 8;
-      digits[j] = carry % 58;
-      carry = (carry / 58) | 0;
-    }
-    while (carry > 0) {
-      digits.push(carry % 58);
-      carry = (carry / 58) | 0;
-    }
-  }
-
-  // Convert to string
-  let result = "";
-
-  // Handle leading zeros
-  for (const byte of bytes) {
-    if (byte === 0) {
-      result += BASE58_ALPHABET[0];
-    } else {
-      break;
-    }
-  }
-
-  // Convert digits to characters (reverse order)
-  for (let i = digits.length - 1; i >= 0; i--) {
-    result += BASE58_ALPHABET[digits[i]];
-  }
-
-  return result;
+/**
+ * Create a new WasmKeyProvider instance.
+ *
+ * @param sessionManager - Optional WASM session manager to use
+ * @returns A new WasmKeyProvider instance
+ */
+export function createWasmKeyProvider(sessionManager?: TCWSessionManager): WasmKeyProvider {
+  return new WasmKeyProvider({ sessionManager });
 }
