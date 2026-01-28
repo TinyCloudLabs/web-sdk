@@ -118,12 +118,13 @@ export class TinyCloudNode {
   /** Session key JWK as object - always available */
   private sessionKeyJwk: object;
 
-  // v2 services
-  private _capabilityRegistry?: CapabilityKeyRegistry;
+  // v2 services (initialized in constructor)
+  private _capabilityRegistry: CapabilityKeyRegistry;
+  private _keyProvider: WasmKeyProvider;
+  private _sharingService: SharingService;
+  // These are initialized after signIn()
   private _delegationManager?: DelegationManager;
   private _spaceService?: SpaceService;
-  private _sharingService?: SharingService;
-  private _keyProvider?: WasmKeyProvider;
 
   /**
    * Create a new TinyCloudNode instance.
@@ -183,6 +184,39 @@ export class TinyCloudNode {
 
     // Initialize capability registry for all users (needed for tracking received delegations)
     this._capabilityRegistry = new CapabilityKeyRegistry();
+
+    // Initialize KeyProvider for SharingService
+    this._keyProvider = new WasmKeyProvider({
+      sessionManager: this.sessionManager,
+    });
+
+    // Initialize SharingService for receive-only access (no session required)
+    // This allows session-only users to receive sharing links without signIn()
+    // Full capabilities (generate) are added after signIn()
+    this._sharingService = new SharingService({
+      hosts: [this.config.host!],
+      // session: undefined - not needed for receive()
+      invoke,
+      fetch: globalThis.fetch.bind(globalThis),
+      keyProvider: this._keyProvider,
+      registry: this._capabilityRegistry,
+      // delegationManager: undefined - not needed for receive()
+      createKVService: (config) => {
+        // Use pathPrefix as the KV service prefix for sharing links
+        // Strip trailing slash to match DelegatedAccess behavior
+        const prefix = config.pathPrefix?.replace(/\/$/, '');
+        const kvService = new KVService({ prefix });
+        // Create a new service context for the KV service
+        const kvContext = new ServiceContext({
+          invoke: config.invoke,
+          fetch: config.fetch ?? globalThis.fetch.bind(globalThis),
+          hosts: config.hosts,
+        });
+        kvContext.setSession(config.session);
+        kvService.initialize(kvContext);
+        return kvService;
+      },
+    });
 
     // Only set up wallet/auth if privateKey is provided
     if (config.privateKey) {
@@ -449,34 +483,58 @@ export class TinyCloudNode {
       },
     });
 
-    // Initialize KeyProvider for SharingService
-    this._keyProvider = new WasmKeyProvider({
-      sessionManager: this.sessionManager,
+    // Update SharingService with full capabilities (session + createDelegation)
+    // SharingService was initialized in constructor for receive-only access
+    this._sharingService.updateConfig({
+      session: serviceSession,
+      delegationManager: this._delegationManager,
+      // Custom delegation creation that uses SIWE-based /delegate endpoint
+      createDelegation: async (params) => {
+        try {
+          // Use the existing createDelegation method which calls /delegate
+          const portableDelegation = await this.createDelegation({
+            delegateDID: params.delegateDID,
+            path: params.path,
+            actions: params.actions,
+            disableSubDelegation: params.disableSubDelegation,
+            // Convert Date expiry to ms if provided
+            expiryMs: params.expiry
+              ? params.expiry.getTime() - Date.now()
+              : undefined,
+          });
+
+          // Convert PortableDelegation to Delegation type
+          const delegation: Delegation = {
+            cid: portableDelegation.delegationCid,
+            delegateDID: portableDelegation.delegateDID,
+            spaceId: portableDelegation.spaceId,
+            path: portableDelegation.path,
+            actions: portableDelegation.actions,
+            expiry: portableDelegation.expiry,
+            isRevoked: false,
+            allowSubDelegation: !portableDelegation.disableSubDelegation,
+            createdAt: new Date(),
+            // Include the UCAN bearer token for sharing links
+            authHeader: portableDelegation.delegationHeader.Authorization,
+          };
+
+          return { ok: true, data: delegation };
+        } catch (error) {
+          return {
+            ok: false,
+            error: {
+              code: "CREATION_FAILED",
+              message: error instanceof Error ? error.message : String(error),
+              service: "delegation",
+            },
+          };
+        }
+      },
     });
 
-    // Initialize SharingService
-    this._sharingService = new SharingService({
-      hosts: [this.config.host!],
-      session: serviceSession,
-      invoke,
-      fetch: globalThis.fetch.bind(globalThis),
-      keyProvider: this._keyProvider,
-      registry: this._capabilityRegistry,
-      delegationManager: this._delegationManager,
-      createKVService: (config) => {
-        const kvService = new KVService({});
-        if (this._serviceContext) {
-          // Create a new service context for the KV service with the provided session
-          const kvContext = new ServiceContext({
-            invoke: config.invoke,
-            fetch: config.fetch ?? globalThis.fetch.bind(globalThis),
-            hosts: config.hosts,
-          });
-          kvContext.setSession(config.session);
-          kvService.initialize(kvContext);
-        }
-        return kvService;
-      },
+    // Wire up SharingService to SpaceService for space.sharing.generate()
+    this._spaceService.updateConfig({
+      sharingService: this._sharingService,
     });
   }
 
@@ -704,9 +762,8 @@ export class TinyCloudNode {
    * ```
    */
   get sharing(): ISharingService {
-    if (!this._sharingService) {
-      throw new Error("Not signed in. Call signIn() first.");
-    }
+    // SharingService is initialized in constructor for receive-only access
+    // Full capabilities (generate) are added after signIn()
     return this._sharingService;
   }
 

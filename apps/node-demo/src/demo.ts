@@ -322,17 +322,72 @@ async function runDemo() {
   console.log();
 
   // =========================================================================
-  // PART 3: Sharing Links (Skipped - Space API not yet implemented)
+  // PART 3: Sharing Links (V2 - Client-Side with Embedded Keys)
   // =========================================================================
   console.log();
   console.log("=".repeat(70));
-  console.log("PART 3: Sharing Links (Space API not yet implemented on server)");
+  console.log("PART 3: Sharing Links (V2 - Client-Side with Embedded Keys)");
   console.log("=".repeat(70));
   console.log();
 
-  // NOTE: space.sharing.generate() and space.sharing.list() require server-side
-  // support for tinycloud.share/* capabilities which are not yet implemented.
-  console.log("[Alice] Sharing link generation via Space API skipped (server not yet implemented)");
+  // V2 sharing links embed the private key directly in the link.
+  // No server-side share/* endpoints needed - all handled client-side.
+  // The link recipient can use the embedded key to exercise the delegation.
+
+  // Step 14: Alice creates a sharing link for anyone to read shared/ data
+  console.log("[Alice] Generating a sharing link for public read access...");
+  const shareLinkResult = await alice.sharing.generate({
+    path: "shared/",
+    actions: ["tinycloud.kv/get", "tinycloud.kv/metadata"],
+    expiry: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+    description: "Read access to shared folder",
+  });
+
+  if (!shareLinkResult.ok) {
+    console.error(`[Alice] ✗ Failed to generate sharing link: ${shareLinkResult.error.message}`);
+  } else {
+    console.log("[Alice] ✓ Sharing link generated!");
+    console.log(shareLinkResult)
+    console.log(`  Token (first 50 chars): ${shareLinkResult.data.token.slice(0, 50)}...`);
+    console.log(`  Expires: ${shareLinkResult.data.expiresAt.toISOString()}`);
+    console.log();
+
+    // Step 15: Dave (a new session-only user) receives the sharing link
+    const dave = new TinyCloudNode(); // Session-only mode
+    console.log("[Dave] Session-only mode (no wallet, no sign-in)");
+    console.log(`[Dave] DID: ${dave.did}`);
+    console.log();
+
+    console.log("[Dave] Receiving sharing link...");
+    const shareAccessResult = await dave.sharing.receive(shareLinkResult.data.token);
+
+    if (!shareAccessResult.ok) {
+      console.error(`[Dave] ✗ Failed to receive sharing link: ${shareAccessResult.error.message}`);
+    } else {
+      console.log("[Dave] ✓ Sharing link received!");
+      console.log(`  Space ID: ${shareAccessResult.data.spaceId}`);
+      console.log(`  Path: ${shareAccessResult.data.path}`);
+      console.log();
+
+      // Step 16: Dave reads data using the pre-configured KV service
+      console.log("[Dave] Reading data via sharing link...");
+      const daveReadResult = await shareAccessResult.data.kv.get("greeting");
+
+      if (!daveReadResult.ok) {
+        console.error(`[Dave] ✗ Failed to read: ${daveReadResult.error.message}`);
+      } else if (daveReadResult.data?.data) {
+        console.log(`[Dave] ✓ Read from Alice via sharing link: "${daveReadResult.data.data.message}"`);
+      } else {
+        console.log("[Dave] ✓ No data found (this is expected if greeting wasn't in shared/ path)");
+      }
+
+      // Try reading document.json which was stored in shared/ prefix
+      const docResult = await shareAccessResult.data.kv.get("document.json");
+      if (docResult.ok && docResult.data?.data) {
+        console.log(`[Dave] ✓ Read document: "${docResult.data.data.title}"`);
+      }
+    }
+  }
   console.log();
 
   // =========================================================================
@@ -380,8 +435,10 @@ async function runDemo() {
   console.log("  • node.isSessionOnly - Check if in session-only mode");
   console.log("  • node.useDelegation() - Works without signIn()");
   console.log();
-  console.log("PART 3 - Sharing Links:");
-  console.log("  ⏳ Skipped (server-side tinycloud.share/* not yet implemented)");
+  console.log("PART 3 - Sharing Links (V2 with embedded keys):");
+  console.log("  ✓ Alice generated sharing link with embedded private key");
+  console.log("  ✓ Dave received link WITHOUT signIn() or wallet");
+  console.log("  ✓ Dave accessed Alice's space using pre-configured KV from share");
   console.log();
   console.log("PART 4 - Space Management:");
   console.log("  ⏳ Skipped (server-side tinycloud.space/* not yet implemented)");
@@ -393,10 +450,11 @@ async function runDemo() {
   console.log("  • space.delegations.list() - List outgoing delegations");
   console.log("  • TinyCloudNode.createDelegation() - Create delegation");
   console.log("  • TinyCloudNode.useDelegation() - Use received delegation");
+  console.log("  • node.sharing.generate() - Create V2 sharing link");
+  console.log("  • node.sharing.receive() - Use V2 sharing link");
   console.log();
   console.log("Not Yet Implemented on Server:");
   console.log("  • space.delegations.create/revoke (needs tinycloud.delegation/*)");
-  console.log("  • space.sharing.generate/list/revoke (needs tinycloud.share/*)");
   console.log("  • spaces.list(), space.info() (needs tinycloud.space/*)");
   console.log();
 }
