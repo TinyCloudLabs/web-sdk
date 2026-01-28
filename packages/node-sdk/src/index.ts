@@ -59,17 +59,21 @@ export {
   NodeUserAuthorizationConfig,
 } from "./authorization/NodeUserAuthorization";
 
-// Sign strategies
+// Sign strategies (re-exported from sdk-core + Node.js-specific types)
 export {
-  SignStrategy,
+  // Common types from sdk-core
   SignRequest,
   SignResponse,
   SignCallback,
   AutoSignStrategy,
   AutoRejectStrategy,
   CallbackStrategy,
-  EventEmitterStrategy,
   defaultSignStrategy,
+  // Node.js-specific types
+  NodeEventEmitterStrategy,
+  SignStrategy,
+  // Backwards compatibility alias
+  EventEmitterStrategy,
 } from "./authorization/strategies";
 
 // High-level API
