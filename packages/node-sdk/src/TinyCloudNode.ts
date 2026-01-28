@@ -181,6 +181,9 @@ export class TinyCloudNode {
     }
     this.sessionKeyJwk = JSON.parse(jwkStr);
 
+    // Initialize capability registry for all users (needed for tracking received delegations)
+    this._capabilityRegistry = new CapabilityKeyRegistry();
+
     // Only set up wallet/auth if privateKey is provided
     if (config.privateKey) {
       this.signer = new PrivateKeySigner(config.privateKey, this._chainId);
@@ -235,24 +238,6 @@ export class TinyCloudNode {
    */
   get address(): string | undefined {
     return this._address;
-  }
-
-  /**
-   * @deprecated Use `did` instead. The `did` getter now returns PKH DID when
-   * wallet is connected, or session key DID in session-only mode.
-   *
-   * Get the PKH DID for this user (based on Ethereum address).
-   * Format: did:pkh:eip155:{chainId}:{address}
-   * Only available in wallet mode after signIn().
-   */
-  get pkhDid(): string {
-    if (!this.signer) {
-      throw new Error("No wallet connected. pkhDid requires a privateKey in config.");
-    }
-    if (!this._address) {
-      throw new Error("Not signed in. Call signIn() first.");
-    }
-    return `did:pkh:eip155:${this._chainId}:${this._address}`;
   }
 
   /**
@@ -453,7 +438,7 @@ export class TinyCloudNode {
       invoke,
       fetch: globalThis.fetch.bind(globalThis),
       capabilityRegistry: this._capabilityRegistry,
-      userDid: this.pkhDid,
+      userDid: this.did,
       createKVService: (spaceId: string) => {
         // Create a new KV service scoped to the specified space
         const kvService = new KVService({});
@@ -506,6 +491,38 @@ export class TinyCloudNode {
   }
 
   /**
+   * Track a received delegation in the capability registry.
+   * @internal
+   */
+  private trackReceivedDelegation(delegation: PortableDelegation, jwk: JWK): void {
+    if (!this._capabilityRegistry) {
+      return;
+    }
+
+    const keyInfo: KeyInfo = {
+      id: `received:${delegation.delegationCid}`,
+      did: this.sessionDid,
+      type: "ingested",
+      jwk,
+      priority: 2,
+    };
+
+    // Convert PortableDelegation to Delegation type
+    const delegationRecord: Delegation = {
+      cid: delegation.delegationCid,
+      delegateDID: delegation.delegateDID,
+      spaceId: delegation.spaceId,
+      path: delegation.path,
+      actions: delegation.actions,
+      expiry: delegation.expiry,
+      isRevoked: false,
+      allowSubDelegation: !delegation.disableSubDelegation,
+    };
+
+    this._capabilityRegistry.ingestKey(keyInfo, delegationRecord);
+  }
+
+  /**
    * Key-value storage operations on this user's space.
    */
   get kv(): IKVService {
@@ -541,9 +558,48 @@ export class TinyCloudNode {
    */
   get capabilityRegistry(): ICapabilityKeyRegistry {
     if (!this._capabilityRegistry) {
-      throw new Error("Not signed in. Call signIn() first.");
+      throw new Error("CapabilityKeyRegistry not initialized.");
     }
     return this._capabilityRegistry;
+  }
+
+  /**
+   * Access received delegations (recipient view).
+   *
+   * Use this to see what delegations have been received via useDelegation().
+   *
+   * @example
+   * ```typescript
+   * // List all received delegations
+   * const received = bob.delegations.list();
+   * console.log("I have access to:", received.length, "spaces");
+   *
+   * // Get a specific delegation by CID
+   * const delegation = bob.delegations.get(cid);
+   * ```
+   */
+  get delegations(): {
+    /** List all received delegations */
+    list: () => Delegation[];
+    /** Get a delegation by CID */
+    get: (cid: string) => Delegation | undefined;
+  } {
+    const registry = this._capabilityRegistry;
+    if (!registry) {
+      return {
+        list: () => [],
+        get: () => undefined,
+      };
+    }
+
+    return {
+      list: () => registry.getAllCapabilities().map((entry) => entry.delegation),
+      get: (cid: string) => {
+        const capabilities = registry.getAllCapabilities();
+        const entry = capabilities.find((e) => e.delegation.cid === cid);
+        return entry?.delegation;
+      },
+    };
   }
 
   /**
@@ -558,7 +614,7 @@ export class TinyCloudNode {
    *
    * // Create a delegation
    * const result = await delegations.create({
-   *   delegateDID: bob.pkhDid, // Important: use PKH DID
+   *   delegateDID: bob.did,
    *   path: "shared/",
    *   actions: ["tinycloud.kv/get", "tinycloud.kv/put"],
    *   expiry: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
@@ -678,7 +734,7 @@ export class TinyCloudNode {
    * @example
    * ```typescript
    * const result = await alice.delegate({
-   *   delegateDID: bob.pkhDid,
+   *   delegateDID: bob.did,
    *   path: "shared/",
    *   actions: ["tinycloud.kv/get", "tinycloud.kv/put"],
    *   expiry: new Date(Date.now() + 24 * 60 * 60 * 1000),
@@ -848,10 +904,13 @@ export class TinyCloudNode {
         delegationCid: delegation.delegationCid,
         delegationHeader: delegation.delegationHeader,
         verificationMethod: this.sessionDid,
-        jwk: this.sessionKeyJwk as JWK,
+        jwk: this.sessionKeyJwk as unknown as JWK,
         siwe: "", // Not used in session-only mode
         signature: "", // Not used in session-only mode
       };
+
+      // Track received delegation in registry
+      this.trackReceivedDelegation(delegation, this.sessionKeyJwk as unknown as JWK);
 
       return new DelegatedAccess(session, delegation, this.config.host!);
     }
@@ -927,6 +986,9 @@ export class TinyCloudNode {
       siwe: prepared.siwe,
       signature,
     };
+
+    // Track received delegation in registry
+    this.trackReceivedDelegation(delegation, jwk as unknown as JWK);
 
     return new DelegatedAccess(session, delegation, this.config.host!);
   }
