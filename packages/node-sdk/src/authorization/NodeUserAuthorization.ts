@@ -138,6 +138,9 @@ export class NodeUserAuthorization implements IUserAuthorization {
           "tinycloud.kv/metadata",
         ],
       },
+      capabilities: {
+        "all": ["tinycloud.capabilities/read"],
+      },
     };
     this.sessionExpirationMs = config.sessionExpirationMs ?? 60 * 60 * 1000;
     this.autoCreateSpace = config.autoCreateSpace ?? false;

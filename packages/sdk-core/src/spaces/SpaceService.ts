@@ -190,6 +190,92 @@ export function buildSpaceUri(owner: string, name: string): string {
 }
 
 // =============================================================================
+// Server Response Transformation
+// =============================================================================
+
+/**
+ * Server's DelegationInfo structure (from capabilities/read response).
+ */
+interface ServerDelegationInfo {
+  delegator: string;
+  delegate: string;
+  parents: string[];
+  expiry?: string;
+  not_before?: string;
+  issued_at?: string;
+  capabilities: Array<{
+    resource: string;
+    ability: string;
+  }>;
+}
+
+/**
+ * Transform server's delegation response to SDK's Delegation[] format.
+ *
+ * Server returns { [cid: string]: DelegationInfo } where:
+ * - Key is the delegation CID
+ * - Value is DelegationInfo with delegator, delegate, capabilities, etc.
+ *
+ * SDK expects Delegation[] with cid field included.
+ */
+function transformServerDelegations(
+  data: unknown,
+  defaultSpaceId: string
+): Delegation[] {
+  if (data === null || data === undefined) {
+    return [];
+  }
+
+  if (Array.isArray(data)) {
+    // Already in array format - assume each item has cid
+    return data as Delegation[];
+  }
+
+  if (typeof data !== "object") {
+    return [];
+  }
+
+  // Transform { [cid: string]: DelegationInfo } to Delegation[]
+  const result: Delegation[] = [];
+
+  for (const [cid, info] of Object.entries(data as Record<string, ServerDelegationInfo>)) {
+    // Extract path from capabilities (use first capability's resource path)
+    const capabilities = info.capabilities || [];
+    let path = "";
+    let spaceId = defaultSpaceId;
+    const actions: string[] = [];
+
+    for (const cap of capabilities) {
+      actions.push(cap.ability);
+      // Parse resource to extract space and path
+      // Resource format: tinycloud:pkh:eip155:{chainId}:{address}:{spaceName}/{service}/{path}
+      const resourceMatch = cap.resource.match(
+        /^(tinycloud:pkh:eip155:\d+:0x[a-fA-F0-9]+:[^/]+)\/[^/]+\/(.*)$/
+      );
+      if (resourceMatch) {
+        spaceId = resourceMatch[1];
+        path = resourceMatch[2] || "";
+      }
+    }
+
+    result.push({
+      cid,
+      delegateDID: info.delegate,
+      delegatorDID: info.delegator,
+      spaceId,
+      path,
+      actions,
+      expiry: info.expiry ? new Date(info.expiry) : new Date(Date.now() + 24 * 60 * 60 * 1000),
+      isRevoked: false,
+      createdAt: info.issued_at ? new Date(info.issued_at) : undefined,
+      parentCid: info.parents?.[0],
+    });
+  }
+
+  return result;
+}
+
+// =============================================================================
 // Implementation
 // =============================================================================
 
@@ -761,19 +847,30 @@ export class SpaceService implements ISpaceService {
 
     return {
       async list(): Promise<Result<Delegation[], ServiceError>> {
-        // List outgoing delegations (created by user)
+        // List outgoing delegations (created by user) using tinycloud.capabilities/read
         try {
+          // Facts contain the query params for the capabilities/read capability
+          const facts = [
+            {
+              capabilitiesReadParams: {
+                type: "list",
+                filters: { direction: "created" },
+              },
+            },
+          ];
+
+          // The capabilities/read endpoint requires path="all" to match server routing
           const headers = self.invoke(
             self.session,
-            "delegation",
-            spaceId,
-            "tinycloud.delegation/list"
+            "capabilities",
+            "all",
+            "tinycloud.capabilities/read",
+            facts
           );
 
           const response = await self.fetchFn(`${self.host}/invoke`, {
             method: "POST",
             headers,
-            body: JSON.stringify({ spaceId, direction: "outgoing" }),
           });
 
           if (!response.ok) {
@@ -787,8 +884,10 @@ export class SpaceService implements ISpaceService {
             );
           }
 
-          const data = (await response.json()) as Delegation[];
-          return ok(data);
+          // Server returns { [cid: string]: DelegationInfo } - transform to Delegation[]
+          const data = await response.json();
+          const delegations = transformServerDelegations(data, spaceId);
+          return ok(delegations);
         } catch (error) {
           return err(
             serviceError(
@@ -801,19 +900,30 @@ export class SpaceService implements ISpaceService {
       },
 
       async listReceived(): Promise<Result<Delegation[], ServiceError>> {
-        // List incoming delegations (received by user)
+        // List incoming delegations (received by user) using tinycloud.capabilities/read
         try {
+          // Facts contain the query params for the capabilities/read capability
+          const facts = [
+            {
+              capabilitiesReadParams: {
+                type: "list",
+                filters: { direction: "received" },
+              },
+            },
+          ];
+
+          // The capabilities/read endpoint requires path="all" to match server routing
           const headers = self.invoke(
             self.session,
-            "delegation",
-            spaceId,
-            "tinycloud.delegation/list"
+            "capabilities",
+            "all",
+            "tinycloud.capabilities/read",
+            facts
           );
 
           const response = await self.fetchFn(`${self.host}/invoke`, {
             method: "POST",
             headers,
-            body: JSON.stringify({ spaceId, direction: "incoming" }),
           });
 
           if (!response.ok) {
@@ -827,8 +937,10 @@ export class SpaceService implements ISpaceService {
             );
           }
 
-          const data = (await response.json()) as Delegation[];
-          return ok(data);
+          // Server returns { [cid: string]: DelegationInfo } - transform to Delegation[]
+          const data = await response.json();
+          const delegations = transformServerDelegations(data, spaceId);
+          return ok(delegations);
         } catch (error) {
           return err(
             serviceError(

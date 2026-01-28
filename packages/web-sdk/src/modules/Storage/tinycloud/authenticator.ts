@@ -77,6 +77,6 @@ export class Authenticator {
     action: string,
     path: string
   ): HeadersInit =>
-    invoke(this.session, service, path, action);
+    invoke(this.session, service, path, action, undefined);
   getSpaceId = (): string => this.session.spaceId;
 }

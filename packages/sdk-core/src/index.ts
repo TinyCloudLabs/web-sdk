@@ -78,6 +78,7 @@ export {
   type ServiceSession,
   // Platform dependencies
   type InvokeFunction,
+  type InvocationFacts,
   type FetchFunction,
   type FetchRequestInit,
   type FetchResponse,

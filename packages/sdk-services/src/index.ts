@@ -44,6 +44,8 @@ export type {
   ServiceSession,
   RetryPolicy,
   InvokeFunction,
+  InvocationFact,
+  InvocationFacts,
   FetchFunction,
   FetchRequestInit,
   FetchResponse,
