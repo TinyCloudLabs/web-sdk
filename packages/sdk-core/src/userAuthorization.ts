@@ -1,5 +1,6 @@
 import { ISigner } from "./signer";
 import { ISessionStorage, PersistedSessionData } from "./storage";
+import { SignStrategy, ISpaceCreationHandler } from "./authorization";
 
 // Re-export types from web-core to ensure type compatibility
 // Client types are exported from the /client subpath
@@ -109,4 +110,18 @@ export interface UserAuthorizationConfig {
   domain?: string;
   /** Extensions to apply */
   extensions?: TCWExtension[];
+
+  // Strategy configuration (added for auth module unification)
+  /** Strategy for handling sign requests (default: auto-sign for node, callback for web) */
+  signStrategy?: SignStrategy;
+  /** Handler for space creation confirmation (default: AutoApproveSpaceCreationHandler) */
+  spaceCreationHandler?: ISpaceCreationHandler;
+  /** Whether to automatically create space if it doesn't exist */
+  autoCreateSpace?: boolean;
+  /** Space name prefix (default: "default") */
+  spacePrefix?: string;
+  /** TinyCloud host URLs */
+  tinycloudHosts?: string[];
+  /** Session expiration in milliseconds */
+  sessionExpirationMs?: number;
 }
