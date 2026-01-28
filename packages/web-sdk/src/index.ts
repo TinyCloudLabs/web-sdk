@@ -25,6 +25,36 @@ export {
   PartialSiweMessage,
 } from '@tinycloudlabs/sdk-core';
 
+// =============================================================================
+// Auth Module Types (TC-715: Unified auth architecture for 1.0.0)
+// =============================================================================
+//
+// The new auth module is exported via `export * from './authorization'` above.
+// Key types available:
+//
+// SignStrategy types (control signing behavior):
+//   - SignStrategy, SignRequest, SignResponse, SignCallback
+//   - AutoSignStrategy, AutoRejectStrategy, CallbackStrategy, EventEmitterStrategy
+//   - WebSignStrategy, WalletPopupStrategy (web-specific, includes wallet-popup)
+//   - defaultSignStrategy, defaultWebSignStrategy
+//
+// Space creation handler types (control space creation UX):
+//   - ISpaceCreationHandler, SpaceCreationContext
+//   - AutoApproveSpaceCreationHandler, defaultSpaceCreationHandler
+//   - ModalSpaceCreationHandler, defaultWebSpaceCreationHandler (web modal)
+//
+// WebUserAuthorization (new unified auth class):
+//   - WebUserAuthorization, WebUserAuthorizationConfig
+//   - Features: did, sessionDid, isSessionOnly, connectWallet()
+//
+// =============================================================================
+
+/**
+ * Alias for ModalSpaceCreationHandler.
+ * @deprecated Use ModalSpaceCreationHandler directly instead.
+ */
+export { ModalSpaceCreationHandler as WebSpaceCreationHandler } from './authorization';
+
 // Re-export KV service types for direct usage
 export {
   IKVService,
