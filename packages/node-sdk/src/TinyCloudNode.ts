@@ -865,6 +865,7 @@ export class TinyCloudNode {
       delegateDID: params.delegateDID,
       ownerAddress: session.address,
       chainId: session.chainId,
+      host: this.config.host,
     };
   }
 
@@ -882,6 +883,9 @@ export class TinyCloudNode {
    * @returns A DelegatedAccess instance for performing operations
    */
   async useDelegation(delegation: PortableDelegation): Promise<DelegatedAccess> {
+    // Use the host from the delegation if provided, otherwise fall back to config
+    const targetHost = delegation.host ?? this.config.host!;
+
     // Session-only mode: use the delegation directly
     // The delegation must target this user's session key DID
     if (this.isSessionOnly) {
@@ -912,7 +916,7 @@ export class TinyCloudNode {
       // Track received delegation in registry
       this.trackReceivedDelegation(delegation, this.sessionKeyJwk as unknown as JWK);
 
-      return new DelegatedAccess(session, delegation, this.config.host!);
+      return new DelegatedAccess(session, delegation, targetHost);
     }
 
     // Wallet mode: create a SIWE sub-delegation
@@ -946,7 +950,7 @@ export class TinyCloudNode {
       abilities,
       address: ensureEip55(mySession.address),
       chainId: mySession.chainId,
-      domain: new URL(this.config.host!).hostname,
+      domain: new URL(targetHost).hostname,
       issuedAt: now.toISOString(),
       expirationTime: expirationTime.toISOString(),
       spaceId: delegation.spaceId,
@@ -965,7 +969,7 @@ export class TinyCloudNode {
 
     // Activate with server
     const activateResult = await activateSessionWithHost(
-      this.config.host!,
+      targetHost,
       invokerSession.delegationHeader
     );
 
@@ -990,7 +994,7 @@ export class TinyCloudNode {
     // Track received delegation in registry
     this.trackReceivedDelegation(delegation, jwk as unknown as JWK);
 
-    return new DelegatedAccess(session, delegation, this.config.host!);
+    return new DelegatedAccess(session, delegation, targetHost);
   }
 
   /**
@@ -1062,6 +1066,9 @@ export class TinyCloudNode {
       },
     };
 
+    // Use parent's host or fall back to config
+    const targetHost = parentDelegation.host ?? this.config.host!;
+
     // Prepare the sub-delegation session
     // Uses THIS user's address (who received the delegation and is now sub-delegating)
     // Targets the recipient's PKH DID (delegateUri)
@@ -1070,7 +1077,7 @@ export class TinyCloudNode {
       abilities,
       address: ensureEip55(this._address),
       chainId: this._chainId,
-      domain: new URL(this.config.host!).hostname,
+      domain: new URL(targetHost).hostname,
       issuedAt: now.toISOString(),
       expirationTime: actualExpiry.toISOString(),
       spaceId: parentDelegation.spaceId,
@@ -1089,7 +1096,7 @@ export class TinyCloudNode {
 
     // Activate the sub-delegation with the server
     const activateResult = await activateSessionWithHost(
-      this.config.host!,
+      targetHost,
       subDelegationSession.delegationHeader
     );
 
@@ -1109,6 +1116,7 @@ export class TinyCloudNode {
       delegateDID: params.delegateDID,
       ownerAddress: parentDelegation.ownerAddress,
       chainId: parentDelegation.chainId,
+      host: targetHost,
     };
   }
 }
