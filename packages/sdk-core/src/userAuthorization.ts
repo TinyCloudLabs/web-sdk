@@ -82,29 +82,6 @@ export interface IUserAuthorization {
   signMessage(message: string): Promise<string>;
 
   /**
-   * Generate a SIWE message for custom signing flows.
-   * @param address - Ethereum address
-   * @param partial - Optional overrides for the SIWE message
-   * @returns SiweMessage ready for signing
-   */
-  generateSiweMessage(
-    address: string,
-    partial?: PartialSiweMessage
-  ): Promise<SiweMessage>;
-
-  /**
-   * Complete sign-in with a pre-signed message.
-   * Useful for custom signing flows or external signers.
-   * @param siweMessage - The SIWE message that was signed
-   * @param signature - The signature
-   * @returns The new session
-   */
-  signInWithSignature(
-    siweMessage: SiweMessage,
-    signature: string
-  ): Promise<TCWClientSession>;
-
-  /**
    * Get the current space ID.
    * @returns Space ID or undefined if not available
    */
