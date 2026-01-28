@@ -185,6 +185,11 @@ export {
   EventEmitterStrategy,
   SignStrategy,
   defaultSignStrategy,
+  // Space creation handler types
+  SpaceCreationContext,
+  ISpaceCreationHandler,
+  AutoApproveSpaceCreationHandler,
+  defaultSpaceCreationHandler,
 } from "./authorization";
 
 // Spaces (v2 spec)
