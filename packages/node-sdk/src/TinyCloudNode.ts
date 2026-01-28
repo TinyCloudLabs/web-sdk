@@ -163,8 +163,19 @@ export class TinyCloudNode {
 
     // Always create session manager and session key immediately
     this.sessionManager = new TCWSessionManager();
-    this.sessionKeyId = this.sessionManager.createSessionKey(undefined);
-    const jwkStr = this.sessionManager.jwk(this.sessionKeyId);
+
+    // Try to use "default" key, create if it doesn't exist
+    const defaultKeyId = "default";
+    let jwkStr = this.sessionManager.jwk(defaultKeyId);
+    if (jwkStr) {
+      // Key already exists, reuse it
+      this.sessionKeyId = defaultKeyId;
+    } else {
+      // Create new key
+      this.sessionKeyId = this.sessionManager.createSessionKey(defaultKeyId);
+      jwkStr = this.sessionManager.jwk(this.sessionKeyId);
+    }
+
     if (!jwkStr) {
       throw new Error("Failed to get session key JWK");
     }

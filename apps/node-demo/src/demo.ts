@@ -138,6 +138,20 @@ async function runDemo() {
   console.log(`Server: ${TINYCLOUD_URL}`);
   console.log();
 
+  // Step 0: Check server health
+  console.log("[Health] Checking server...");
+  try {
+    const healthResponse = await fetch(`${TINYCLOUD_URL}/healthz`);
+    if (!healthResponse.ok) {
+      throw new Error(`Server returned ${healthResponse.status}`);
+    }
+    console.log("[Health] ✓ Server is running");
+  } catch (error) {
+    const err = error as Error;
+    throw new Error(`Server not reachable at ${TINYCLOUD_URL}: ${err.message}`);
+  }
+  console.log();
+
   // Step 1: Ensure keys exist
   const keys = ensureKeys();
 
@@ -431,7 +445,10 @@ async function runDemo() {
 runDemo().catch((error) => {
   console.error();
   console.error("Demo Failed!");
-  console.error("Error:", error.message);
+  console.error("Error:", error.message || error);
+  if (error.stack) {
+    console.error("Stack:", error.stack);
+  }
   console.error();
   console.error("Make sure the TinyCloud server is running at:", TINYCLOUD_URL);
   console.error("  cd repositories/tinycloud-node && cargo run");
