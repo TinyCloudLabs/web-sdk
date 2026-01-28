@@ -26,6 +26,7 @@ import type {
   GenerateShareParams,
 } from "../delegations/types";
 import type { ICapabilityKeyRegistry } from "../authorization/CapabilityKeyRegistry";
+import type { ISharingService } from "../delegations/SharingService";
 import {
   Space,
   ISpace,
@@ -84,6 +85,8 @@ export interface SpaceServiceConfig {
   createKVService?: (spaceId: string) => IKVService;
   /** User's PKH DID (derived from address or provided explicitly) */
   userDid?: string;
+  /** Optional SharingService for v2 sharing links (client-side) */
+  sharingService?: ISharingService;
 }
 
 /**
@@ -314,6 +317,7 @@ export class SpaceService implements ISpaceService {
   private capabilityRegistry?: ICapabilityKeyRegistry;
   private createKVServiceFn?: (spaceId: string) => IKVService;
   private _userDid?: string;
+  private sharingService?: ISharingService;
 
   /** Cache of created Space objects */
   private spaceCache: Map<string, ISpace> = new Map();
@@ -337,6 +341,7 @@ export class SpaceService implements ISpaceService {
     this.capabilityRegistry = config.capabilityRegistry;
     this.createKVServiceFn = config.createKVService;
     this._userDid = config.userDid;
+    this.sharingService = config.sharingService;
   }
 
   /**
@@ -350,6 +355,7 @@ export class SpaceService implements ISpaceService {
     if (config.capabilityRegistry) this.capabilityRegistry = config.capabilityRegistry;
     if (config.createKVService) this.createKVServiceFn = config.createKVService;
     if (config.userDid !== undefined) this._userDid = config.userDid;
+    if (config.sharingService) this.sharingService = config.sharingService;
 
     // Clear caches when config changes
     this.spaceCache.clear();
@@ -1035,6 +1041,9 @@ export class SpaceService implements ISpaceService {
 
   /**
    * Create space-scoped sharing operations.
+   *
+   * When a SharingService is configured, delegates to client-side v2 sharing.
+   * V2 sharing links are self-contained with embedded private keys - no server tracking.
    */
   private createSpaceScopedSharing(spaceId: string): ISpaceScopedSharing {
     const self = this;
@@ -1043,119 +1052,56 @@ export class SpaceService implements ISpaceService {
       async generate(
         params: Omit<GenerateShareParams, "spaceId">
       ): Promise<Result<ShareLink, ServiceError>> {
-        try {
-          const headers = self.invoke(
-            self.session,
-            "share",
-            params.path,
-            "tinycloud.share/generate"
-          );
-
-          const response = await self.fetchFn(`${self.host}/invoke`, {
-            method: "POST",
-            headers,
-            body: JSON.stringify({ ...params, spaceId }),
-          });
-
-          if (!response.ok) {
-            const errorText = await response.text();
+        // Use v2 SharingService when available (client-side sharing links)
+        if (self.sharingService) {
+          // Note: SharingService uses session.spaceId for the space.
+          // For space-scoped sharing on delegated spaces, ensure the session
+          // is configured for the correct space before calling generate().
+          const result = await self.sharingService.generate(params);
+          if (!result.ok) {
             return err(
               serviceError(
                 SpaceErrorCodes.NETWORK_ERROR,
-                `Failed to generate share link: ${response.status} - ${errorText}`,
+                result.error.message || "Failed to generate share link",
                 SERVICE_NAME
               )
             );
           }
-
-          const data = (await response.json()) as ShareLink;
-          return ok(data);
-        } catch (error) {
-          return err(
-            serviceError(
-              SpaceErrorCodes.NETWORK_ERROR,
-              `Network error generating share link: ${String(error)}`,
-              SERVICE_NAME
-            )
-          );
+          return ok(result.data);
         }
+
+        // Fallback: return error since server endpoint doesn't exist
+        return err(
+          serviceError(
+            SpaceErrorCodes.NOT_INITIALIZED,
+            "SharingService not configured. V2 sharing requires a SharingService instance.",
+            SERVICE_NAME
+          )
+        );
       },
 
       async list(): Promise<Result<ShareLink[], ServiceError>> {
-        try {
-          const headers = self.invoke(
-            self.session,
-            "share",
-            spaceId,
-            "tinycloud.share/list"
-          );
-
-          const response = await self.fetchFn(`${self.host}/invoke`, {
-            method: "POST",
-            headers,
-            body: JSON.stringify({ spaceId }),
-          });
-
-          if (!response.ok) {
-            const errorText = await response.text();
-            return err(
-              serviceError(
-                SpaceErrorCodes.NETWORK_ERROR,
-                `Failed to list share links: ${response.status} - ${errorText}`,
-                SERVICE_NAME
-              )
-            );
-          }
-
-          const data = (await response.json()) as ShareLink[];
-          return ok(data);
-        } catch (error) {
-          return err(
-            serviceError(
-              SpaceErrorCodes.NETWORK_ERROR,
-              `Network error listing share links: ${String(error)}`,
-              SERVICE_NAME
-            )
-          );
-        }
+        // V2 sharing links are self-contained (not server-tracked)
+        // This operation is not supported in the v2 spec
+        return err(
+          serviceError(
+            SpaceErrorCodes.NOT_INITIALIZED,
+            "Listing share links is not supported in v2. Share links are self-contained tokens that are not tracked on the server.",
+            SERVICE_NAME
+          )
+        );
       },
 
       async revoke(token: string): Promise<Result<void, ServiceError>> {
-        try {
-          const headers = self.invoke(
-            self.session,
-            "share",
-            token,
-            "tinycloud.share/revoke"
-          );
-
-          const response = await self.fetchFn(`${self.host}/invoke`, {
-            method: "POST",
-            headers,
-            body: JSON.stringify({ token, spaceId }),
-          });
-
-          if (!response.ok) {
-            const errorText = await response.text();
-            return err(
-              serviceError(
-                SpaceErrorCodes.NETWORK_ERROR,
-                `Failed to revoke share link: ${response.status} - ${errorText}`,
-                SERVICE_NAME
-              )
-            );
-          }
-
-          return ok(undefined);
-        } catch (error) {
-          return err(
-            serviceError(
-              SpaceErrorCodes.NETWORK_ERROR,
-              `Network error revoking share link: ${String(error)}`,
-              SERVICE_NAME
-            )
-          );
-        }
+        // V2 sharing links are revoked by revoking the underlying delegation
+        // This requires the delegation CID, not the share token
+        return err(
+          serviceError(
+            SpaceErrorCodes.NOT_INITIALIZED,
+            "Revoking share links by token is not supported in v2. To revoke access, revoke the underlying delegation using space.delegations.revoke(cid).",
+            SERVICE_NAME
+          )
+        );
       },
     };
   }

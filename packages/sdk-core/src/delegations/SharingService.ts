@@ -31,6 +31,7 @@ import type {
   ShareSchema,
   JWK,
   IngestOptions,
+  CreateDelegationParams,
 } from "./types";
 import { DelegationErrorCodes } from "./types";
 import type { DelegationManager } from "./DelegationManager";
@@ -180,8 +181,11 @@ export interface ShareAccess {
 export interface SharingServiceConfig {
   /** TinyCloud host URLs */
   hosts: string[];
-  /** Active session for authentication */
-  session: ServiceSession;
+  /**
+   * Active session for authentication.
+   * Required for generate(), optional for receive().
+   */
+  session?: ServiceSession;
   /** Platform-specific invoke function */
   invoke: InvokeFunction;
   /** Optional custom fetch implementation */
@@ -190,8 +194,11 @@ export interface SharingServiceConfig {
   keyProvider: KeyProvider;
   /** Capability key registry for key/delegation management */
   registry: ICapabilityKeyRegistry;
-  /** Delegation manager for creating delegations */
-  delegationManager: DelegationManager;
+  /**
+   * Delegation manager for creating delegations (used if createDelegation not provided).
+   * Required for generate(), optional for receive().
+   */
+  delegationManager?: DelegationManager;
   /** Factory for creating KV service instances */
   createKVService: (config: {
     hosts: string[];
@@ -202,6 +209,12 @@ export interface SharingServiceConfig {
   }) => IKVService;
   /** Base URL for sharing links (e.g., "https://share.myapp.com") */
   baseUrl?: string;
+  /**
+   * Custom delegation creation function. When provided, this is used instead
+   * of delegationManager.create(). This allows platforms to use their own
+   * delegation creation logic (e.g., SIWE-based /delegate endpoint).
+   */
+  createDelegation?: (params: CreateDelegationParams) => Promise<Result<Delegation, DelegationError>>;
 }
 
 /**
@@ -278,14 +291,15 @@ export interface ISharingService {
  */
 export class SharingService implements ISharingService {
   private hosts: string[];
-  private session: ServiceSession;
+  private session?: ServiceSession;
   private invoke: InvokeFunction;
   private fetchFn: FetchFunction;
   private keyProvider: KeyProvider;
   private registry: ICapabilityKeyRegistry;
-  private delegationManager: DelegationManager;
+  private delegationManager?: DelegationManager;
   private createKVService: SharingServiceConfig["createKVService"];
   private baseUrl: string;
+  private createDelegationFn?: SharingServiceConfig["createDelegation"];
 
   /**
    * Creates a new SharingService instance.
@@ -300,6 +314,7 @@ export class SharingService implements ISharingService {
     this.delegationManager = config.delegationManager;
     this.createKVService = config.createKVService;
     this.baseUrl = (config.baseUrl ?? "").replace(/\/$/, ""); // Remove trailing slash
+    this.createDelegationFn = config.createDelegation;
   }
 
   /**
@@ -317,6 +332,22 @@ export class SharingService implements ISharingService {
   }
 
   /**
+   * Updates the service configuration.
+   * Used to add full capabilities (session, delegationManager, createDelegation) after signIn.
+   */
+  public updateConfig(config: Partial<Pick<SharingServiceConfig, "session" | "delegationManager" | "createDelegation">>): void {
+    if (config.session !== undefined) {
+      this.session = config.session;
+    }
+    if (config.delegationManager !== undefined) {
+      this.delegationManager = config.delegationManager;
+    }
+    if (config.createDelegation !== undefined) {
+      this.createDelegationFn = config.createDelegation;
+    }
+  }
+
+  /**
    * Generate a sharing link with an embedded private key.
    *
    * Flow:
@@ -327,6 +358,28 @@ export class SharingService implements ISharingService {
    * 5. Return link string
    */
   async generate(params: GenerateShareParams): Promise<Result<ShareLink, DelegationError>> {
+    // Require session for generating (not for receiving)
+    if (!this.session) {
+      return {
+        ok: false,
+        error: createError(
+          DelegationErrorCodes.NOT_INITIALIZED,
+          "Session required for generating sharing links. Call signIn() first."
+        ),
+      };
+    }
+
+    // Require delegation capability
+    if (!this.createDelegationFn && !this.delegationManager) {
+      return {
+        ok: false,
+        error: createError(
+          DelegationErrorCodes.NOT_INITIALIZED,
+          "DelegationManager or createDelegation function required for generating sharing links."
+        ),
+      };
+    }
+
     // Validate path
     if (!params.path) {
       return {
@@ -386,14 +439,20 @@ export class SharingService implements ISharingService {
     }
 
     // Step 2: Create delegation from current session to spawned key
-    const delegationResult = await this.delegationManager.create({
+    // Use custom createDelegation function if provided, otherwise use delegationManager
+    const delegationParams: CreateDelegationParams = {
       delegateDID: keyDid,
       path: params.path,
       actions,
       expiry,
       statement: params.description ?? `Share access for ${params.path}`,
       disableSubDelegation: false, // Allow sub-delegation for auto-subdelegate flow
-    });
+    };
+
+    const delegationResult = this.createDelegationFn
+      ? await this.createDelegationFn(delegationParams)
+      // delegationManager is guaranteed to exist by the guard check above
+      : await this.delegationManager!.create(delegationParams);
 
     if (!delegationResult.ok) {
       return {
@@ -555,13 +614,20 @@ export class SharingService implements ISharingService {
     }
 
     // Step 4: Create pre-configured KV service for the shared path
-    // The KV service should be configured to use the ingested key's session context
+    // Construct session from share data - no need for existing session
+    // Use the authHeader if available, otherwise fall back to constructing from CID
+    const authHeader = shareData.delegation.authHeader ?? `Bearer ${shareData.delegation.cid}`;
+    const shareSession: ServiceSession = {
+      delegationHeader: { Authorization: authHeader },
+      delegationCid: shareData.delegation.cid,
+      spaceId: shareData.spaceId,
+      verificationMethod: shareData.keyDid,
+      jwk: shareData.key,
+    };
+
     const kvService = this.createKVService({
       hosts: [shareData.host],
-      session: {
-        ...this.session,
-        spaceId: shareData.spaceId,
-      },
+      session: shareSession,
       invoke: this.invoke,
       fetch: this.fetchFn,
       pathPrefix: shareData.path,

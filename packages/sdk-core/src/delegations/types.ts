@@ -226,6 +226,8 @@ export const DelegationErrorCodes = {
   AUTH_REQUIRED: "AUTH_REQUIRED",
   /** Session has expired */
   AUTH_EXPIRED: "AUTH_EXPIRED",
+  /** Service not initialized */
+  NOT_INITIALIZED: "NOT_INITIALIZED",
   /** Delegation not found */
   NOT_FOUND: "NOT_FOUND",
   /** Delegation has been revoked */
@@ -284,6 +286,8 @@ export interface Delegation {
   parentCid?: string;
   /** Whether sub-delegation is allowed */
   allowSubDelegation?: boolean;
+  /** Authorization header (UCAN bearer token) - optional, for sharing links */
+  authHeader?: string;
 }
 
 /**
