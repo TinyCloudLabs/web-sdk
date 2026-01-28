@@ -7,6 +7,13 @@ import {
   UserAuthorization,
 } from '.';
 import {
+  WebUserAuthorization,
+  WebUserAuthorizationConfig,
+  WebSignStrategy,
+  ModalSpaceCreationHandler,
+  defaultWebSpaceCreationHandler,
+} from '../authorization';
+import {
   TCWClientConfig,
   TCWClientSession,
   TCWExtension,
@@ -39,6 +46,8 @@ import {
   SharingService,
   ISharingService,
   CreateDelegationParams,
+  // Strategy types
+  ISpaceCreationHandler,
 } from '@tinycloudlabs/sdk-core';
 import { WasmKeyProvider } from './keys';
 import { invoke } from './Storage/tinycloud/module';
@@ -49,11 +58,62 @@ declare global {
   }
 }
 
-// temporary: will move to tcw-core
-interface TCWConfig extends TCWClientConfig {
+/**
+ * Configuration for TinyCloudWeb.
+ *
+ * Extends the legacy TCWClientConfig with new auth module options.
+ * For new projects, prefer using the WebUserAuthorizationConfig options directly.
+ */
+export interface TCWConfig extends TCWClientConfig {
   notifications?: NotificationConfig;
   /** Optional prefix for KV service keys */
   kvPrefix?: string;
+
+  // === New auth module options (TC-714) ===
+
+  /**
+   * Sign strategy for handling sign requests.
+   * Defaults to 'wallet-popup' which shows browser wallet popup.
+   *
+   * @example
+   * ```typescript
+   * // Auto-sign (requires signer)
+   * signStrategy: { type: 'auto-sign' }
+   *
+   * // Custom callback
+   * signStrategy: {
+   *   type: 'callback',
+   *   handler: async (req) => ({ approved: true })
+   * }
+   * ```
+   */
+  signStrategy?: WebSignStrategy;
+
+  /**
+   * Handler for space creation confirmation.
+   * Defaults to ModalSpaceCreationHandler which shows a modal dialog.
+   *
+   * @example
+   * ```typescript
+   * // Auto-approve (no confirmation modal)
+   * spaceCreationHandler: { confirmSpaceCreation: async () => true }
+   *
+   * // Custom handler
+   * spaceCreationHandler: new MySpaceCreationHandler()
+   * ```
+   */
+  spaceCreationHandler?: ISpaceCreationHandler;
+
+  /**
+   * Whether to use the new WebUserAuthorization class.
+   * When true, uses the new unified auth module architecture.
+   * When false (default), uses the legacy UserAuthorization for backward compatibility.
+   *
+   * Set to true for new projects or when migrating to 1.0.0.
+   *
+   * @default false
+   */
+  useNewAuth?: boolean;
 }
 
 const TCW_DEFAULT_CONFIG: TCWClientConfig = {
@@ -281,8 +341,12 @@ export class TinyCloudWeb {
    * - session key management
    * - creates, manages, and handles session data
    * - manages/provides capabilities
+   *
+   * NOTE: When useNewAuth is true, this is a WebUserAuthorization instance.
+   * The type is `any` to allow both legacy and new auth modules.
+   * Use `webAuth` getter for typed access to WebUserAuthorization.
    */
-  public userAuthorization: IUserAuthorization;
+  public userAuthorization: IUserAuthorization | WebUserAuthorization;
 
   /** Error Handler for Notifications */
   private errorHandler: SDKErrorHandler;
@@ -309,9 +373,14 @@ export class TinyCloudWeb {
   private _sharingService?: SharingService;
 
   constructor(private config: TCWConfig = TCW_DEFAULT_CONFIG) {
-    // TODO: pull out config validation into separate function
-    // TODO: pull out userAuthorization config
-    this.userAuthorization = new UserAuthorization(config);
+    // Initialize user authorization based on config
+    if (config.useNewAuth) {
+      // Use new WebUserAuthorization (TC-714: unified auth module)
+      this.userAuthorization = this.createWebUserAuthorization(config);
+    } else {
+      // Use legacy UserAuthorization for backward compatibility
+      this.userAuthorization = new UserAuthorization(config);
+    }
 
     // Initialize error handling system
     const notificationConfig = {
@@ -331,6 +400,34 @@ export class TinyCloudWeb {
 
       this.errorHandler.setupErrorHandling();
     }
+  }
+
+  /**
+   * Create a WebUserAuthorization instance from TCWConfig.
+   * Maps legacy config options to new WebUserAuthorizationConfig.
+   * @private
+   */
+  private createWebUserAuthorization(config: TCWConfig): WebUserAuthorization {
+    // Map legacy config to WebUserAuthorizationConfig
+    const webAuthConfig: WebUserAuthorizationConfig = {
+      // Provider from legacy config
+      provider: config.providers?.web3?.driver,
+
+      // New strategy options (or defaults)
+      signStrategy: config.signStrategy,
+      spaceCreationHandler: config.spaceCreationHandler ?? new ModalSpaceCreationHandler(),
+      autoCreateSpace: config.autoCreateSpace,
+
+      // Map siweConfig properties
+      domain: config.siweConfig?.domain,
+      statement: config.siweConfig?.statement,
+
+      // Space configuration
+      spacePrefix: config.spacePrefix,
+      tinycloudHosts: config.tinycloudHosts,
+    };
+
+    return new WebUserAuthorization(webAuthConfig);
   }
 
   /**
@@ -829,20 +926,28 @@ export class TinyCloudWeb {
 
   /**
    * ENS data supported by TCW.
+   * Available in legacy auth mode only.
+   *
    * @param address - User address.
-   * @param resolveEnsOpts - Options to resolve ENS.
    * @returns Object containing ENS data.
+   * @throws Error if using new auth module (useNewAuth: true)
    */
   public async resolveEns(
     /** User address */
     address: string,
   ): Promise<TCWEnsData> {
-    return this.userAuthorization.resolveEns(address);
+    if (this.isNewAuthEnabled) {
+      throw new Error(
+        'resolveEns() is not available in new auth mode. ' +
+        'Use ethers.js or viem directly for ENS resolution.'
+      );
+    }
+    return (this.userAuthorization as IUserAuthorization).resolveEns(address);
   }
 
   /**
    * Gets the session representation (once signed in).
-   * @returns Address.
+   * @returns Session object.
    */
   public session: () => TCWClientSession | undefined = () =>
     this.userAuthorization.session;
@@ -863,51 +968,194 @@ export class TinyCloudWeb {
 
   /**
    * Gets the provider that is connected and signed in.
+   * Available in legacy auth mode only.
+   *
    * @returns Provider.
+   * @throws Error if using new auth module (useNewAuth: true)
    */
   public getProvider(): providers.Web3Provider | undefined {
-    return this.userAuthorization.provider;
+    if (this.isNewAuthEnabled) {
+      throw new Error(
+        'getProvider() is not available in new auth mode. ' +
+        'Use webAuth.isWalletConnected to check connection status.'
+      );
+    }
+    return (this.userAuthorization as IUserAuthorization).provider;
   }
 
   /**
    * Returns the signer of the connected address.
+   * Available in legacy auth mode only.
+   *
    * @returns ethers.Signer
+   * @throws Error if using new auth module (useNewAuth: true)
    * @see https://docs.ethers.io/v5/api/signer/#Signer
    */
   public getSigner(): Signer {
-    return this.userAuthorization.provider.getSigner();
+    if (this.isNewAuthEnabled) {
+      throw new Error(
+        'getSigner() is not available in new auth mode. ' +
+        'Use signMessage() for signing operations.'
+      );
+    }
+    return (this.userAuthorization as IUserAuthorization).provider.getSigner();
   }
 
   /**
    * Generates a SIWE message for authentication with session key capabilities.
    * This method delegates to the UserAuthorization module.
+   * Available in legacy auth mode only.
+   *
+   * In new auth mode, use prepareSessionForSigning() instead for external signing flows.
    *
    * @param address - Ethereum address performing the signing
    * @param partialSiweMessage - Optional partial SIWE message to override defaults
    * @returns SiweMessage object ready for signing
+   * @throws Error if using new auth module (useNewAuth: true)
    */
   public async generateSiweMessage(
     address: string,
     partialSiweMessage?: Partial<SiweMessage>
   ): Promise<SiweMessage> {
-    return this.userAuthorization.generateSiweMessage(address, partialSiweMessage);
+    if (this.isNewAuthEnabled) {
+      throw new Error(
+        'generateSiweMessage() is not available in new auth mode. ' +
+        'Use webAuth.prepareSessionForSigning() for external signing flows.'
+      );
+    }
+    return (this.userAuthorization as IUserAuthorization).generateSiweMessage(address, partialSiweMessage);
   }
 
   /**
    * Sign in using a pre-signed SIWE message.
    * This method delegates to the UserAuthorization module.
+   * Available in legacy auth mode only.
+   *
+   * In new auth mode, use webAuth.signInWithPreparedSession() instead.
+   *
    * @param siweMessage - The SIWE message that was generated
    * @param signature - The signature of the SIWE message
    * @returns Object containing information about the session
+   * @throws Error if using new auth module (useNewAuth: true)
    */
   public async signInWithSignature(
     siweMessage: SiweMessage,
     signature: string
   ): Promise<TCWClientSession> {
-    const session = await this.userAuthorization.signInWithSignature(siweMessage, signature);
+    if (this.isNewAuthEnabled) {
+      throw new Error(
+        'signInWithSignature() is not available in new auth mode. ' +
+        'Use webAuth.signInWithPreparedSession() for external signing flows.'
+      );
+    }
+    const session = await (this.userAuthorization as IUserAuthorization).signInWithSignature(siweMessage, signature);
     // Initialize KV service after sign-in
     this.initializeKVService(session);
     return session;
+  }
+
+  // =========================================================================
+  // New Auth Module Features (TC-714)
+  // Available when useNewAuth: true
+  // =========================================================================
+
+  /**
+   * Check if the new auth module is being used.
+   * @returns true if using WebUserAuthorization, false if using legacy UserAuthorization
+   */
+  public get isNewAuthEnabled(): boolean {
+    return this.config.useNewAuth === true;
+  }
+
+  /**
+   * Get the WebUserAuthorization instance (new auth module only).
+   * Throws if not using new auth module.
+   *
+   * @throws Error if useNewAuth is false
+   */
+  public get webAuth(): WebUserAuthorization {
+    if (!this.isNewAuthEnabled) {
+      throw new Error(
+        'WebUserAuthorization is not available. Set useNewAuth: true in config to use the new auth module.'
+      );
+    }
+    return this.userAuthorization as unknown as WebUserAuthorization;
+  }
+
+  /**
+   * Get the primary DID for this user (new auth module only).
+   *
+   * - If wallet connected and signed in: returns PKH DID (persistent identity)
+   * - If session-only mode: returns session key DID (ephemeral)
+   *
+   * @throws Error if useNewAuth is false
+   */
+  public get did(): string {
+    return this.webAuth.did;
+  }
+
+  /**
+   * Get the session key DID (new auth module only).
+   * Always available, even before sign-in.
+   *
+   * Format: `did:key:z6Mk...#z6Mk...`
+   *
+   * @throws Error if useNewAuth is false
+   */
+  public get sessionDid(): string {
+    return this.webAuth.sessionDid;
+  }
+
+  /**
+   * Check if in session-only mode (new auth module only).
+   * Session-only mode means no wallet is connected, but delegations can be received.
+   *
+   * @throws Error if useNewAuth is false
+   */
+  public get isSessionOnly(): boolean {
+    return this.webAuth.isSessionOnly;
+  }
+
+  /**
+   * Check if a wallet is connected (new auth module only).
+   * Wallet may be connected but not signed in.
+   *
+   * @throws Error if useNewAuth is false
+   */
+  public get isWalletConnected(): boolean {
+    return this.webAuth.isWalletConnected;
+  }
+
+  /**
+   * Connect a wallet to upgrade from session-only mode (new auth module only).
+   *
+   * This allows users who started in session-only mode (e.g., received
+   * delegations) to later connect a wallet and create their own space.
+   *
+   * @param provider - Web3 provider (e.g., window.ethereum)
+   * @param options - Optional configuration
+   *
+   * @throws Error if useNewAuth is false
+   *
+   * @example
+   * ```typescript
+   * // Create in session-only mode
+   * const tcw = new TinyCloudWeb({ useNewAuth: true });
+   * console.log(tcw.isSessionOnly); // true
+   *
+   * // User clicks "Connect Wallet"
+   * tcw.connectWallet(window.ethereum);
+   * console.log(tcw.isSessionOnly); // false
+   *
+   * // Now can sign in
+   * await tcw.signIn();
+   * ```
+   */
+  public connectWallet(
+    provider: providers.ExternalProvider | providers.Web3Provider,
+    options?: { spacePrefix?: string }
+  ): void {
+    this.webAuth.connectWallet(provider, options);
   }
 
 }
