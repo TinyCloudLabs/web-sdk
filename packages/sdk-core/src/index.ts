@@ -175,6 +175,16 @@ export {
   // Error codes
   CapabilityKeyRegistryErrorCodes,
   CapabilityKeyRegistryErrorCode,
+  // SignStrategy types
+  SignRequest,
+  SignResponse,
+  SignCallback,
+  AutoSignStrategy,
+  AutoRejectStrategy,
+  CallbackStrategy,
+  EventEmitterStrategy,
+  SignStrategy,
+  defaultSignStrategy,
 } from "./authorization";
 
 // Spaces (v2 spec)

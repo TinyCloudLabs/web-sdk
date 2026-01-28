@@ -46,3 +46,19 @@ export {
   CapabilityKeyRegistryErrorCodes,
   CapabilityKeyRegistryErrorCode,
 } from "./CapabilityKeyRegistry";
+
+// SignStrategy types
+export {
+  // Request/Response types
+  SignRequest,
+  SignResponse,
+  SignCallback,
+  // Strategy types
+  AutoSignStrategy,
+  AutoRejectStrategy,
+  CallbackStrategy,
+  EventEmitterStrategy,
+  SignStrategy,
+  // Default
+  defaultSignStrategy,
+} from "./strategies";
