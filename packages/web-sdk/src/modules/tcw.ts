@@ -61,29 +61,103 @@ declare global {
 /**
  * Configuration for TinyCloudWeb.
  *
- * Extends the legacy TCWClientConfig with new auth module options.
- * For new projects, prefer using the WebUserAuthorizationConfig options directly.
+ * Extends TCWClientConfig with notification options and the new unified auth module.
+ *
+ * ## New Auth Module (1.0.0)
+ *
+ * Set `useNewAuth: true` to enable the new unified auth architecture with:
+ * - **SignStrategy pattern**: Control how sign requests are handled
+ * - **Session-only mode**: Receive delegations without a wallet
+ * - **`did` vs `sessionDid` model**: Clear identity distinction
+ * - **`connectWallet()` upgrade pattern**: Upgrade from session-only to full auth
+ *
+ * @example
+ * ```typescript
+ * // Legacy mode (default)
+ * const tcw = new TinyCloudWeb({
+ *   providers: { web3: { driver: window.ethereum } }
+ * });
+ *
+ * // New auth mode (recommended for new projects)
+ * const tcw = new TinyCloudWeb({
+ *   useNewAuth: true,
+ *   signStrategy: { type: 'wallet-popup' },
+ *   spaceCreationHandler: new ModalSpaceCreationHandler()
+ * });
+ *
+ * // Session-only mode (no wallet required)
+ * const tcw = new TinyCloudWeb({ useNewAuth: true });
+ * console.log(tcw.sessionDid); // did:key:z6Mk...
+ * ```
  */
 export interface TCWConfig extends TCWClientConfig {
+  /** Notification configuration for error popups and toasts */
   notifications?: NotificationConfig;
+
   /** Optional prefix for KV service keys */
   kvPrefix?: string;
 
-  // === New auth module options (TC-714) ===
+  /**
+   * Prefix for space names when creating spaces.
+   * @example 'myapp' results in spaces like 'myapp-default'
+   */
+  spacePrefix?: string;
+
+  /**
+   * TinyCloud server hosts.
+   * @default ['https://node.tinycloud.xyz']
+   */
+  tinycloudHosts?: string[];
+
+  /**
+   * Whether to auto-create space on sign-in if it doesn't exist.
+   * @default true
+   */
+  autoCreateSpace?: boolean;
+
+  // =========================================================================
+  // New Auth Module Options (TC-714/TC-715)
+  // Available when useNewAuth: true
+  // =========================================================================
+
+  /**
+   * Whether to use the new WebUserAuthorization class.
+   *
+   * When `true`, uses the new unified auth module architecture featuring:
+   * - SignStrategy pattern for controlling sign requests
+   * - Session-only mode (receive delegations without wallet)
+   * - Clear `did` vs `sessionDid` model
+   * - `connectWallet()` upgrade pattern
+   *
+   * When `false` (default), uses the legacy UserAuthorization for backward compatibility.
+   *
+   * **Recommended**: Set to `true` for new projects or when migrating to 1.0.0.
+   *
+   * @default false
+   */
+  useNewAuth?: boolean;
 
   /**
    * Sign strategy for handling sign requests.
-   * Defaults to 'wallet-popup' which shows browser wallet popup.
+   *
+   * Only used when `useNewAuth: true`. Determines how SIWE signing is handled:
+   * - `'wallet-popup'` (default): Show browser wallet popup
+   * - `{ type: 'auto-sign' }`: Automatically sign (requires external signer setup)
+   * - `{ type: 'callback', handler: fn }`: Custom callback for sign requests
+   * - `{ type: 'event-emitter', emitter: ee }`: Emit events for external handling
    *
    * @example
    * ```typescript
-   * // Auto-sign (requires signer)
-   * signStrategy: { type: 'auto-sign' }
+   * // Default: wallet popup
+   * signStrategy: 'wallet-popup'
    *
-   * // Custom callback
+   * // Custom callback for approval UI
    * signStrategy: {
    *   type: 'callback',
-   *   handler: async (req) => ({ approved: true })
+   *   handler: async (req) => {
+   *     const approved = await showCustomApprovalDialog(req.message);
+   *     return { approved };
+   *   }
    * }
    * ```
    */
@@ -91,29 +165,29 @@ export interface TCWConfig extends TCWClientConfig {
 
   /**
    * Handler for space creation confirmation.
-   * Defaults to ModalSpaceCreationHandler which shows a modal dialog.
+   *
+   * Only used when `useNewAuth: true`. Controls how space creation is confirmed:
+   * - `ModalSpaceCreationHandler` (default): Shows a modal dialog
+   * - `{ confirmSpaceCreation: async () => true }`: Auto-approve
+   * - Custom implementation of `ISpaceCreationHandler`
    *
    * @example
    * ```typescript
-   * // Auto-approve (no confirmation modal)
+   * // Default: modal confirmation
+   * spaceCreationHandler: new ModalSpaceCreationHandler()
+   *
+   * // Auto-approve (no UI)
    * spaceCreationHandler: { confirmSpaceCreation: async () => true }
    *
    * // Custom handler
-   * spaceCreationHandler: new MySpaceCreationHandler()
+   * spaceCreationHandler: {
+   *   confirmSpaceCreation: async (context) => {
+   *     return await showCustomDialog(`Create space: ${context.spaceId}?`);
+   *   }
+   * }
    * ```
    */
   spaceCreationHandler?: ISpaceCreationHandler;
-
-  /**
-   * Whether to use the new WebUserAuthorization class.
-   * When true, uses the new unified auth module architecture.
-   * When false (default), uses the legacy UserAuthorization for backward compatibility.
-   *
-   * Set to true for new projects or when migrating to 1.0.0.
-   *
-   * @default false
-   */
-  useNewAuth?: boolean;
 }
 
 const TCW_DEFAULT_CONFIG: TCWClientConfig = {
@@ -926,7 +1000,9 @@ export class TinyCloudWeb {
 
   /**
    * ENS data supported by TCW.
-   * Available in legacy auth mode only.
+   *
+   * @deprecated This method is only available in legacy auth mode.
+   * When using `useNewAuth: true`, use ethers.js or viem directly for ENS resolution.
    *
    * @param address - User address.
    * @returns Object containing ENS data.
@@ -968,7 +1044,9 @@ export class TinyCloudWeb {
 
   /**
    * Gets the provider that is connected and signed in.
-   * Available in legacy auth mode only.
+   *
+   * @deprecated This method is only available in legacy auth mode.
+   * When using `useNewAuth: true`, use `webAuth.isWalletConnected` to check connection status.
    *
    * @returns Provider.
    * @throws Error if using new auth module (useNewAuth: true)
@@ -985,7 +1063,9 @@ export class TinyCloudWeb {
 
   /**
    * Returns the signer of the connected address.
-   * Available in legacy auth mode only.
+   *
+   * @deprecated This method is only available in legacy auth mode.
+   * When using `useNewAuth: true`, use `webAuth.signMessage()` for signing operations.
    *
    * @returns ethers.Signer
    * @throws Error if using new auth module (useNewAuth: true)
@@ -1004,9 +1084,9 @@ export class TinyCloudWeb {
   /**
    * Generates a SIWE message for authentication with session key capabilities.
    * This method delegates to the UserAuthorization module.
-   * Available in legacy auth mode only.
    *
-   * In new auth mode, use prepareSessionForSigning() instead for external signing flows.
+   * @deprecated This method is only available in legacy auth mode.
+   * When using `useNewAuth: true`, use `webAuth.prepareSessionForSigning()` for external signing flows.
    *
    * @param address - Ethereum address performing the signing
    * @param partialSiweMessage - Optional partial SIWE message to override defaults
@@ -1029,9 +1109,9 @@ export class TinyCloudWeb {
   /**
    * Sign in using a pre-signed SIWE message.
    * This method delegates to the UserAuthorization module.
-   * Available in legacy auth mode only.
    *
-   * In new auth mode, use webAuth.signInWithPreparedSession() instead.
+   * @deprecated This method is only available in legacy auth mode.
+   * When using `useNewAuth: true`, use `webAuth.signInWithPreparedSession()` for external signing flows.
    *
    * @param siweMessage - The SIWE message that was generated
    * @param signature - The signature of the SIWE message
