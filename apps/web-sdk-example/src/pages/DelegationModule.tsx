@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { TinyCloudWeb, Delegation } from '@tinycloudlabs/web-sdk';
+import { TinyCloudWeb, Delegation, PortableDelegation, serializeDelegation } from '@tinycloudlabs/web-sdk';
 import Input from '../components/Input';
 import Button from '../components/Button';
 
@@ -8,15 +8,30 @@ interface IDelegationModule {
 }
 
 /**
- * Serialize a delegation to a URL-safe base64 token.
+ * Convert a Delegation to PortableDelegation with transport fields.
+ * This adds the fields needed for the recipient to use the delegation.
  */
-function serializeDelegation(delegation: Delegation): string {
-  const data = {
+function toPortableDelegation(
+  delegation: Delegation,
+  ownerAddress: string,
+  chainId: number,
+  host: string
+): PortableDelegation {
+  return {
     ...delegation,
-    expiry: delegation.expiry instanceof Date ? delegation.expiry.toISOString() : delegation.expiry,
-    createdAt: delegation.createdAt instanceof Date ? delegation.createdAt.toISOString() : delegation.createdAt,
+    delegationHeader: { Authorization: delegation.authHeader || `Bearer ${delegation.cid}` },
+    ownerAddress,
+    chainId,
+    host,
+    delegationCid: delegation.cid,
   };
-  const json = JSON.stringify(data);
+}
+
+/**
+ * Serialize a PortableDelegation to URL-safe base64 token.
+ */
+function serializeToBase64(delegation: PortableDelegation): string {
+  const json = serializeDelegation(delegation);
   // Use base64url encoding
   const base64 = btoa(json).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   return base64;
@@ -110,8 +125,17 @@ function DelegationModule({ tcw }: IDelegationModule) {
         const delegation = result.data;
         setLastDelegation(delegation);
 
+        // Get transport fields from tcw
+        const ownerAddress = tcw.address() || '';
+        const chainId = tcw.chainId() || 1;
+        // Use default host - the web-sdk example uses the default TinyCloud server
+        const host = 'https://node.tinycloud.xyz';
+
+        // Convert to PortableDelegation with transport fields
+        const portableDelegation = toPortableDelegation(delegation, ownerAddress, chainId, host);
+
         // Generate URL with serialized delegation
-        const token = serializeDelegation(delegation);
+        const token = serializeToBase64(portableDelegation);
         const url = `${window.location.origin}/delegate?token=${encodeURIComponent(token)}`;
         setGeneratedUrl(url);
 

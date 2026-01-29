@@ -1,27 +1,30 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { TinyCloudWeb, Delegation } from '@tinycloudlabs/web-sdk';
+import { TinyCloudWeb, PortableDelegation, DelegatedAccess, deserializeDelegation } from '@tinycloudlabs/web-sdk';
 import Input from '../components/Input';
 import Button from '../components/Button';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 
 /**
- * Deserialize a delegation from a URL-safe base64 token.
+ * Decode a base64url token to JSON string.
  */
-function deserializeDelegation(token: string): Delegation {
+function decodeBase64Url(token: string): string {
   // Decode base64url
   let base64 = token.replace(/-/g, '+').replace(/_/g, '/');
   while (base64.length % 4) {
     base64 += '=';
   }
-  const json = atob(base64);
-  const data = JSON.parse(json);
-  return {
-    ...data,
-    expiry: new Date(data.expiry),
-    createdAt: data.createdAt ? new Date(data.createdAt) : undefined,
-  };
+  return atob(base64);
+}
+
+/**
+ * Parse a delegation token from URL.
+ * Handles base64url encoding used in URL transport.
+ */
+function parseDelegationToken(token: string): PortableDelegation {
+  const json = decodeBase64Url(token);
+  return deserializeDelegation(json);
 }
 
 /**
@@ -36,8 +39,9 @@ function Delegate() {
   const navigate = useNavigate();
 
   const [token, setToken] = useState<string>(searchParams.get('token') || '');
-  const [delegation, setDelegation] = useState<Delegation | null>(null);
+  const [delegation, setDelegation] = useState<PortableDelegation | null>(null);
   const [tcw, setTcw] = useState<TinyCloudWeb | null>(null);
+  const [access, setAccess] = useState<DelegatedAccess | null>(null);
   const [isActivated, setIsActivated] = useState<boolean>(false);
   const [keys, setKeys] = useState<string[]>([]);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
@@ -51,7 +55,7 @@ function Delegate() {
   useEffect(() => {
     if (token) {
       try {
-        const parsed = deserializeDelegation(token);
+        const parsed = parseDelegationToken(token);
         setDelegation(parsed);
         setError(null);
       } catch (err) {
@@ -76,25 +80,18 @@ function Delegate() {
 
       // The session DID is available immediately
       console.log('Session DID:', tcwInstance.sessionDid);
+      console.log('Delegation targets:', delegation.delegateDID);
 
-      // Check if the delegation targets our session DID
-      // Note: In a real app, you'd want to handle this more gracefully
-      if (delegation.delegateDID !== tcwInstance.sessionDid) {
-        console.warn(
-          `Delegation targets ${delegation.delegateDID} but our DID is ${tcwInstance.sessionDid}`
-        );
-        setError(
-          'This delegation was created for a different user. ' +
-          'You may not be able to use it with your current session.'
-        );
-      }
+      // Use the delegation to get access to the shared space
+      const delegatedAccess = await tcwInstance.useDelegation(delegation);
 
-      // Store the TCW instance
+      // Store the TCW and DelegatedAccess instances
       setTcw(tcwInstance);
+      setAccess(delegatedAccess);
       setIsActivated(true);
 
-      // Try to list keys in the delegated path
-      await loadKeys(tcwInstance);
+      // List keys in the delegated path
+      await loadKeys(delegatedAccess);
     } catch (err) {
       console.error('Failed to activate delegation:', err);
       setError(`Failed to activate: ${err instanceof Error ? err.message : String(err)}`);
@@ -102,31 +99,37 @@ function Delegate() {
     setLoading(false);
   };
 
-  const loadKeys = async (tcwInstance: TinyCloudWeb) => {
+  const loadKeys = async (delegatedAccess: DelegatedAccess) => {
     if (!delegation) return;
 
     try {
-      // Note: In session-only mode without a full delegation flow,
-      // we can't actually access the delegated space.
-      // This is a demonstration of what the UI would look like.
-      // A full implementation would need useDelegation() support in web-sdk.
-
-      // For now, show an informational message
-      setKeys([]);
-      console.log('Delegation received. Full access requires useDelegation() support.');
+      // List keys at the delegated path
+      const result = await delegatedAccess.kv.list();
+      if (result.ok) {
+        setKeys(result.data.keys);
+        console.log('Loaded keys from delegated space:', result.data.keys);
+      } else {
+        console.error('Failed to list keys:', result.error);
+        setKeys([]);
+      }
     } catch (err) {
       console.error('Failed to load keys:', err);
+      setKeys([]);
     }
   };
 
   const handleGetKey = async (key: string) => {
-    if (!tcw || !delegation) return;
+    if (!access || !delegation) return;
     setError(null);
 
     try {
-      // Placeholder: Would use delegated access to get the key
-      setSelectedKey(key);
-      setKeyValue('(Value would be loaded via delegated access)');
+      const result = await access.kv.get(key);
+      if (result.ok) {
+        setSelectedKey(key);
+        setKeyValue(typeof result.data === 'string' ? result.data : JSON.stringify(result.data, null, 2));
+      } else {
+        setError(`Failed to get key: ${result.error.message}`);
+      }
     } catch (err) {
       console.error('Failed to get key:', err);
       setError(`Failed to get key: ${err instanceof Error ? err.message : String(err)}`);
@@ -134,15 +137,21 @@ function Delegate() {
   };
 
   const handlePutKey = async () => {
-    if (!tcw || !delegation || !newKey || !newValue) return;
+    if (!access || !delegation || !newKey || !newValue) return;
     setError(null);
     setLoading(true);
 
     try {
-      // Placeholder: Would use delegated access to put the key
-      console.log('Would put key:', newKey, newValue);
-      setNewKey('');
-      setNewValue('');
+      const result = await access.kv.put(newKey, newValue);
+      if (result.ok) {
+        console.log('Successfully put key:', newKey);
+        setNewKey('');
+        setNewValue('');
+        // Refresh keys list
+        await loadKeys(access);
+      } else {
+        setError(`Failed to put key: ${result.error.message}`);
+      }
     } catch (err) {
       console.error('Failed to put key:', err);
       setError(`Failed to put key: ${err instanceof Error ? err.message : String(err)}`);
@@ -286,24 +295,23 @@ function Delegate() {
                     </div>
                   </div>
 
-                  {/* Note about full implementation */}
-                  <div className="rounded-base border-2 border-blue-300 bg-blue-50 p-4">
-                    <h4 className="text-md font-heading text-blue-800 mb-2">Implementation Note</h4>
-                    <p className="text-sm text-blue-700">
-                      Full delegation usage requires <code className="bg-blue-100 px-1 rounded">useDelegation()</code> support
-                      in the web-sdk, which chains the received delegation with a new session key.
-                      This demo shows the UI flow for receiving delegations.
-                    </p>
-                  </div>
-
-                  {/* Keys List (would be populated with useDelegation) */}
+                  {/* Keys List */}
                   <div className="space-y-4">
-                    <h4 className="text-lg font-heading text-text">Delegated Path: {delegation?.path}</h4>
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-lg font-heading text-text">Delegated Path: {delegation?.path || '/'}</h4>
+                      <Button
+                        variant="neutral"
+                        size="sm"
+                        onClick={() => access && loadKeys(access)}
+                      >
+                        Refresh
+                      </Button>
+                    </div>
 
                     {keys.length === 0 ? (
                       <div className="rounded-base border-2 border-dashed border-border/50 bg-bw/50 p-8 text-center">
                         <p className="text-text/70">
-                          Delegated content would appear here after full integration.
+                          No keys found at this path. Use the form below to add data.
                         </p>
                       </div>
                     ) : (
@@ -325,7 +333,56 @@ function Delegate() {
                         ))}
                       </div>
                     )}
+
+                    {/* Selected Key Value */}
+                    {selectedKey && (
+                      <div className="space-y-2 p-4 rounded-base border-2 border-border/30 bg-bw">
+                        <div className="flex items-center justify-between">
+                          <h5 className="text-sm font-medium text-text">Value of: {selectedKey}</h5>
+                          <Button
+                            variant="neutral"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedKey(null);
+                              setKeyValue('');
+                            }}
+                          >
+                            Close
+                          </Button>
+                        </div>
+                        <pre className="text-xs font-mono bg-bw/50 p-3 rounded-base border border-border/20 overflow-auto max-h-40">
+                          {keyValue}
+                        </pre>
+                      </div>
+                    )}
                   </div>
+
+                  {/* Write New Key (if write permission) */}
+                  {delegation?.actions.some(a => a.includes('/put')) && (
+                    <div className="space-y-3 p-4 rounded-base border-2 border-border/30 bg-bw">
+                      <h4 className="text-md font-heading text-text">Write New Key</h4>
+                      <Input
+                        label="Key"
+                        value={newKey}
+                        onChange={setNewKey}
+                        className="w-full"
+                      />
+                      <Input
+                        label="Value"
+                        value={newValue}
+                        onChange={setNewValue}
+                        className="w-full"
+                      />
+                      <Button
+                        variant="default"
+                        onClick={handlePutKey}
+                        loading={loading}
+                        className="w-full"
+                      >
+                        Put Key
+                      </Button>
+                    </div>
+                  )}
 
                   {/* Back Button */}
                   <Button

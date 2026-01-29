@@ -30,6 +30,7 @@ import {
   fetchPeerId,
   submitHostDelegation,
   activateSessionWithHost,
+  JWK,
 } from "@tinycloudlabs/sdk-core";
 import { dispatchSDKEvent } from "../notifications/ErrorHandler";
 import { WasmInitializer } from "../modules/WasmInitializer";
@@ -274,6 +275,23 @@ export class WebUserAuthorization implements IUserAuthorization {
    */
   get sessionDid(): string {
     return this.sessionManager.getDID(this.sessionKeyId);
+  }
+
+  /**
+   * Get the session key JWK (always available).
+   *
+   * This is used for session-only mode operations like useDelegation()
+   * where we need the session key to create a session from a received delegation.
+   *
+   * @returns The JWK for the current session key
+   * @throws Error if session key not found
+   */
+  getSessionKeyJwk(): JWK {
+    const jwkString = this.sessionManager.jwk(this.sessionKeyId);
+    if (!jwkString) {
+      throw new Error("Session key JWK not found");
+    }
+    return JSON.parse(jwkString);
   }
 
   // =========================================================================

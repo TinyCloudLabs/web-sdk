@@ -481,6 +481,47 @@ export class TinyCloudNode {
         }
         return kvService;
       },
+      // Enable space.delegations.create() via SIWE-based delegation
+      createDelegation: async (params) => {
+        try {
+          // Use the existing createDelegation method which calls /delegate with SIWE
+          const portableDelegation = await this.createDelegation({
+            delegateDID: params.delegateDID,
+            path: params.path,
+            actions: params.actions,
+            disableSubDelegation: params.disableSubDelegation,
+            expiryMs: params.expiry
+              ? params.expiry.getTime() - Date.now()
+              : undefined,
+          });
+
+          // Convert PortableDelegation to Delegation type for Space API
+          const delegation: Delegation = {
+            cid: portableDelegation.cid,
+            delegateDID: portableDelegation.delegateDID,
+            delegatorDID: this.did,
+            spaceId: portableDelegation.spaceId,
+            path: portableDelegation.path,
+            actions: portableDelegation.actions,
+            expiry: portableDelegation.expiry,
+            isRevoked: false,
+            allowSubDelegation: !portableDelegation.disableSubDelegation,
+            createdAt: new Date(),
+            authHeader: portableDelegation.delegationHeader.Authorization,
+          };
+
+          return { ok: true, data: delegation };
+        } catch (error) {
+          return {
+            ok: false,
+            error: {
+              code: "CREATION_FAILED",
+              message: error instanceof Error ? error.message : String(error),
+              service: "delegation",
+            },
+          };
+        }
+      },
     });
 
     // Update SharingService with full capabilities (session + createDelegation)
@@ -505,7 +546,7 @@ export class TinyCloudNode {
 
           // Convert PortableDelegation to Delegation type
           const delegation: Delegation = {
-            cid: portableDelegation.delegationCid,
+            cid: portableDelegation.cid,
             delegateDID: portableDelegation.delegateDID,
             spaceId: portableDelegation.spaceId,
             path: portableDelegation.path,
@@ -558,7 +599,7 @@ export class TinyCloudNode {
     }
 
     const keyInfo: KeyInfo = {
-      id: `received:${delegation.delegationCid}`,
+      id: `received:${(delegation.cid || delegation.delegationCid!)}`,
       did: this.sessionDid,
       type: "ingested",
       jwk,
@@ -567,7 +608,7 @@ export class TinyCloudNode {
 
     // Convert PortableDelegation to Delegation type
     const delegationRecord: Delegation = {
-      cid: delegation.delegationCid,
+      cid: (delegation.cid || delegation.delegationCid!),
       delegateDID: delegation.delegateDID,
       spaceId: delegation.spaceId,
       path: delegation.path,
@@ -912,7 +953,8 @@ export class TinyCloudNode {
 
     // Return the portable delegation
     return {
-      delegationCid: delegationSession.delegationCid,
+      cid: delegationSession.delegationCid,
+      delegationCid: delegationSession.delegationCid, // @deprecated - use cid
       delegationHeader: delegationSession.delegationHeader,
       spaceId: session.spaceId,
       path: params.path,
@@ -936,10 +978,12 @@ export class TinyCloudNode {
    * - **Wallet mode**: Creates a SIWE sub-delegation from PKH to session key
    * - **Session-only mode**: Uses the delegation directly (must target session key DID)
    *
-   * @param delegation - The portable delegation received from another user
+   * @param delegation - The PortableDelegation to use (from createDelegation or transport)
    * @returns A DelegatedAccess instance for performing operations
    */
   async useDelegation(delegation: PortableDelegation): Promise<DelegatedAccess> {
+    const delegationHeader = delegation.delegationHeader;
+
     // Use the host from the delegation if provided, otherwise fall back to config
     const targetHost = delegation.host ?? this.config.host!;
 
@@ -962,8 +1006,8 @@ export class TinyCloudNode {
         chainId: delegation.chainId,
         sessionKey: JSON.stringify(this.sessionKeyJwk),
         spaceId: delegation.spaceId,
-        delegationCid: delegation.delegationCid,
-        delegationHeader: delegation.delegationHeader,
+        delegationCid: delegation.cid,
+        delegationHeader,
         verificationMethod: this.sessionDid,
         jwk: this.sessionKeyJwk as unknown as JWK,
         siwe: "", // Not used in session-only mode
@@ -1012,7 +1056,7 @@ export class TinyCloudNode {
       expirationTime: expirationTime.toISOString(),
       spaceId: delegation.spaceId,
       jwk,
-      parents: [delegation.delegationCid],
+      parents: [delegation.cid],
     });
 
     // Sign with THIS user's signer
@@ -1163,7 +1207,8 @@ export class TinyCloudNode {
 
     // Return the portable sub-delegation
     return {
-      delegationCid: subDelegationSession.delegationCid,
+      cid: subDelegationSession.delegationCid,
+      delegationCid: subDelegationSession.delegationCid, // @deprecated - use cid
       delegationHeader: subDelegationSession.delegationHeader,
       spaceId: parentDelegation.spaceId,
       path: params.path,
@@ -1171,8 +1216,8 @@ export class TinyCloudNode {
       disableSubDelegation: params.disableSubDelegation ?? false,
       expiry: actualExpiry,
       delegateDID: params.delegateDID,
-      ownerAddress: parentDelegation.ownerAddress,
-      chainId: parentDelegation.chainId,
+      ownerAddress: parentDelegation.ownerAddress!,
+      chainId: parentDelegation.chainId!,
       host: targetHost,
     };
   }
