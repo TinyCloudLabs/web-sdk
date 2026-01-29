@@ -26,4 +26,7 @@ export {
   // URI utilities
   parseSpaceUri,
   buildSpaceUri,
+  // Delegation creation types
+  SpaceDelegationParams,
+  CreateDelegationFunction,
 } from "./SpaceService";

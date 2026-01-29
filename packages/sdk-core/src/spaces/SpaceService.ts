@@ -68,6 +68,23 @@ export type SpaceErrorCode = (typeof SpaceErrorCodes)[keyof typeof SpaceErrorCod
 // =============================================================================
 
 /**
+ * Parameters for creating a space-scoped delegation.
+ * Extends CreateDelegationParams with the spaceId.
+ */
+export interface SpaceDelegationParams extends Omit<CreateDelegationParams, "spaceId"> {
+  /** The space ID to create the delegation for */
+  spaceId: string;
+}
+
+/**
+ * Function type for creating delegations.
+ * Platform SDKs provide this to handle SIWE-based delegation creation.
+ */
+export type CreateDelegationFunction = (
+  params: SpaceDelegationParams
+) => Promise<Result<Delegation, ServiceError>>;
+
+/**
  * Configuration for SpaceService.
  */
 export interface SpaceServiceConfig {
@@ -87,6 +104,12 @@ export interface SpaceServiceConfig {
   userDid?: string;
   /** Optional SharingService for v2 sharing links (client-side) */
   sharingService?: ISharingService;
+  /**
+   * Factory function to create delegations using SIWE-based flow.
+   * Platform SDKs (web-sdk, node-sdk) provide this using their WASM bindings.
+   * Required for space.delegations.create() to work.
+   */
+  createDelegation?: CreateDelegationFunction;
 }
 
 /**
@@ -318,6 +341,7 @@ export class SpaceService implements ISpaceService {
   private createKVServiceFn?: (spaceId: string) => IKVService;
   private _userDid?: string;
   private sharingService?: ISharingService;
+  private createDelegationFn?: CreateDelegationFunction;
 
   /** Cache of created Space objects */
   private spaceCache: Map<string, ISpace> = new Map();
@@ -342,6 +366,7 @@ export class SpaceService implements ISpaceService {
     this.createKVServiceFn = config.createKVService;
     this._userDid = config.userDid;
     this.sharingService = config.sharingService;
+    this.createDelegationFn = config.createDelegation;
   }
 
   /**
@@ -356,6 +381,7 @@ export class SpaceService implements ISpaceService {
     if (config.createKVService) this.createKVServiceFn = config.createKVService;
     if (config.userDid !== undefined) this._userDid = config.userDid;
     if (config.sharingService) this.sharingService = config.sharingService;
+    if (config.createDelegation) this.createDelegationFn = config.createDelegation;
 
     // Clear caches when config changes
     this.spaceCache.clear();
@@ -961,42 +987,22 @@ export class SpaceService implements ISpaceService {
       async create(
         params: Omit<CreateDelegationParams, "spaceId">
       ): Promise<Result<Delegation, ServiceError>> {
-        try {
-          const headers = self.invoke(
-            self.session,
-            "delegation",
-            params.path,
-            "tinycloud.delegation/create"
-          );
-
-          const response = await self.fetchFn(`${self.host}/delegate`, {
-            method: "POST",
-            headers,
-            body: JSON.stringify({ ...params, spaceId }),
-          });
-
-          if (!response.ok) {
-            const errorText = await response.text();
-            return err(
-              serviceError(
-                SpaceErrorCodes.NETWORK_ERROR,
-                `Failed to create delegation: ${response.status} - ${errorText}`,
-                SERVICE_NAME
-              )
-            );
-          }
-
-          const data = (await response.json()) as Delegation;
-          return ok(data);
-        } catch (error) {
-          return err(
-            serviceError(
-              SpaceErrorCodes.NETWORK_ERROR,
-              `Network error creating delegation: ${String(error)}`,
-              SERVICE_NAME
-            )
-          );
+        // Use the platform-provided createDelegation function (SIWE-based flow)
+        if (self.createDelegationFn) {
+          return self.createDelegationFn({ ...params, spaceId });
         }
+
+        // Fallback: return error if no createDelegation function provided
+        // The old invoke-based approach doesn't work because /delegate expects
+        // SIWE delegation headers, not invocation headers
+        return err(
+          serviceError(
+            SpaceErrorCodes.NOT_INITIALIZED,
+            "Delegation creation requires a createDelegation function. " +
+              "This should be provided by the platform SDK (web-sdk or node-sdk).",
+            SERVICE_NAME
+          )
+        );
       },
 
       async revoke(cid: string): Promise<Result<void, ServiceError>> {
