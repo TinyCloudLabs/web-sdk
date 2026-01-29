@@ -205,11 +205,33 @@ async function runDemo() {
   console.log("=".repeat(70));
   console.log();
 
-  // Step 7: Alice creates delegation for Bob
-  // NOTE: Using TinyCloudNode.createDelegation() because Space API's delegations.create()
-  // has a bug - it uses invocation headers instead of delegation headers for /delegate endpoint.
-  // The server expects proper SIWE-based delegation headers.
-  console.log("[Alice] Creating delegation for Bob...");
+  // Step 7: Demonstrate both Space API and direct delegation creation
+  //
+  // The Space API's delegations.create() creates tracked delegations (metadata).
+  // For transferable credentials with auth headers (usable with useDelegation()),
+  // use TinyCloudNode.createDelegation() which returns a PortableDelegation.
+  //
+  // Let's demonstrate both:
+
+  // 7a: Create delegation via Space API (tracked, returns Delegation metadata)
+  console.log("[Alice] Creating delegation via Space API (tracked)...");
+  const spaceDelegationResult = await aliceSpace.delegations.create({
+    delegateDID: bob.did,
+    path: "shared/",
+    actions: ["tinycloud.kv/get", "tinycloud.kv/put"],
+    expiry: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+  });
+
+  if (!spaceDelegationResult.ok) {
+    console.error(`[Alice] ✗ Space API delegation failed: ${spaceDelegationResult.error.message}`);
+    process.exit(1);
+  }
+  console.log("[Alice] ✓ Space API delegation created!");
+  console.log(`  CID: ${spaceDelegationResult.data.cid}`);
+  console.log();
+
+  // 7b: Create portable delegation for Bob (transferable credential)
+  console.log("[Alice] Creating portable delegation for Bob...");
   const portableDelegation = await alice.createDelegation({
     delegateDID: bob.did,
     path: "shared/",
@@ -217,8 +239,8 @@ async function runDemo() {
     expiryMs: 24 * 60 * 60 * 1000, // 24 hours
   });
 
-  console.log("[Alice] ✓ Delegation created!");
-  console.log(`  CID: ${portableDelegation.delegationCid}`);
+  console.log("[Alice] ✓ Portable delegation created!");
+  console.log(`  CID: ${portableDelegation.cid}`);
   console.log(`  Delegate: ${portableDelegation.delegateDID}`);
   console.log(`  Path: ${portableDelegation.path}`);
   console.log(`  Actions: ${portableDelegation.actions.join(", ")}`);
@@ -282,7 +304,7 @@ async function runDemo() {
     actions: ["tinycloud.kv/put"],
     expiryMs: 24 * 60 * 60 * 1000,
   });
-  console.log(`[Alice] ✓ Delegation created for Charlie: ${charlieDelegation.delegationCid}`);
+  console.log(`[Alice] ✓ Delegation created for Charlie: ${charlieDelegation.cid}`);
   console.log();
 
   // Step 12: Charlie uses delegation (session-only, no signIn needed)
@@ -447,14 +469,15 @@ async function runDemo() {
   console.log("  • spaces.get(name) - Get Space object");
   console.log("  • space.kv.put/get/list - Space-scoped KV operations");
   console.log("  • space.kv.withPrefix() - Prefix-scoped KV");
+  console.log("  • space.delegations.create() - Create tracked delegation");
   console.log("  • space.delegations.list() - List outgoing delegations");
-  console.log("  • TinyCloudNode.createDelegation() - Create delegation");
+  console.log("  • TinyCloudNode.createDelegation() - Create portable delegation");
   console.log("  • TinyCloudNode.useDelegation() - Use received delegation");
   console.log("  • node.sharing.generate() - Create V2 sharing link");
   console.log("  • node.sharing.receive() - Use V2 sharing link");
   console.log();
   console.log("Not Yet Implemented on Server:");
-  console.log("  • space.delegations.create/revoke (needs tinycloud.delegation/*)");
+  console.log("  • space.delegations.revoke() - Revoke delegation");
   console.log("  • spaces.list(), space.info() (needs tinycloud.space/*)");
   console.log();
 }

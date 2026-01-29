@@ -140,3 +140,16 @@ export {
 
 // Adapter for web-sdk
 export { createKVService } from './modules/Storage/tinycloud/KVServiceAdapter';
+
+// =============================================================================
+// Delegation Transport Types (TC-563: useDelegation support)
+// =============================================================================
+// These types enable receiving and using delegations from other users.
+// Compatible with node-sdk's delegation system for cross-platform delegation exchange.
+
+export {
+  PortableDelegation,
+  DelegatedAccess,
+  serializeDelegation,
+  deserializeDelegation,
+} from './delegation';

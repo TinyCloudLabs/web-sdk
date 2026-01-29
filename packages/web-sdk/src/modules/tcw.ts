@@ -39,6 +39,7 @@ import {
   KeyInfo,
   Delegation,
   JWK,
+  TinyCloudSession,
   // v2 Sharing types
   Result,
   DelegationError,
@@ -55,6 +56,8 @@ import {
 } from '@tinycloudlabs/sdk-core';
 import { WasmKeyProvider } from './keys';
 import { invoke, prepareSession, completeSessionSetup } from './Storage/tinycloud/module';
+import { tinycloud } from '@tinycloudlabs/web-sdk-wasm';
+import { PortableDelegation, DelegatedAccess } from '../delegation';
 
 declare global {
   interface Window {
@@ -1353,6 +1356,213 @@ export class TinyCloudWeb {
     options?: { spacePrefix?: string }
   ): void {
     this.webAuth.connectWallet(provider, options);
+  }
+
+  /**
+   * Use a delegation received from another user.
+   *
+   * This creates a session that chains from the received delegation,
+   * allowing operations on the delegator's space.
+   *
+   * Works in both modes:
+   * - **Session-only mode**: Uses the delegation directly (must target session key DID)
+   * - **Wallet mode**: Creates a SIWE sub-delegation from PKH to session key
+   *
+   * @param delegation - The PortableDelegation to use (from createDelegation or transport)
+   * @returns A DelegatedAccess instance for performing operations
+   *
+   * @throws Error if useNewAuth is false (legacy auth not supported)
+   * @throws Error if in session-only mode and delegation doesn't target this user's DID
+   * @throws Error if in wallet mode and not signed in
+   *
+   * @example
+   * ```typescript
+   * // Session-only mode (most common for receiving delegations)
+   * const tcw = new TinyCloudWeb({ useNewAuth: true });
+   * const delegation = deserializeDelegation(receivedData);
+   *
+   * // The delegation must target tcw.did (session key DID in session-only mode)
+   * const access = await tcw.useDelegation(delegation);
+   *
+   * // Perform KV operations on the delegated space
+   * const data = await access.kv.get("shared/document.json");
+   * await access.kv.put("shared/notes.txt", "Hello!");
+   *
+   * // Wallet mode (signed in user receiving delegation)
+   * const tcw = new TinyCloudWeb({ useNewAuth: true, providers: { web3: { driver: window.ethereum } } });
+   * await tcw.signIn();
+   *
+   * // The delegation should target tcw.did (PKH DID when signed in)
+   * const access = await tcw.useDelegation(delegation);
+   * ```
+   */
+  public async useDelegation(delegation: PortableDelegation): Promise<DelegatedAccess> {
+    if (!this.isNewAuthEnabled) {
+      throw new Error(
+        "useDelegation() requires new auth module. Set useNewAuth: true in config."
+      );
+    }
+
+    const delegationHeader = delegation.delegationHeader;
+
+    // Use the host from the delegation if provided, otherwise fall back to config
+    const hosts = this.webAuth.getTinycloudHosts();
+    const targetHost = delegation.host ?? hosts[0];
+
+    // Session-only mode: use the delegation directly
+    // The delegation must target this user's session key DID
+    if (this.isSessionOnly) {
+      // Verify the delegation targets our session key DID
+      const myDid = this.did; // In session-only mode, this is the session key DID
+      if (delegation.delegateDID !== myDid) {
+        throw new Error(
+          `Delegation targets ${delegation.delegateDID} but this user's DID is ${myDid}. ` +
+          `The delegation must target this user's DID.`
+        );
+      }
+
+      // Get the session key JWK
+      const sessionKeyJwk = this.webAuth.getSessionKeyJwk();
+
+      // Create a session using the delegation directly
+      // In session-only mode, we use the received delegation as-is
+      const session: TinyCloudSession = {
+        address: delegation.ownerAddress,
+        chainId: delegation.chainId,
+        sessionKey: JSON.stringify(sessionKeyJwk),
+        spaceId: delegation.spaceId,
+        delegationCid: delegation.cid,
+        delegationHeader,
+        verificationMethod: this.sessionDid,
+        jwk: sessionKeyJwk,
+        siwe: "", // Not used in session-only mode
+        signature: "", // Not used in session-only mode
+      };
+
+      // Track received delegation in registry if available
+      if (this._capabilityRegistry) {
+        this.trackReceivedDelegation(delegation, sessionKeyJwk);
+      }
+
+      return new DelegatedAccess(session, delegation, targetHost);
+    }
+
+    // Wallet mode: create a SIWE sub-delegation
+    const mySession = this.webAuth.tinyCloudSession;
+    if (!mySession) {
+      throw new Error("Not signed in. Call signIn() first.");
+    }
+
+    // Use our existing session key - the delegation targets our DID from signIn
+    // We must use the same key that the delegation was created for
+    const jwk = mySession.jwk;
+
+    // Build abilities from the delegation
+    const abilities: Record<string, Record<string, string[]>> = {
+      kv: {
+        [delegation.path]: delegation.actions,
+      },
+    };
+
+    const now = new Date();
+    // Use delegation expiry or 1 hour, whichever is sooner
+    const maxExpiry = new Date(now.getTime() + 60 * 60 * 1000);
+    const expirationTime = delegation.expiry < maxExpiry ? delegation.expiry : maxExpiry;
+
+    // Prepare the session with:
+    // - THIS user's address (we are the invoker)
+    // - The delegation owner's space (where we're accessing data)
+    // - Our existing session key (must match the DID the delegation targets)
+    // - Parent reference to the received delegation
+    const prepared = prepareSession({
+      abilities,
+      address: tinycloud.ensureEip55(mySession.address),
+      chainId: mySession.chainId,
+      domain: new URL(targetHost).hostname,
+      issuedAt: now.toISOString(),
+      expirationTime: expirationTime.toISOString(),
+      spaceId: delegation.spaceId,
+      jwk,
+      parents: [delegation.cid],
+    });
+
+    // Sign with THIS user's wallet
+    // For web-sdk, we need to use the webAuth's signing mechanism
+    const signer = this.provider?.getSigner();
+    if (!signer) {
+      throw new Error("No signer available. Ensure wallet is connected.");
+    }
+    const signature = await signer.signMessage(prepared.siwe);
+
+    // Complete the session setup
+    const invokerSession = completeSessionSetup({
+      ...prepared,
+      signature,
+    });
+
+    // Activate with server
+    const activateResult = await activateSessionWithHost(
+      targetHost,
+      invokerSession.delegationHeader
+    );
+
+    if (!activateResult.success) {
+      throw new Error(`Failed to activate delegated session: ${activateResult.error}`);
+    }
+
+    // Create TinyCloudSession for the delegated access
+    const session: TinyCloudSession = {
+      address: mySession.address,
+      chainId: mySession.chainId,
+      sessionKey: mySession.sessionKey,
+      spaceId: delegation.spaceId,
+      delegationCid: invokerSession.delegationCid,
+      delegationHeader: invokerSession.delegationHeader,
+      verificationMethod: mySession.verificationMethod,
+      jwk,
+      siwe: prepared.siwe,
+      signature,
+    };
+
+    // Track received delegation in registry if available
+    if (this._capabilityRegistry) {
+      this.trackReceivedDelegation(delegation, jwk as unknown as JWK);
+    }
+
+    return new DelegatedAccess(session, delegation, targetHost);
+  }
+
+  /**
+   * Track a received delegation in the capability registry.
+   * @private
+   */
+  private trackReceivedDelegation(delegation: PortableDelegation, jwk: JWK): void {
+    if (!this._capabilityRegistry) {
+      return;
+    }
+
+    // Build KeyInfo for the capability registry
+    const keyInfo: KeyInfo = {
+      id: `received:${delegation.cid || delegation.delegationCid!}`,
+      did: this.sessionDid,
+      type: 'ingested',
+      jwk,
+      priority: 2,
+    };
+
+    // Convert PortableDelegation to Delegation type
+    const delegationRecord: Delegation = {
+      cid: delegation.cid || delegation.delegationCid!,
+      delegateDID: delegation.delegateDID,
+      spaceId: delegation.spaceId,
+      path: delegation.path,
+      actions: delegation.actions,
+      expiry: delegation.expiry,
+      isRevoked: false,
+      allowSubDelegation: !delegation.disableSubDelegation,
+    };
+
+    this._capabilityRegistry.ingestKey(keyInfo, delegationRecord);
   }
 
 }
