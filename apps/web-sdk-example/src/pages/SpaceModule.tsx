@@ -1,54 +1,62 @@
 import { useState, useEffect } from 'react';
-import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
+import { TinyCloudWeb, ISpace } from '@tinycloudlabs/web-sdk';
 import Input from '../components/Input';
 import Button from '../components/Button';
-import RadioGroup from '../components/RadioGroup';
 
-interface IStorageModule {
+interface ISpaceModule {
   tcw: TinyCloudWeb;
 }
 
 /**
- * StorageModule demonstrates the sdk-services KV API with Result pattern.
+ * SpaceModule demonstrates the space-scoped KV API.
  *
- * Uses tcw.kv for basic operations (get, put, list, delete)
- * Uses tcw.sharing for generating share links (v2 SharingService)
- * Receiving shares is available via TinyCloudWeb.receiveShare() static method.
+ * Uses tcw.space('default') for space-scoped operations (get, put, list, delete).
+ * Shows the difference between root-level and space-scoped KV access.
  */
-function StorageModule({ tcw }: IStorageModule) {
+function SpaceModule({ tcw }: ISpaceModule) {
+  const [spaceName, setSpaceName] = useState<string>('default');
+  const [space, setSpace] = useState<ISpace | null>(null);
   const [contentList, setContentList] = useState<Array<string>>([]);
   const [selectedContent, setSelectedContent] = useState<string | null>(null);
   const [name, setName] = useState<string>('');
   const [text, setText] = useState<string>('');
   const [viewingList, setViewingList] = useState<boolean>(true);
   const [allowPost, setAllowPost] = useState<boolean>(false);
-  const [removePrefix, setRemovePrefix] = useState<boolean>(false);
-  const [sharingLink, setSharingLink] = useState<string>('');
+  const [prefix, setPrefix] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
 
-  // Get prefix from tcw (used for display purposes)
-  const prefix = tcw.kvPrefix;
-
+  // Get the current space when spaceName changes
   useEffect(() => {
+    try {
+      const spaceObj = tcw.space(spaceName);
+      setSpace(spaceObj);
+    } catch (err) {
+      console.error('Error getting space:', err);
+      setSpace(null);
+    }
+  }, [tcw, spaceName]);
+
+  // List keys when space changes
+  useEffect(() => {
+    if (!space) return;
+
     const controller = new AbortController();
 
     const getContentList = async () => {
       setError(null);
       try {
-        // Use new kv.list() with Result pattern
-        // Pass abort signal to cancel on unmount (prevents React strict mode race)
-        const result = await tcw.kv.list({ removePrefix, signal: controller.signal });
+        // Use space-scoped KV list
+        const kv = prefix ? space.kv.withPrefix(prefix) : space.kv;
+        const result = await kv.list({ signal: controller.signal });
         if (result.ok) {
           setContentList(result.data.keys);
         } else {
-          // Don't show error if request was aborted
           if (result.error.code !== 'ABORTED') {
             console.error('Failed to list:', result.error.code, result.error.message);
             setError(`Failed to list keys: ${result.error.message}`);
           }
         }
       } catch (err) {
-        // KV service may not be ready yet (not signed in)
         console.error('Error listing content:', err);
       }
     };
@@ -57,50 +65,14 @@ function StorageModule({ tcw }: IStorageModule) {
     return () => {
       controller.abort();
     };
-  }, [tcw, removePrefix]);
-
-  const handleShareContent = async (content: string) => {
-    setError(null);
-    setSharingLink('');
-
-    try {
-      // Get the key path (with or without prefix based on removePrefix setting)
-      const keyPath = removePrefix ? content : content.replace(new RegExp(`^${prefix}/`), '');
-
-      // Generate a sharing link using the v2 SharingService
-      const result = await tcw.sharing.generate({
-        path: keyPath,
-        actions: ['tinycloud.kv/get', 'tinycloud.kv/list'],
-        expiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-      });
-
-      if (result.ok) {
-        // Create a shareable URL using the encoded token
-        const shareUrl = `${window.location.origin}/share?share=${encodeURIComponent(result.data.token)}`;
-        setSharingLink(shareUrl);
-      } else {
-        console.error('Failed to generate share link:', result.error.code, result.error.message);
-        setError(`Failed to generate share link: ${result.error.message}`);
-      }
-    } catch (err) {
-      console.error('Error generating share link:', err);
-      setError(`Error generating share link: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  };
-
-  const handleCopyLink = async () => {
-    if (sharingLink) {
-      await navigator.clipboard.writeText(sharingLink);
-      alert('Link copied to clipboard!');
-    }
-  };
+  }, [space, prefix]);
 
   const handleGetContent = async (content: string) => {
+    if (!space) return;
     setError(null);
-    let reference = removePrefix ? content : content.replace(new RegExp(`^${prefix}/`), '');
 
-    // Use new kv.get() with Result pattern
-    const result = await tcw.kv.get<string>(reference);
+    const kv = prefix ? space.kv.withPrefix(prefix) : space.kv;
+    const result = await kv.get<string>(content);
 
     if (result.ok) {
       setAllowPost(true);
@@ -115,18 +87,17 @@ function StorageModule({ tcw }: IStorageModule) {
   };
 
   const handleDeleteContent = async (content: string) => {
+    if (!space) return;
     setError(null);
-    let reference = removePrefix ? content : content.replace(new RegExp(`^${prefix}/`), '');
 
-    // Use new kv.delete() with Result pattern
-    const result = await tcw.kv.delete(reference);
+    const kv = prefix ? space.kv.withPrefix(prefix) : space.kv;
+    const result = await kv.delete(content);
 
     if (result.ok) {
       setContentList(prevList => prevList.filter(c => c !== content));
       setSelectedContent(null);
       setName('');
       setText('');
-      setSharingLink('');
     } else {
       console.error('Failed to delete:', result.error.code, result.error.message);
       setError(`Failed to delete key: ${result.error.message}`);
@@ -134,15 +105,16 @@ function StorageModule({ tcw }: IStorageModule) {
   };
 
   const handlePostContent = async () => {
+    if (!space) return;
     setError(null);
-    // check for invalid key
+
     if (!name || !text || name.includes(' ')) {
       alert('Invalid key or text');
       return;
     }
 
-    // Use new kv.put() with Result pattern
-    const result = await tcw.kv.put(name, text);
+    const kv = prefix ? space.kv.withPrefix(prefix) : space.kv;
+    const result = await kv.put(name, text);
 
     if (result.ok) {
       if (selectedContent) {
@@ -155,7 +127,6 @@ function StorageModule({ tcw }: IStorageModule) {
       }
       setName('');
       setText('');
-      setSharingLink('');
       setViewingList(true);
     } else {
       console.error('Failed to put:', result.error.code, result.error.message);
@@ -173,23 +144,42 @@ function StorageModule({ tcw }: IStorageModule) {
     setViewingList(false);
   };
 
+  const handlePrefixChange = (newPrefix: string) => {
+    setPrefix(newPrefix);
+    setContentList([]);
+  };
+
   return (
     <div className="w-full">
       <div className="space-y-6">
         <div className="space-y-3">
-          <h3 className="text-xl font-heading text-text">Storage Prefix: <span className="font-mono">{prefix}</span></h3>
+          <h3 className="text-xl font-heading text-text">
+            Space: <span className="font-mono">{spaceName}</span>
+          </h3>
+          {space && (
+            <p className="text-sm text-text/70 font-mono break-all">
+              Space ID: {space.id}
+            </p>
+          )}
           <p className="text-sm text-text/70">
-            The storage prefix is where the keys below live. It's like a folder name for the keys.{' '}
-            <code className="rounded bg-main/10 px-1 py-0.5 font-mono text-xs">"{prefix}/key" = value</code>
+            Space-scoped KV operations. Keys are stored within this space's scope.
           </p>
-          <RadioGroup
-            label="Remove Prefix"
-            name="removePrefix"
-            options={['On', 'Off']}
-            value={removePrefix ? 'On' : 'Off'}
-            onChange={(option) => setRemovePrefix(option === 'On')}
-            className="mt-4"
-          />
+
+          <div className="flex gap-4 items-end">
+            <Input
+              label="Prefix Filter (optional)"
+              value={prefix}
+              onChange={handlePrefixChange}
+              className="flex-1"
+            />
+            <Button
+              variant="neutral"
+              size="sm"
+              onClick={() => handlePrefixChange('')}
+            >
+              Clear
+            </Button>
+          </div>
         </div>
 
         {error && (
@@ -202,39 +192,9 @@ function StorageModule({ tcw }: IStorageModule) {
 
         {viewingList ? (
           <div className="space-y-4">
-            <h3 className="text-lg font-heading text-text">Key Value Store</h3>
-
-            {sharingLink && (
-              <div className="mb-4 rounded-base border-2 border-main/30 bg-main/10 p-3">
-                <div className="flex flex-col space-y-2">
-                  <p className="text-sm font-medium text-text">Sharing Link:</p>
-                  <div className="flex items-center space-x-2">
-                    <Input
-                      label=""
-                      value={sharingLink}
-                      onChange={() => {}}
-                      className="flex-1"
-                    />
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={handleCopyLink}
-                    >
-                      Copy
-                    </Button>
-                  </div>
-                  <div className="flex justify-end">
-                    <Button
-                      variant="neutral"
-                      size="sm"
-                      onClick={() => setSharingLink('')}
-                    >
-                      Close
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
+            <h3 className="text-lg font-heading text-text">
+              Space KV Store {prefix && <span className="text-sm font-mono text-text/70">(prefix: {prefix})</span>}
+            </h3>
 
             {contentList.length === 0 ? (
               <div className="rounded-base border-2 border-dashed border-border/50 bg-bw/50 p-8 text-center">
@@ -255,13 +215,6 @@ function StorageModule({ tcw }: IStorageModule) {
                         onClick={() => handleGetContent(content)}
                       >
                         Get
-                      </Button>
-                      <Button
-                        variant="neutral"
-                        size="sm"
-                        onClick={() => handleShareContent(content)}
-                      >
-                        Share
                       </Button>
                       <Button
                         variant="neutral"
@@ -316,10 +269,7 @@ function StorageModule({ tcw }: IStorageModule) {
                 )}
                 <Button
                   variant="neutral"
-                  onClick={() => {
-                    setSharingLink('');
-                    setViewingList(true);
-                  }}
+                  onClick={() => setViewingList(true)}
                   className="flex-1"
                 >
                   Back to List
@@ -333,4 +283,4 @@ function StorageModule({ tcw }: IStorageModule) {
   );
 }
 
-export default StorageModule;
+export default SpaceModule;

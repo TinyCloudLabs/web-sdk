@@ -10,7 +10,8 @@ const Shared = () => {
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
 
-  const [shareData, setShareData] = useState(queryParams.get('data') || "");
+  // Support both 'share' (v2 format) and 'data' (legacy format) query params
+  const [shareData, setShareData] = useState(queryParams.get('share') || queryParams.get('data') || "");
   const [fetchedData, setFetchedData]: [any, any] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -18,8 +19,8 @@ const Shared = () => {
   const fetchShareData = async () => {
     setIsLoading(true);
     setError(null);
-    const tcw = new TinyCloudWeb({});
-    const result = await tcw.sharing.retrieve(shareData);
+    // Use static method to receive v2 share links (no auth required)
+    const result = await TinyCloudWeb.receiveShare(shareData);
     if (result.ok) {
       setFetchedData(result.data);
     } else {

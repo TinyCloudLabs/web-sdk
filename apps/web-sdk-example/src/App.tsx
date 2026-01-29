@@ -5,6 +5,7 @@ import { ThemeProvider } from './components/ThemeProvider';
 // Lazy load pages
 const Home = lazy(() => import('./pages/Home'));
 const Shared = lazy(() => import('./pages/Shared'));
+const Delegate = lazy(() => import('./pages/Delegate'));
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/share" element={<Shared />} />
+              <Route path="/delegate" element={<Delegate />} />
             </Routes>
           </Suspense>
         </div>
