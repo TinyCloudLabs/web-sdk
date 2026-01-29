@@ -20,6 +20,8 @@ import Footer from "../components/Footer";
 import Header from "../components/Header";
 
 const StorageModule = lazy(() => import("../pages/StorageModule"));
+const SpaceModule = lazy(() => import("../pages/SpaceModule"));
+const DelegationModule = lazy(() => import("../pages/DelegationModule"));
 declare global {
   interface Window {
     tcw: TinyCloudWeb;
@@ -68,6 +70,8 @@ function Home() {
   const [statement, setStatement] = useState<string>("");
   // tcw module config
   const [storageEnabled, setStorageEnabled] = useState<string>("On");
+  const [spaceManagementEnabled, setSpaceManagementEnabled] = useState<string>("Off");
+  const [delegationEnabled, setDelegationEnabled] = useState<string>("Off");
   const [prefix, setPrefix] = useState<string>("demo-app");
   const [tinyCloudHost, setTinyCloudHost] = useState<string>("");
 
@@ -268,10 +272,9 @@ function Home() {
     setLoading(true);
 
     try {
-      const signer = walletClientToEthers5Signer(walletClient as any);
-
-      // Connect the wallet to upgrade from session-only mode
-      tcw.connectWallet(signer.provider);
+      // Connect the wallet using the transport (ExternalProvider) from walletClient
+      // This upgrades from session-only mode to wallet mode
+      tcw.connectWallet((walletClient as any).transport);
 
       console.log("Wallet connected! Now signing in...");
       console.log("  - Is Session Only:", tcw.isSessionOnly);
@@ -492,6 +495,42 @@ function Home() {
                   value={storageEnabled}
                   onChange={setStorageEnabled}
                   label="Enable storage module"
+                />
+              </div>
+
+              {/* Space Management toggle */}
+              <div className="space-y-4 border-b border-border/20 pb-4">
+                <h4 className="text-md font-heading text-text">
+                  Space Management
+                </h4>
+                <p className="text-sm text-text/70">
+                  Enable space-scoped KV operations. This shows the space API
+                  which provides access to your space's data.
+                </p>
+                <RadioGroup
+                  name="spaceManagementEnabled"
+                  options={["On", "Off"]}
+                  value={spaceManagementEnabled}
+                  onChange={setSpaceManagementEnabled}
+                  label="Enable space management"
+                />
+              </div>
+
+              {/* Delegation Management toggle */}
+              <div className="space-y-4 border-b border-border/20 pb-4">
+                <h4 className="text-md font-heading text-text">
+                  Delegation Management
+                </h4>
+                <p className="text-sm text-text/70">
+                  Enable delegation management to create, list, and revoke
+                  delegations. This allows you to share access with other users.
+                </p>
+                <RadioGroup
+                  name="delegationEnabled"
+                  options={["On", "Off"]}
+                  value={delegationEnabled}
+                  onChange={setDelegationEnabled}
+                  label="Enable delegation management"
                 />
               </div>
 
@@ -736,6 +775,20 @@ function Home() {
           {storageEnabled === "On" && tcw && tcw.session() && (
             <div className="mt-8 rounded-base border-2 border-border bg-bw p-6 shadow-shadow">
               <StorageModule tcw={tcw} />
+            </div>
+          )}
+
+          {/* Space Management module - only show when signed in */}
+          {spaceManagementEnabled === "On" && tcw && tcw.session() && (
+            <div className="mt-8 rounded-base border-2 border-border bg-bw p-6 shadow-shadow">
+              <SpaceModule tcw={tcw} />
+            </div>
+          )}
+
+          {/* Delegation Management module - only show when signed in */}
+          {delegationEnabled === "On" && tcw && tcw.session() && (
+            <div className="mt-8 rounded-base border-2 border-border bg-bw p-6 shadow-shadow">
+              <DelegationModule tcw={tcw} />
             </div>
           )}
 

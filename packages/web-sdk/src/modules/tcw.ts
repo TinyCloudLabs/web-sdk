@@ -27,6 +27,7 @@ import {
   KVService,
   IKVService,
   ServiceSession,
+  ServiceError,
   // New delegation system services
   CapabilityKeyRegistry,
   ICapabilityKeyRegistry,
@@ -48,9 +49,12 @@ import {
   CreateDelegationParams,
   // Strategy types
   ISpaceCreationHandler,
+  // Space delegation types
+  SpaceDelegationParams,
+  activateSessionWithHost,
 } from '@tinycloudlabs/sdk-core';
 import { WasmKeyProvider } from './keys';
-import { invoke } from './Storage/tinycloud/module';
+import { invoke, prepareSession, completeSessionSetup } from './Storage/tinycloud/module';
 
 declare global {
   interface Window {
@@ -828,6 +832,17 @@ export class TinyCloudWeb {
       },
       // Get user's PKH DID
       userDid,
+      // Create delegation using SIWE-based flow
+      createDelegation: async (params: SpaceDelegationParams): Promise<Result<Delegation, ServiceError>> => {
+        // Build session object from available data
+        const sessionData = {
+          address: address!,
+          chainId: chainId!,
+          delegationCid: serviceSession.delegationCid,
+          spaceId: serviceSession.spaceId,
+        };
+        return this.createDelegationWithSIWE(params, sessionData, address!, chainId!, hosts);
+      },
     });
 
     // Initialize KeyProvider for SharingService
@@ -917,6 +932,108 @@ export class TinyCloudWeb {
     // Default to 1 hour from now if not explicitly set
     // The actual expiry is in the SIWE message, but we don't have easy access to it here
     return new Date(Date.now() + 60 * 60 * 1000);
+  }
+
+  /**
+   * Create a delegation using SIWE-based flow.
+   * This method implements the correct delegation creation pattern:
+   * 1. Use prepareSession() to build the delegation
+   * 2. Sign the SIWE message with the user's wallet
+   * 3. Use completeSessionSetup() to get the delegation header
+   * 4. Activate the delegation with the server
+   *
+   * @param params - Delegation parameters including spaceId
+   * @param session - The TinyCloud session
+   * @param address - User's address
+   * @param chainId - Chain ID
+   * @param hosts - TinyCloud host URLs
+   * @returns Result containing the created Delegation or an error
+   * @internal
+   */
+  private async createDelegationWithSIWE(
+    params: SpaceDelegationParams,
+    session: { address: string; chainId: number; delegationCid: string; spaceId: string },
+    address: string,
+    chainId: number,
+    hosts: string[]
+  ): Promise<Result<Delegation, ServiceError>> {
+    try {
+      const host = hosts[0];
+
+      // Build abilities for the delegation
+      const abilities: Record<string, Record<string, string[]>> = {
+        kv: {
+          [params.path]: params.actions,
+        },
+      };
+
+      const now = new Date();
+      const expirationTime = params.expiry ?? new Date(now.getTime() + 60 * 60 * 1000); // Default 1 hour
+
+      // Prepare the delegation session
+      const prepared = prepareSession({
+        abilities,
+        address: address,
+        chainId: chainId,
+        domain: new URL(host).hostname,
+        issuedAt: now.toISOString(),
+        expirationTime: expirationTime.toISOString(),
+        spaceId: params.spaceId,
+        delegateUri: params.delegateDID,
+        parents: [session.delegationCid],
+      });
+
+      // Sign the SIWE message with the user's wallet
+      const signature = await this.userAuthorization.signMessage(prepared.siwe);
+
+      // Complete the session setup to get the delegation header
+      const delegationSession = completeSessionSetup({
+        ...prepared,
+        signature,
+      });
+
+      // Activate the delegation with the server
+      const activateResult = await activateSessionWithHost(host, delegationSession.delegationHeader);
+
+      if (!activateResult.success) {
+        return {
+          ok: false,
+          error: {
+            code: 'DELEGATION_FAILED',
+            message: `Failed to activate delegation: ${activateResult.error}`,
+            service: 'space',
+          },
+        };
+      }
+
+      // Return the created delegation
+      const delegation: Delegation = {
+        cid: delegationSession.delegationCid,
+        delegateDID: params.delegateDID,
+        delegatorDID: `did:pkh:eip155:${chainId}:${address}`,
+        spaceId: params.spaceId,
+        path: params.path,
+        actions: params.actions,
+        expiry: expirationTime,
+        isRevoked: false,
+        allowSubDelegation: !(params.disableSubDelegation ?? false),
+        createdAt: now,
+        // Include authHeader for sharing links
+        authHeader: delegationSession.delegationHeader.Authorization,
+      };
+
+      return { ok: true, data: delegation };
+    } catch (error) {
+      return {
+        ok: false,
+        error: {
+          code: 'DELEGATION_FAILED',
+          message: `Failed to create delegation: ${error instanceof Error ? error.message : String(error)}`,
+          service: 'space',
+          cause: error instanceof Error ? error : undefined,
+        },
+      };
+    }
   }
 
   /**
