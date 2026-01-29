@@ -16,6 +16,7 @@ import {
 } from "../types";
 import { authRequiredError, wrapError } from "../errors";
 import { IKVService } from "./IKVService";
+import { PrefixedKVService, IPrefixedKVService } from "./PrefixedKVService";
 import {
   KVServiceConfig,
   KVGetOptions,
@@ -451,5 +452,51 @@ export class KVService extends BaseService implements IKVService {
         return err(wrapError("kv", error));
       }
     });
+  }
+
+  /**
+   * Create a prefix-scoped view of this KV service.
+   *
+   * Returns a PrefixedKVService that automatically prefixes all
+   * key operations with the specified prefix. This enables apps
+   * to isolate their data within a shared space.
+   *
+   * @param prefix - The prefix to apply to all operations
+   * @returns A PrefixedKVService scoped to the prefix
+   *
+   * ## Prefix Conventions
+   *
+   * | Pattern | Use Case | Example |
+   * | -- | -- | -- |
+   * | `/app.{domain}/` | App-private data | `/app.photos.xyz/settings.json` |
+   * | `/{type}/` | Shared data type | `/photos/vacation.jpg` |
+   * | `/.{name}/` | Hidden/system data | `/.cache/thumbnails/` |
+   * | `/public/` | Explicitly shareable | `/public/profile.json` |
+   *
+   * @example
+   * ```typescript
+   * const space = sdk.space('default');
+   *
+   * // Create prefix-scoped views
+   * const myApp = space.kv.withPrefix('/app.myapp.com');
+   * const sharedPhotos = space.kv.withPrefix('/photos');
+   *
+   * // Operations are automatically prefixed
+   * await myApp.put('settings.json', { theme: 'dark' });
+   * // -> Actually writes to: /app.myapp.com/settings.json
+   *
+   * await myApp.get('settings.json');
+   * // -> Actually reads from: /app.myapp.com/settings.json
+   *
+   * await sharedPhotos.list();
+   * // -> Lists: /photos/*
+   *
+   * // Nested prefixes
+   * const settings = myApp.withPrefix('/settings');
+   * await settings.get('theme.json');  // -> /app.myapp.com/settings/theme.json
+   * ```
+   */
+  withPrefix(prefix: string): IPrefixedKVService {
+    return new PrefixedKVService(this, prefix);
   }
 }

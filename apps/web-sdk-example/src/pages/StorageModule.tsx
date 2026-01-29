@@ -9,10 +9,11 @@ interface IStorageModule {
 }
 
 /**
- * StorageModule demonstrates the new sdk-services KV API with Result pattern.
+ * StorageModule demonstrates the sdk-services KV API with Result pattern.
  *
  * Uses tcw.kv for basic operations (get, put, list, delete)
- * Uses tcw.sharing for sharing functionality (generate, retrieve)
+ * Uses tcw.sharing for generating share links (v2 SharingService)
+ * Receiving shares is available via TinyCloudWeb.receiveShare() static method.
  */
 function StorageModule({ tcw }: IStorageModule) {
   const [contentList, setContentList] = useState<Array<string>>([]);
@@ -60,17 +61,30 @@ function StorageModule({ tcw }: IStorageModule) {
 
   const handleShareContent = async (content: string) => {
     setError(null);
-    // Compute the key reference for sharing
-    let reference = removePrefix ? content : content.replace(new RegExp(`^${prefix}/`), '');
-    reference = prefix ? `${prefix}/${reference}` : reference;
+    setSharingLink('');
 
-    const result = await tcw.sharing.generate(reference);
-    if (result.ok) {
-      const link = `${window.location.origin}/share?data=${result.data}`;
-      setSharingLink(link);
-    } else {
-      console.error('Failed to generate sharing link:', result.error.code, result.error.message);
-      setError(`Failed to generate sharing link: ${result.error.message}`);
+    try {
+      // Get the key path (with or without prefix based on removePrefix setting)
+      const keyPath = removePrefix ? content : content.replace(new RegExp(`^${prefix}/`), '');
+
+      // Generate a sharing link using the v2 SharingService
+      const result = await tcw.sharing.generate({
+        path: keyPath,
+        actions: ['tinycloud.kv/get', 'tinycloud.kv/list'],
+        expiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+      });
+
+      if (result.ok) {
+        // Create a shareable URL using the encoded token
+        const shareUrl = `${window.location.origin}/share?share=${encodeURIComponent(result.data.token)}`;
+        setSharingLink(shareUrl);
+      } else {
+        console.error('Failed to generate share link:', result.error.code, result.error.message);
+        setError(`Failed to generate share link: ${result.error.message}`);
+      }
+    } catch (err) {
+      console.error('Error generating share link:', err);
+      setError(`Error generating share link: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 

@@ -98,6 +98,21 @@ export interface ServiceSession {
 export type ServiceHeaders = Record<string, string> | [string, string][];
 
 /**
+ * A single fact object to include in the UCAN invocation.
+ * Facts are key-value objects that the server reads from the UCAN facts field.
+ */
+export interface InvocationFact {
+  [key: string]: unknown;
+}
+
+/**
+ * Facts to include in the UCAN invocation.
+ * This is an array of fact objects per the UCAN spec.
+ * Used to pass additional parameters that the server reads from the UCAN facts field.
+ */
+export type InvocationFacts = InvocationFact[];
+
+/**
  * Invoke function signature - platform-specific implementation injected via DI.
  * Both node-sdk-wasm and web-sdk-wasm export this with identical signature.
  *
@@ -105,13 +120,15 @@ export type ServiceHeaders = Record<string, string> | [string, string][];
  * @param service - Service name (e.g., "kv")
  * @param path - Resource path or key
  * @param action - Action to perform (e.g., "tinycloud.kv/get")
+ * @param facts - Optional facts to include in the UCAN (e.g., for capabilities/read params)
  * @returns Headers to include in the request
  */
 export type InvokeFunction = (
   session: ServiceSession,
   service: string,
   path: string,
-  action: string
+  action: string,
+  facts?: InvocationFacts
 ) => ServiceHeaders;
 
 /**

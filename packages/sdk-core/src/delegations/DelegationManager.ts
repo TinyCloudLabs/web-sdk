@@ -144,7 +144,7 @@ export class DelegationManager {
    * @example
    * ```typescript
    * const result = await manager.create({
-   *   delegateDID: bob.pkhDid, // Important: use PKH DID, not session key DID
+   *   delegateDID: bob.did,
    *   path: "documents/shared/",
    *   actions: ["tinycloud.kv/get", "tinycloud.kv/put"],
    *   expiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days

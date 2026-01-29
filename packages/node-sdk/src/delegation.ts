@@ -32,6 +32,13 @@ export interface PortableDelegation {
 
   /** The chain ID */
   chainId: number;
+
+  /**
+   * The TinyCloud server URL where this delegation was created.
+   * Optional for backwards compatibility - recipients will use their
+   * configured host if not specified.
+   */
+  host?: string;
 }
 
 /**

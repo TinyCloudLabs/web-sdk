@@ -7,6 +7,9 @@
 // Service implementation
 export { KVService } from "./KVService";
 
+// Prefixed service implementation
+export { PrefixedKVService, IPrefixedKVService } from "./PrefixedKVService";
+
 // Interface
 export { IKVService } from "./IKVService";
 
