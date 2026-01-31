@@ -58,6 +58,7 @@ import {
   activateSessionWithHost,
 } from '@tinycloudlabs/sdk-core';
 import { WasmKeyProvider } from './keys';
+import { WasmInitializer } from './WasmInitializer';
 import { invoke, prepareSession, completeSessionSetup } from './Storage/tinycloud/module';
 import { tinycloud } from '@tinycloudlabs/web-sdk-wasm';
 import { PortableDelegation, DelegatedAccess } from '../delegation';
@@ -314,6 +315,9 @@ export class TinyCloudWeb {
     link: string,
     key?: string
   ): Promise<Result<ShareReceiveResult<T>, DelegationError>> {
+    // Ensure WASM is initialized before using invoke
+    await WasmInitializer.ensureInitialized();
+
     try {
       // Decode the share link
       const shareData = decodeShareLink(link);
