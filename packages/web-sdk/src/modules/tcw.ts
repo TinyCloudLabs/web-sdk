@@ -360,9 +360,10 @@ export class TinyCloudWeb {
       }
 
       // Create a minimal session using the embedded key
-      // Note: delegationHeader will be populated by invoke when making requests
+      // Use the authHeader from the delegation (UCAN JWT) for authorization
+      const authHeader = shareData.delegation.authHeader ?? `Bearer ${shareData.delegation.cid}`;
       const session: ServiceSession = {
-        delegationHeader: { Authorization: '' },
+        delegationHeader: { Authorization: authHeader },
         delegationCid: shareData.delegation.cid,
         spaceId: shareData.spaceId,
         verificationMethod: shareData.keyDid,
