@@ -53,6 +53,8 @@ import {
   KeyInfo,
   JWK,
   DelegationResult,
+  CreateDelegationWasmParams,
+  CreateDelegationWasmResult,
 } from "@tinycloudlabs/sdk-core";
 import { NodeUserAuthorization } from "./authorization/NodeUserAuthorization";
 import { PrivateKeySigner } from "./signers/PrivateKeySigner";
@@ -66,6 +68,7 @@ import {
   invoke,
   makeSpaceId,
   initPanicHook,
+  createDelegation,
 } from "@tinycloudlabs/node-sdk-wasm";
 import { PortableDelegation } from "./delegation";
 import { DelegatedAccess } from "./DelegatedAccess";
@@ -529,7 +532,9 @@ export class TinyCloudNode {
     this._sharingService.updateConfig({
       session: serviceSession,
       delegationManager: this._delegationManager,
-      // Custom delegation creation that uses SIWE-based /delegate endpoint
+      // WASM-based delegation creation (preferred - no server roundtrip)
+      createDelegationWasm: (params) => this.createDelegationWrapper(params),
+      // Custom delegation creation that uses SIWE-based /delegate endpoint (fallback)
       createDelegation: async (params) => {
         try {
           // Use the existing createDelegation method which calls /delegate
@@ -587,6 +592,41 @@ export class TinyCloudNode {
     // Default to 1 hour from now if not explicitly set
     const expirationMs = this.config.sessionExpirationMs ?? 60 * 60 * 1000;
     return new Date(Date.now() + expirationMs);
+  }
+
+  /**
+   * Wrapper for the WASM createDelegation function.
+   * Adapts the WASM interface to what SharingService expects.
+   * @internal
+   */
+  private createDelegationWrapper(params: CreateDelegationWasmParams): CreateDelegationWasmResult {
+    // Convert ServiceSession to the format WASM expects
+    const wasmSession = {
+      delegationHeader: params.session.delegationHeader,
+      delegationCid: params.session.delegationCid,
+      jwk: params.session.jwk,
+      spaceId: params.session.spaceId,
+      verificationMethod: params.session.verificationMethod,
+    };
+
+    const result = createDelegation(
+      wasmSession,
+      params.delegateDID,
+      params.spaceId,
+      params.path,
+      params.actions,
+      params.expirationSecs,
+      params.notBeforeSecs
+    );
+
+    return {
+      delegation: result.delegation,
+      cid: result.cid,
+      delegateDID: result.delegateDid,
+      path: result.path,
+      actions: result.actions,
+      expiry: new Date(result.expiry * 1000),
+    };
   }
 
   /**

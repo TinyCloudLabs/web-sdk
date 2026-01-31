@@ -32,6 +32,8 @@ import type {
   JWK,
   IngestOptions,
   CreateDelegationParams,
+  CreateDelegationWasmParams,
+  CreateDelegationWasmResult,
 } from "./types";
 import { DelegationErrorCodes } from "./types";
 import type { DelegationManager } from "./DelegationManager";
@@ -215,6 +217,12 @@ export interface SharingServiceConfig {
    * delegation creation logic (e.g., SIWE-based /delegate endpoint).
    */
   createDelegation?: (params: CreateDelegationParams) => Promise<Result<Delegation, DelegationError>>;
+  /**
+   * WASM function for client-side delegation creation.
+   * When provided, this is preferred over server-side creation (createDelegation/delegationManager).
+   * Creates UCAN delegations directly without requiring server roundtrip.
+   */
+  createDelegationWasm?: (params: CreateDelegationWasmParams) => CreateDelegationWasmResult;
 }
 
 /**
@@ -300,6 +308,7 @@ export class SharingService implements ISharingService {
   private createKVService: SharingServiceConfig["createKVService"];
   private baseUrl: string;
   private createDelegationFn?: SharingServiceConfig["createDelegation"];
+  private createDelegationWasmFn?: SharingServiceConfig["createDelegationWasm"];
 
   /**
    * Creates a new SharingService instance.
@@ -315,6 +324,7 @@ export class SharingService implements ISharingService {
     this.createKVService = config.createKVService;
     this.baseUrl = (config.baseUrl ?? "").replace(/\/$/, ""); // Remove trailing slash
     this.createDelegationFn = config.createDelegation;
+    this.createDelegationWasmFn = config.createDelegationWasm;
   }
 
   /**
@@ -333,9 +343,9 @@ export class SharingService implements ISharingService {
 
   /**
    * Updates the service configuration.
-   * Used to add full capabilities (session, delegationManager, createDelegation) after signIn.
+   * Used to add full capabilities (session, delegationManager, createDelegation, createDelegationWasm) after signIn.
    */
-  public updateConfig(config: Partial<Pick<SharingServiceConfig, "session" | "delegationManager" | "createDelegation">>): void {
+  public updateConfig(config: Partial<Pick<SharingServiceConfig, "session" | "delegationManager" | "createDelegation" | "createDelegationWasm">>): void {
     if (config.session !== undefined) {
       this.session = config.session;
     }
@@ -344,6 +354,9 @@ export class SharingService implements ISharingService {
     }
     if (config.createDelegation !== undefined) {
       this.createDelegationFn = config.createDelegation;
+    }
+    if (config.createDelegationWasm !== undefined) {
+      this.createDelegationWasmFn = config.createDelegationWasm;
     }
   }
 
@@ -370,12 +383,12 @@ export class SharingService implements ISharingService {
     }
 
     // Require delegation capability
-    if (!this.createDelegationFn && !this.delegationManager) {
+    if (!this.createDelegationWasmFn && !this.createDelegationFn && !this.delegationManager) {
       return {
         ok: false,
         error: createError(
           DelegationErrorCodes.NOT_INITIALIZED,
-          "DelegationManager or createDelegation function required for generating sharing links."
+          "DelegationManager, createDelegation, or createDelegationWasm function required for generating sharing links."
         ),
       };
     }
@@ -439,34 +452,73 @@ export class SharingService implements ISharingService {
     }
 
     // Step 2: Create delegation from current session to spawned key
-    // Use custom createDelegation function if provided, otherwise use delegationManager
-    const delegationParams: CreateDelegationParams = {
-      delegateDID: keyDid,
-      path: params.path,
-      actions,
-      expiry,
-      statement: params.description ?? `Share access for ${params.path}`,
-      disableSubDelegation: false, // Allow sub-delegation for auto-subdelegate flow
-    };
+    // Prefer client-side WASM creation, fall back to server-side
+    let delegation: Delegation;
 
-    const delegationResult = this.createDelegationFn
-      ? await this.createDelegationFn(delegationParams)
-      // delegationManager is guaranteed to exist by the guard check above
-      : await this.delegationManager!.create(delegationParams);
+    if (this.createDelegationWasmFn) {
+      // Client-side delegation creation via WASM
+      try {
+        const wasmResult = this.createDelegationWasmFn({
+          session: this.session,
+          delegateDID: keyDid,
+          spaceId: this.session.spaceId,
+          path: params.path,
+          actions,
+          expirationSecs: Math.floor(expiry.getTime() / 1000),
+        });
 
-    if (!delegationResult.ok) {
-      return {
-        ok: false,
-        error: createError(
-          DelegationErrorCodes.CREATION_FAILED,
-          `Failed to create delegation for share: ${delegationResult.error.message}`,
-          delegationResult.error.cause,
-          delegationResult.error.meta
-        ),
+        delegation = {
+          cid: wasmResult.cid,
+          delegateDID: wasmResult.delegateDID,
+          spaceId: this.session.spaceId,
+          path: wasmResult.path,
+          actions: wasmResult.actions,
+          expiry: wasmResult.expiry,
+          isRevoked: false,
+          authHeader: `Bearer ${wasmResult.delegation}`, // The UCAN JWT
+          allowSubDelegation: true,
+          createdAt: new Date(),
+        };
+      } catch (err) {
+        return {
+          ok: false,
+          error: createError(
+            DelegationErrorCodes.CREATION_FAILED,
+            `Failed to create delegation via WASM: ${err instanceof Error ? err.message : String(err)}`,
+            err instanceof Error ? err : undefined
+          ),
+        };
+      }
+    } else {
+      // Server-side delegation creation (fallback)
+      const delegationParams: CreateDelegationParams = {
+        delegateDID: keyDid,
+        path: params.path,
+        actions,
+        expiry,
+        statement: params.description ?? `Share access for ${params.path}`,
+        disableSubDelegation: false, // Allow sub-delegation for auto-subdelegate flow
       };
-    }
 
-    const delegation = delegationResult.data;
+      const delegationResult = this.createDelegationFn
+        ? await this.createDelegationFn(delegationParams)
+        // delegationManager is guaranteed to exist by the guard check above
+        : await this.delegationManager!.create(delegationParams);
+
+      if (!delegationResult.ok) {
+        return {
+          ok: false,
+          error: createError(
+            DelegationErrorCodes.CREATION_FAILED,
+            `Failed to create delegation for share: ${delegationResult.error.message}`,
+            delegationResult.error.cause,
+            delegationResult.error.meta
+          ),
+        };
+      }
+
+      delegation = delegationResult.data;
+    }
 
     // Step 3: Package the share data
     const shareData: EncodedShareData = {

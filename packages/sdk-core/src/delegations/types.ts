@@ -678,3 +678,51 @@ export interface DelegationApiResponse {
   /** CID of the created delegation */
   cid?: string;
 }
+
+// =============================================================================
+// WASM Delegation Types
+// =============================================================================
+
+/**
+ * Input parameters for the createDelegation WASM function.
+ *
+ * This is the low-level interface for creating delegations directly
+ * through the WASM binding, bypassing the SIWE flow.
+ */
+export interface CreateDelegationWasmParams {
+  /** The session containing delegation credentials */
+  session: ServiceSession;
+  /** DID of the delegate (the party receiving the delegation) */
+  delegateDID: string;
+  /** Space ID this delegation applies to */
+  spaceId: string;
+  /** Resource path this delegation grants access to */
+  path: string;
+  /** Actions to authorize (e.g., ["tinycloud.kv/get", "tinycloud.kv/put"]) */
+  actions: string[];
+  /** Expiration time in seconds since Unix epoch */
+  expirationSecs: number;
+  /** Optional not-before time in seconds since Unix epoch */
+  notBeforeSecs?: number;
+}
+
+/**
+ * Result from the createDelegation WASM function.
+ *
+ * Contains the created delegation data including the encoded UCAN
+ * and metadata about the delegation.
+ */
+export interface CreateDelegationWasmResult {
+  /** Base64url-encoded UCAN delegation */
+  delegation: string;
+  /** CID of the delegation */
+  cid: string;
+  /** DID of the delegate */
+  delegateDID: string;
+  /** Resource path the delegation grants access to */
+  path: string;
+  /** Actions the delegation authorizes */
+  actions: string[];
+  /** Expiration time */
+  expiry: Date;
+}

@@ -160,6 +160,9 @@ export {
   ShareLinkData,
   IngestOptions,
   GenerateShareParams,
+  // WASM delegation types
+  CreateDelegationWasmParams,
+  CreateDelegationWasmResult,
 } from "./delegations";
 
 // Authorization (v2 spec)

@@ -48,6 +48,9 @@ import {
   SharingService,
   ISharingService,
   CreateDelegationParams,
+  // WASM delegation types
+  CreateDelegationWasmParams,
+  CreateDelegationWasmResult,
   // Strategy types
   ISpaceCreationHandler,
   // Space delegation types
@@ -873,7 +876,9 @@ export class TinyCloudWeb {
         kvService.initialize(kvContext);
         return kvService;
       },
-      // Custom createDelegation that includes authHeader for share links
+      // WASM-based delegation creation (preferred - no server roundtrip)
+      createDelegationWasm: (params) => this.createDelegationWrapper(params),
+      // Custom createDelegation that includes authHeader for share links (fallback)
       createDelegation: async (params: CreateDelegationParams) => {
         // Use the WASM /delegate endpoint via the session's delegation mechanism
         // This creates a proper UCAN delegation with the authHeader
@@ -925,6 +930,41 @@ export class TinyCloudWeb {
         },
       };
     }
+  }
+
+  /**
+   * Wrapper for the WASM createDelegation function.
+   * Adapts the WASM interface to what SharingService expects.
+   * @internal
+   */
+  private createDelegationWrapper(params: CreateDelegationWasmParams): CreateDelegationWasmResult {
+    // Convert ServiceSession to the format WASM expects
+    const wasmSession = {
+      delegationHeader: params.session.delegationHeader,
+      delegationCid: params.session.delegationCid,
+      jwk: params.session.jwk,
+      spaceId: params.session.spaceId,
+      verificationMethod: params.session.verificationMethod,
+    };
+
+    const result = tinycloud.createDelegation(
+      wasmSession,
+      params.delegateDID,
+      params.spaceId,
+      params.path,
+      params.actions,
+      params.expirationSecs,
+      params.notBeforeSecs
+    );
+
+    return {
+      delegation: result.delegation,
+      cid: result.cid,
+      delegateDID: result.delegateDid,
+      path: result.path,
+      actions: result.actions,
+      expiry: new Date(result.expiry * 1000),
+    };
   }
 
   /**
@@ -1532,6 +1572,217 @@ export class TinyCloudWeb {
     return new DelegatedAccess(session, delegation, targetHost);
   }
 
+  // =========================================================================
+  // Delegation Convenience Methods
+  // =========================================================================
+
+  /**
+   * Convenience method to create a delegation via the delegation manager.
+   * For creating PortableDelegations, use createDelegation() instead.
+   *
+   * @param params - Delegation parameters
+   * @returns Result containing the created Delegation or an error
+   *
+   * @example
+   * ```typescript
+   * const result = await tcw.delegate({
+   *   delegateDID: 'did:pkh:eip155:1:0x...',
+   *   path: 'shared/',
+   *   actions: ['tinycloud.kv/get', 'tinycloud.kv/put'],
+   *   expiry: new Date(Date.now() + 24 * 60 * 60 * 1000),
+   * });
+   *
+   * if (result.ok) {
+   *   console.log('Delegation created:', result.data.cid);
+   * }
+   * ```
+   */
+  async delegate(params: CreateDelegationParams): Promise<Result<Delegation, DelegationError>> {
+    if (!this._delegationManager) {
+      return { ok: false, error: { code: 'NOT_INITIALIZED', message: 'Not signed in', service: 'delegation' } };
+    }
+    return this._delegationManager.create(params);
+  }
+
+  /**
+   * Revoke a delegation by CID.
+   *
+   * @param cid - The CID of the delegation to revoke
+   * @returns Result indicating success or failure
+   *
+   * @example
+   * ```typescript
+   * const result = await tcw.revokeDelegation('bafy...');
+   * if (result.ok) {
+   *   console.log('Delegation revoked');
+   * }
+   * ```
+   */
+  async revokeDelegation(cid: string): Promise<Result<void, DelegationError>> {
+    if (!this._delegationManager) {
+      return { ok: false, error: { code: 'NOT_INITIALIZED', message: 'Not signed in', service: 'delegation' } };
+    }
+    return this._delegationManager.revoke(cid);
+  }
+
+  /**
+   * List all delegations for the current space.
+   *
+   * @returns Result containing an array of Delegations
+   *
+   * @example
+   * ```typescript
+   * const result = await tcw.listDelegations();
+   * if (result.ok) {
+   *   console.log('Delegations:', result.data.length);
+   * }
+   * ```
+   */
+  async listDelegations(): Promise<Result<Delegation[], DelegationError>> {
+    if (!this._delegationManager) {
+      return { ok: false, error: { code: 'NOT_INITIALIZED', message: 'Not signed in', service: 'delegation' } };
+    }
+    return this._delegationManager.list();
+  }
+
+  /**
+   * Check if the current session has permission for a path and action.
+   *
+   * @param path - The resource path to check
+   * @param action - The action to check (e.g., 'tinycloud.kv/get')
+   * @returns Result containing boolean permission status
+   *
+   * @example
+   * ```typescript
+   * const result = await tcw.checkPermission('shared/docs', 'tinycloud.kv/get');
+   * if (result.ok && result.data) {
+   *   console.log('Permission granted');
+   * }
+   * ```
+   */
+  async checkPermission(path: string, action: string): Promise<Result<boolean, DelegationError>> {
+    if (!this._delegationManager) {
+      return { ok: false, error: { code: 'NOT_INITIALIZED', message: 'Not signed in', service: 'delegation' } };
+    }
+    return this._delegationManager.checkPermission(path, action);
+  }
+
+  /**
+   * Create a delegation to grant access to another user.
+   * Returns a PortableDelegation that can be serialized and sent to the recipient.
+   *
+   * @param params - Delegation parameters
+   * @returns A portable delegation that can be sent to the recipient
+   *
+   * @throws Error if not signed in
+   * @throws Error if using legacy auth mode (requires useNewAuth: true)
+   *
+   * @example
+   * ```typescript
+   * const delegation = await tcw.createDelegation({
+   *   path: "shared/",
+   *   actions: ["tinycloud.kv/get", "tinycloud.kv/list"],
+   *   delegateDID: recipientDid,
+   *   expiryMs: 7 * 24 * 60 * 60 * 1000, // 7 days
+   * });
+   *
+   * // Send to recipient
+   * const token = serializeDelegation(delegation);
+   * ```
+   */
+  async createDelegation(params: {
+    /** Path within the space to delegate access to */
+    path: string;
+    /** Actions to allow (e.g., ["tinycloud.kv/get", "tinycloud.kv/put"]) */
+    actions: string[];
+    /** DID of the recipient (from their TinyCloudWeb.did) */
+    delegateDID: string;
+    /** Whether to prevent the recipient from creating sub-delegations (default: false) */
+    disableSubDelegation?: boolean;
+    /** Expiration time in milliseconds from now (default: 1 hour) */
+    expiryMs?: number;
+  }): Promise<PortableDelegation> {
+    if (!this.isNewAuthEnabled) {
+      throw new Error(
+        "createDelegation() requires new auth module. Set useNewAuth: true in config."
+      );
+    }
+
+    const session = this.webAuth.tinyCloudSession;
+    if (!session) {
+      throw new Error("Not signed in. Call signIn() first.");
+    }
+
+    // Get hosts from config
+    const hosts = this.webAuth.getTinycloudHosts();
+    const host = hosts[0];
+
+    // Build abilities for the delegation
+    const abilities: Record<string, Record<string, string[]>> = {
+      kv: {
+        [params.path]: params.actions,
+      },
+    };
+
+    const now = new Date();
+    const expiryMs = params.expiryMs ?? 60 * 60 * 1000; // Default 1 hour
+    const expirationTime = new Date(now.getTime() + expiryMs);
+
+    // Prepare the delegation session with:
+    // - delegateUri: target the recipient's DID directly (for user-to-user delegation)
+    // - parents: reference our session CID for chain validation
+    const prepared = prepareSession({
+      abilities,
+      address: tinycloud.ensureEip55(session.address),
+      chainId: session.chainId,
+      domain: new URL(host).hostname,
+      issuedAt: now.toISOString(),
+      expirationTime: expirationTime.toISOString(),
+      spaceId: session.spaceId,
+      delegateUri: params.delegateDID,
+      parents: [session.delegationCid],
+    });
+
+    // Sign the SIWE message with this user's wallet
+    const signer = this.provider?.getSigner();
+    if (!signer) {
+      throw new Error("No signer available. Ensure wallet is connected.");
+    }
+    const signature = await signer.signMessage(prepared.siwe);
+
+    // Complete the session setup
+    const delegationSession = completeSessionSetup({
+      ...prepared,
+      signature,
+    });
+
+    // Activate the delegation with the server
+    const activateResult = await activateSessionWithHost(
+      host,
+      delegationSession.delegationHeader
+    );
+
+    if (!activateResult.success) {
+      throw new Error(`Failed to activate delegation: ${activateResult.error}`);
+    }
+
+    // Return the portable delegation
+    return {
+      cid: delegationSession.delegationCid,
+      delegationCid: delegationSession.delegationCid, // @deprecated - use cid
+      delegationHeader: delegationSession.delegationHeader,
+      spaceId: session.spaceId,
+      path: params.path,
+      actions: params.actions,
+      disableSubDelegation: params.disableSubDelegation ?? false,
+      expiry: expirationTime,
+      delegateDID: params.delegateDID,
+      ownerAddress: session.address,
+      chainId: session.chainId,
+      host,
+    };
+  }
+
   /**
    * Track a received delegation in the capability registry.
    * @private
@@ -1563,6 +1814,167 @@ export class TinyCloudWeb {
     };
 
     this._capabilityRegistry.ingestKey(keyInfo, delegationRecord);
+  }
+
+  /**
+   * Create a sub-delegation from a received delegation.
+   * Allows chaining delegations (Alice -> Bob -> Carol).
+   *
+   * This allows further delegating access that was received from another user,
+   * if the original delegation allows sub-delegation.
+   *
+   * @param parentDelegation - The delegation received from another user
+   * @param params - Sub-delegation parameters (must be within parent's scope)
+   * @returns A portable delegation for the sub-delegate
+   *
+   * @throws Error if useNewAuth is false (legacy auth not supported)
+   * @throws Error if in session-only mode (requires wallet)
+   * @throws Error if not signed in
+   * @throws Error if parent delegation does not allow sub-delegation
+   * @throws Error if sub-delegation path is outside parent's path
+   * @throws Error if sub-delegation actions are not a subset of parent's actions
+   *
+   * @example
+   * ```typescript
+   * // Bob received a delegation from Alice
+   * const access = await tcw.useDelegation(aliceDelegation);
+   *
+   * // Bob creates sub-delegation for Carol
+   * const subDelegation = await tcw.createSubDelegation(aliceDelegation, {
+   *   path: "shared/subset/",
+   *   actions: ["tinycloud.kv/get"],
+   *   delegateDID: carolDid,
+   * });
+   * ```
+   */
+  async createSubDelegation(
+    parentDelegation: PortableDelegation,
+    params: {
+      /** Path within the delegated path to sub-delegate */
+      path: string;
+      /** Actions to allow (must be subset of parent's actions) */
+      actions: string[];
+      /** DID of the recipient */
+      delegateDID: string;
+      /** Whether to prevent the recipient from creating further sub-delegations */
+      disableSubDelegation?: boolean;
+      /** Expiration time in milliseconds from now (must be before parent's expiry) */
+      expiryMs?: number;
+    }
+  ): Promise<PortableDelegation> {
+    if (!this.isNewAuthEnabled) {
+      throw new Error(
+        "createSubDelegation() requires new auth module. Set useNewAuth: true in config."
+      );
+    }
+
+    if (this.isSessionOnly) {
+      throw new Error(
+        "Cannot createSubDelegation() in session-only mode. Requires wallet mode."
+      );
+    }
+
+    const address = this.address();
+    const chainId = this.chainId();
+    if (!address || !chainId) {
+      throw new Error("Not signed in. Call signIn() first.");
+    }
+
+    // Validate sub-delegation is allowed
+    if (parentDelegation.disableSubDelegation) {
+      throw new Error("Parent delegation does not allow sub-delegation");
+    }
+
+    // Validate path is within parent's path
+    if (!params.path.startsWith(parentDelegation.path)) {
+      throw new Error(
+        `Sub-delegation path "${params.path}" must be within parent path "${parentDelegation.path}"`
+      );
+    }
+
+    // Validate actions are subset of parent's actions
+    const parentActions = new Set(parentDelegation.actions);
+    for (const action of params.actions) {
+      if (!parentActions.has(action)) {
+        throw new Error(
+          `Sub-delegation action "${action}" is not in parent's actions: ${parentDelegation.actions.join(", ")}`
+        );
+      }
+    }
+
+    // Calculate expiry - cap at parent's expiry
+    const now = new Date();
+    const expiryMs = params.expiryMs ?? 60 * 60 * 1000; // Default 1 hour
+    const requestedExpiry = new Date(now.getTime() + expiryMs);
+    // Sub-delegation cannot outlive parent, so cap at parent's expiry
+    const actualExpiry =
+      requestedExpiry > parentDelegation.expiry ? parentDelegation.expiry : requestedExpiry;
+
+    // Build abilities for the sub-delegation
+    const abilities: Record<string, Record<string, string[]>> = {
+      kv: {
+        [params.path]: params.actions,
+      },
+    };
+
+    // Use parent's host or fall back to config
+    const hosts = this.webAuth.getTinycloudHosts();
+    const targetHost = parentDelegation.host ?? hosts[0];
+
+    // Prepare the sub-delegation session
+    // Uses THIS user's address (who received the delegation and is now sub-delegating)
+    // Targets the recipient's DID (delegateUri)
+    // References the parent delegation as the chain
+    const prepared = prepareSession({
+      abilities,
+      address: tinycloud.ensureEip55(address),
+      chainId: chainId,
+      domain: new URL(targetHost).hostname,
+      issuedAt: now.toISOString(),
+      expirationTime: actualExpiry.toISOString(),
+      spaceId: parentDelegation.spaceId,
+      delegateUri: params.delegateDID,
+      parents: [parentDelegation.cid || parentDelegation.delegationCid!],
+    });
+
+    // Sign with THIS user's wallet
+    const signer = this.provider?.getSigner();
+    if (!signer) {
+      throw new Error("No signer available. Ensure wallet is connected.");
+    }
+    const signature = await signer.signMessage(prepared.siwe);
+
+    // Complete the session setup
+    const subDelegationSession = completeSessionSetup({
+      ...prepared,
+      signature,
+    });
+
+    // Activate the sub-delegation with the server
+    const activateResult = await activateSessionWithHost(
+      targetHost,
+      subDelegationSession.delegationHeader
+    );
+
+    if (!activateResult.success) {
+      throw new Error(`Failed to activate sub-delegation: ${activateResult.error}`);
+    }
+
+    // Return the portable sub-delegation
+    return {
+      cid: subDelegationSession.delegationCid,
+      delegationCid: subDelegationSession.delegationCid, // @deprecated - use cid
+      delegationHeader: subDelegationSession.delegationHeader,
+      spaceId: parentDelegation.spaceId,
+      path: params.path,
+      actions: params.actions,
+      disableSubDelegation: params.disableSubDelegation ?? false,
+      expiry: actualExpiry,
+      delegateDID: params.delegateDID,
+      ownerAddress: parentDelegation.ownerAddress,
+      chainId: parentDelegation.chainId,
+      host: targetHost,
+    };
   }
 
 }

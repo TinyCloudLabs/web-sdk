@@ -84,6 +84,10 @@ export {
   ShareLinkData,
   IngestOptions,
   GenerateShareParams,
+
+  // WASM delegation types
+  CreateDelegationWasmParams,
+  CreateDelegationWasmResult,
 } from "./types";
 
 // Classes
