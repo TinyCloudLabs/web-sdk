@@ -361,9 +361,13 @@ export class TinyCloudWeb {
 
       // Create a minimal session using the embedded key
       // Use the authHeader from the delegation (UCAN JWT) for authorization
-      const authHeader = shareData.delegation.authHeader ?? `Bearer ${shareData.delegation.cid}`;
+      // Strip "Bearer " prefix if present - WASM expects just the JWT token
+      let authToken = shareData.delegation.authHeader ?? shareData.delegation.cid;
+      if (authToken.startsWith('Bearer ')) {
+        authToken = authToken.slice(7);
+      }
       const session: ServiceSession = {
-        delegationHeader: { Authorization: authHeader },
+        delegationHeader: { Authorization: authToken },
         delegationCid: shareData.delegation.cid,
         spaceId: shareData.spaceId,
         verificationMethod: shareData.keyDid,
