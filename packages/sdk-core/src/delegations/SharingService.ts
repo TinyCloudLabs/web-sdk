@@ -458,9 +458,13 @@ export class SharingService implements ISharingService {
     if (this.createDelegationWasmFn) {
       // Client-side delegation creation via WASM
       try {
+        // Strip fragment from DID URL to get plain DID for UCAN audience
+        // getDID() returns "did:key:z6Mk...#z6Mk..." but audience needs "did:key:z6Mk..."
+        const plainDID = keyDid.split('#')[0];
+
         const wasmResult = this.createDelegationWasmFn({
           session: this.session,
-          delegateDID: keyDid,
+          delegateDID: plainDID,
           spaceId: this.session.spaceId,
           path: params.path,
           actions,
