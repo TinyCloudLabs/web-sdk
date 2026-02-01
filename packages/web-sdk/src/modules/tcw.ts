@@ -398,12 +398,6 @@ export class TinyCloudWeb {
         };
       }
 
-      // Use the CID returned by the server - this ensures the invocation references
-      // the exact hash stored in the database, avoiding any byte mismatch between
-      // client-computed CID and server-computed hash
-      const serverCid = await delegateResponse.text();
-      session.delegationCid = serverCid;
-
       // Create context and KV service for fetching
       const context = new ServiceContext({
         invoke: invoke as any,
