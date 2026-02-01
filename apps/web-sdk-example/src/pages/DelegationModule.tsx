@@ -128,8 +128,8 @@ function DelegationModule({ tcw }: IDelegationModule) {
         // Get transport fields from tcw
         const ownerAddress = tcw.address() || '';
         const chainId = tcw.chainId() || 1;
-        // Use default host - the web-sdk example uses the default TinyCloud server
-        const host = 'https://node.tinycloud.xyz';
+        // Use localhost in dev mode, otherwise default TinyCloud server
+        const host = window.__DEV_MODE__ ? 'http://localhost:8000' : 'https://node.tinycloud.xyz';
 
         // Convert to PortableDelegation with transport fields
         const portableDelegation = toPortableDelegation(delegation, ownerAddress, chainId, host);

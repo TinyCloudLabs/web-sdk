@@ -374,6 +374,30 @@ export class TinyCloudWeb {
         jwk: shareData.key,
       };
 
+      // Register the delegation with the server first
+      // The server needs to know about this delegation before we can make invocations
+      // This is idempotent - returns 200 whether newly created or already exists
+      // NOTE: Server expects raw JWT token, not "Bearer " prefix
+      const delegateResponse = await globalThis.fetch(`${shareData.host}/delegate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': authToken,
+        },
+      });
+
+      if (!delegateResponse.ok) {
+        const errorText = await delegateResponse.text();
+        return {
+          ok: false as const,
+          error: {
+            code: 'DELEGATION_FAILED',
+            message: `Failed to register delegation: ${delegateResponse.status} - ${errorText}`,
+            service: 'delegation' as const,
+          },
+        };
+      }
+
       // Create context and KV service for fetching
       const context = new ServiceContext({
         invoke: invoke as any,
@@ -872,6 +896,7 @@ export class TinyCloudWeb {
       keyProvider: this._keyProvider,
       registry: this._capabilityRegistry,
       delegationManager: this._delegationManager,
+      pathPrefix: this.config.kvPrefix, // Pass kvPrefix so share paths match session capabilities
       createKVService: (config) => {
         // Strip trailing slash from pathPrefix like node-sdk does
         const prefix = config.pathPrefix?.replace(/\/$/, '') ?? '';

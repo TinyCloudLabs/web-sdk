@@ -223,6 +223,12 @@ export interface SharingServiceConfig {
    * Creates UCAN delegations directly without requiring server roundtrip.
    */
   createDelegationWasm?: (params: CreateDelegationWasmParams) => CreateDelegationWasmResult;
+  /**
+   * Path prefix for KV operations.
+   * When set, paths passed to generate() are prefixed with this value.
+   * This ensures the share path matches the session's authorized paths.
+   */
+  pathPrefix?: string;
 }
 
 /**
@@ -309,6 +315,7 @@ export class SharingService implements ISharingService {
   private baseUrl: string;
   private createDelegationFn?: SharingServiceConfig["createDelegation"];
   private createDelegationWasmFn?: SharingServiceConfig["createDelegationWasm"];
+  private pathPrefix: string;
 
   /**
    * Creates a new SharingService instance.
@@ -325,6 +332,7 @@ export class SharingService implements ISharingService {
     this.baseUrl = (config.baseUrl ?? "").replace(/\/$/, ""); // Remove trailing slash
     this.createDelegationFn = config.createDelegation;
     this.createDelegationWasmFn = config.createDelegationWasm;
+    this.pathPrefix = config.pathPrefix ?? "";
   }
 
   /**
@@ -408,6 +416,12 @@ export class SharingService implements ISharingService {
     const expiry = params.expiry ?? new Date(Date.now() + DEFAULT_EXPIRY_MS);
     const schema: ShareSchema = params.schema ?? "base64";
 
+    // Build full path with prefix (matches how KVService stores data)
+    // If pathPrefix is "demo-app" and path is "hello", fullPath is "demo-app/hello"
+    const fullPath = this.pathPrefix
+      ? `${this.pathPrefix}/${params.path}`.replace(/\/+/g, "/") // Normalize slashes
+      : params.path;
+
     // Only base64 schema is implemented in v1
     if (schema !== "base64") {
       return {
@@ -466,7 +480,7 @@ export class SharingService implements ISharingService {
           session: this.session,
           delegateDID: plainDID,
           spaceId: this.session.spaceId,
-          path: params.path,
+          path: fullPath,
           actions,
           expirationSecs: Math.floor(expiry.getTime() / 1000),
         });
@@ -497,7 +511,7 @@ export class SharingService implements ISharingService {
       // Server-side delegation creation (fallback)
       const delegationParams: CreateDelegationParams = {
         delegateDID: keyDid,
-        path: params.path,
+        path: fullPath,
         actions,
         expiry,
         statement: params.description ?? `Share access for ${params.path}`,
@@ -529,7 +543,7 @@ export class SharingService implements ISharingService {
       key: keyJwk,
       keyDid,
       delegation,
-      path: params.path,
+      path: fullPath,
       host: this.host,
       spaceId: this.session.spaceId,
       version: 1,

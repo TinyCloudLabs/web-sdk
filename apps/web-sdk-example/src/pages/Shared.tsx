@@ -1,10 +1,37 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
 import Button from '../components/Button';
 import Title from '../components/Title';
 import Input from '../components/Input';
 import Footer from '../components/Footer';
+
+interface ParsedShare {
+  key: {
+    kid?: string;
+    kty: string;
+    crv: string;
+    x: string;
+    d?: string; // private key component
+  };
+  keyDid: string;
+  delegation: {
+    cid: string;
+    delegateDID: string;
+    spaceId: string;
+    path: string;
+    actions: string[];
+    expiry: string;
+    isRevoked: boolean;
+    authHeader?: string;
+    allowSubDelegation?: boolean;
+    createdAt?: string;
+  };
+  path: string;
+  host: string;
+  spaceId: string;
+  version: number;
+}
 
 const Shared = () => {
   const location = useLocation();
@@ -15,6 +42,35 @@ const Shared = () => {
   const [fetchedData, setFetchedData]: [any, any] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [inspectedData, setInspectedData] = useState<ParsedShare | null>(null);
+  const [inspectError, setInspectError] = useState<string | null>(null);
+
+  const inspectShareData = () => {
+    setInspectError(null);
+    setInspectedData(null);
+    try {
+      // Parse the share link - format is "tc1:<base64json>" or just base64
+      let encoded = shareData;
+      if (encoded.startsWith('tc1:')) {
+        encoded = encoded.slice(4);
+      }
+      // Handle URL encoding
+      encoded = decodeURIComponent(encoded);
+      // Decode base64
+      const decoded = atob(encoded);
+      const parsed = JSON.parse(decoded) as ParsedShare;
+      setInspectedData(parsed);
+    } catch (err) {
+      setInspectError(`Failed to parse share link: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
+  // Auto-inspect in dev mode when share data is present
+  useEffect(() => {
+    if (window.__DEV_MODE__ && shareData) {
+      inspectShareData();
+    }
+  }, [shareData]);
 
   const fetchShareData = async () => {
     setIsLoading(true);
@@ -46,15 +102,86 @@ const Shared = () => {
               className="w-full"
             />
             
-            <Button
-              id="fetchShareData"
-              onClick={fetchShareData}
-              loading={isLoading}
-              variant="default"
-              className="w-full"
-            >
-              Fetch Shared Content
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                id="fetchShareData"
+                onClick={fetchShareData}
+                loading={isLoading}
+                variant="default"
+                className="flex-1"
+              >
+                Fetch Shared Content
+              </Button>
+              <Button
+                id="inspectShareData"
+                onClick={inspectShareData}
+                variant="neutral"
+                className="flex-1"
+              >
+                Inspect
+              </Button>
+            </div>
+
+            {inspectError && (
+              <div className="rounded-base border-2 border-yellow-300 bg-yellow-50 p-3">
+                <p className="text-sm text-yellow-800">{inspectError}</p>
+              </div>
+            )}
+
+            {inspectedData && (
+              <div className="mt-4 rounded-base border-2 border-border/30 bg-bw/50 p-4 space-y-4">
+                <h3 className="text-lg font-heading text-text">Share Link Components:</h3>
+
+                <div className="space-y-3">
+                  <div>
+                    <h4 className="font-semibold text-text">Host</h4>
+                    <p className="text-sm text-text/70 font-mono">{inspectedData.host}</p>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-text">Space ID</h4>
+                    <p className="text-sm text-text/70 font-mono break-all">{inspectedData.spaceId}</p>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-text">Path</h4>
+                    <p className="text-sm text-text/70 font-mono">{inspectedData.path}</p>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-text">Key DID</h4>
+                    <p className="text-sm text-text/70 font-mono break-all">{inspectedData.keyDid}</p>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-text">Key (JWK)</h4>
+                    <pre className="text-xs text-text/70 font-mono bg-main/10 p-2 rounded overflow-x-auto">
+                      {JSON.stringify({ ...inspectedData.key, d: inspectedData.key.d ? '[REDACTED]' : undefined }, null, 2)}
+                    </pre>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-text">Delegation</h4>
+                    <div className="text-sm text-text/70 space-y-1 ml-2">
+                      <p><span className="font-medium">CID:</span> <span className="font-mono break-all">{inspectedData.delegation.cid}</span></p>
+                      <p><span className="font-medium">Delegate DID:</span> <span className="font-mono break-all">{inspectedData.delegation.delegateDID}</span></p>
+                      <p><span className="font-medium">Actions:</span> {inspectedData.delegation.actions.join(', ')}</p>
+                      <p><span className="font-medium">Expiry:</span> {inspectedData.delegation.expiry}</p>
+                      <p><span className="font-medium">Revoked:</span> {inspectedData.delegation.isRevoked ? 'Yes' : 'No'}</p>
+                      <p><span className="font-medium">Sub-delegation:</span> {inspectedData.delegation.allowSubDelegation ? 'Allowed' : 'Not allowed'}</p>
+                      {inspectedData.delegation.authHeader && (
+                        <div>
+                          <p className="font-medium">Auth Header (UCAN JWT):</p>
+                          <pre className="text-xs font-mono bg-main/10 p-2 rounded overflow-x-auto max-h-32">
+                            {inspectedData.delegation.authHeader}
+                          </pre>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {error && (
               <div className="rounded-base border-2 border-red-300 bg-red-50 p-3">

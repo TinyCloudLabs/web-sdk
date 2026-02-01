@@ -73,7 +73,9 @@ function Home() {
   const [spaceManagementEnabled, setSpaceManagementEnabled] = useState<string>("Off");
   const [delegationEnabled, setDelegationEnabled] = useState<string>("Off");
   const [prefix, setPrefix] = useState<string>("demo-app");
-  const [tinyCloudHost, setTinyCloudHost] = useState<string>("");
+  const [tinyCloudHost, setTinyCloudHost] = useState<string>(
+    window.__DEV_MODE__ ? "http://localhost:8000" : ""
+  );
 
   // Parse URL parameters on component mount
   useEffect(() => {
