@@ -485,6 +485,26 @@ export class SharingService implements ISharingService {
           expirationSecs: Math.floor(expiry.getTime() / 1000),
         });
 
+        // Register the delegation with the server
+        // The server needs to know about this delegation for proof chain validation
+        const registerRes = await this.fetchFn(`${this.host}/delegate`, {
+          method: "POST",
+          headers: {
+            Authorization: wasmResult.delegation, // The UCAN JWT
+          },
+        });
+
+        if (!registerRes.ok) {
+          const errorText = await registerRes.text();
+          return {
+            ok: false,
+            error: createError(
+              DelegationErrorCodes.CREATION_FAILED,
+              `Failed to register delegation with server: ${registerRes.status} ${errorText}`
+            ),
+          };
+        }
+
         delegation = {
           cid: wasmResult.cid,
           delegateDID: wasmResult.delegateDID,
