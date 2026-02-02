@@ -229,6 +229,11 @@ export interface SharingServiceConfig {
    * This ensures the share path matches the session's authorized paths.
    */
   pathPrefix?: string;
+  /**
+   * Session expiry time.
+   * When set, sharing link expiry is clamped to not exceed this value.
+   */
+  sessionExpiry?: Date;
 }
 
 /**
@@ -316,6 +321,7 @@ export class SharingService implements ISharingService {
   private createDelegationFn?: SharingServiceConfig["createDelegation"];
   private createDelegationWasmFn?: SharingServiceConfig["createDelegationWasm"];
   private pathPrefix: string;
+  private sessionExpiry?: Date;
 
   /**
    * Creates a new SharingService instance.
@@ -333,6 +339,7 @@ export class SharingService implements ISharingService {
     this.createDelegationFn = config.createDelegation;
     this.createDelegationWasmFn = config.createDelegationWasm;
     this.pathPrefix = config.pathPrefix ?? "";
+    this.sessionExpiry = config.sessionExpiry;
   }
 
   /**
@@ -353,7 +360,7 @@ export class SharingService implements ISharingService {
    * Updates the service configuration.
    * Used to add full capabilities (session, delegationManager, createDelegation, createDelegationWasm) after signIn.
    */
-  public updateConfig(config: Partial<Pick<SharingServiceConfig, "session" | "delegationManager" | "createDelegation" | "createDelegationWasm">>): void {
+  public updateConfig(config: Partial<Pick<SharingServiceConfig, "session" | "delegationManager" | "createDelegation" | "createDelegationWasm" | "sessionExpiry">>): void {
     if (config.session !== undefined) {
       this.session = config.session;
     }
@@ -365,6 +372,9 @@ export class SharingService implements ISharingService {
     }
     if (config.createDelegationWasm !== undefined) {
       this.createDelegationWasmFn = config.createDelegationWasm;
+    }
+    if (config.sessionExpiry !== undefined) {
+      this.sessionExpiry = config.sessionExpiry;
     }
   }
 
@@ -413,7 +423,11 @@ export class SharingService implements ISharingService {
     }
 
     const actions = params.actions ?? DEFAULT_READ_ACTIONS;
-    const expiry = params.expiry ?? new Date(Date.now() + DEFAULT_EXPIRY_MS);
+    const requestedExpiry = params.expiry ?? new Date(Date.now() + DEFAULT_EXPIRY_MS);
+    // Clamp expiry to session expiry if set
+    const expiry = this.sessionExpiry && requestedExpiry > this.sessionExpiry
+      ? this.sessionExpiry
+      : requestedExpiry;
     const schema: ShareSchema = params.schema ?? "base64";
 
     // Build full path with prefix (matches how KVService stores data)
@@ -513,7 +527,7 @@ export class SharingService implements ISharingService {
           actions: wasmResult.actions,
           expiry: wasmResult.expiry,
           isRevoked: false,
-          authHeader: `Bearer ${wasmResult.delegation}`, // The UCAN JWT
+          authHeader: wasmResult.delegation, // The UCAN JWT (no Bearer prefix - SDK adds it internally)
           allowSubDelegation: true,
           createdAt: new Date(),
         };

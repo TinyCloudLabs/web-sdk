@@ -891,6 +891,7 @@ export class TinyCloudWeb {
     this._sharingService = new SharingService({
       hosts,
       session: serviceSession,
+      sessionExpiry: this.getSessionExpiry(),
       invoke: invoke as any,
       fetch: globalThis.fetch.bind(globalThis),
       keyProvider: this._keyProvider,

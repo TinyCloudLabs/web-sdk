@@ -532,50 +532,9 @@ export class TinyCloudNode {
     this._sharingService.updateConfig({
       session: serviceSession,
       delegationManager: this._delegationManager,
+      sessionExpiry: this.getSessionExpiry(),
       // WASM-based delegation creation (preferred - no server roundtrip)
       createDelegationWasm: (params) => this.createDelegationWrapper(params),
-      // Custom delegation creation that uses SIWE-based /delegate endpoint (fallback)
-      createDelegation: async (params) => {
-        try {
-          // Use the existing createDelegation method which calls /delegate
-          const portableDelegation = await this.createDelegation({
-            delegateDID: params.delegateDID,
-            path: params.path,
-            actions: params.actions,
-            disableSubDelegation: params.disableSubDelegation,
-            // Convert Date expiry to ms if provided
-            expiryMs: params.expiry
-              ? params.expiry.getTime() - Date.now()
-              : undefined,
-          });
-
-          // Convert PortableDelegation to Delegation type
-          const delegation: Delegation = {
-            cid: portableDelegation.cid,
-            delegateDID: portableDelegation.delegateDID,
-            spaceId: portableDelegation.spaceId,
-            path: portableDelegation.path,
-            actions: portableDelegation.actions,
-            expiry: portableDelegation.expiry,
-            isRevoked: false,
-            allowSubDelegation: !portableDelegation.disableSubDelegation,
-            createdAt: new Date(),
-            // Include the UCAN bearer token for sharing links
-            authHeader: portableDelegation.delegationHeader.Authorization,
-          };
-
-          return { ok: true, data: delegation };
-        } catch (error) {
-          return {
-            ok: false,
-            error: {
-              code: "CREATION_FAILED",
-              message: error instanceof Error ? error.message : String(error),
-              service: "delegation",
-            },
-          };
-        }
-      },
     });
 
     // Wire up SharingService to SpaceService for space.sharing.generate()
