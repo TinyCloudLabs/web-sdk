@@ -6,6 +6,7 @@
  */
 
 import { IService, Result } from "../types";
+import type { IPrefixedKVService } from "./PrefixedKVService";
 import {
   KVServiceConfig,
   KVGetOptions,
@@ -137,6 +138,31 @@ export interface IKVService extends IService {
    * ```
    */
   head(key: string, options?: KVHeadOptions): Promise<Result<KVResponse<void>>>;
+
+  /**
+   * Create a prefix-scoped view of this KV service.
+   *
+   * Returns a PrefixedKVService that automatically prefixes all
+   * key operations with the specified prefix. This enables apps
+   * to isolate their data within a shared space.
+   *
+   * @param prefix - The prefix to apply to all operations
+   * @returns A PrefixedKVService scoped to the prefix
+   *
+   * @example
+   * ```typescript
+   * const myApp = kv.withPrefix('/app.myapp.com');
+   *
+   * // Operations are automatically prefixed
+   * await myApp.put('settings.json', { theme: 'dark' });
+   * // -> Actually writes to: /app.myapp.com/settings.json
+   *
+   * // Nested prefixes
+   * const settings = myApp.withPrefix('/settings');
+   * await settings.get('theme.json');  // -> /app.myapp.com/settings/theme.json
+   * ```
+   */
+  withPrefix(prefix: string): IPrefixedKVService;
 
   /**
    * Service configuration.

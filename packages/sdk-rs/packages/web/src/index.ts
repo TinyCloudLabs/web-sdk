@@ -25,4 +25,9 @@ export namespace tinycloud {
   export import SessionConfig = lib.SessionConfig;
   export import HostConfig = lib.HostConfig;
   export import ensureEip55 = lib.ensureEip55;
+  // Delegation creation
+  export import createDelegation = lib.createDelegation;
 }
+
+// Note: CreateDelegationWasmParams and CreateDelegationWasmResult types are available
+// from @tinycloudlabs/sdk-core for TypeScript consumers

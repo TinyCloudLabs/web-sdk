@@ -2,17 +2,17 @@ import { useState, useEffect } from 'react';
 import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
 import Input from '../components/Input';
 import Button from '../components/Button';
-import RadioGroup from '../components/RadioGroup';
 
 interface IStorageModule {
   tcw: TinyCloudWeb;
 }
 
 /**
- * StorageModule demonstrates the new sdk-services KV API with Result pattern.
+ * StorageModule demonstrates the sdk-services KV API with Result pattern.
  *
  * Uses tcw.kv for basic operations (get, put, list, delete)
- * Uses tcw.sharing for sharing functionality (generate, retrieve)
+ * Uses tcw.sharing for generating share links (v2 SharingService)
+ * Receiving shares is available via TinyCloudWeb.receiveShare() static method.
  */
 function StorageModule({ tcw }: IStorageModule) {
   const [contentList, setContentList] = useState<Array<string>>([]);
@@ -21,12 +21,14 @@ function StorageModule({ tcw }: IStorageModule) {
   const [text, setText] = useState<string>('');
   const [viewingList, setViewingList] = useState<boolean>(true);
   const [allowPost, setAllowPost] = useState<boolean>(false);
-  const [removePrefix, setRemovePrefix] = useState<boolean>(false);
   const [sharingLink, setSharingLink] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
 
   // Get prefix from tcw (used for display purposes)
   const prefix = tcw.kvPrefix;
+
+  // Helper to get full path from short key
+  const getFullPath = (key: string) => prefix ? `${prefix}/${key}` : key;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -35,8 +37,8 @@ function StorageModule({ tcw }: IStorageModule) {
       setError(null);
       try {
         // Use new kv.list() with Result pattern
-        // Pass abort signal to cancel on unmount (prevents React strict mode race)
-        const result = await tcw.kv.list({ removePrefix, signal: controller.signal });
+        // Always remove prefix for cleaner display - we show full path as subtitle
+        const result = await tcw.kv.list({ removePrefix: true, signal: controller.signal });
         if (result.ok) {
           setContentList(result.data.keys);
         } else {
@@ -56,21 +58,32 @@ function StorageModule({ tcw }: IStorageModule) {
     return () => {
       controller.abort();
     };
-  }, [tcw, removePrefix]);
+  }, [tcw]);
 
-  const handleShareContent = async (content: string) => {
+  const handleShareContent = async (key: string) => {
     setError(null);
-    // Compute the key reference for sharing
-    let reference = removePrefix ? content : content.replace(new RegExp(`^${prefix}/`), '');
-    reference = prefix ? `${prefix}/${reference}` : reference;
+    setSharingLink('');
 
-    const result = await tcw.sharing.generate(reference);
-    if (result.ok) {
-      const link = `${window.location.origin}/share?data=${result.data}`;
-      setSharingLink(link);
-    } else {
-      console.error('Failed to generate sharing link:', result.error.code, result.error.message);
-      setError(`Failed to generate sharing link: ${result.error.message}`);
+    try {
+      // Generate a sharing link using the v2 SharingService
+      // The SharingService will prepend the pathPrefix automatically
+      const result = await tcw.sharing.generate({
+        path: key,
+        actions: ['tinycloud.kv/get', 'tinycloud.kv/list'],
+        expiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+      });
+
+      if (result.ok) {
+        // Create a shareable URL using the encoded token
+        const shareUrl = `${window.location.origin}/share?share=${encodeURIComponent(result.data.token)}`;
+        setSharingLink(shareUrl);
+      } else {
+        console.error('Failed to generate share link:', result.error.code, result.error.message);
+        setError(`Failed to generate share link: ${result.error.message}`);
+      }
+    } catch (err) {
+      console.error('Error generating share link:', err);
+      setError(`Error generating share link: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
@@ -81,17 +94,16 @@ function StorageModule({ tcw }: IStorageModule) {
     }
   };
 
-  const handleGetContent = async (content: string) => {
+  const handleGetContent = async (key: string) => {
     setError(null);
-    let reference = removePrefix ? content : content.replace(new RegExp(`^${prefix}/`), '');
 
     // Use new kv.get() with Result pattern
-    const result = await tcw.kv.get<string>(reference);
+    const result = await tcw.kv.get<string>(key);
 
     if (result.ok) {
       setAllowPost(true);
-      setSelectedContent(content);
-      setName(content);
+      setSelectedContent(key);
+      setName(key);
       setText(result.data.data ?? '');
       setViewingList(false);
     } else {
@@ -100,15 +112,14 @@ function StorageModule({ tcw }: IStorageModule) {
     }
   };
 
-  const handleDeleteContent = async (content: string) => {
+  const handleDeleteContent = async (key: string) => {
     setError(null);
-    let reference = removePrefix ? content : content.replace(new RegExp(`^${prefix}/`), '');
 
     // Use new kv.delete() with Result pattern
-    const result = await tcw.kv.delete(reference);
+    const result = await tcw.kv.delete(key);
 
     if (result.ok) {
-      setContentList(prevList => prevList.filter(c => c !== content));
+      setContentList(prevList => prevList.filter(k => k !== key));
       setSelectedContent(null);
       setName('');
       setText('');
@@ -163,19 +174,10 @@ function StorageModule({ tcw }: IStorageModule) {
     <div className="w-full">
       <div className="space-y-6">
         <div className="space-y-3">
-          <h3 className="text-xl font-heading text-text">Storage Prefix: <span className="font-mono">{prefix}</span></h3>
+          <h3 className="text-xl font-heading text-text">Storage Prefix: <span className="font-mono">{prefix || '(none)'}</span></h3>
           <p className="text-sm text-text/70">
-            The storage prefix is where the keys below live. It's like a folder name for the keys.{' '}
-            <code className="rounded bg-main/10 px-1 py-0.5 font-mono text-xs">"{prefix}/key" = value</code>
+            All keys are stored under this prefix. The full path is shown below each key.
           </p>
-          <RadioGroup
-            label="Remove Prefix"
-            name="removePrefix"
-            options={['On', 'Off']}
-            value={removePrefix ? 'On' : 'Off'}
-            onChange={(option) => setRemovePrefix(option === 'On')}
-            className="mt-4"
-          />
         </div>
 
         {error && (
@@ -228,31 +230,34 @@ function StorageModule({ tcw }: IStorageModule) {
               </div>
             ) : (
               <div className="space-y-2">
-                {contentList.map(content => (
+                {contentList.map(key => (
                   <div
-                    key={content}
+                    key={key}
                     className="flex items-center justify-between rounded-base border-2 border-border/30 bg-bw p-3"
                   >
-                    <span className="font-mono text-sm text-text truncate max-w-xs">{content}</span>
-                    <div className="flex space-x-2">
+                    <div className="min-w-0 flex-1 mr-3">
+                      <div className="font-mono text-sm text-text truncate">{key}</div>
+                      <div className="font-mono text-xs text-text/50 truncate">{getFullPath(key)}</div>
+                    </div>
+                    <div className="flex space-x-2 flex-shrink-0">
                       <Button
                         variant="neutral"
                         size="sm"
-                        onClick={() => handleGetContent(content)}
+                        onClick={() => handleGetContent(key)}
                       >
                         Get
                       </Button>
                       <Button
                         variant="neutral"
                         size="sm"
-                        onClick={() => handleShareContent(content)}
+                        onClick={() => handleShareContent(key)}
                       >
                         Share
                       </Button>
                       <Button
                         variant="neutral"
                         size="sm"
-                        onClick={() => handleDeleteContent(content)}
+                        onClick={() => handleDeleteContent(key)}
                       >
                         Delete
                       </Button>

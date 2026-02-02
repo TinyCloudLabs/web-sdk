@@ -16,7 +16,7 @@ import { PortableDelegation } from "./delegation";
  */
 export class DelegatedAccess {
   private session: TinyCloudSession;
-  private delegation: PortableDelegation;
+  private _delegation: PortableDelegation;
   private host: string;
   private _serviceContext: ServiceContext;
   private _kv: KVService;
@@ -27,7 +27,7 @@ export class DelegatedAccess {
     host: string
   ) {
     this.session = session;
-    this.delegation = delegation;
+    this._delegation = delegation;
     this.host = host;
 
     // Create service context
@@ -39,7 +39,7 @@ export class DelegatedAccess {
 
     // Create and initialize KV service with path prefix from delegation
     // Strip trailing slash to avoid double-slash in paths
-    const prefix = delegation.path.replace(/\/$/, '');
+    const prefix = this._delegation.path.replace(/\/$/, '');
     this._kv = new KVService({ prefix });
     this._kv.initialize(this._serviceContext);
     this._serviceContext.registerService('kv', this._kv);
@@ -56,17 +56,24 @@ export class DelegatedAccess {
   }
 
   /**
+   * Get the delegation this access was created from.
+   */
+  get delegation(): PortableDelegation {
+    return this._delegation;
+  }
+
+  /**
    * The space ID this access is for.
    */
   get spaceId(): string {
-    return this.delegation.spaceId;
+    return this._delegation.spaceId;
   }
 
   /**
    * The path this access is scoped to.
    */
   get path(): string {
-    return this.delegation.path;
+    return this._delegation.path;
   }
 
   /**

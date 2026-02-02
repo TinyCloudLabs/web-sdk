@@ -59,17 +59,21 @@ export {
   NodeUserAuthorizationConfig,
 } from "./authorization/NodeUserAuthorization";
 
-// Sign strategies
+// Sign strategies (re-exported from sdk-core + Node.js-specific types)
 export {
-  SignStrategy,
+  // Common types from sdk-core
   SignRequest,
   SignResponse,
   SignCallback,
   AutoSignStrategy,
   AutoRejectStrategy,
   CallbackStrategy,
-  EventEmitterStrategy,
   defaultSignStrategy,
+  // Node.js-specific types
+  NodeEventEmitterStrategy,
+  SignStrategy,
+  // Backwards compatibility alias
+  EventEmitterStrategy,
 } from "./authorization/strategies";
 
 // High-level API
@@ -89,4 +93,102 @@ export {
   KVService,
   KVServiceConfig,
   KVResponse,
+  // Prefixed KV
+  PrefixedKVService,
+  IPrefixedKVService,
 } from "@tinycloudlabs/sdk-core";
+
+// Re-export v2 Delegation services and types
+export {
+  // DelegationManager (v2 DelegationService)
+  DelegationManager,
+  DelegationManagerConfig,
+  // SharingService (v2)
+  SharingService,
+  ISharingService,
+  SharingServiceConfig,
+  createSharingService,
+  EncodedShareData,
+  ReceiveOptions,
+  ShareAccess,
+  // SharingLinks (v1 - deprecated)
+  SharingLinks,
+  // Delegation types
+  Delegation,
+  CreateDelegationParams,
+  DelegationChain,
+  DelegationChainV2,
+  DelegationDirection,
+  DelegationFilters,
+  // Error types
+  DelegationResult,
+  DelegationError,
+  DelegationErrorCodes,
+  DelegationErrorCode,
+  // Key types
+  JWK,
+  KeyType,
+  KeyInfo,
+  CapabilityEntry,
+  DelegationRecord,
+  // Space types
+  SpaceOwnership,
+  SpaceInfo,
+  // Share types
+  ShareSchema,
+  ShareLink,
+  ShareLinkData,
+  IngestOptions,
+  GenerateShareParams,
+  // Legacy types (deprecated)
+  SharingLink,
+  GenerateSharingLinkParams,
+  SharingLinkData,
+} from "@tinycloudlabs/sdk-core";
+
+// Re-export CapabilityKeyRegistry (v2)
+export {
+  CapabilityKeyRegistry,
+  ICapabilityKeyRegistry,
+  createCapabilityKeyRegistry,
+  StoredDelegationChain,
+  CapabilityKeyRegistryErrorCodes,
+  CapabilityKeyRegistryErrorCode,
+} from "@tinycloudlabs/sdk-core";
+
+// Re-export SpaceService (v2)
+export {
+  SpaceService,
+  ISpaceService,
+  SpaceServiceConfig,
+  SpaceErrorCodes,
+  SpaceErrorCode,
+  createSpaceService,
+  parseSpaceUri,
+  buildSpaceUri,
+  // Space object
+  Space,
+  ISpace,
+  SpaceConfig,
+  ISpaceScopedDelegations,
+  ISpaceScopedSharing,
+} from "@tinycloudlabs/sdk-core";
+
+// Re-export ServiceContext and related types for advanced usage
+export {
+  ServiceContext,
+  ServiceContextConfig,
+  ServiceSession,
+  InvokeFunction,
+  FetchFunction,
+} from "@tinycloudlabs/sdk-core";
+
+// Re-export KeyProvider interface from sdk-core
+export type { KeyProvider } from "@tinycloudlabs/sdk-core";
+
+// Key management for node-sdk
+export {
+  WasmKeyProvider,
+  WasmKeyProviderConfig,
+  createWasmKeyProvider,
+} from "./keys/WasmKeyProvider";

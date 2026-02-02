@@ -26,6 +26,8 @@ export {
   // Space hosting
   generateHostSIWEMessage,
   siweToDelegationHeaders,
+  // Delegation creation
+  createDelegation,
 } from "../../../node-sdk-wasm/tinycloud_web_sdk_rs.js";
 
 // Re-export types for TypeScript consumers
@@ -35,3 +37,6 @@ export type {
   SessionConfig,
   SiweConfig,
 } from "../../../node-sdk-wasm/tinycloud_web_sdk_rs.js";
+
+// Note: CreateDelegationWasmParams and CreateDelegationWasmResult types are available
+// from @tinycloudlabs/sdk-core for TypeScript consumers

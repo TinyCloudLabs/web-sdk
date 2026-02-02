@@ -25,8 +25,8 @@ export async function startSession(
       config?.expirationTime ??
       new Date(Date.now() + 1000 * 60 * 60).toISOString(),
     actions: config?.actions ?? {
-      kv: { "default/": ["tinycloud.kv/put", "tinycloud.kv/get", "tinycloud.kv/list", "tinycloud.kv/del", "tinycloud.kv/metadata"] },
-      capabilities: { "all/": ["tinycloud.capabilities/read"] },
+      kv: { "": ["tinycloud.kv/put", "tinycloud.kv/get", "tinycloud.kv/list", "tinycloud.kv/del", "tinycloud.kv/metadata"] },
+      capabilities: { "": ["tinycloud.capabilities/read"] },
     },
     spaceId: config?.spaceId ?? makeSpaceId(address, chainId, "default"),
     parents: config?.parents,
@@ -77,6 +77,6 @@ export class Authenticator {
     action: string,
     path: string
   ): HeadersInit =>
-    invoke(this.session, service, path, action);
+    invoke(this.session, service, path, action, undefined);
   getSpaceId = (): string => this.session.spaceId;
 }

@@ -2,8 +2,6 @@ import {
   IUserAuthorization,
   TCWClientSession,
   TCWExtension,
-  SiweMessage,
-  PartialSiweMessage,
 } from "./userAuthorization";
 import {
   ServiceContext,
@@ -384,33 +382,4 @@ export class TinyCloud {
     return this.userAuthorization.signMessage(message);
   }
 
-  /**
-   * Generate a SIWE message for custom flows.
-   */
-  public async generateSiweMessage(
-    address: string,
-    partial?: PartialSiweMessage
-  ): Promise<SiweMessage> {
-    return this.userAuthorization.generateSiweMessage(address, partial);
-  }
-
-  /**
-   * Complete sign-in with a pre-signed message.
-   * Notifies services of the new session after successful sign-in.
-   */
-  public async signInWithSignature(
-    siweMessage: SiweMessage,
-    signature: string
-  ): Promise<TCWClientSession> {
-    const session = await this.userAuthorization.signInWithSignature(
-      siweMessage,
-      signature
-    );
-
-    // Notify services of the new session
-    const serviceSession = this.toServiceSession(session);
-    this.notifyServicesOfSessionChange(serviceSession);
-
-    return session;
-  }
 }

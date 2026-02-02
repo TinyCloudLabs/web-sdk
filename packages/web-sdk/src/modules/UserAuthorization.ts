@@ -342,16 +342,23 @@ class UserAuthorizationConnected implements ITCWConnected {
    * Must be called after we have address/chainId but before build().
    * @param address - User's Ethereum address
    * @param chainId - Chain ID
-   * @param prefix - Space prefix (default: "default")
+   * @param spacePrefix - Space prefix (default: "default")
+   * @param kvPrefix - KV path prefix for scoping access (default: "" for all paths)
    */
-  public addDefaultCapabilities(address: string, chainId: number, prefix: string = "default"): void {
+  public addDefaultCapabilities(
+    address: string,
+    chainId: number,
+    spacePrefix: string = "default",
+    kvPrefix: string = ""
+  ): void {
     // Use makeSpaceId to ensure consistent spaceId format with setupSpaceSession
     // This is critical - the spaceId in capabilities must match the session spaceId
-    const spaceId = makeSpaceId(address, chainId, prefix);
+    const spaceId = makeSpaceId(address, chainId, spacePrefix);
 
-    // Add KV capabilities for default path
-    // Note: path should be empty to match what KVService requests (spaceId/kv/)
-    const kvTarget = `${spaceId}/kv/`;
+    // Add KV capabilities for the configured path prefix
+    // If kvPrefix is set (e.g., "demo-app"), access is scoped to that path
+    // NOTE: No trailing slash - must match how KVService constructs invocation paths
+    const kvTarget = kvPrefix ? `${spaceId}/kv/${kvPrefix}` : `${spaceId}/kv/`;
     this.builder.addTargetedActions(kvTarget, UserAuthorizationConnected.DEFAULT_KV_ACTIONS);
 
     // Add capabilities access
@@ -393,8 +400,9 @@ class UserAuthorizationConnected implements ITCWConnected {
     // Add default KV capabilities now that we have address/chainId
     // This must be called before build() which creates the SIWE message with ReCap
     const address = this.config.siweConfig?.address ?? walletAddress;
-    const spacePrefix = this.config?.spacePrefix ?? "default";
-    this.addDefaultCapabilities(address, chainId, spacePrefix);
+    const spacePrefix = (this.config as any)?.spacePrefix ?? "default";
+    const kvPrefix = (this.config as any)?.kvPrefix ?? "";
+    this.addDefaultCapabilities(address, chainId, spacePrefix, kvPrefix);
 
     const defaults = {
       address,
@@ -469,6 +477,9 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
   /** Space prefix for new sessions */
   private spacePrefix: string;
 
+  /** KV path prefix for scoping access */
+  private kvPrefix: string;
+
   /** The space ID for the current session */
   private _spaceId?: string;
 
@@ -495,9 +506,10 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
     });
 
     // Initialize space-related options with defaults
-    this.autoCreateSpace = _config.autoCreateSpace ?? true;
-    this.tinycloudHosts = _config.tinycloudHosts ? [..._config.tinycloudHosts, "https://node.tinycloud.xyz", "https://tee.tinycloud.xyz"] : ["https://node.tinycloud.xyz", "https://tee.tinycloud.xyz"];
-    this.spacePrefix = _config.spacePrefix ?? "default";
+    this.autoCreateSpace = (_config as any).autoCreateSpace ?? true;
+    this.tinycloudHosts = [...((_config as any).tinycloudHosts ?? []), "https://node.tinycloud.xyz", "https://tee.tinycloud.xyz"];
+    this.spacePrefix = (_config as any).spacePrefix ?? "default";
+    this.kvPrefix = (_config as any).kvPrefix ?? "";
   }
 
   /**
@@ -730,7 +742,7 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
       const extensions = this.init.extensions;
       const chainId = 1;
       try {
-        await this.applyExtensionCapabilities(sessionManager, extensions, address, chainId);
+        await this.applyExtensionCapabilities(sessionManager, extensions, address, chainId, this.spacePrefix, this.kvPrefix);
       } catch (error) {
         debug.warn("Extension capability application failed:", error);
         // Continue with session generation as extension capabilities are not critical
@@ -891,21 +903,25 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
    * @param extensions - Array of extensions to apply
    * @param address - User's Ethereum address (for building target URIs)
    * @param chainId - Chain ID (for building target URIs)
-   * @param prefix - Space prefix (default: "default")
+   * @param spacePrefix - Space prefix (default: "default")
+   * @param kvPrefix - KV path prefix for scoping access (default: "" for all paths)
    */
   private async applyExtensionCapabilities(
     sessionManager: tcwSession.TCWSessionManager,
     extensions: TCWExtension[],
     address: string,
     chainId: number,
-    prefix: string = "default"
+    spacePrefix: string = "default",
+    kvPrefix: string = ""
   ): Promise<void> {
     // Build resource URI base in the format expected by ReCap:
     // tinycloud:pkh:eip155:{chainId}:{address}:{prefix}/{service}/{path}
-    const spaceBase = `tinycloud:pkh:eip155:${chainId}:${address}:${prefix}`;
+    const spaceBase = `tinycloud:pkh:eip155:${chainId}:${address}:${spacePrefix}`;
 
-    // Add KV capabilities for default path
-    const kvTarget = `${spaceBase}/kv/default/`;
+    // Add KV capabilities for the configured path prefix
+    // If kvPrefix is set (e.g., "demo-app"), access is scoped to that path
+    // NOTE: No trailing slash - must match how KVService constructs invocation paths
+    const kvTarget = kvPrefix ? `${spaceBase}/kv/${kvPrefix}` : `${spaceBase}/kv/`;
     sessionManager.addTargetedActions(kvTarget, UserAuthorization.DEFAULT_KV_ACTIONS);
 
     // Add capabilities access

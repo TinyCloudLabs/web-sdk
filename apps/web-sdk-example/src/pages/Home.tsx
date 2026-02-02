@@ -20,11 +20,26 @@ import Footer from "../components/Footer";
 import Header from "../components/Header";
 
 const StorageModule = lazy(() => import("../pages/StorageModule"));
+const SpaceModule = lazy(() => import("../pages/SpaceModule"));
+const DelegationModule = lazy(() => import("../pages/DelegationModule"));
 declare global {
   interface Window {
     tcw: TinyCloudWeb;
   }
 }
+
+/**
+ * Auth mode options for the example app.
+ * - legacy: Uses the original UserAuthorization (requires wallet from start)
+ * - new-wallet: Uses new WebUserAuthorization with wallet-popup strategy
+ * - new-session-only: Uses new WebUserAuthorization in session-only mode (no wallet initially)
+ */
+type AuthMode = "legacy" | "new-wallet" | "new-session-only";
+
+/**
+ * Sign strategy options (only for new auth modes).
+ */
+type SignStrategyOption = "wallet-popup" | "callback" | "auto-approve";
 
 function Home() {
   const location = useLocation();
@@ -37,6 +52,11 @@ function Home() {
   const [tcw, setTinyCloudWeb] = useState<TinyCloudWeb | null>(null);
   const [resolveEns, setResolveEns] = useState<string>("On");
   const [siweConfig, setSiweConfig] = useState<string>("Off");
+
+  // New auth mode options
+  const [authMode, setAuthMode] = useState<AuthMode>("legacy");
+  const [signStrategyOption, setSignStrategyOption] = useState<SignStrategyOption>("wallet-popup");
+  const [callbackApproved, setCallbackApproved] = useState<boolean>(true); // For demo callback strategy
   // siweConfig Fields
   const [siweAddress, setSiweAddress] = useState<string>("");
   const [chainId, setChainId] = useState<string>("");
@@ -50,8 +70,12 @@ function Home() {
   const [statement, setStatement] = useState<string>("");
   // tcw module config
   const [storageEnabled, setStorageEnabled] = useState<string>("On");
+  const [spaceManagementEnabled, setSpaceManagementEnabled] = useState<string>("Off");
+  const [delegationEnabled, setDelegationEnabled] = useState<string>("Off");
   const [prefix, setPrefix] = useState<string>("demo-app");
-  const [tinyCloudHost, setTinyCloudHost] = useState<string>("");
+  const [tinyCloudHost, setTinyCloudHost] = useState<string>(
+    window.__DEV_MODE__ ? "http://localhost:8000" : ""
+  );
 
   // Parse URL parameters on component mount
   useEffect(() => {
@@ -64,7 +88,57 @@ function Home() {
     }
   }, [location.search]);
 
+  /**
+   * Build a sign strategy based on the current selection.
+   * Demonstrates different SignStrategy patterns for the new auth module.
+   */
+  const buildSignStrategy = (): any => {
+    switch (signStrategyOption) {
+      case "wallet-popup":
+        // Default: shows browser wallet popup
+        return { type: "wallet-popup" };
+
+      case "callback":
+        // Callback strategy: custom approval logic
+        return {
+          type: "callback",
+          handler: async (req: { address: string; message: string }) => {
+            // In a real app, you might show a custom modal here
+            console.log("Callback strategy: Sign request received", {
+              address: req.address,
+              message: req.message.substring(0, 100) + "...",
+            });
+            // Use the callbackApproved state to simulate user decision
+            if (callbackApproved) {
+              // Return approved without signature - wallet popup will be used
+              return { approved: true };
+            } else {
+              return { approved: false, reason: "User rejected via callback demo" };
+            }
+          },
+        };
+
+      case "auto-approve":
+        // Note: auto-approve requires an ISigner, which we don't have in web context
+        // Falling back to wallet-popup for this demo
+        console.log("Auto-approve selected - using wallet-popup in web context");
+        return { type: "wallet-popup" };
+
+      default:
+        return { type: "wallet-popup" };
+    }
+  };
+
   const getTinyCloudWebConfig = (tcwConfig: Record<string, any> = {}) => {
+    // Handle new auth mode
+    if (authMode !== "legacy") {
+      tcwConfig.useNewAuth = true;
+      tcwConfig.signStrategy = buildSignStrategy();
+
+      // For session-only mode, we don't need to pass provider initially
+      // The provider will be connected later via connectWallet()
+    }
+
     if (siweConfig === "On") {
       const siweConfig: Record<string, any> = {};
       if (siweAddress) siweConfig.address = siweAddress;
@@ -84,7 +158,8 @@ function Home() {
       };
     }
 
-    if (resolveEns === "On") {
+    if (resolveEns === "On" && authMode === "legacy") {
+      // resolveEns is only available in legacy mode
       tcwConfig = {
         ...tcwConfig,
         resolveEns: true,
@@ -119,6 +194,9 @@ function Home() {
       tcwConfig.tinycloudHosts = [tinyCloudHost.trim()];
     }
 
+    // KV prefix for the new auth module
+    tcwConfig.kvPrefix = prefix.trim();
+
     return tcwConfig;
   };
 
@@ -143,8 +221,78 @@ function Home() {
       // signIn() will initialize KV service automatically
       await tcwProvider.signIn();
       setTinyCloudWeb(tcwProvider);
+
+      // Log new auth info if enabled
+      if (authMode !== "legacy" && tcwProvider.isNewAuthEnabled) {
+        console.log("New Auth Mode Enabled:");
+        console.log("  - DID:", tcwProvider.did);
+        console.log("  - Session DID:", tcwProvider.sessionDid);
+        console.log("  - Is Session Only:", tcwProvider.isSessionOnly);
+        console.log("  - Is Wallet Connected:", tcwProvider.isWalletConnected);
+      }
     } catch (err) {
       console.error("Sign-in failed:", err);
+    }
+    setLoading(false);
+  };
+
+  /**
+   * Create a TinyCloudWeb instance in session-only mode.
+   * This demonstrates starting without a wallet.
+   */
+  const startSessionOnlyMode = () => {
+    if (tcw) return;
+
+    setLoading(true);
+
+    try {
+      const tcwConfig = getTinyCloudWebConfig();
+
+      const tcwProvider = new TinyCloudWeb(tcwConfig);
+
+      // In session-only mode, we don't sign in yet
+      // The session key DID is immediately available
+      setTinyCloudWeb(tcwProvider);
+
+      console.log("Session-Only Mode Started:");
+      console.log("  - Session DID:", tcwProvider.sessionDid);
+      console.log("  - Is Session Only:", tcwProvider.isSessionOnly);
+      console.log("  - Is Wallet Connected:", tcwProvider.isWalletConnected);
+    } catch (err) {
+      console.error("Failed to start session-only mode:", err);
+    }
+    setLoading(false);
+  };
+
+  /**
+   * Connect a wallet to an existing session-only TinyCloudWeb instance.
+   * This demonstrates the connectWallet() upgrade pattern.
+   */
+  const connectWalletAndSignIn = async () => {
+    if (!walletClient || !tcw) return;
+
+    setLoading(true);
+
+    try {
+      // Connect the wallet using the transport (ExternalProvider) from walletClient
+      // This upgrades from session-only mode to wallet mode
+      tcw.connectWallet((walletClient as any).transport);
+
+      console.log("Wallet connected! Now signing in...");
+      console.log("  - Is Session Only:", tcw.isSessionOnly);
+      console.log("  - Is Wallet Connected:", tcw.isWalletConnected);
+
+      // Now sign in with the connected wallet
+      await tcw.signIn();
+
+      console.log("Signed in successfully:");
+      console.log("  - DID:", tcw.did);
+      console.log("  - Session DID:", tcw.sessionDid);
+
+      // Force re-render to update UI
+      setTinyCloudWeb({ ...tcw } as unknown as TinyCloudWeb);
+    } catch (err) {
+      console.error("Connect wallet failed:", err);
     }
     setLoading(false);
   };
@@ -158,6 +306,27 @@ function Home() {
   }, [isConnected]);
 
   const tcwHandler = async () => {
+    // Handle session-only mode differently
+    if (authMode === "new-session-only") {
+      if (!tcw) {
+        // Start in session-only mode
+        startSessionOnlyMode();
+        return;
+      }
+
+      // If we have a tcw in session-only mode but no wallet, prompt to connect
+      if (tcw.isNewAuthEnabled && tcw.isSessionOnly) {
+        if (!isConnected || !walletClient) {
+          setOpen(true);
+          return;
+        }
+        // Wallet connected, upgrade and sign in
+        await connectWalletAndSignIn();
+        return;
+      }
+    }
+
+    // Standard flow (legacy or new-wallet mode)
     if (!isConnected || !walletClient) {
       // User wants to sign in, so first connect the wallet
       setOpen(true);
@@ -188,6 +357,99 @@ function Home() {
           </AccordionTrigger>
           <AccordionContent>
             <div className="space-y-4">
+              {/* Auth Mode Selection - NEW for 1.0.0 */}
+              <div className="space-y-4 border-b border-border/20 pb-4">
+                <h4 className="text-md font-heading text-text">
+                  Auth Mode (1.0.0)
+                </h4>
+                <p className="text-sm text-text/70">
+                  Choose the authentication architecture. New modes offer session-only
+                  support, SignStrategy patterns, and improved DID model.
+                </p>
+                <RadioGroup
+                  name="authMode"
+                  options={["Legacy", "New (Wallet)", "New (Session-Only)"]}
+                  value={
+                    authMode === "legacy"
+                      ? "Legacy"
+                      : authMode === "new-wallet"
+                      ? "New (Wallet)"
+                      : "New (Session-Only)"
+                  }
+                  onChange={(v) =>
+                    setAuthMode(
+                      v === "Legacy"
+                        ? "legacy"
+                        : v === "New (Wallet)"
+                        ? "new-wallet"
+                        : "new-session-only"
+                    )
+                  }
+                  label="Select auth mode"
+                />
+
+                {/* Sign Strategy - only for new auth modes */}
+                {authMode !== "legacy" && (
+                  <div className="mt-4 p-3 bg-bg rounded border">
+                    <h5 className="text-sm font-heading text-text mb-2">
+                      Sign Strategy
+                    </h5>
+                    <p className="text-xs text-text/70 mb-2">
+                      Control how signing requests are handled.
+                    </p>
+                    <RadioGroup
+                      name="signStrategy"
+                      options={["Wallet Popup", "Callback", "Auto Approve"]}
+                      value={
+                        signStrategyOption === "wallet-popup"
+                          ? "Wallet Popup"
+                          : signStrategyOption === "callback"
+                          ? "Callback"
+                          : "Auto Approve"
+                      }
+                      onChange={(v) =>
+                        setSignStrategyOption(
+                          v === "Wallet Popup"
+                            ? "wallet-popup"
+                            : v === "Callback"
+                            ? "callback"
+                            : "auto-approve"
+                        )
+                      }
+                      label="Sign strategy"
+                    />
+
+                    {/* Callback demo control */}
+                    {signStrategyOption === "callback" && (
+                      <div className="mt-3 p-2 bg-main/10 rounded">
+                        <p className="text-xs text-text/70 mb-1">
+                          Demo: Callback will {callbackApproved ? "approve" : "reject"} sign requests
+                        </p>
+                        <RadioGroup
+                          name="callbackApproved"
+                          options={["Approve", "Reject"]}
+                          value={callbackApproved ? "Approve" : "Reject"}
+                          onChange={(v) => setCallbackApproved(v === "Approve")}
+                          label="Callback response"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Session-Only mode info */}
+                {authMode === "new-session-only" && (
+                  <div className="mt-3 p-3 bg-main/10 rounded border border-main/30">
+                    <p className="text-sm text-text font-medium">Session-Only Mode</p>
+                    <p className="text-xs text-text/70 mt-1">
+                      Start without a wallet. Get a session DID immediately.
+                      Later, connect a wallet to create your own space using the
+                      connectWallet() upgrade pattern.
+                    </p>
+                  </div>
+                )}
+              </div>
+
               {/* Host settings */}
               <div className="space-y-4 border-b border-border/20 pb-4">
                 <h4 className="text-md font-heading text-text">
@@ -235,6 +497,42 @@ function Home() {
                   value={storageEnabled}
                   onChange={setStorageEnabled}
                   label="Enable storage module"
+                />
+              </div>
+
+              {/* Space Management toggle */}
+              <div className="space-y-4 border-b border-border/20 pb-4">
+                <h4 className="text-md font-heading text-text">
+                  Space Management
+                </h4>
+                <p className="text-sm text-text/70">
+                  Enable space-scoped KV operations. This shows the space API
+                  which provides access to your space's data.
+                </p>
+                <RadioGroup
+                  name="spaceManagementEnabled"
+                  options={["On", "Off"]}
+                  value={spaceManagementEnabled}
+                  onChange={setSpaceManagementEnabled}
+                  label="Enable space management"
+                />
+              </div>
+
+              {/* Delegation Management toggle */}
+              <div className="space-y-4 border-b border-border/20 pb-4">
+                <h4 className="text-md font-heading text-text">
+                  Delegation Management
+                </h4>
+                <p className="text-sm text-text/70">
+                  Enable delegation management to create, list, and revoke
+                  delegations. This allows you to share access with other users.
+                </p>
+                <RadioGroup
+                  name="delegationEnabled"
+                  options={["On", "Off"]}
+                  value={delegationEnabled}
+                  onChange={setDelegationEnabled}
+                  label="Enable delegation management"
                 />
               </div>
 
@@ -367,6 +665,66 @@ function Home() {
                   >
                     SIGN-OUT FROM TINYCLOUD
                   </Button>
+
+                  {/* New Auth Info Section */}
+                  {tcw.isNewAuthEnabled && (
+                    <div className="p-4 bg-main/10 rounded-base border border-main/30">
+                      <h4 className="text-sm font-heading text-text mb-2">
+                        New Auth Module Active
+                      </h4>
+                      <div className="space-y-2 text-xs">
+                        <div className="flex justify-between">
+                          <span className="text-text/70">Mode:</span>
+                          <span className="font-mono">
+                            {tcw.isSessionOnly ? "Session-Only" : "Wallet Connected"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-text/70">DID:</span>
+                          <span className="font-mono truncate max-w-[200px]" title={tcw.did}>
+                            {tcw.did.substring(0, 20)}...
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-text/70">Session DID:</span>
+                          <span className="font-mono truncate max-w-[200px]" title={tcw.sessionDid}>
+                            {tcw.sessionDid.substring(0, 20)}...
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-text/70">Wallet Connected:</span>
+                          <span className="font-mono">
+                            {tcw.isWalletConnected ? "Yes" : "No"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Connect wallet button for session-only mode */}
+                      {tcw.isSessionOnly && (
+                        <div className="mt-3 pt-3 border-t border-main/30">
+                          <p className="text-xs text-text/70 mb-2">
+                            Connect a wallet to create your own space:
+                          </p>
+                          <Button
+                            onClick={() => {
+                              if (!isConnected) {
+                                setOpen(true);
+                              } else {
+                                connectWalletAndSignIn();
+                              }
+                            }}
+                            loading={loading}
+                            variant="neutral"
+                            size="sm"
+                            className="w-full"
+                          >
+                            {isConnected ? "UPGRADE WITH WALLET" : "CONNECT WALLET"}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <AccountInfo
                     address={address || tcw?.address()}
                     session={tcw?.session()}
@@ -375,14 +733,23 @@ function Home() {
                 </>
               ) : (
                 <div className="space-y-4">
-                  {!isConnected && (
+                  {/* Instructions based on auth mode */}
+                  {authMode === "new-session-only" ? (
+                    <div className="text-sm text-text/70 text-center p-3 bg-main/10 rounded border border-main/30">
+                      <p className="font-medium text-text">Session-Only Mode</p>
+                      <p className="mt-1">
+                        Click below to start in session-only mode. You'll get a
+                        session DID immediately without connecting a wallet.
+                      </p>
+                    </div>
+                  ) : !isConnected ? (
                     <div className="text-sm text-text/70 text-center p-3 bg-bg rounded border">
                       <p>
                         Click the button below to connect your wallet and sign
                         into TinyCloud
                       </p>
                     </div>
-                  )}
+                  ) : null}
 
                   <Button
                     id="signInButton"
@@ -391,7 +758,9 @@ function Home() {
                     variant="default"
                     className="w-full"
                   >
-                    {isConnected
+                    {authMode === "new-session-only"
+                      ? "START SESSION-ONLY MODE"
+                      : isConnected
                       ? "SIGN-IN TO TINYCLOUD"
                       : "CONNECT WALLET & SIGN-IN"}
                   </Button>
@@ -404,9 +773,39 @@ function Home() {
             </div>
           </div>
 
-          {storageEnabled === "On" && tcw && (
+          {/* Storage module - only show when signed in (has session) */}
+          {storageEnabled === "On" && tcw && tcw.session() && (
             <div className="mt-8 rounded-base border-2 border-border bg-bw p-6 shadow-shadow">
               <StorageModule tcw={tcw} />
+            </div>
+          )}
+
+          {/* Space Management module - only show when signed in */}
+          {spaceManagementEnabled === "On" && tcw && tcw.session() && (
+            <div className="mt-8 rounded-base border-2 border-border bg-bw p-6 shadow-shadow">
+              <SpaceModule tcw={tcw} />
+            </div>
+          )}
+
+          {/* Delegation Management module - only show when signed in */}
+          {delegationEnabled === "On" && tcw && tcw.session() && (
+            <div className="mt-8 rounded-base border-2 border-border bg-bw p-6 shadow-shadow">
+              <DelegationModule tcw={tcw} />
+            </div>
+          )}
+
+          {/* Session-only mode storage info */}
+          {storageEnabled === "On" && tcw && tcw.isNewAuthEnabled && tcw.isSessionOnly && !tcw.session() && (
+            <div className="mt-8 rounded-base border-2 border-border bg-bw p-6 shadow-shadow">
+              <div className="text-center p-4">
+                <p className="text-sm text-text/70 mb-2">
+                  Storage requires signing in. In session-only mode, connect a wallet first.
+                </p>
+                <p className="text-xs text-text/50">
+                  Your session DID can receive delegations from other users,
+                  allowing you to access their shared data.
+                </p>
+              </div>
             </div>
           )}
         </div>

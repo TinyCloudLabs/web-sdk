@@ -29,6 +29,7 @@
     "demo:test:e2e": "bun --cwd apps/web-sdk-example run test:e2e",
     "node-demo": "turbo build --filter=@tinycloudlabs/node-sdk... && bun run --cwd apps/node-demo src/demo.ts",
     "node-demo:run": "bun run --cwd apps/node-demo src/demo.ts",
+    "node-demo:run:delegation": "bun run --cwd apps/node-demo src/demo-delegation-api.ts",
     "node-test": "bun run --cwd packages/node-sdk build && bun run --cwd apps/node-demo src/test-space.ts",
     "node-test:run": "bun run --cwd apps/node-demo src/test-space.ts",
     "web-core": "bun --cwd packages/web-core -c",
