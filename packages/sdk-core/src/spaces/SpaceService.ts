@@ -29,11 +29,18 @@ import type { ICapabilityKeyRegistry } from "../authorization/CapabilityKeyRegis
 import type { ISharingService } from "../delegations/SharingService";
 import {
   Space,
-  ISpace,
-  ISpaceScopedDelegations,
-  ISpaceScopedSharing,
-  SpaceConfig,
+  type ISpace,
+  type ISpaceScopedDelegations,
+  type ISpaceScopedSharing,
+  type SpaceConfig,
 } from "./Space";
+import {
+  validateServerDelegationsResponse,
+  validateServerOwnedSpacesResponse,
+  validateServerCreateSpaceResponse,
+  validateServerSpaceInfoResponse,
+  type ServerDelegationsResponse,
+} from "./spaces.schema.js";
 
 // =============================================================================
 // Service Name and Error Codes
@@ -220,53 +227,26 @@ export function buildSpaceUri(owner: string, name: string): string {
 // =============================================================================
 
 /**
- * Server's DelegationInfo structure (from capabilities/read response).
- */
-interface ServerDelegationInfo {
-  delegator: string;
-  delegate: string;
-  parents: string[];
-  expiry?: string;
-  not_before?: string;
-  issued_at?: string;
-  capabilities: Array<{
-    resource: string;
-    ability: string;
-  }>;
-}
-
-/**
- * Transform server's delegation response to SDK's Delegation[] format.
+ * Transform validated server delegation response to SDK's Delegation[] format.
  *
  * Server returns { [cid: string]: DelegationInfo } where:
  * - Key is the delegation CID
  * - Value is DelegationInfo with delegator, delegate, capabilities, etc.
  *
  * SDK expects Delegation[] with cid field included.
+ *
+ * @param validatedData - Pre-validated server response from validateServerDelegationsResponse()
+ * @param defaultSpaceId - Default space ID to use if not extractable from resource
  */
 function transformServerDelegations(
-  data: unknown,
+  validatedData: ServerDelegationsResponse,
   defaultSpaceId: string
 ): Delegation[] {
-  if (data === null || data === undefined) {
-    return [];
-  }
-
-  if (Array.isArray(data)) {
-    // Already in array format - assume each item has cid
-    return data as Delegation[];
-  }
-
-  if (typeof data !== "object") {
-    return [];
-  }
-
-  // Transform { [cid: string]: DelegationInfo } to Delegation[]
   const result: Delegation[] = [];
 
-  for (const [cid, info] of Object.entries(data as Record<string, ServerDelegationInfo>)) {
+  for (const [cid, info] of Object.entries(validatedData)) {
     // Extract path from capabilities (use first capability's resource path)
-    const capabilities = info.capabilities || [];
+    const capabilities = info.capabilities;
     let path = "";
     let spaceId = defaultSpaceId;
     const actions: string[] = [];
@@ -487,14 +467,22 @@ export class SpaceService implements ISpaceService {
         );
       }
 
-      const data = (await response.json()) as Array<{
-        id: string;
-        name?: string;
-        owner: string;
-        createdAt?: string;
-      }>;
+      const rawData = await response.json();
 
-      const spaces: SpaceInfo[] = data.map((item) => ({
+      // Validate server response
+      const validationResult = validateServerOwnedSpacesResponse(rawData);
+      if (!validationResult.ok) {
+        return err(
+          serviceError(
+            SpaceErrorCodes.NETWORK_ERROR,
+            validationResult.error.message,
+            SERVICE_NAME,
+            { meta: validationResult.error.meta }
+          )
+        );
+      }
+
+      const spaces: SpaceInfo[] = validationResult.data.map((item) => ({
         id: item.id,
         name: item.name ?? this.extractNameFromId(item.id),
         owner: item.owner,
@@ -654,17 +642,25 @@ export class SpaceService implements ISpaceService {
         );
       }
 
-      const data = (await response.json()) as {
-        id: string;
-        name: string;
-        owner: string;
-        createdAt?: string;
-      };
+      const rawData = await response.json();
+
+      // Validate server response
+      const validationResult = validateServerCreateSpaceResponse(rawData);
+      if (!validationResult.ok) {
+        return err(
+          serviceError(
+            SpaceErrorCodes.CREATION_FAILED,
+            validationResult.error.message,
+            SERVICE_NAME,
+            { meta: validationResult.error.meta }
+          )
+        );
+      }
 
       const spaceInfo: SpaceInfo = {
-        id: data.id,
-        name: data.name || name,
-        owner: data.owner || this.userDid || "",
+        id: validationResult.data.id,
+        name: validationResult.data.name || name,
+        owner: validationResult.data.owner || this.userDid || "",
         type: "owned",
         permissions: ["*"],
       };
@@ -815,15 +811,22 @@ export class SpaceService implements ISpaceService {
         );
       }
 
-      const data = (await response.json()) as {
-        id: string;
-        name?: string;
-        owner: string;
-        type?: SpaceOwnership;
-        permissions?: string[];
-        expiresAt?: string;
-      };
+      const rawData = await response.json();
 
+      // Validate server response
+      const validationResult = validateServerSpaceInfoResponse(rawData);
+      if (!validationResult.ok) {
+        return err(
+          serviceError(
+            SpaceErrorCodes.NETWORK_ERROR,
+            validationResult.error.message,
+            SERVICE_NAME,
+            { meta: validationResult.error.meta }
+          )
+        );
+      }
+
+      const data = validationResult.data;
       const spaceInfo: SpaceInfo = {
         id: data.id,
         name: data.name ?? this.extractNameFromId(data.id),
@@ -916,9 +919,23 @@ export class SpaceService implements ISpaceService {
             );
           }
 
-          // Server returns { [cid: string]: DelegationInfo } - transform to Delegation[]
-          const data = await response.json();
-          const delegations = transformServerDelegations(data, spaceId);
+          // Server returns { [cid: string]: DelegationInfo } - validate and transform to Delegation[]
+          const rawData = await response.json();
+
+          // Validate server response
+          const validationResult = validateServerDelegationsResponse(rawData);
+          if (!validationResult.ok) {
+            return err(
+              serviceError(
+                SpaceErrorCodes.NETWORK_ERROR,
+                validationResult.error.message,
+                SERVICE_NAME,
+                { meta: validationResult.error.meta }
+              )
+            );
+          }
+
+          const delegations = transformServerDelegations(validationResult.data, spaceId);
           return ok(delegations);
         } catch (error) {
           return err(
@@ -969,9 +986,23 @@ export class SpaceService implements ISpaceService {
             );
           }
 
-          // Server returns { [cid: string]: DelegationInfo } - transform to Delegation[]
-          const data = await response.json();
-          const delegations = transformServerDelegations(data, spaceId);
+          // Server returns { [cid: string]: DelegationInfo } - validate and transform to Delegation[]
+          const rawData = await response.json();
+
+          // Validate server response
+          const validationResult = validateServerDelegationsResponse(rawData);
+          if (!validationResult.ok) {
+            return err(
+              serviceError(
+                SpaceErrorCodes.NETWORK_ERROR,
+                validationResult.error.message,
+                SERVICE_NAME,
+                { meta: validationResult.error.meta }
+              )
+            );
+          }
+
+          const delegations = transformServerDelegations(validationResult.data, spaceId);
           return ok(delegations);
         } catch (error) {
           return err(

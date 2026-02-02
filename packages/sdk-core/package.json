@@ -26,7 +26,8 @@
   "dependencies": {
     "@tinycloudlabs/sdk-services": "workspace:*",
     "@tinycloudlabs/web-core": "workspace:*",
-    "zod": "^3.22.0"
+    "zod": "^3.22.0",
+    "zod-to-json-schema": "^3.22.0"
   },
   "devDependencies": {
     "@types/node": "^20",

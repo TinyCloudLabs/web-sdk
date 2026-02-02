@@ -28,6 +28,9 @@
     "clean": "rm -rf dist",
     "test": "bun test"
   },
+  "dependencies": {
+    "zod": "^3.23.0"
+  },
   "devDependencies": {
     "@types/node": "^20",
     "typescript": "^5.0.0"
