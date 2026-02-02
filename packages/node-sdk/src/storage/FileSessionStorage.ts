@@ -1,4 +1,4 @@
-import { ISessionStorage, PersistedSessionData } from "@tinycloudlabs/sdk-core";
+import { ISessionStorage, PersistedSessionData, validatePersistedSessionData } from "@tinycloudlabs/sdk-core";
 import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from "fs";
 import { dirname, join } from "path";
 
@@ -79,7 +79,18 @@ export class FileSessionStorage implements ISessionStorage {
 
     try {
       const data = readFileSync(filePath, "utf-8");
-      const session: PersistedSessionData = JSON.parse(data);
+      const parsed = JSON.parse(data);
+
+      // Validate loaded data against schema
+      const validation = validatePersistedSessionData(parsed);
+      if (!validation.ok) {
+        console.warn(`Invalid session data for ${address}:`, validation.error.message);
+        // Clean up invalid session
+        unlinkSync(filePath);
+        return null;
+      }
+
+      const session = validation.data;
 
       // Check if session is expired
       const expiresAt = new Date(session.expiresAt);

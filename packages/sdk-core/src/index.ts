@@ -13,12 +13,24 @@
 // Signer interface
 export { ISigner, Bytes } from "./signer";
 
-// Session storage interface
+// Session storage interface and schemas
 export {
+  // Interface
   ISessionStorage,
+  // Types (derived from Zod schemas)
   PersistedSessionData,
   PersistedTinyCloudSession,
   TinyCloudSession,
+  ValidationError,
+  // Schemas
+  PersistedSessionDataSchema,
+  PersistedTinyCloudSessionSchema,
+  TinyCloudSessionSchema,
+  TCWEnsDataSchema,
+  // Validation functions
+  validatePersistedSessionData,
+  validateTinyCloudSession,
+  validatePersistedTinyCloudSession,
 } from "./storage";
 
 // User authorization interface and types
