@@ -23,7 +23,6 @@ function toPortableDelegation(
     ownerAddress,
     chainId,
     host,
-    delegationCid: delegation.cid,
   };
 }
 
