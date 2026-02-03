@@ -103,7 +103,7 @@ web-sdk/
 │   └── node-sdk/                  # Node.js SDK interface
 ├── apps/
 │   ├── node-demo/                 # Node.js delegation chain demo
-│   └── tinydropbox/               # Browser example app
+│   └── web-sdk-example/           # Browser example app
 ├── documentation/                 # Docusaurus documentation site
 └── scripts/                       # Build and deployment scripts
 ```
@@ -113,7 +113,7 @@ web-sdk/
 ```mermaid
 graph TB
     subgraph "Applications"
-        TD[tinydropbox]
+        WE[web-sdk-example]
         ND[node-demo]
     end
 
@@ -139,7 +139,7 @@ graph TB
         TC[tinycloud-node git]
     end
 
-    TD --> WS
+    WE --> WS
     ND --> NS
 
     WS --> WC
