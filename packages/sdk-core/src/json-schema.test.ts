@@ -32,8 +32,6 @@ import {
   getSpaceInfoJsonSchema,
   getShareSchemaJsonSchema,
   getShareLinkJsonSchema,
-  getSharingLinkJsonSchema,
-  getGenerateSharingLinkParamsJsonSchema,
   getIngestOptionsJsonSchema,
   getGenerateShareParamsJsonSchema,
   getDelegationApiResponseJsonSchema,
@@ -204,16 +202,6 @@ describe("JSON Schema Export - Delegations", () => {
 
   it("should generate JSON Schema for ShareLink", () => {
     const schema = getShareLinkJsonSchema();
-    expect(isValidJsonSchema(schema)).toBe(true);
-  });
-
-  it("should generate JSON Schema for SharingLink", () => {
-    const schema = getSharingLinkJsonSchema();
-    expect(isValidJsonSchema(schema)).toBe(true);
-  });
-
-  it("should generate JSON Schema for GenerateSharingLinkParams", () => {
-    const schema = getGenerateSharingLinkParamsJsonSchema();
     expect(isValidJsonSchema(schema)).toBe(true);
   });
 
@@ -427,8 +415,8 @@ describe("JSON Schema Export - Bundle", () => {
   });
 
   it("should have correct number of schemas in SCHEMA_NAMES", () => {
-    // We have 47 schemas defined
-    expect(SCHEMA_NAMES.length).toBe(47);
+    // We have 45 schemas defined
+    expect(SCHEMA_NAMES.length).toBe(45);
   });
 
   it("should match schema count between flat and SCHEMA_NAMES", () => {

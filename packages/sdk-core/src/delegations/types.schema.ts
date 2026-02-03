@@ -10,7 +10,6 @@
 import { z } from "zod";
 import type {
   FetchFunction,
-  IKVService,
   InvokeFunction,
   ServiceSession,
 } from "@tinycloudlabs/sdk-services";
@@ -397,56 +396,6 @@ export type ShareLinkData<T = unknown> = {
 };
 
 // =============================================================================
-// Deprecated Sharing Types (v1 compat)
-// =============================================================================
-
-/**
- * @deprecated Use ShareLink instead (v2 spec)
- */
-export const SharingLinkSchema = z.object({
-  /** Unique token identifying this sharing link */
-  token: z.string(),
-  /** The underlying delegation this link is based on */
-  delegation: DelegationSchema,
-  /** Full URL that can be shared to grant access */
-  url: z.string(),
-});
-
-export type SharingLink = z.infer<typeof SharingLinkSchema>;
-
-/**
- * @deprecated Use GenerateShareParams instead (v2 spec)
- */
-export const GenerateSharingLinkParamsSchema = z.object({
-  /** Resource key/path to share */
-  key: z.string(),
-  /** Actions to authorize */
-  actions: z.array(z.string()).optional(),
-  /** When the link expires */
-  expiry: z.coerce.date().optional(),
-  /** Optional statement for the SIWE message */
-  statement: z.string().optional(),
-});
-
-export type GenerateSharingLinkParams = z.infer<typeof GenerateSharingLinkParamsSchema>;
-
-/**
- * @deprecated Use ShareLinkData instead (v2 spec)
- */
-export function createSharingLinkDataSchema<T extends z.ZodTypeAny>(dataSchema: T) {
-  return z.object({
-    data: dataSchema,
-    delegation: DelegationSchema,
-  });
-}
-
-export const SharingLinkDataSchema = createSharingLinkDataSchema(z.unknown());
-export type SharingLinkData<T = unknown> = {
-  data: T;
-  delegation: Delegation;
-};
-
-// =============================================================================
 // Ingestion Types
 // =============================================================================
 
@@ -547,30 +496,6 @@ export const KeyProviderSchema = z.object({
 });
 
 export type KeyProvider = z.infer<typeof KeyProviderSchema>;
-
-/**
- * Function that returns an IKVService instance.
- */
-export const KVServiceGetterSchema = z.unknown().refine(
-  (val): val is () => IKVService | undefined => typeof val === "function",
-  { message: "Expected a function" }
-);
-
-export type KVServiceGetter = z.infer<typeof KVServiceGetterSchema>;
-
-/**
- * Configuration for SharingLinks.
- */
-export const SharingLinksConfigSchema = z.object({
-  /** Base URL for generating sharing links */
-  baseUrl: z.string(),
-  /** Optional key provider for cryptographic operations */
-  keyProvider: KeyProviderSchema.optional(),
-  /** Function to get the KVService */
-  getKVService: KVServiceGetterSchema.optional(),
-});
-
-export type SharingLinksConfig = z.infer<typeof SharingLinksConfigSchema>;
 
 // =============================================================================
 // API Response Types

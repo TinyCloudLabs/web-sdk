@@ -67,15 +67,6 @@ export {
   ShareLinkDataSchema,
   type ShareLinkData,
 
-  // Deprecated sharing types (v1)
-  SharingLinkSchema,
-  type SharingLink,
-  GenerateSharingLinkParamsSchema,
-  type GenerateSharingLinkParams,
-  createSharingLinkDataSchema,
-  SharingLinkDataSchema,
-  type SharingLinkData,
-
   // Ingestion types
   IngestOptionsSchema,
   type IngestOptions,
@@ -89,10 +80,6 @@ export {
   type DelegationManagerConfig,
   KeyProviderSchema,
   type KeyProvider,
-  KVServiceGetterSchema,
-  type KVServiceGetter,
-  SharingLinksConfigSchema,
-  type SharingLinksConfig,
 
   // API response types
   DelegationApiResponseSchema,

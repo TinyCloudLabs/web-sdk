@@ -26,9 +26,6 @@ export interface PortableDelegation extends Omit<Delegation, "isRevoked"> {
 
   /** Whether the recipient is prevented from creating sub-delegations */
   disableSubDelegation?: boolean;
-
-  /** @deprecated Use `cid` instead */
-  delegationCid?: string;
 }
 
 /**
@@ -38,23 +35,17 @@ export function serializeDelegation(delegation: PortableDelegation): string {
   return JSON.stringify({
     ...delegation,
     expiry: delegation.expiry.toISOString(),
-    // Ensure both cid and delegationCid are present for backwards compat
-    delegationCid: delegation.cid,
   });
 }
 
 /**
  * Deserialize a PortableDelegation from transport.
- * Handles both new format (cid) and legacy format (delegationCid).
  */
 export function deserializeDelegation(data: string): PortableDelegation {
   const parsed = JSON.parse(data);
-  // Support both cid (new) and delegationCid (legacy)
-  const cid = parsed.cid || parsed.delegationCid;
   return {
     ...parsed,
-    cid,
-    delegationCid: cid, // Keep for backwards compat
+    cid: parsed.cid,
     expiry: new Date(parsed.expiry),
   };
 }

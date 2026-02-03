@@ -20,8 +20,6 @@ import {
   SpaceInfoSchema,
   ShareSchemaSchema,
   ShareLinkSchema,
-  SharingLinkSchema,
-  GenerateSharingLinkParamsSchema,
   IngestOptionsSchema,
   GenerateShareParamsSchema,
   DelegationApiResponseSchema,
@@ -528,43 +526,6 @@ describe("ShareLinkSchema", () => {
       description: "Q4 Financial Report",
     };
     const result = ShareLinkSchema.safeParse(shareLink);
-    expect(result.success).toBe(true);
-  });
-});
-
-// =============================================================================
-// Deprecated Sharing Types Tests
-// =============================================================================
-
-describe("SharingLinkSchema (deprecated)", () => {
-  it("should validate a sharing link", () => {
-    const sharingLink = {
-      token: "abc123",
-      delegation: createValidDelegation(),
-      url: "https://app.example.com/share/abc123",
-    };
-    const result = SharingLinkSchema.safeParse(sharingLink);
-    expect(result.success).toBe(true);
-  });
-});
-
-describe("GenerateSharingLinkParamsSchema (deprecated)", () => {
-  it("should validate params", () => {
-    const params = {
-      key: "/kv/test",
-    };
-    const result = GenerateSharingLinkParamsSchema.safeParse(params);
-    expect(result.success).toBe(true);
-  });
-
-  it("should validate full params", () => {
-    const params = {
-      key: "/kv/test",
-      actions: ["tinycloud.kv/get"],
-      expiry: new Date("2025-12-31"),
-      statement: "Grant read access",
-    };
-    const result = GenerateSharingLinkParamsSchema.safeParse(params);
     expect(result.success).toBe(true);
   });
 });

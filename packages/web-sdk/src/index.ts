@@ -4,14 +4,6 @@ export * from './notifications';
 export * from './authorization';
 export * from '@tinycloudlabs/web-core/client';
 export * from '@tinycloudlabs/web-core';
-export {
-  /** @deprecated use TCWClientConfig field instead */
-  TCWClientConfig as TCWConfig,
-  /** @deprecated use TCWClientProviders field instead */
-  TCWClientProviders as TCWProviders,
-  /** @deprecated use TCWClientSession field instead */
-  TCWClientSession as TCWSession,
-} from '@tinycloudlabs/web-core/client';
 export { SiweMessage } from 'siwe';
 
 // Re-export sdk-core interfaces for platform-agnostic code
@@ -49,12 +41,6 @@ export {
 //
 // =============================================================================
 
-/**
- * Alias for ModalSpaceCreationHandler.
- * @deprecated Use ModalSpaceCreationHandler directly instead.
- */
-export { ModalSpaceCreationHandler as WebSpaceCreationHandler } from './authorization';
-
 // Re-export KV service types for direct usage
 export {
   IKVService,
@@ -78,12 +64,6 @@ export {
   DelegationError,
   DelegationErrorCodes,
   DelegationErrorCode,
-  // SharingLinks (v1 - deprecated)
-  SharingLinks,
-  SharingLinksConfig,
-  SharingLink,
-  GenerateSharingLinkParams,
-  SharingLinkData,
   // v2 SharingService from sdk-core
   SharingService as SharingServiceV2,
   createSharingService as createSharingServiceV2,
