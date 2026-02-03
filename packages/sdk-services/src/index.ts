@@ -66,6 +66,50 @@ export {
   serviceError,
 } from "./types";
 
+// Zod schemas and validation
+export {
+  // Schemas
+  ServiceErrorSchema,
+  KVResponseHeadersSchema,
+  KVListResponseSchema,
+  ServiceRequestEventSchema,
+  ServiceResponseEventSchema,
+  ServiceErrorEventSchema,
+  ServiceRetryEventSchema,
+  RetryPolicySchema,
+  ServiceSessionSchema,
+  GenericResultSchema,
+  GenericKVResponseSchema,
+  KVListResultSchema,
+  // Schema factories
+  createResultSchema,
+  createKVResponseSchema,
+  // Validation functions
+  validateServiceError,
+  validateKVListResponse,
+  validateKVResponseHeaders,
+  validateServiceSession,
+  validateRetryPolicy,
+  validateServiceRequestEvent,
+  validateServiceResponseEvent,
+} from "./types.schema";
+
+export type {
+  // Inferred types from schemas
+  ValidationError,
+  ServiceErrorType,
+  KVResponseHeadersType,
+  KVListResponseType,
+  GenericKVResponseType,
+  KVListResultType,
+  ServiceRequestEventType,
+  ServiceResponseEventType,
+  ServiceErrorEventType,
+  ServiceRetryEventType,
+  RetryPolicyType,
+  ServiceSessionType,
+} from "./types.schema";
+
 // Context
 export { ServiceContext } from "./context";
 export type { ServiceContextConfig } from "./context";

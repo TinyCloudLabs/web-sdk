@@ -30,3 +30,33 @@ export {
   SpaceDelegationParams,
   CreateDelegationFunction,
 } from "./SpaceService";
+
+// Validation schemas and types
+export {
+  // Config validation
+  SpaceConfigSchema,
+  SpaceServiceConfigSchema,
+  SpaceDelegationParamsSchema,
+  validateSpaceConfig,
+  validateSpaceServiceConfig,
+  validateSpaceDelegationParams,
+  // Server response validation
+  ServerDelegationInfoSchema,
+  ServerDelegationsResponseSchema,
+  ServerOwnedSpaceSchema,
+  ServerOwnedSpacesResponseSchema,
+  ServerCreateSpaceResponseSchema,
+  ServerSpaceInfoResponseSchema,
+  validateServerDelegationsResponse,
+  validateServerOwnedSpacesResponse,
+  validateServerCreateSpaceResponse,
+  validateServerSpaceInfoResponse,
+  // Types
+  type ValidationError,
+  type ServerDelegationInfo,
+  type ServerDelegationsResponse,
+  type ServerOwnedSpace,
+  type ServerOwnedSpacesResponse,
+  type ServerCreateSpaceResponse,
+  type ServerSpaceInfoResponse,
+} from "./spaces.schema.js";

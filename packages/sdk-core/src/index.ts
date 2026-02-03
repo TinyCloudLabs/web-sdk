@@ -13,12 +13,24 @@
 // Signer interface
 export { ISigner, Bytes } from "./signer";
 
-// Session storage interface
+// Session storage interface and schemas
 export {
+  // Interface
   ISessionStorage,
+  // Types (derived from Zod schemas)
   PersistedSessionData,
   PersistedTinyCloudSession,
   TinyCloudSession,
+  ValidationError,
+  // Schemas
+  PersistedSessionDataSchema,
+  PersistedTinyCloudSessionSchema,
+  TinyCloudSessionSchema,
+  TCWEnsDataSchema,
+  // Validation functions
+  validatePersistedSessionData,
+  validateTinyCloudSession,
+  validatePersistedTinyCloudSession,
 } from "./storage";
 
 // User authorization interface and types
@@ -217,3 +229,99 @@ export {
   SpaceDelegationParams,
   CreateDelegationFunction,
 } from "./spaces";
+
+// WASM validation utilities (debug-only)
+export {
+  // Core validation function
+  validateWasmOutput,
+  type WasmValidationResult,
+  // createDelegation validation
+  validateCreateDelegationWasmOutput,
+  CreateDelegationWasmRawResultSchema,
+  type CreateDelegationWasmRawResult,
+  // invoke validation
+  validateInvokeWasmOutput,
+  InvokeWasmResultSchema,
+  type InvokeWasmResult,
+  // prepareSession validation
+  validatePrepareSessionWasmOutput,
+  PrepareSessionWasmResultSchema,
+  type PrepareSessionWasmResult,
+  // completeSessionSetup validation
+  validateCompleteSessionSetupWasmOutput,
+  SessionWasmResultSchema,
+  type SessionWasmResult,
+  // siweToDelegationHeaders validation
+  validateSiweToDelegationHeadersWasmOutput,
+  SiweToDelegationHeadersWasmResultSchema,
+  type SiweToDelegationHeadersWasmResult,
+} from "./wasm-validation";
+
+// JSON Schema exports
+export {
+  // Options type
+  type JsonSchemaOptions,
+  // Bundle type
+  type JsonSchemaBundle,
+  // Schema names
+  SCHEMA_NAMES,
+  type SchemaName,
+  // Bundle functions
+  getAllJsonSchemas,
+  getAllJsonSchemasFlat,
+  // Individual schema functions - Storage
+  getTCWEnsDataJsonSchema,
+  getPersistedTinyCloudSessionJsonSchema,
+  getPersistedSessionDataJsonSchema,
+  getTinyCloudSessionJsonSchema,
+  // Individual schema functions - Delegations
+  getJWKJsonSchema,
+  getKeyTypeJsonSchema,
+  getKeyInfoJsonSchema,
+  getDelegationErrorJsonSchema,
+  getDelegationJsonSchema,
+  getCapabilityEntryJsonSchema,
+  getDelegationRecordJsonSchema,
+  getCreateDelegationParamsJsonSchema,
+  getDelegationChainJsonSchema,
+  getDelegationChainV2JsonSchema,
+  getDelegationDirectionJsonSchema,
+  getDelegationFiltersJsonSchema,
+  getSpaceOwnershipJsonSchema,
+  getSpaceInfoJsonSchema,
+  getShareSchemaJsonSchema,
+  getShareLinkJsonSchema,
+  getSharingLinkJsonSchema,
+  getGenerateSharingLinkParamsJsonSchema,
+  getIngestOptionsJsonSchema,
+  getGenerateShareParamsJsonSchema,
+  getDelegationApiResponseJsonSchema,
+  getCreateDelegationWasmParamsJsonSchema,
+  getCreateDelegationWasmResultJsonSchema,
+  // Individual schema functions - Space Hosting
+  getSpaceHostResultJsonSchema,
+  // Individual schema functions - Space Creation
+  getSpaceCreationContextJsonSchema,
+  getSpaceCreationHandlerJsonSchema,
+  // Individual schema functions - Config
+  getBackoffStrategyJsonSchema,
+  getRetryPolicyJsonSchema,
+  getPartialRetryPolicyJsonSchema,
+  getTinyCloudConfigJsonSchema,
+  // Individual schema functions - Authorization
+  getPartialSiweMessageJsonSchema,
+  getUserAuthorizationConfigJsonSchema,
+  // Individual schema functions - Sign Strategy
+  getSignRequestTypeJsonSchema,
+  getSignRequestJsonSchema,
+  getSignResponseJsonSchema,
+  getAutoSignStrategyJsonSchema,
+  getAutoRejectStrategyJsonSchema,
+  getCallbackStrategyJsonSchema,
+  getEventEmitterStrategyJsonSchema,
+  getSignStrategyJsonSchema,
+  // Individual schema functions - Space Service
+  getSpaceConfigJsonSchema,
+  getSpaceServiceConfigJsonSchema,
+  getSpaceDelegationParamsJsonSchema,
+} from "./json-schema";

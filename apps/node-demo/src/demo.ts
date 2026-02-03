@@ -369,7 +369,6 @@ async function runDemo() {
     console.error(`[Alice] ✗ Failed to generate sharing link: ${shareLinkResult.error.message}`);
   } else {
     console.log("[Alice] ✓ Sharing link generated!");
-    console.log(shareLinkResult)
     console.log(`  Token (first 50 chars): ${shareLinkResult.data.token.slice(0, 50)}...`);
     console.log(`  Expires: ${shareLinkResult.data.expiresAt.toISOString()}`);
     console.log();

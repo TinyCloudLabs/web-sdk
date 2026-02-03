@@ -461,12 +461,12 @@ export class NodeUserAuthorization implements IUserAuthorization {
   async prepareSessionForSigning(): Promise<{
     prepared: {
       siwe: string;
-      jwk: object;
+      jwk: Record<string, unknown>;
       spaceId: string;
       verificationMethod: string;
     };
     keyId: string;
-    jwk: object;
+    jwk: Record<string, unknown>;
     address: string;
     chainId: number;
   }> {
@@ -525,13 +525,13 @@ export class NodeUserAuthorization implements IUserAuthorization {
   async signInWithPreparedSession(
     prepared: {
       siwe: string;
-      jwk: object;
+      jwk: Record<string, unknown>;
       spaceId: string;
       verificationMethod: string;
     },
     signature: string,
     keyId: string,
-    jwk: object
+    jwk: Record<string, unknown>
   ): Promise<TCWClientSession> {
     // Complete session setup with the prepared session + signature
     const session = completeSessionSetup({

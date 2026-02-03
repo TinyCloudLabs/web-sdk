@@ -1,77 +1,32 @@
 /**
- * TinyCloud-specific session data that's persisted alongside the base session.
- */
-export interface PersistedTinyCloudSession {
-  /** The delegation header containing the UCAN */
-  delegationHeader: { Authorization: string };
-  /** The delegation CID */
-  delegationCid: string;
-  /** The space ID for this session */
-  spaceId: string;
-  /** The verification method DID */
-  verificationMethod: string;
-}
-
-/**
- * Full TinyCloud session with delegation data.
+ * Session storage types and interfaces.
  *
- * This extends the base web-core session with TinyCloud-specific fields
- * needed for making invocations and delegations.
- */
-export interface TinyCloudSession {
-  /** User's Ethereum address */
-  address: string;
-  /** EIP-155 Chain ID */
-  chainId: number;
-  /** Session key ID */
-  sessionKey: string;
-  /** The space ID for this session */
-  spaceId: string;
-  /** The delegation CID */
-  delegationCid: string;
-  /** The delegation header for API calls */
-  delegationHeader: { Authorization: string };
-  /** The verification method DID */
-  verificationMethod: string;
-  /** The session key JWK (required for invoke operations) */
-  jwk: object;
-  /** The signed SIWE message */
-  siwe: string;
-  /** User's signature of the SIWE message */
-  signature: string;
-}
-
-/**
- * Persisted session data structure.
+ * Types are derived from Zod schemas in storage.schema.ts.
  *
- * Contains all data needed to restore a session without re-authentication.
- * Aligned with web-sdk's PersistedSession structure.
+ * @packageDocumentation
  */
-export interface PersistedSessionData {
-  /** User's Ethereum address */
-  address: string;
-  /** EIP-155 Chain ID */
-  chainId: number;
-  /** Session key in JWK format (stringified) */
-  sessionKey: string;
-  /** The signed SIWE message */
-  siwe: string;
-  /** User's signature of the SIWE message */
-  signature: string;
-  /** TinyCloud delegation data if available */
-  tinycloudSession?: PersistedTinyCloudSession;
-  /** Session expiration timestamp (ISO 8601) */
-  expiresAt: string;
-  /** Session creation timestamp (ISO 8601) */
-  createdAt: string;
-  /** Schema version for migrations */
-  version: string;
-  /** Optional ENS data */
-  ens?: {
-    domain?: string | null;
-    avatarUrl?: string | null;
-  };
-}
+
+// Re-export types from schema (source of truth)
+export {
+  // Types
+  type PersistedTinyCloudSession,
+  type TinyCloudSession,
+  type PersistedSessionData,
+  type TCWEnsData,
+  type ValidationError,
+  // Schemas (for advanced use cases)
+  PersistedTinyCloudSessionSchema,
+  TinyCloudSessionSchema,
+  PersistedSessionDataSchema,
+  TCWEnsDataSchema,
+  // Validation functions
+  validatePersistedSessionData,
+  validateTinyCloudSession,
+  validatePersistedTinyCloudSession,
+} from "./storage.schema";
+
+// Import types for use in this file
+import type { PersistedSessionData } from "./storage.schema";
 
 /**
  * Session storage interface.

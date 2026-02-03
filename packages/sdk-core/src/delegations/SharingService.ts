@@ -38,6 +38,7 @@ import type {
 import { DelegationErrorCodes } from "./types";
 import type { DelegationManager } from "./DelegationManager";
 import type { ICapabilityKeyRegistry } from "../authorization/CapabilityKeyRegistry";
+import { validateEncodedShareData } from "./SharingService.schema.js";
 
 // =============================================================================
 // Constants
@@ -623,41 +624,15 @@ export class SharingService implements ISharingService {
       ingestOptions,
     } = options;
 
-    // Step 1: Decode the link
-    let shareData: EncodedShareData;
-    try {
-      shareData = this.decodeLink(link);
-    } catch (err) {
-      return {
-        ok: false,
-        error: createError(
-          DelegationErrorCodes.INVALID_TOKEN,
-          `Failed to decode sharing link: ${err instanceof Error ? err.message : String(err)}`,
-          err instanceof Error ? err : undefined
-        ),
-      };
+    // Step 1: Decode and validate the link
+    const decodeResult = this.decodeLinkWithValidation(link);
+    if (!decodeResult.ok) {
+      return decodeResult;
     }
+    const shareData = decodeResult.data;
 
-    // Validate the decoded data
-    if (!shareData.key || !shareData.key.d) {
-      return {
-        ok: false,
-        error: createError(
-          DelegationErrorCodes.INVALID_TOKEN,
-          "Sharing link does not contain a valid private key"
-        ),
-      };
-    }
-
-    if (!shareData.delegation) {
-      return {
-        ok: false,
-        error: createError(
-          DelegationErrorCodes.INVALID_TOKEN,
-          "Sharing link does not contain a delegation"
-        ),
-      };
-    }
+    // Schema validation ensures key.d and delegation exist, but we need
+    // to check business rules (expiry, revocation) separately
 
     // Check delegation expiry
     const delegationExpiry = new Date(shareData.delegation.expiry);
@@ -770,8 +745,26 @@ export class SharingService implements ISharingService {
    *
    * @param link - The encoded link string (may include URL prefix)
    * @returns Decoded share data
+   * @throws Error if link format is invalid or data fails validation
    */
   decodeLink(link: string): EncodedShareData {
+    const result = this.decodeLinkWithValidation(link);
+    if (!result.ok) {
+      throw new Error(result.error.message);
+    }
+    return result.data;
+  }
+
+  /**
+   * Decode and validate a link string into sharing data.
+   *
+   * Internal method that returns a Result instead of throwing.
+   * Used by receive() for proper error handling.
+   *
+   * @param link - The encoded link string (may include URL prefix)
+   * @returns Result with decoded share data or validation error
+   */
+  private decodeLinkWithValidation(link: string): Result<EncodedShareData, DelegationError> {
     // Extract the encoded data from the link
     let encoded = link;
 
@@ -783,31 +776,90 @@ export class SharingService implements ISharingService {
 
     // Handle query parameter format: ?share=tc1:...
     if (link.includes("?share=")) {
-      const url = new URL(link);
-      encoded = url.searchParams.get("share") ?? encoded;
+      try {
+        const url = new URL(link);
+        encoded = url.searchParams.get("share") ?? encoded;
+      } catch {
+        return {
+          ok: false,
+          error: createError(
+            DelegationErrorCodes.INVALID_TOKEN,
+            "Invalid URL format in sharing link"
+          ),
+        };
+      }
     }
 
     // Remove the schema prefix
     if (!encoded.startsWith(BASE64_PREFIX)) {
-      throw new Error(`Invalid sharing link format. Expected prefix '${BASE64_PREFIX}'`);
+      return {
+        ok: false,
+        error: createError(
+          DelegationErrorCodes.INVALID_TOKEN,
+          `Invalid sharing link format. Expected prefix '${BASE64_PREFIX}'`
+        ),
+      };
     }
 
     const base64Data = encoded.slice(BASE64_PREFIX.length);
-    const jsonString = base64UrlDecode(base64Data);
 
-    const data = JSON.parse(jsonString) as EncodedShareData;
-
-    // Validate version
-    if (data.version !== 1) {
-      throw new Error(`Unsupported sharing link version: ${data.version}`);
+    let jsonString: string;
+    try {
+      jsonString = base64UrlDecode(base64Data);
+    } catch (err) {
+      return {
+        ok: false,
+        error: createError(
+          DelegationErrorCodes.INVALID_TOKEN,
+          `Failed to decode base64 data: ${err instanceof Error ? err.message : String(err)}`,
+          err instanceof Error ? err : undefined
+        ),
+      };
     }
 
-    // Convert delegation expiry back to Date if it's a string
-    if (typeof data.delegation.expiry === "string") {
-      data.delegation.expiry = new Date(data.delegation.expiry);
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(jsonString);
+    } catch (err) {
+      return {
+        ok: false,
+        error: createError(
+          DelegationErrorCodes.INVALID_TOKEN,
+          `Failed to parse share data JSON: ${err instanceof Error ? err.message : String(err)}`,
+          err instanceof Error ? err : undefined
+        ),
+      };
     }
 
-    return data;
+    // Convert delegation expiry to Date before validation if it's a string
+    // This is needed because JSON.parse doesn't restore Date objects
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      "delegation" in parsed &&
+      parsed.delegation &&
+      typeof parsed.delegation === "object" &&
+      "expiry" in parsed.delegation &&
+      typeof parsed.delegation.expiry === "string"
+    ) {
+      (parsed.delegation as { expiry: Date }).expiry = new Date(parsed.delegation.expiry);
+    }
+
+    // Validate against schema
+    const validationResult = validateEncodedShareData(parsed);
+    if (!validationResult.ok) {
+      return {
+        ok: false,
+        error: createError(
+          DelegationErrorCodes.INVALID_TOKEN,
+          validationResult.error.message,
+          undefined,
+          validationResult.error.meta
+        ),
+      };
+    }
+
+    return { ok: true, data: validationResult.data };
   }
 }
 

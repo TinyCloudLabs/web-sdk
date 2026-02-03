@@ -104,3 +104,13 @@ export {
   ReceiveOptions,
   ShareAccess,
 } from "./SharingService";
+
+// SharingService Schemas and Validation
+export {
+  EncodedShareDataSchema,
+  ReceiveOptionsSchema,
+  SharingServiceConfigSchema,
+  validateEncodedShareData,
+  validateReceiveOptions,
+  validateSharingServiceConfig,
+} from "./SharingService.schema.js";
