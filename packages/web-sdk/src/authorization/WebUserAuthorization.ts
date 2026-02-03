@@ -612,12 +612,12 @@ export class WebUserAuthorization implements IUserAuthorization {
   async prepareSessionForSigning(): Promise<{
     prepared: {
       siwe: string;
-      jwk: object;
+      jwk: Record<string, unknown>;
       spaceId: string;
       verificationMethod: string;
     };
     keyId: string;
-    jwk: object;
+    jwk: Record<string, unknown>;
     address: string;
     chainId: number;
   }> {
@@ -675,13 +675,13 @@ export class WebUserAuthorization implements IUserAuthorization {
   async signInWithPreparedSession(
     prepared: {
       siwe: string;
-      jwk: object;
+      jwk: Record<string, unknown>;
       spaceId: string;
       verificationMethod: string;
     },
     signature: string,
     keyId: string,
-    jwk: object
+    jwk: Record<string, unknown>
   ): Promise<TCWClientSession> {
     if (!this._signer) {
       throw new Error("No wallet connected");

@@ -10,6 +10,15 @@
 import { zodToJsonSchema } from "zod-to-json-schema";
 import type { JsonSchema7Type } from "zod-to-json-schema";
 
+/**
+ * Extended JSON Schema type that includes optional $schema and definitions.
+ * This matches the actual return type of zodToJsonSchema.
+ */
+export type JsonSchemaWithDefinitions = JsonSchema7Type & {
+  $schema?: string;
+  definitions?: { [key: string]: JsonSchema7Type };
+};
+
 // =============================================================================
 // Storage Schemas
 // =============================================================================
@@ -123,13 +132,10 @@ export interface JsonSchemaOptions {
   name?: string;
   /** Target JSON Schema version */
   target?: "jsonSchema7" | "jsonSchema2019-09" | "openApi3";
-  /** Whether to emit definitions for referenced schemas */
-  definitions?: boolean;
 }
 
 const defaultOptions: JsonSchemaOptions = {
   target: "jsonSchema7",
-  definitions: true,
 };
 
 // =============================================================================
@@ -139,7 +145,7 @@ const defaultOptions: JsonSchemaOptions = {
 /**
  * Generate JSON Schema for TCWEnsData.
  */
-export function getTCWEnsDataJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getTCWEnsDataJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(TCWEnsDataSchema, {
     name: options?.name ?? "TCWEnsData",
     ...defaultOptions,
@@ -150,7 +156,7 @@ export function getTCWEnsDataJsonSchema(options?: JsonSchemaOptions): JsonSchema
 /**
  * Generate JSON Schema for PersistedTinyCloudSession.
  */
-export function getPersistedTinyCloudSessionJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getPersistedTinyCloudSessionJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(PersistedTinyCloudSessionSchema, {
     name: options?.name ?? "PersistedTinyCloudSession",
     ...defaultOptions,
@@ -161,7 +167,7 @@ export function getPersistedTinyCloudSessionJsonSchema(options?: JsonSchemaOptio
 /**
  * Generate JSON Schema for PersistedSessionData.
  */
-export function getPersistedSessionDataJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getPersistedSessionDataJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(PersistedSessionDataSchema, {
     name: options?.name ?? "PersistedSessionData",
     ...defaultOptions,
@@ -172,7 +178,7 @@ export function getPersistedSessionDataJsonSchema(options?: JsonSchemaOptions): 
 /**
  * Generate JSON Schema for TinyCloudSession.
  */
-export function getTinyCloudSessionJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getTinyCloudSessionJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(TinyCloudSessionSchema, {
     name: options?.name ?? "TinyCloudSession",
     ...defaultOptions,
@@ -187,7 +193,7 @@ export function getTinyCloudSessionJsonSchema(options?: JsonSchemaOptions): Json
 /**
  * Generate JSON Schema for JWK.
  */
-export function getJWKJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getJWKJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(JWKSchema, {
     name: options?.name ?? "JWK",
     ...defaultOptions,
@@ -198,7 +204,7 @@ export function getJWKJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
 /**
  * Generate JSON Schema for KeyType.
  */
-export function getKeyTypeJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getKeyTypeJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(KeyTypeSchema, {
     name: options?.name ?? "KeyType",
     ...defaultOptions,
@@ -209,7 +215,7 @@ export function getKeyTypeJsonSchema(options?: JsonSchemaOptions): JsonSchema7Ty
 /**
  * Generate JSON Schema for KeyInfo.
  */
-export function getKeyInfoJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getKeyInfoJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(KeyInfoSchema, {
     name: options?.name ?? "KeyInfo",
     ...defaultOptions,
@@ -220,7 +226,7 @@ export function getKeyInfoJsonSchema(options?: JsonSchemaOptions): JsonSchema7Ty
 /**
  * Generate JSON Schema for DelegationError.
  */
-export function getDelegationErrorJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getDelegationErrorJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(DelegationErrorSchema, {
     name: options?.name ?? "DelegationError",
     ...defaultOptions,
@@ -231,7 +237,7 @@ export function getDelegationErrorJsonSchema(options?: JsonSchemaOptions): JsonS
 /**
  * Generate JSON Schema for Delegation.
  */
-export function getDelegationJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getDelegationJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(DelegationSchema, {
     name: options?.name ?? "Delegation",
     ...defaultOptions,
@@ -242,7 +248,7 @@ export function getDelegationJsonSchema(options?: JsonSchemaOptions): JsonSchema
 /**
  * Generate JSON Schema for CapabilityEntry.
  */
-export function getCapabilityEntryJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getCapabilityEntryJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(CapabilityEntrySchema, {
     name: options?.name ?? "CapabilityEntry",
     ...defaultOptions,
@@ -253,7 +259,7 @@ export function getCapabilityEntryJsonSchema(options?: JsonSchemaOptions): JsonS
 /**
  * Generate JSON Schema for DelegationRecord.
  */
-export function getDelegationRecordJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getDelegationRecordJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(DelegationRecordSchema, {
     name: options?.name ?? "DelegationRecord",
     ...defaultOptions,
@@ -264,7 +270,7 @@ export function getDelegationRecordJsonSchema(options?: JsonSchemaOptions): Json
 /**
  * Generate JSON Schema for CreateDelegationParams.
  */
-export function getCreateDelegationParamsJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getCreateDelegationParamsJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(CreateDelegationParamsSchema, {
     name: options?.name ?? "CreateDelegationParams",
     ...defaultOptions,
@@ -275,7 +281,7 @@ export function getCreateDelegationParamsJsonSchema(options?: JsonSchemaOptions)
 /**
  * Generate JSON Schema for DelegationChain.
  */
-export function getDelegationChainJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getDelegationChainJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(DelegationChainSchema, {
     name: options?.name ?? "DelegationChain",
     ...defaultOptions,
@@ -286,7 +292,7 @@ export function getDelegationChainJsonSchema(options?: JsonSchemaOptions): JsonS
 /**
  * Generate JSON Schema for DelegationChainV2.
  */
-export function getDelegationChainV2JsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getDelegationChainV2JsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(DelegationChainV2Schema, {
     name: options?.name ?? "DelegationChainV2",
     ...defaultOptions,
@@ -297,7 +303,7 @@ export function getDelegationChainV2JsonSchema(options?: JsonSchemaOptions): Jso
 /**
  * Generate JSON Schema for DelegationDirection.
  */
-export function getDelegationDirectionJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getDelegationDirectionJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(DelegationDirectionSchema, {
     name: options?.name ?? "DelegationDirection",
     ...defaultOptions,
@@ -308,7 +314,7 @@ export function getDelegationDirectionJsonSchema(options?: JsonSchemaOptions): J
 /**
  * Generate JSON Schema for DelegationFilters.
  */
-export function getDelegationFiltersJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getDelegationFiltersJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(DelegationFiltersSchema, {
     name: options?.name ?? "DelegationFilters",
     ...defaultOptions,
@@ -319,7 +325,7 @@ export function getDelegationFiltersJsonSchema(options?: JsonSchemaOptions): Jso
 /**
  * Generate JSON Schema for SpaceOwnership.
  */
-export function getSpaceOwnershipJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getSpaceOwnershipJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(SpaceOwnershipSchema, {
     name: options?.name ?? "SpaceOwnership",
     ...defaultOptions,
@@ -330,7 +336,7 @@ export function getSpaceOwnershipJsonSchema(options?: JsonSchemaOptions): JsonSc
 /**
  * Generate JSON Schema for SpaceInfo.
  */
-export function getSpaceInfoJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getSpaceInfoJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(SpaceInfoSchema, {
     name: options?.name ?? "SpaceInfo",
     ...defaultOptions,
@@ -341,7 +347,7 @@ export function getSpaceInfoJsonSchema(options?: JsonSchemaOptions): JsonSchema7
 /**
  * Generate JSON Schema for ShareSchema.
  */
-export function getShareSchemaJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getShareSchemaJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(ShareSchemaSchema, {
     name: options?.name ?? "ShareSchema",
     ...defaultOptions,
@@ -352,7 +358,7 @@ export function getShareSchemaJsonSchema(options?: JsonSchemaOptions): JsonSchem
 /**
  * Generate JSON Schema for ShareLink.
  */
-export function getShareLinkJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getShareLinkJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(ShareLinkSchema, {
     name: options?.name ?? "ShareLink",
     ...defaultOptions,
@@ -363,7 +369,7 @@ export function getShareLinkJsonSchema(options?: JsonSchemaOptions): JsonSchema7
 /**
  * Generate JSON Schema for SharingLink (deprecated).
  */
-export function getSharingLinkJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getSharingLinkJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(SharingLinkSchema, {
     name: options?.name ?? "SharingLink",
     ...defaultOptions,
@@ -374,7 +380,7 @@ export function getSharingLinkJsonSchema(options?: JsonSchemaOptions): JsonSchem
 /**
  * Generate JSON Schema for GenerateSharingLinkParams (deprecated).
  */
-export function getGenerateSharingLinkParamsJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getGenerateSharingLinkParamsJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(GenerateSharingLinkParamsSchema, {
     name: options?.name ?? "GenerateSharingLinkParams",
     ...defaultOptions,
@@ -385,7 +391,7 @@ export function getGenerateSharingLinkParamsJsonSchema(options?: JsonSchemaOptio
 /**
  * Generate JSON Schema for IngestOptions.
  */
-export function getIngestOptionsJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getIngestOptionsJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(IngestOptionsSchema, {
     name: options?.name ?? "IngestOptions",
     ...defaultOptions,
@@ -396,7 +402,7 @@ export function getIngestOptionsJsonSchema(options?: JsonSchemaOptions): JsonSch
 /**
  * Generate JSON Schema for GenerateShareParams.
  */
-export function getGenerateShareParamsJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getGenerateShareParamsJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(GenerateShareParamsSchema, {
     name: options?.name ?? "GenerateShareParams",
     ...defaultOptions,
@@ -407,7 +413,7 @@ export function getGenerateShareParamsJsonSchema(options?: JsonSchemaOptions): J
 /**
  * Generate JSON Schema for DelegationApiResponse.
  */
-export function getDelegationApiResponseJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getDelegationApiResponseJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(DelegationApiResponseSchema, {
     name: options?.name ?? "DelegationApiResponse",
     ...defaultOptions,
@@ -418,7 +424,7 @@ export function getDelegationApiResponseJsonSchema(options?: JsonSchemaOptions):
 /**
  * Generate JSON Schema for CreateDelegationWasmParams.
  */
-export function getCreateDelegationWasmParamsJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getCreateDelegationWasmParamsJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(CreateDelegationWasmParamsSchema, {
     name: options?.name ?? "CreateDelegationWasmParams",
     ...defaultOptions,
@@ -429,7 +435,7 @@ export function getCreateDelegationWasmParamsJsonSchema(options?: JsonSchemaOpti
 /**
  * Generate JSON Schema for CreateDelegationWasmResult.
  */
-export function getCreateDelegationWasmResultJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getCreateDelegationWasmResultJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(CreateDelegationWasmResultSchema, {
     name: options?.name ?? "CreateDelegationWasmResult",
     ...defaultOptions,
@@ -444,7 +450,7 @@ export function getCreateDelegationWasmResultJsonSchema(options?: JsonSchemaOpti
 /**
  * Generate JSON Schema for SpaceHostResult.
  */
-export function getSpaceHostResultJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getSpaceHostResultJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(SpaceHostResultSchema, {
     name: options?.name ?? "SpaceHostResult",
     ...defaultOptions,
@@ -459,7 +465,7 @@ export function getSpaceHostResultJsonSchema(options?: JsonSchemaOptions): JsonS
 /**
  * Generate JSON Schema for SpaceCreationContext.
  */
-export function getSpaceCreationContextJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getSpaceCreationContextJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(SpaceCreationContextSchema, {
     name: options?.name ?? "SpaceCreationContext",
     ...defaultOptions,
@@ -470,7 +476,7 @@ export function getSpaceCreationContextJsonSchema(options?: JsonSchemaOptions): 
 /**
  * Generate JSON Schema for SpaceCreationHandler.
  */
-export function getSpaceCreationHandlerJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getSpaceCreationHandlerJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(SpaceCreationHandlerSchema, {
     name: options?.name ?? "SpaceCreationHandler",
     ...defaultOptions,
@@ -485,7 +491,7 @@ export function getSpaceCreationHandlerJsonSchema(options?: JsonSchemaOptions): 
 /**
  * Generate JSON Schema for BackoffStrategy.
  */
-export function getBackoffStrategyJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getBackoffStrategyJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(BackoffStrategySchema, {
     name: options?.name ?? "BackoffStrategy",
     ...defaultOptions,
@@ -496,7 +502,7 @@ export function getBackoffStrategyJsonSchema(options?: JsonSchemaOptions): JsonS
 /**
  * Generate JSON Schema for RetryPolicy.
  */
-export function getRetryPolicyJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getRetryPolicyJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(RetryPolicySchema, {
     name: options?.name ?? "RetryPolicy",
     ...defaultOptions,
@@ -507,7 +513,7 @@ export function getRetryPolicyJsonSchema(options?: JsonSchemaOptions): JsonSchem
 /**
  * Generate JSON Schema for PartialRetryPolicy.
  */
-export function getPartialRetryPolicyJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getPartialRetryPolicyJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(PartialRetryPolicySchema, {
     name: options?.name ?? "PartialRetryPolicy",
     ...defaultOptions,
@@ -518,7 +524,7 @@ export function getPartialRetryPolicyJsonSchema(options?: JsonSchemaOptions): Js
 /**
  * Generate JSON Schema for TinyCloudConfig.
  */
-export function getTinyCloudConfigJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getTinyCloudConfigJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(TinyCloudConfigSchema, {
     name: options?.name ?? "TinyCloudConfig",
     ...defaultOptions,
@@ -533,7 +539,7 @@ export function getTinyCloudConfigJsonSchema(options?: JsonSchemaOptions): JsonS
 /**
  * Generate JSON Schema for PartialSiweMessage.
  */
-export function getPartialSiweMessageJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getPartialSiweMessageJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(PartialSiweMessageSchema, {
     name: options?.name ?? "PartialSiweMessage",
     ...defaultOptions,
@@ -544,7 +550,7 @@ export function getPartialSiweMessageJsonSchema(options?: JsonSchemaOptions): Js
 /**
  * Generate JSON Schema for UserAuthorizationConfig.
  */
-export function getUserAuthorizationConfigJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getUserAuthorizationConfigJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(UserAuthorizationConfigSchema, {
     name: options?.name ?? "UserAuthorizationConfig",
     ...defaultOptions,
@@ -559,7 +565,7 @@ export function getUserAuthorizationConfigJsonSchema(options?: JsonSchemaOptions
 /**
  * Generate JSON Schema for SignRequestType.
  */
-export function getSignRequestTypeJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getSignRequestTypeJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(SignRequestTypeSchema, {
     name: options?.name ?? "SignRequestType",
     ...defaultOptions,
@@ -570,7 +576,7 @@ export function getSignRequestTypeJsonSchema(options?: JsonSchemaOptions): JsonS
 /**
  * Generate JSON Schema for SignRequest.
  */
-export function getSignRequestJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getSignRequestJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(SignRequestSchema, {
     name: options?.name ?? "SignRequest",
     ...defaultOptions,
@@ -581,7 +587,7 @@ export function getSignRequestJsonSchema(options?: JsonSchemaOptions): JsonSchem
 /**
  * Generate JSON Schema for SignResponse.
  */
-export function getSignResponseJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getSignResponseJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(SignResponseSchema, {
     name: options?.name ?? "SignResponse",
     ...defaultOptions,
@@ -592,7 +598,7 @@ export function getSignResponseJsonSchema(options?: JsonSchemaOptions): JsonSche
 /**
  * Generate JSON Schema for AutoSignStrategy.
  */
-export function getAutoSignStrategyJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getAutoSignStrategyJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(AutoSignStrategySchema, {
     name: options?.name ?? "AutoSignStrategy",
     ...defaultOptions,
@@ -603,7 +609,7 @@ export function getAutoSignStrategyJsonSchema(options?: JsonSchemaOptions): Json
 /**
  * Generate JSON Schema for AutoRejectStrategy.
  */
-export function getAutoRejectStrategyJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getAutoRejectStrategyJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(AutoRejectStrategySchema, {
     name: options?.name ?? "AutoRejectStrategy",
     ...defaultOptions,
@@ -614,7 +620,7 @@ export function getAutoRejectStrategyJsonSchema(options?: JsonSchemaOptions): Js
 /**
  * Generate JSON Schema for CallbackStrategy.
  */
-export function getCallbackStrategyJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getCallbackStrategyJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(CallbackStrategySchema, {
     name: options?.name ?? "CallbackStrategy",
     ...defaultOptions,
@@ -625,7 +631,7 @@ export function getCallbackStrategyJsonSchema(options?: JsonSchemaOptions): Json
 /**
  * Generate JSON Schema for EventEmitterStrategy.
  */
-export function getEventEmitterStrategyJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getEventEmitterStrategyJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(EventEmitterStrategySchema, {
     name: options?.name ?? "EventEmitterStrategy",
     ...defaultOptions,
@@ -636,7 +642,7 @@ export function getEventEmitterStrategyJsonSchema(options?: JsonSchemaOptions): 
 /**
  * Generate JSON Schema for SignStrategy.
  */
-export function getSignStrategyJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getSignStrategyJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(SignStrategySchema, {
     name: options?.name ?? "SignStrategy",
     ...defaultOptions,
@@ -651,7 +657,7 @@ export function getSignStrategyJsonSchema(options?: JsonSchemaOptions): JsonSche
 /**
  * Generate JSON Schema for SpaceConfig.
  */
-export function getSpaceConfigJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getSpaceConfigJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(SpaceConfigSchema, {
     name: options?.name ?? "SpaceConfig",
     ...defaultOptions,
@@ -662,7 +668,7 @@ export function getSpaceConfigJsonSchema(options?: JsonSchemaOptions): JsonSchem
 /**
  * Generate JSON Schema for SpaceServiceConfig.
  */
-export function getSpaceServiceConfigJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getSpaceServiceConfigJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(SpaceServiceConfigSchema, {
     name: options?.name ?? "SpaceServiceConfig",
     ...defaultOptions,
@@ -673,7 +679,7 @@ export function getSpaceServiceConfigJsonSchema(options?: JsonSchemaOptions): Js
 /**
  * Generate JSON Schema for SpaceDelegationParams.
  */
-export function getSpaceDelegationParamsJsonSchema(options?: JsonSchemaOptions): JsonSchema7Type {
+export function getSpaceDelegationParamsJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(SpaceDelegationParamsSchema, {
     name: options?.name ?? "SpaceDelegationParams",
     ...defaultOptions,
@@ -691,74 +697,74 @@ export function getSpaceDelegationParamsJsonSchema(options?: JsonSchemaOptions):
 export interface JsonSchemaBundle {
   /** Storage-related schemas */
   storage: {
-    TCWEnsData: JsonSchema7Type;
-    PersistedTinyCloudSession: JsonSchema7Type;
-    PersistedSessionData: JsonSchema7Type;
-    TinyCloudSession: JsonSchema7Type;
+    TCWEnsData: JsonSchemaWithDefinitions;
+    PersistedTinyCloudSession: JsonSchemaWithDefinitions;
+    PersistedSessionData: JsonSchemaWithDefinitions;
+    TinyCloudSession: JsonSchemaWithDefinitions;
   };
   /** Delegation-related schemas */
   delegations: {
-    JWK: JsonSchema7Type;
-    KeyType: JsonSchema7Type;
-    KeyInfo: JsonSchema7Type;
-    DelegationError: JsonSchema7Type;
-    Delegation: JsonSchema7Type;
-    CapabilityEntry: JsonSchema7Type;
-    DelegationRecord: JsonSchema7Type;
-    CreateDelegationParams: JsonSchema7Type;
-    DelegationChain: JsonSchema7Type;
-    DelegationChainV2: JsonSchema7Type;
-    DelegationDirection: JsonSchema7Type;
-    DelegationFilters: JsonSchema7Type;
-    SpaceOwnership: JsonSchema7Type;
-    SpaceInfo: JsonSchema7Type;
-    ShareSchema: JsonSchema7Type;
-    ShareLink: JsonSchema7Type;
-    SharingLink: JsonSchema7Type;
-    GenerateSharingLinkParams: JsonSchema7Type;
-    IngestOptions: JsonSchema7Type;
-    GenerateShareParams: JsonSchema7Type;
-    DelegationApiResponse: JsonSchema7Type;
-    CreateDelegationWasmParams: JsonSchema7Type;
-    CreateDelegationWasmResult: JsonSchema7Type;
+    JWK: JsonSchemaWithDefinitions;
+    KeyType: JsonSchemaWithDefinitions;
+    KeyInfo: JsonSchemaWithDefinitions;
+    DelegationError: JsonSchemaWithDefinitions;
+    Delegation: JsonSchemaWithDefinitions;
+    CapabilityEntry: JsonSchemaWithDefinitions;
+    DelegationRecord: JsonSchemaWithDefinitions;
+    CreateDelegationParams: JsonSchemaWithDefinitions;
+    DelegationChain: JsonSchemaWithDefinitions;
+    DelegationChainV2: JsonSchemaWithDefinitions;
+    DelegationDirection: JsonSchemaWithDefinitions;
+    DelegationFilters: JsonSchemaWithDefinitions;
+    SpaceOwnership: JsonSchemaWithDefinitions;
+    SpaceInfo: JsonSchemaWithDefinitions;
+    ShareSchema: JsonSchemaWithDefinitions;
+    ShareLink: JsonSchemaWithDefinitions;
+    SharingLink: JsonSchemaWithDefinitions;
+    GenerateSharingLinkParams: JsonSchemaWithDefinitions;
+    IngestOptions: JsonSchemaWithDefinitions;
+    GenerateShareParams: JsonSchemaWithDefinitions;
+    DelegationApiResponse: JsonSchemaWithDefinitions;
+    CreateDelegationWasmParams: JsonSchemaWithDefinitions;
+    CreateDelegationWasmResult: JsonSchemaWithDefinitions;
   };
   /** Space hosting schemas */
   spaceHosting: {
-    SpaceHostResult: JsonSchema7Type;
+    SpaceHostResult: JsonSchemaWithDefinitions;
   };
   /** Space creation schemas */
   spaceCreation: {
-    SpaceCreationContext: JsonSchema7Type;
-    SpaceCreationHandler: JsonSchema7Type;
+    SpaceCreationContext: JsonSchemaWithDefinitions;
+    SpaceCreationHandler: JsonSchemaWithDefinitions;
   };
   /** TinyCloud configuration schemas */
   config: {
-    BackoffStrategy: JsonSchema7Type;
-    RetryPolicy: JsonSchema7Type;
-    PartialRetryPolicy: JsonSchema7Type;
-    TinyCloudConfig: JsonSchema7Type;
+    BackoffStrategy: JsonSchemaWithDefinitions;
+    RetryPolicy: JsonSchemaWithDefinitions;
+    PartialRetryPolicy: JsonSchemaWithDefinitions;
+    TinyCloudConfig: JsonSchemaWithDefinitions;
   };
   /** User authorization schemas */
   authorization: {
-    PartialSiweMessage: JsonSchema7Type;
-    UserAuthorizationConfig: JsonSchema7Type;
+    PartialSiweMessage: JsonSchemaWithDefinitions;
+    UserAuthorizationConfig: JsonSchemaWithDefinitions;
   };
   /** Sign strategy schemas */
   signStrategy: {
-    SignRequestType: JsonSchema7Type;
-    SignRequest: JsonSchema7Type;
-    SignResponse: JsonSchema7Type;
-    AutoSignStrategy: JsonSchema7Type;
-    AutoRejectStrategy: JsonSchema7Type;
-    CallbackStrategy: JsonSchema7Type;
-    EventEmitterStrategy: JsonSchema7Type;
-    SignStrategy: JsonSchema7Type;
+    SignRequestType: JsonSchemaWithDefinitions;
+    SignRequest: JsonSchemaWithDefinitions;
+    SignResponse: JsonSchemaWithDefinitions;
+    AutoSignStrategy: JsonSchemaWithDefinitions;
+    AutoRejectStrategy: JsonSchemaWithDefinitions;
+    CallbackStrategy: JsonSchemaWithDefinitions;
+    EventEmitterStrategy: JsonSchemaWithDefinitions;
+    SignStrategy: JsonSchemaWithDefinitions;
   };
   /** Space service schemas */
   spaceService: {
-    SpaceConfig: JsonSchema7Type;
-    SpaceServiceConfig: JsonSchema7Type;
-    SpaceDelegationParams: JsonSchema7Type;
+    SpaceConfig: JsonSchemaWithDefinitions;
+    SpaceServiceConfig: JsonSchemaWithDefinitions;
+    SpaceDelegationParams: JsonSchemaWithDefinitions;
   };
 }
 
@@ -871,7 +877,7 @@ export function getAllJsonSchemas(options?: JsonSchemaOptions): JsonSchemaBundle
  * console.log(Object.keys(schemas)); // ["TCWEnsData", "Delegation", ...]
  * ```
  */
-export function getAllJsonSchemasFlat(options?: JsonSchemaOptions): Record<string, JsonSchema7Type> {
+export function getAllJsonSchemasFlat(options?: JsonSchemaOptions): Record<string, JsonSchemaWithDefinitions> {
   const bundle = getAllJsonSchemas(options);
   return {
     // Storage

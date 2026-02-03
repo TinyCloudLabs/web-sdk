@@ -264,6 +264,9 @@ function transformServerDelegations(
       }
     }
 
+    // Extract first string parent CID (server may return byte arrays for some CIDs)
+    const firstStringParent = info.parents?.find((p): p is string => typeof p === 'string');
+
     result.push({
       cid,
       delegateDID: info.delegate,
@@ -274,7 +277,7 @@ function transformServerDelegations(
       expiry: info.expiry ? new Date(info.expiry) : new Date(Date.now() + 24 * 60 * 60 * 1000),
       isRevoked: false,
       createdAt: info.issued_at ? new Date(info.issued_at) : undefined,
-      parentCid: info.parents?.[0],
+      parentCid: firstStringParent,
     });
   }
 

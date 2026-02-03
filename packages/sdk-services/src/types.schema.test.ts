@@ -259,7 +259,7 @@ describe("createResultSchema", () => {
     });
     expect(result.success).toBe(true);
     if (result.success && !result.data.ok) {
-      expect(result.data.error.code).toBe("KV_NOT_FOUND");
+      expect((result.data.error as { code: string }).code).toBe("KV_NOT_FOUND");
     }
   });
 

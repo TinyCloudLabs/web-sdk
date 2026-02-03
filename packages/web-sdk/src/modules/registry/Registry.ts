@@ -1,5 +1,5 @@
 
-import { createPublicClient, encodeFunctionData, fromHex, hexToString, http, zeroAddress, zeroHash, type Address } from "viem";
+import { decodeFunctionResult, encodeFunctionData, zeroHash, type Address } from "viem";
 
 import { providers } from "ethers";
 import { multiaddrToUri } from "@multiformats/multiaddr-to-uri"
@@ -64,7 +64,7 @@ export class Registry {
   async getNode(account: Address): Promise<string> {
     const chainId = await this.provider.getSigner().getChainId();
     const contractAddress = REGISTRY_CONTRACT_ADDRESS[chainId as keyof typeof REGISTRY_CONTRACT_ADDRESS] ?? REGISTRY_CONTRACT_ADDRESS[1];
-    const node = hexToString(await this.provider.call({
+    const rawResult = await this.provider.call({
       data: encodeFunctionData({
         abi: REGISTRY_ABI,
         functionName: "getNode",
@@ -72,10 +72,15 @@ export class Registry {
       }),
       chainId,
       to: contractAddress
-    }) as `0x${string}`).replace(/\0/g, '').replace("'", '').trim();
+    });
 
+    const node = (decodeFunctionResult({
+      abi: REGISTRY_ABI,
+      functionName: "getNode",
+      data: rawResult as `0x${string}`,
+    }) as string).trim();
 
-    if (node === zeroHash || !node.includes("http")) {
+    if (!node || node === zeroHash || !node.includes("http")) {
       return "";
     }
     return multiaddrToUri(node)

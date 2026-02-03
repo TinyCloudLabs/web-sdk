@@ -221,8 +221,8 @@ export const ServerDelegationInfoSchema = z.object({
   delegator: z.string(),
   /** DID of the delegate */
   delegate: z.string(),
-  /** Parent delegation CIDs */
-  parents: z.array(z.string()),
+  /** Parent delegation CIDs - accepts string or byte array format from server */
+  parents: z.array(z.union([z.string(), z.array(z.number())])),
   /** Expiration time (ISO8601 string) */
   expiry: z.string().optional(),
   /** Not-before time (ISO8601 string) */

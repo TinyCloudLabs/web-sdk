@@ -507,7 +507,10 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
 
     // Initialize space-related options with defaults
     this.autoCreateSpace = (_config as any).autoCreateSpace ?? true;
-    this.tinycloudHosts = [...((_config as any).tinycloudHosts ?? []), "https://node.tinycloud.xyz", "https://tee.tinycloud.xyz"];
+    const configuredHosts = (_config as any).tinycloudHosts ?? [];
+    this.tinycloudHosts = configuredHosts.length > 0
+      ? [...configuredHosts]
+      : ["https://node.tinycloud.xyz", "https://tee.tinycloud.xyz"];
     this.spacePrefix = (_config as any).spacePrefix ?? "default";
     this.kvPrefix = (_config as any).kvPrefix ?? "";
   }
@@ -534,12 +537,10 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
         });
         const address = await this.provider.getSigner().getAddress();
         const chainId = await this.provider.getNetwork().then((network) => network.chainId);
-        console.log({ address, chainId })
         const node = await registry.addressNode()
-        console.log({ node }, "the final node")
         if (node && !this.tinycloudHosts.includes(node)) {
-          // Prepend registry node to the beginning of the list
-          this.tinycloudHosts.unshift(node);
+          // Append registry node after configured hosts
+          this.tinycloudHosts.push(node);
           debug.log(`Added registry node to hosts: ${node}`);
         }
       } catch (error) {
@@ -1082,11 +1083,11 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
    * Creates the space if it doesn't exist and autoCreateSpace is enabled.
    *
    * Strategy:
-   * 1. Iterate through all `tinycloudHosts` and try to activate the session.
-   * 2. If activation succeeds on any host, set it as the `_activeHost` and return.
-   * 3. If activation fails with 404 on all hosts, it means the space doesn't exist.
-   * 4. If `autoCreateSpace` is true, create the space on the selected host.
-   * 5. After creation, attempt to activate the session again on that host.
+   * 1. Try to activate the session on the first (primary) host.
+   * 2. If activation succeeds, set it as the `_activeHost` and return.
+   * 3. If the primary host returns 404, create the space there (don't skip
+   *    because it might exist on other hosts - there is no replication).
+   * 4. If the primary host has a non-404 error, try remaining hosts.
    *
    * @throws Error if space creation fails or is disabled and space doesn't exist.
    */
@@ -1095,110 +1096,91 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
       throw new Error("Must be signed in to ensure space exists");
     }
 
+    const primaryHost = this.tinycloudHosts[0];
 
+    // 1. Try the primary (first configured) host
+    try {
+      const result = await activateSessionWithHost(primaryHost, this._delegationHeader);
+      if (result.success) {
+        this._activeHost = primaryHost;
+        debug.log(`Space found on primary host: ${primaryHost}`);
+        return;
+      }
 
+      // Primary host returned 404 - space doesn't exist there, create it
+      if (result.status === 404) {
+        if (!this.autoCreateSpace) {
+          debug.warn(`Space does not exist on ${primaryHost} and autoCreateSpace is false.`);
+          return;
+        }
 
-    for (const host of this.tinycloudHosts) {
+        await this.createSpaceOnHost(primaryHost);
+        return;
+      }
+
+      // Non-404 error on primary host - log and try remaining hosts
+      debug.warn(`Failed to activate session on ${primaryHost}: ${result.status} - ${result.error}`);
+    } catch (error) {
+      debug.warn(`Error trying to activate session on ${primaryHost}:`, error);
+    }
+
+    // 2. Primary host had a non-404 error. Try remaining hosts.
+    for (let i = 1; i < this.tinycloudHosts.length; i++) {
+      const host = this.tinycloudHosts[i];
       try {
         const result = await activateSessionWithHost(host, this._delegationHeader);
         if (result.success) {
-          this._activeHost = host; // Found the space
+          this._activeHost = host;
           debug.log(`Space found on host: ${host}`);
           return;
         }
 
-        // If not 404, it's some other error - log and continue to next host
-        if (result.status !== 404) {
-          debug.warn(`Failed to activate session on ${host}: ${result.status} - ${result.error}`);
+        if (result.status === 404) {
+          // Space doesn't exist on this fallback host either - skip, don't create
           continue;
         }
+
+        debug.warn(`Failed to activate session on ${host}: ${result.status} - ${result.error}`);
       } catch (error) {
         debug.warn(`Error trying to activate session on ${host}:`, error);
-        continue;
       }
     }
 
-    // 3. If we're here, all hosts returned 404 or failed. The space doesn't exist.
+    // 3. No host had the space and primary had a non-404 error.
+    // Try to create on primary host anyway if autoCreateSpace is enabled.
     if (!this.autoCreateSpace) {
-      debug.warn(`Space does not exist and autoCreateSpace is false. Cannot connect to space.`);
+      debug.warn(`Space does not exist and autoCreateSpace is false.`);
       return;
     }
 
-    // 4. Determine host for creation.
-    let hostForCreation: string | undefined;
+    await this.createSpaceOnHost(primaryHost);
+  }
 
-    // Check if a registry node is available (should be first in the list after connect())
-    const registry = new Registry({ provider: this.provider });
-    try {
-      const registryNode = await registry.addressNode();
-      if (registryNode && this.tinycloudHosts.includes(registryNode)) {
-        hostForCreation = registryNode;
-        debug.log(`Using registry node for space creation: ${hostForCreation}`);
-      }
-    } catch (error) {
-      debug.warn("Failed to get registry node for space creation:", error);
-    }
-
-    // If no registry node, prompt user to select one
-    if (!hostForCreation) {
-      debug.log("No registry node found, prompting user for node selection.");
-
-      try {
-        const selection = await showNodeSelectionModal({
-          onCreateNode: async (selectedHost: string) => {
-            // Validation happens in the modal
-            return;
-          },
-          onDismiss: () => {
-            debug.log("User dismissed node selection modal.");
-          },
-        });
-
-        if (selection.dismissed || !selection.host) {
-          debug.log("Space creation aborted due to node selection dismissal.");
-          return;
-        }
-        hostForCreation = selection.host;
-      } catch (error) {
-        debug.error("Node selection modal failed:", error);
-        // Fallback to first available host
-        hostForCreation = this.tinycloudHosts[0];
-      }
-    }
-
-    if (!hostForCreation) {
-      debug.error("No valid host for space creation.");
-      dispatchSDKEvent.error(
-        "storage.space_creation_failed",
-        "Could not determine a host to create your TinyCloud Space on."
-      );
-      return;
-    }
-
-    // 5. Create the space on the selected host
-    debug.log(`Space not found. Attempting to create on host: ${hostForCreation}`);
+  /**
+   * Create the space on a specific host and activate the session there.
+   */
+  private async createSpaceOnHost(host: string): Promise<void> {
+    debug.log(`Space not found on ${host}. Attempting to create.`);
 
     try {
-      const created = await this.hostSpace(hostForCreation);
+      const created = await this.hostSpace(host);
 
       if (!created) {
-        // User dismissed the space creation modal.
-        debug.log("User dismissed space creation modal. Space connection not established.");
+        debug.log("User dismissed space creation modal.");
         return;
       }
 
-      // 6. Space created, now try activation again on the creation host.
-      const finalResult = await activateSessionWithHost(hostForCreation, this._delegationHeader);
+      // Space created, now try activation again
+      const finalResult = await activateSessionWithHost(host, this._delegationHeader);
 
       if (finalResult.success) {
-        this._activeHost = hostForCreation; // Set active host after creation
-        debug.log(`Space created and activated on host: ${hostForCreation}`);
+        this._activeHost = host;
+        debug.log(`Space created and activated on host: ${host}`);
         return;
       }
 
-      // If it still fails, something is seriously wrong.
       throw new Error(
-        `Failed to activate session on ${hostForCreation} even after creating the space: ` +
+        `Failed to activate session on ${host} even after creating the space: ` +
         `${finalResult.status} - ${finalResult.error}`
       );
     } catch (error) {

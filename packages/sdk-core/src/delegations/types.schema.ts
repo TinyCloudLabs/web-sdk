@@ -168,14 +168,14 @@ export const DelegationSchema = z.object({
   path: z.string(),
   /** Actions this delegation authorizes */
   actions: z.array(z.string()),
-  /** When this delegation expires */
-  expiry: z.date(),
+  /** When this delegation expires (accepts Date or ISO string from JSON) */
+  expiry: z.coerce.date(),
   /** Whether this delegation has been revoked */
   isRevoked: z.boolean(),
   /** DID of the delegator (the party granting the delegation) */
   delegatorDID: z.string().optional(),
-  /** When this delegation was created */
-  createdAt: z.date().optional(),
+  /** When this delegation was created (accepts Date or ISO string from JSON) */
+  createdAt: z.coerce.date().optional(),
   /** Parent delegation CID if this is a sub-delegation */
   parentCid: z.string().optional(),
   /** Whether sub-delegation is allowed */
@@ -198,8 +198,8 @@ export const CapabilityEntrySchema = z.object({
   keys: z.array(KeyInfoSchema),
   /** The delegation that grants this capability */
   delegation: DelegationSchema,
-  /** When this capability expires */
-  expiresAt: z.date().optional(),
+  /** When this capability expires (accepts Date or ISO string from JSON) */
+  expiresAt: z.coerce.date().optional(),
 });
 
 export type CapabilityEntry = z.infer<typeof CapabilityEntrySchema>;
@@ -222,14 +222,14 @@ export const DelegationRecordSchema = z.object({
   path: z.string(),
   /** Actions this delegation authorizes */
   actions: z.array(z.string()),
-  /** When this delegation expires */
-  expiry: z.date().optional(),
-  /** When this delegation becomes valid (not before) */
-  notBefore: z.date().optional(),
+  /** When this delegation expires (accepts Date or ISO string from JSON) */
+  expiry: z.coerce.date().optional(),
+  /** When this delegation becomes valid (not before) (accepts Date or ISO string) */
+  notBefore: z.coerce.date().optional(),
   /** Whether this delegation has been revoked */
   isRevoked: z.boolean(),
-  /** When this delegation was created */
-  createdAt: z.date(),
+  /** When this delegation was created (accepts Date or ISO string from JSON) */
+  createdAt: z.coerce.date(),
   /** Parent delegation CID if this is a sub-delegation */
   parentCid: z.string().optional(),
 });
@@ -246,8 +246,8 @@ export const CreateDelegationParamsSchema = z.object({
   path: z.string(),
   /** Actions to authorize */
   actions: z.array(z.string()),
-  /** When this delegation expires */
-  expiry: z.date().optional(),
+  /** When this delegation expires (accepts Date or ISO string) */
+  expiry: z.coerce.date().optional(),
   /** Whether to disable sub-delegation */
   disableSubDelegation: z.boolean().optional(),
   /** Optional statement for the SIWE message */
@@ -303,7 +303,7 @@ export const DelegationFiltersSchema = z.object({
   /** Filter by delegatee DID */
   delegatee: z.string().optional(),
   /** Only include delegations valid at this time */
-  validAt: z.date().optional(),
+  validAt: z.coerce.date().optional(),
   /** Maximum number of results to return */
   limit: z.number().optional(),
   /** Cursor for pagination */
@@ -337,7 +337,7 @@ export const SpaceInfoSchema = z.object({
   /** Permissions the user has in this space */
   permissions: z.array(z.string()).optional(),
   /** When the access expires (for delegated spaces) */
-  expiresAt: z.date().optional(),
+  expiresAt: z.coerce.date().optional(),
 });
 
 export type SpaceInfo = z.infer<typeof SpaceInfoSchema>;
@@ -365,7 +365,7 @@ export const ShareLinkSchema = z.object({
   /** Encoding schema used for the link */
   schema: ShareSchemaSchema,
   /** When this share link expires */
-  expiresAt: z.date().optional(),
+  expiresAt: z.coerce.date().optional(),
   /** Human-readable description of what is being shared */
   description: z.string().optional(),
 });
@@ -423,7 +423,7 @@ export const GenerateSharingLinkParamsSchema = z.object({
   /** Actions to authorize */
   actions: z.array(z.string()).optional(),
   /** When the link expires */
-  expiry: z.date().optional(),
+  expiry: z.coerce.date().optional(),
   /** Optional statement for the SIWE message */
   statement: z.string().optional(),
 });
@@ -481,7 +481,7 @@ export const GenerateShareParamsSchema = z.object({
   /** Actions to authorize */
   actions: z.array(z.string()).optional(),
   /** When the share link expires */
-  expiry: z.date().optional(),
+  expiry: z.coerce.date().optional(),
   /** Encoding schema for the link */
   schema: ShareSchemaSchema.optional(),
   /** Human-readable description */
@@ -636,7 +636,7 @@ export const CreateDelegationWasmResultSchema = z.object({
   /** Actions the delegation authorizes */
   actions: z.array(z.string()),
   /** Expiration time */
-  expiry: z.date(),
+  expiry: z.coerce.date(),
 });
 
 export type CreateDelegationWasmResult = z.infer<typeof CreateDelegationWasmResultSchema>;
