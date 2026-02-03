@@ -1,14 +1,14 @@
 /**
  * WasmKeyProvider - KeyProvider implementation using WASM session manager.
  *
- * This provider wraps the TCWSessionManager from node-sdk-wasm to provide
+ * This provider wraps the SessionManager from node-sdk-wasm to provide
  * cryptographic key operations required by the SharingService.
  *
  * @packageDocumentation
  */
 
 import type { KeyProvider, JWK } from "@tinycloudlabs/sdk-core";
-import type { TCWSessionManager } from "@tinycloudlabs/node-sdk-wasm";
+import type { TCWSessionManager as SessionManager } from "@tinycloudlabs/node-sdk-wasm";
 
 /**
  * Configuration for WasmKeyProvider.
@@ -18,7 +18,7 @@ export interface WasmKeyProviderConfig {
    * The WASM session manager instance.
    * Must be created before constructing the KeyProvider.
    */
-  sessionManager: TCWSessionManager;
+  sessionManager: SessionManager;
 }
 
 /**
@@ -29,10 +29,10 @@ export interface WasmKeyProviderConfig {
  *
  * @example
  * ```typescript
- * import { TCWSessionManager } from "@tinycloudlabs/node-sdk-wasm";
+ * import { SessionManager } from "@tinycloudlabs/node-sdk-wasm";
  * import { WasmKeyProvider } from "@tinycloudlabs/node-sdk";
  *
- * const sessionManager = new TCWSessionManager();
+ * const sessionManager = new SessionManager();
  * const keyProvider = new WasmKeyProvider({ sessionManager });
  *
  * // Create a session key for a sharing link
@@ -42,7 +42,7 @@ export interface WasmKeyProviderConfig {
  * ```
  */
 export class WasmKeyProvider implements KeyProvider {
-  private sessionManager: TCWSessionManager;
+  private sessionManager: SessionManager;
 
   /**
    * Create a new WasmKeyProvider.
@@ -130,6 +130,6 @@ export class WasmKeyProvider implements KeyProvider {
  * @param sessionManager - The WASM session manager
  * @returns A new WasmKeyProvider instance
  */
-export function createWasmKeyProvider(sessionManager: TCWSessionManager): WasmKeyProvider {
+export function createWasmKeyProvider(sessionManager: SessionManager): WasmKeyProvider {
   return new WasmKeyProvider({ sessionManager });
 }

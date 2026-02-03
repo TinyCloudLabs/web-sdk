@@ -9,9 +9,9 @@
 
 import { z } from "zod";
 import {
-  TCWEnsDataSchema,
-  TCWRPCProviderSchema,
-  TCWServerRoutesSchema,
+  EnsDataSchema,
+  RPCProviderSchema,
+  ServerRoutesSchema,
 } from "../types.schema.js";
 
 // =============================================================================
@@ -21,19 +21,19 @@ import {
 /**
  * The URL of the server running tcw-server.
  */
-export const TCWServerHostSchema = z.string();
-export type TCWServerHost = z.infer<typeof TCWServerHostSchema>;
+export const ServerHostSchema = z.string();
+export type ServerHost = z.infer<typeof ServerHostSchema>;
 
 /**
  * The tcw-powered server configuration settings.
  */
-export const TCWProviderServerSchema = z.object({
-  host: TCWServerHostSchema,
+export const ProviderServerSchema = z.object({
+  host: ServerHostSchema,
   /** Optional configuration for the server's routes. */
-  routes: TCWServerRoutesSchema.optional(),
+  routes: ServerRoutesSchema.optional(),
 });
 
-export type TCWProviderServer = z.infer<typeof TCWProviderServerSchema>;
+export type ProviderServer = z.infer<typeof ProviderServerSchema>;
 
 // =============================================================================
 // Web3 Provider Configuration
@@ -43,7 +43,7 @@ export type TCWProviderServer = z.infer<typeof TCWProviderServerSchema>;
  * Web3 provider configuration settings.
  * Note: driver is any external provider (Metamask, Web3Modal, etc.)
  */
-export const TCWProviderWeb3Schema = z.object({
+export const ProviderWeb3Schema = z.object({
   /**
    * window.ethereum for Metamask;
    * web3modal.connect() for Web3Modal;
@@ -52,21 +52,21 @@ export const TCWProviderWeb3Schema = z.object({
   driver: z.unknown(),
 });
 
-export type TCWProviderWeb3 = z.infer<typeof TCWProviderWeb3Schema>;
+export type ProviderWeb3 = z.infer<typeof ProviderWeb3Schema>;
 
 /**
  * TCW web3 configuration settings.
  */
-export const TCWClientProvidersSchema = z.object({
+export const ClientProvidersSchema = z.object({
   /** Web3 wallet provider */
-  web3: TCWProviderWeb3Schema.optional(),
+  web3: ProviderWeb3Schema.optional(),
   /** JSON RPC provider configurations */
-  rpc: TCWRPCProviderSchema.optional(),
+  rpc: RPCProviderSchema.optional(),
   /** Optional reference to server running tcw-server. */
-  server: TCWProviderServerSchema.optional(),
+  server: ProviderServerSchema.optional(),
 });
 
-export type TCWClientProviders = z.infer<typeof TCWClientProvidersSchema>;
+export type ClientProviders = z.infer<typeof ClientProvidersSchema>;
 
 // =============================================================================
 // SIWE Configuration
@@ -122,16 +122,16 @@ export type ConfigOverrides = z.infer<typeof ConfigOverridesSchema>;
 /**
  * Core config for TCW.
  */
-export const TCWClientConfigSchema = z.object({
+export const ClientConfigSchema = z.object({
   /** Connection to a cryptographic keypair and/or network. */
-  providers: TCWClientProvidersSchema.optional(),
+  providers: ClientProvidersSchema.optional(),
   /** Optional session configuration for the SIWE message. */
   siweConfig: SiweConfigSchema.optional(),
   /** Whether or not ENS resolution is enabled. True means resolve all on client. */
   resolveEns: z.boolean().optional(),
 });
 
-export type TCWClientConfig = z.infer<typeof TCWClientConfigSchema>;
+export type ClientConfig = z.infer<typeof ClientConfigSchema>;
 
 // =============================================================================
 // Client Session
@@ -140,7 +140,7 @@ export type TCWClientConfig = z.infer<typeof TCWClientConfigSchema>;
 /**
  * Representation of an active TCWSession.
  */
-export const TCWClientSessionSchema = z.object({
+export const ClientSessionSchema = z.object({
   /** User address */
   address: z.string(),
   /** User address without delegation */
@@ -154,10 +154,10 @@ export const TCWClientSessionSchema = z.object({
   /** The signature of the siwe message */
   signature: z.string(),
   /** ENS data supported by TCW */
-  ens: TCWEnsDataSchema.optional(),
+  ens: EnsDataSchema.optional(),
 });
 
-export type TCWClientSession = z.infer<typeof TCWClientSessionSchema>;
+export type ClientSession = z.infer<typeof ClientSessionSchema>;
 
 // =============================================================================
 // Extension Interface
@@ -167,7 +167,7 @@ export type TCWClientSession = z.infer<typeof TCWClientSessionSchema>;
  * Interface for an extension to TCW.
  * Note: Methods are async functions, validated as functions at runtime.
  */
-export const TCWExtensionSchema = z.object({
+export const ExtensionSchema = z.object({
   /** [recap] Capability namespace. */
   namespace: z.string().optional(),
   /** [recap] Default delegated actions in capability namespace. */
@@ -182,19 +182,19 @@ export const TCWExtensionSchema = z.object({
   afterSignIn: z.function().optional(),
 });
 
-export type TCWExtension = z.infer<typeof TCWExtensionSchema>;
+export type Extension = z.infer<typeof ExtensionSchema>;
 
 /**
  * Interface to an intermediate TCW state: connected, but not signed-in.
  * Note: Contains many functions and external types, use z.unknown() for complex fields.
  */
-export const ITCWConnectedSchema = z.object({
+export const IConnectedSchema = z.object({
   /** Instance of TCWSessionManager. */
   builder: z.unknown(),
   /** TCWConfig object. */
-  config: TCWClientConfigSchema,
+  config: ClientConfigSchema,
   /** List of enabled extensions. */
-  extensions: z.array(TCWExtensionSchema),
+  extensions: z.array(ExtensionSchema),
   /** Web3 provider. */
   provider: z.unknown(),
   /** Promise that is initialized on construction to run the "afterConnect" methods of extensions. */
@@ -213,7 +213,7 @@ export const ITCWConnectedSchema = z.object({
   signOut: z.function(),
 });
 
-export type ITCWConnected = z.infer<typeof ITCWConnectedSchema>;
+export type IConnected = z.infer<typeof IConnectedSchema>;
 
 // =============================================================================
 // Validation Helpers
@@ -236,10 +236,10 @@ export type ValidationResult<T> =
   | { ok: false; error: ValidationError };
 
 /**
- * Validates TCWClientSession.
+ * Validates ClientSession.
  */
-export function validateTCWClientSession(data: unknown): ValidationResult<TCWClientSession> {
-  const result = TCWClientSessionSchema.safeParse(data);
+export function validateClientSession(data: unknown): ValidationResult<ClientSession> {
+  const result = ClientSessionSchema.safeParse(data);
   if (!result.success) {
     return {
       ok: false,
@@ -254,10 +254,10 @@ export function validateTCWClientSession(data: unknown): ValidationResult<TCWCli
 }
 
 /**
- * Validates TCWClientConfig.
+ * Validates ClientConfig.
  */
-export function validateTCWClientConfig(data: unknown): ValidationResult<TCWClientConfig> {
-  const result = TCWClientConfigSchema.safeParse(data);
+export function validateClientConfig(data: unknown): ValidationResult<ClientConfig> {
+  const result = ClientConfigSchema.safeParse(data);
   if (!result.success) {
     return {
       ok: false,
@@ -290,10 +290,10 @@ export function validateSiweConfig(data: unknown): ValidationResult<SiweConfig> 
 }
 
 /**
- * Validates TCWExtension.
+ * Validates Extension.
  */
-export function validateTCWExtension(data: unknown): ValidationResult<TCWExtension> {
-  const result = TCWExtensionSchema.safeParse(data);
+export function validateExtension(data: unknown): ValidationResult<Extension> {
+  const result = ExtensionSchema.safeParse(data);
   if (!result.success) {
     return {
       ok: false,

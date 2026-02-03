@@ -1,7 +1,7 @@
 import {
   IUserAuthorization,
-  TCWClientSession,
-  TCWExtension,
+  ClientSession,
+  Extension,
 } from "./userAuthorization";
 import {
   ServiceContext,
@@ -125,7 +125,7 @@ export class TinyCloud {
   /**
    * Registered extensions.
    */
-  private extensions: TCWExtension[] = [];
+  private extensions: Extension[] = [];
 
   // === Service Infrastructure ===
 
@@ -277,11 +277,11 @@ export class TinyCloud {
   }
 
   /**
-   * Convert TCWClientSession to ServiceSession.
+   * Convert ClientSession to ServiceSession.
    * Returns null if session lacks required fields.
    */
   private toServiceSession(
-    clientSession: TCWClientSession | undefined
+    clientSession: ClientSession | undefined
   ): ServiceSession | null {
     if (!clientSession) return null;
 
@@ -302,7 +302,7 @@ export class TinyCloud {
    * Add an extension to the SDK.
    * Extensions can add capabilities and lifecycle hooks.
    */
-  public extend(extension: TCWExtension): void {
+  public extend(extension: Extension): void {
     this.extensions.push(extension);
     this.userAuthorization.extend(extension);
   }
@@ -320,7 +320,7 @@ export class TinyCloud {
   /**
    * Get the current session, if signed in.
    */
-  public get session(): TCWClientSession | undefined {
+  public get session(): ClientSession | undefined {
     return this.userAuthorization.session;
   }
 
@@ -336,7 +336,7 @@ export class TinyCloud {
    * Notifies services of the new session after successful sign-in.
    * @returns The new session
    */
-  public async signIn(): Promise<TCWClientSession> {
+  public async signIn(): Promise<ClientSession> {
     const session = await this.userAuthorization.signIn();
 
     // Notify services of the new session

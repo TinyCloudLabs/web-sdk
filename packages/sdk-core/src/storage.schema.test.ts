@@ -7,7 +7,7 @@ import {
   PersistedSessionDataSchema,
   PersistedTinyCloudSessionSchema,
   TinyCloudSessionSchema,
-  TCWEnsDataSchema,
+  EnsDataSchema,
   validatePersistedSessionData,
   validateTinyCloudSession,
   validatePersistedTinyCloudSession,
@@ -57,12 +57,12 @@ const validTinyCloudSession = {
 };
 
 // =============================================================================
-// TCWEnsDataSchema Tests
+// EnsDataSchema Tests
 // =============================================================================
 
-describe("TCWEnsDataSchema", () => {
+describe("EnsDataSchema", () => {
   it("accepts valid ENS data with all fields", () => {
-    const result = TCWEnsDataSchema.safeParse({
+    const result = EnsDataSchema.safeParse({
       domain: "example.eth",
       avatarUrl: "https://example.com/avatar.png",
     });
@@ -70,7 +70,7 @@ describe("TCWEnsDataSchema", () => {
   });
 
   it("accepts ENS data with null values", () => {
-    const result = TCWEnsDataSchema.safeParse({
+    const result = EnsDataSchema.safeParse({
       domain: null,
       avatarUrl: null,
     });
@@ -78,12 +78,12 @@ describe("TCWEnsDataSchema", () => {
   });
 
   it("accepts empty object", () => {
-    const result = TCWEnsDataSchema.safeParse({});
+    const result = EnsDataSchema.safeParse({});
     expect(result.success).toBe(true);
   });
 
   it("accepts ENS data with only domain", () => {
-    const result = TCWEnsDataSchema.safeParse({
+    const result = EnsDataSchema.safeParse({
       domain: "vitalik.eth",
     });
     expect(result.success).toBe(true);

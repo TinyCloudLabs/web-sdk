@@ -61,7 +61,7 @@ import { PrivateKeySigner } from "./signers/PrivateKeySigner";
 import { FileSessionStorage } from "./storage/FileSessionStorage";
 import { MemorySessionStorage } from "./storage/MemorySessionStorage";
 import {
-  TCWSessionManager,
+  TCWSessionManager as SessionManager,
   prepareSession,
   completeSessionSetup,
   ensureEip55,
@@ -112,7 +112,7 @@ export class TinyCloudNode {
   private tc: TinyCloud | null = null;
   private _address?: string;
   private _chainId: number = 1;
-  private sessionManager: TCWSessionManager;
+  private sessionManager: SessionManager;
   private _serviceContext?: ServiceContext;
   private _kv?: KVService;
 
@@ -166,7 +166,7 @@ export class TinyCloudNode {
     };
 
     // Always create session manager and session key immediately
-    this.sessionManager = new TCWSessionManager();
+    this.sessionManager = new SessionManager();
 
     // Try to use "default" key, create if it doesn't exist
     const defaultKeyId = "default";

@@ -3,16 +3,17 @@ import {
   IUserAuthorization,
   ISigner,
   ISessionStorage,
-  TCWClientSession,
-  TCWExtension,
+  ClientSession,
+  Extension,
   PersistedSessionData,
   TinyCloudSession,
   fetchPeerId,
   submitHostDelegation,
   activateSessionWithHost,
+  checkNodeVersion,
 } from "@tinycloudlabs/sdk-core";
 import {
-  TCWSessionManager,
+  TCWSessionManager as SessionManager,
   prepareSession,
   completeSessionSetup,
   ensureEip55,
@@ -20,6 +21,7 @@ import {
   initPanicHook,
   generateHostSIWEMessage,
   siweToDelegationHeaders,
+  protocolVersion,
 } from "@tinycloudlabs/node-sdk-wasm";
 import {
   SignStrategy,
@@ -105,9 +107,9 @@ export class NodeUserAuthorization implements IUserAuthorization {
   private readonly autoCreateSpace: boolean;
   private readonly tinycloudHosts: string[];
 
-  private sessionManager: TCWSessionManager;
-  private extensions: TCWExtension[] = [];
-  private _session?: TCWClientSession;
+  private sessionManager: SessionManager;
+  private extensions: Extension[] = [];
+  private _session?: ClientSession;
   private _tinyCloudSession?: TinyCloudSession;
   private _address?: string;
   private _chainId?: number;
@@ -145,13 +147,13 @@ export class NodeUserAuthorization implements IUserAuthorization {
     this.tinycloudHosts = config.tinycloudHosts ?? ["https://node.tinycloud.xyz"];
 
     // Initialize session manager
-    this.sessionManager = new TCWSessionManager();
+    this.sessionManager = new SessionManager();
   }
 
   /**
    * The current active session (web-core compatible).
    */
-  get session(): TCWClientSession | undefined {
+  get session(): ClientSession | undefined {
     return this._session;
   }
 
@@ -166,7 +168,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
   /**
    * Add an extension to the authorization flow.
    */
-  extend(extension: TCWExtension): void {
+  extend(extension: Extension): void {
     this.extensions.push(extension);
   }
 
@@ -285,7 +287,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
    * 3. Sign the SIWE string from prepareSession
    * 4. Call completeSessionSetup() with the prepared session + signature
    */
-  async signIn(): Promise<TCWClientSession> {
+  async signIn(): Promise<ClientSession> {
     // Get signer address and chain ID
     this._address = await this.signer.getAddress();
     this._chainId = await this.signer.getChainId();
@@ -337,7 +339,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
     });
 
     // Create client session (web-core compatible)
-    const clientSession: TCWClientSession = {
+    const clientSession: ClientSession = {
       address,
       walletAddress: address,
       chainId,
@@ -386,6 +388,9 @@ export class NodeUserAuthorization implements IUserAuthorization {
     this._tinyCloudSession = tinyCloudSession;
     this._address = address;
     this._chainId = chainId;
+
+    // Verify SDK-node protocol compatibility
+    await checkNodeVersion(this.tinycloudHosts[0], protocolVersion());
 
     // Call extension hooks
     for (const ext of this.extensions) {
@@ -532,7 +537,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
     signature: string,
     keyId: string,
     jwk: Record<string, unknown>
-  ): Promise<TCWClientSession> {
+  ): Promise<ClientSession> {
     // Complete session setup with the prepared session + signature
     const session = completeSessionSetup({
       ...prepared,
@@ -546,7 +551,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
     const chainId = await this.signer.getChainId();
 
     // Create client session (web-core compatible)
-    const clientSession: TCWClientSession = {
+    const clientSession: ClientSession = {
       address,
       walletAddress: address,
       chainId,
@@ -602,6 +607,9 @@ export class NodeUserAuthorization implements IUserAuthorization {
     this._tinyCloudSession = tinyCloudSession;
     this._address = address;
     this._chainId = chainId;
+
+    // Verify SDK-node protocol compatibility
+    await checkNodeVersion(this.tinycloudHosts[0], protocolVersion());
 
     // Call extension hooks
     for (const ext of this.extensions) {

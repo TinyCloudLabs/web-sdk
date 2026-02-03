@@ -27,6 +27,8 @@ export namespace tinycloud {
   export import ensureEip55 = lib.ensureEip55;
   // Delegation creation
   export import createDelegation = lib.createDelegation;
+  // Protocol version
+  export import protocolVersion = lib.protocolVersion;
 }
 
 // Note: CreateDelegationWasmParams and CreateDelegationWasmResult types are available

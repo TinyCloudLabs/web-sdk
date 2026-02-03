@@ -14,7 +14,7 @@ import { SignStrategySchema } from "./authorization/strategies.schema";
 import { SpaceCreationHandlerSchema } from "./authorization/spaceCreation.schema";
 import type { ISigner } from "./signer";
 import type { ISessionStorage } from "./storage";
-import type { TCWExtension, SiweConfig } from "@tinycloudlabs/web-core/client";
+import type { Extension, SiweConfig } from "@tinycloudlabs/web-core/client";
 
 // =============================================================================
 // Partial SIWE Message Schema
@@ -61,7 +61,7 @@ export type PartialSiweMessage = z.infer<typeof PartialSiweMessageSchema>;
 /**
  * Schema for UserAuthorization configuration.
  *
- * Note: ISigner, ISessionStorage, TCWExtension, and SiweConfig are external types
+ * Note: ISigner, ISessionStorage, Extension, and SiweConfig are external types
  * that cannot be fully validated at runtime. We use z.unknown() for these.
  */
 export const UserAuthorizationConfigSchema = z.object({
@@ -112,8 +112,8 @@ export const UserAuthorizationConfigSchema = z.object({
   extensions: z
     .array(
       z.unknown().refine(
-        (val): val is TCWExtension => val !== null && typeof val === "object",
-        { message: "Expected a TCWExtension object" }
+        (val): val is Extension => val !== null && typeof val === "object",
+        { message: "Expected an Extension object" }
       )
     )
     .optional(),

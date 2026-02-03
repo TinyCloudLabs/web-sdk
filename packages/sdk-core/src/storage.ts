@@ -12,13 +12,13 @@ export {
   type PersistedTinyCloudSession,
   type TinyCloudSession,
   type PersistedSessionData,
-  type TCWEnsData,
+  type EnsData,
   type ValidationError,
   // Schemas (for advanced use cases)
   PersistedTinyCloudSessionSchema,
   TinyCloudSessionSchema,
   PersistedSessionDataSchema,
-  TCWEnsDataSchema,
+  EnsDataSchema,
   // Validation functions
   validatePersistedSessionData,
   validateTinyCloudSession,

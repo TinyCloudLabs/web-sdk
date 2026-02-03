@@ -24,7 +24,7 @@ export type JsonSchemaWithDefinitions = JsonSchema7Type & {
 // =============================================================================
 
 import {
-  TCWEnsDataSchema,
+  EnsDataSchema,
   PersistedTinyCloudSessionSchema,
   PersistedSessionDataSchema,
   TinyCloudSessionSchema,
@@ -141,11 +141,11 @@ const defaultOptions: JsonSchemaOptions = {
 // =============================================================================
 
 /**
- * Generate JSON Schema for TCWEnsData.
+ * Generate JSON Schema for EnsData.
  */
-export function getTCWEnsDataJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
-  return zodToJsonSchema(TCWEnsDataSchema, {
-    name: options?.name ?? "TCWEnsData",
+export function getEnsDataJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
+  return zodToJsonSchema(EnsDataSchema, {
+    name: options?.name ?? "EnsData",
     ...defaultOptions,
     ...options,
   });
@@ -673,7 +673,7 @@ export function getSpaceDelegationParamsJsonSchema(options?: JsonSchemaOptions):
 export interface JsonSchemaBundle {
   /** Storage-related schemas */
   storage: {
-    TCWEnsData: JsonSchemaWithDefinitions;
+    EnsData: JsonSchemaWithDefinitions;
     PersistedTinyCloudSession: JsonSchemaWithDefinitions;
     PersistedSessionData: JsonSchemaWithDefinitions;
     TinyCloudSession: JsonSchemaWithDefinitions;
@@ -772,7 +772,7 @@ export interface JsonSchemaBundle {
 export function getAllJsonSchemas(options?: JsonSchemaOptions): JsonSchemaBundle {
   return {
     storage: {
-      TCWEnsData: getTCWEnsDataJsonSchema(options),
+      EnsData: getEnsDataJsonSchema(options),
       PersistedTinyCloudSession: getPersistedTinyCloudSessionJsonSchema(options),
       PersistedSessionData: getPersistedSessionDataJsonSchema(options),
       TinyCloudSession: getTinyCloudSessionJsonSchema(options),
@@ -846,7 +846,7 @@ export function getAllJsonSchemas(options?: JsonSchemaOptions): JsonSchemaBundle
  * import { getAllJsonSchemasFlat } from "@tinycloudlabs/sdk-core";
  *
  * const schemas = getAllJsonSchemasFlat();
- * console.log(Object.keys(schemas)); // ["TCWEnsData", "Delegation", ...]
+ * console.log(Object.keys(schemas)); // ["EnsData", "Delegation", ...]
  * ```
  */
 export function getAllJsonSchemasFlat(options?: JsonSchemaOptions): Record<string, JsonSchemaWithDefinitions> {
@@ -876,7 +876,7 @@ export function getAllJsonSchemasFlat(options?: JsonSchemaOptions): Record<strin
  */
 export const SCHEMA_NAMES = [
   // Storage
-  "TCWEnsData",
+  "EnsData",
   "PersistedTinyCloudSession",
   "PersistedSessionData",
   "TinyCloudSession",
