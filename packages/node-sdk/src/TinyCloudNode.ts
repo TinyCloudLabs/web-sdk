@@ -598,7 +598,7 @@ export class TinyCloudNode {
     }
 
     const keyInfo: KeyInfo = {
-      id: `received:${(delegation.cid || delegation.delegationCid!)}`,
+      id: `received:${delegation.cid}`,
       did: this.sessionDid,
       type: "ingested",
       jwk,
@@ -607,7 +607,7 @@ export class TinyCloudNode {
 
     // Convert PortableDelegation to Delegation type
     const delegationRecord: Delegation = {
-      cid: (delegation.cid || delegation.delegationCid!),
+      cid: delegation.cid,
       delegateDID: delegation.delegateDID,
       spaceId: delegation.spaceId,
       path: delegation.path,
@@ -953,7 +953,6 @@ export class TinyCloudNode {
     // Return the portable delegation
     return {
       cid: delegationSession.delegationCid,
-      delegationCid: delegationSession.delegationCid, // @deprecated - use cid
       delegationHeader: delegationSession.delegationHeader,
       spaceId: session.spaceId,
       path: params.path,
@@ -1182,7 +1181,7 @@ export class TinyCloudNode {
       expirationTime: actualExpiry.toISOString(),
       spaceId: parentDelegation.spaceId,
       delegateUri: params.delegateDID,
-      parents: [parentDelegation.delegationCid],
+      parents: [parentDelegation.cid],
     });
 
     // Sign with THIS user's signer
@@ -1207,7 +1206,6 @@ export class TinyCloudNode {
     // Return the portable sub-delegation
     return {
       cid: subDelegationSession.delegationCid,
-      delegationCid: subDelegationSession.delegationCid, // @deprecated - use cid
       delegationHeader: subDelegationSession.delegationHeader,
       spaceId: parentDelegation.spaceId,
       path: params.path,

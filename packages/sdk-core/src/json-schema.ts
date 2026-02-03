@@ -51,8 +51,6 @@ import {
   SpaceInfoSchema,
   ShareSchemaSchema,
   ShareLinkSchema,
-  SharingLinkSchema,
-  GenerateSharingLinkParamsSchema,
   IngestOptionsSchema,
   GenerateShareParamsSchema,
   DelegationApiResponseSchema,
@@ -361,28 +359,6 @@ export function getShareSchemaJsonSchema(options?: JsonSchemaOptions): JsonSchem
 export function getShareLinkJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
   return zodToJsonSchema(ShareLinkSchema, {
     name: options?.name ?? "ShareLink",
-    ...defaultOptions,
-    ...options,
-  });
-}
-
-/**
- * Generate JSON Schema for SharingLink (deprecated).
- */
-export function getSharingLinkJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
-  return zodToJsonSchema(SharingLinkSchema, {
-    name: options?.name ?? "SharingLink",
-    ...defaultOptions,
-    ...options,
-  });
-}
-
-/**
- * Generate JSON Schema for GenerateSharingLinkParams (deprecated).
- */
-export function getGenerateSharingLinkParamsJsonSchema(options?: JsonSchemaOptions): JsonSchemaWithDefinitions {
-  return zodToJsonSchema(GenerateSharingLinkParamsSchema, {
-    name: options?.name ?? "GenerateSharingLinkParams",
     ...defaultOptions,
     ...options,
   });
@@ -720,8 +696,6 @@ export interface JsonSchemaBundle {
     SpaceInfo: JsonSchemaWithDefinitions;
     ShareSchema: JsonSchemaWithDefinitions;
     ShareLink: JsonSchemaWithDefinitions;
-    SharingLink: JsonSchemaWithDefinitions;
-    GenerateSharingLinkParams: JsonSchemaWithDefinitions;
     IngestOptions: JsonSchemaWithDefinitions;
     GenerateShareParams: JsonSchemaWithDefinitions;
     DelegationApiResponse: JsonSchemaWithDefinitions;
@@ -820,8 +794,6 @@ export function getAllJsonSchemas(options?: JsonSchemaOptions): JsonSchemaBundle
       SpaceInfo: getSpaceInfoJsonSchema(options),
       ShareSchema: getShareSchemaJsonSchema(options),
       ShareLink: getShareLinkJsonSchema(options),
-      SharingLink: getSharingLinkJsonSchema(options),
-      GenerateSharingLinkParams: getGenerateSharingLinkParamsJsonSchema(options),
       IngestOptions: getIngestOptionsJsonSchema(options),
       GenerateShareParams: getGenerateShareParamsJsonSchema(options),
       DelegationApiResponse: getDelegationApiResponseJsonSchema(options),
@@ -925,8 +897,6 @@ export const SCHEMA_NAMES = [
   "SpaceInfo",
   "ShareSchema",
   "ShareLink",
-  "SharingLink",
-  "GenerateSharingLinkParams",
   "IngestOptions",
   "GenerateShareParams",
   "DelegationApiResponse",

@@ -72,8 +72,6 @@ export {
   // Node.js-specific types
   NodeEventEmitterStrategy,
   SignStrategy,
-  // Backwards compatibility alias
-  EventEmitterStrategy,
 } from "./authorization/strategies";
 
 // High-level API
@@ -111,8 +109,6 @@ export {
   EncodedShareData,
   ReceiveOptions,
   ShareAccess,
-  // SharingLinks (v1 - deprecated)
-  SharingLinks,
   // Delegation types
   Delegation,
   CreateDelegationParams,
@@ -140,10 +136,6 @@ export {
   ShareLinkData,
   IngestOptions,
   GenerateShareParams,
-  // Legacy types (deprecated)
-  SharingLink,
-  GenerateSharingLinkParams,
-  SharingLinkData,
 } from "@tinycloudlabs/sdk-core";
 
 // Re-export CapabilityKeyRegistry (v2)

@@ -137,17 +137,11 @@ export {
   CreateDelegationParams,
   DelegationChain,
   DelegationApiResponse,
-  // Sharing link types (v1 - deprecated)
-  SharingLink,
-  GenerateSharingLinkParams,
-  SharingLinkData,
   // Configuration types
   DelegationManagerConfig,
-  SharingLinksConfig,
   KeyProvider,
   // Classes
   DelegationManager,
-  SharingLinks,
   // v2 SharingService
   SharingService,
   createSharingService,
@@ -291,8 +285,6 @@ export {
   getSpaceInfoJsonSchema,
   getShareSchemaJsonSchema,
   getShareLinkJsonSchema,
-  getSharingLinkJsonSchema,
-  getGenerateSharingLinkParamsJsonSchema,
   getIngestOptionsJsonSchema,
   getGenerateShareParamsJsonSchema,
   getDelegationApiResponseJsonSchema,

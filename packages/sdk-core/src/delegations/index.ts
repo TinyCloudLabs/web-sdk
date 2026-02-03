@@ -11,7 +11,7 @@
  * ```typescript
  * import {
  *   DelegationManager,
- *   SharingLinks,
+ *   SharingService,
  *   Delegation,
  *   CreateDelegationParams,
  * } from "@tinycloudlabs/sdk-core/delegations";
@@ -29,17 +29,6 @@
  *   path: "shared/",
  *   actions: ["tinycloud.kv/get", "tinycloud.kv/list"],
  * });
- *
- * // Create sharing links manager
- * const sharing = new SharingLinks(delegations, {
- *   baseUrl: "https://share.myapp.com",
- * });
- *
- * // Generate a sharing link
- * const linkResult = await sharing.generate({ key: "document.json" });
- * if (linkResult.ok) {
- *   console.log("Share URL:", linkResult.data.url);
- * }
  * ```
  */
 
@@ -57,16 +46,9 @@ export {
   DelegationChain,
   DelegationApiResponse,
 
-  // Sharing link types (v1 - deprecated)
-  SharingLink,
-  GenerateSharingLinkParams,
-  SharingLinkData,
-
   // Configuration types
   DelegationManagerConfig,
-  SharingLinksConfig,
   KeyProvider,
-  KVServiceGetter,
 
   // v2 types for CapabilityKeyRegistry
   JWK,
@@ -92,7 +74,6 @@ export {
 
 // Classes
 export { DelegationManager } from "./DelegationManager";
-export { SharingLinks } from "./SharingLinks";
 
 // v2 SharingService
 export {

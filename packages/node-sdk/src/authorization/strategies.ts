@@ -64,12 +64,6 @@ export interface NodeEventEmitterStrategy {
 }
 
 /**
- * Alias for backwards compatibility.
- * @deprecated Use NodeEventEmitterStrategy instead
- */
-export type EventEmitterStrategy = NodeEventEmitterStrategy;
-
-/**
  * Node.js sign strategy union type.
  *
  * Determines how sign requests are handled in NodeUserAuthorization.

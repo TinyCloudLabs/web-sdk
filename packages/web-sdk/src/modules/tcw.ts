@@ -1,6 +1,5 @@
 import {
   TCWRPCProviders,
-  TCWEnsData,
 } from '@tinycloudlabs/web-core';
 import {
   IUserAuthorization,
@@ -18,10 +17,9 @@ import {
   TCWClientSession,
   TCWExtension,
 } from '@tinycloudlabs/web-core/client';
-import type { providers, Signer } from 'ethers';
+import type { providers } from 'ethers';
 import { SDKErrorHandler, ToastManager } from '../notifications';
 import type { NotificationConfig } from '../notifications/types';
-import { SiweMessage } from 'siwe';
 import {
   ServiceContext,
   KVService,
@@ -1194,29 +1192,6 @@ export class TinyCloudWeb {
   }
 
   /**
-   * ENS data supported by TCW.
-   *
-   * @deprecated This method is only available in legacy auth mode.
-   * When using `useNewAuth: true`, use ethers.js or viem directly for ENS resolution.
-   *
-   * @param address - User address.
-   * @returns Object containing ENS data.
-   * @throws Error if using new auth module (useNewAuth: true)
-   */
-  public async resolveEns(
-    /** User address */
-    address: string,
-  ): Promise<TCWEnsData> {
-    if (this.isNewAuthEnabled) {
-      throw new Error(
-        'resolveEns() is not available in new auth mode. ' +
-        'Use ethers.js or viem directly for ENS resolution.'
-      );
-    }
-    return (this.userAuthorization as IUserAuthorization).resolveEns(address);
-  }
-
-  /**
    * Gets the session representation (once signed in).
    * @returns Session object.
    */
@@ -1236,98 +1211,6 @@ export class TinyCloudWeb {
    */
   public chainId: () => number | undefined = () =>
     this.userAuthorization.chainId();
-
-  /**
-   * Gets the provider that is connected and signed in.
-   *
-   * @deprecated This method is only available in legacy auth mode.
-   * When using `useNewAuth: true`, use `webAuth.isWalletConnected` to check connection status.
-   *
-   * @returns Provider.
-   * @throws Error if using new auth module (useNewAuth: true)
-   */
-  public getProvider(): providers.Web3Provider | undefined {
-    if (this.isNewAuthEnabled) {
-      throw new Error(
-        'getProvider() is not available in new auth mode. ' +
-        'Use webAuth.isWalletConnected to check connection status.'
-      );
-    }
-    return (this.userAuthorization as IUserAuthorization).provider;
-  }
-
-  /**
-   * Returns the signer of the connected address.
-   *
-   * @deprecated This method is only available in legacy auth mode.
-   * When using `useNewAuth: true`, use `webAuth.signMessage()` for signing operations.
-   *
-   * @returns ethers.Signer
-   * @throws Error if using new auth module (useNewAuth: true)
-   * @see https://docs.ethers.io/v5/api/signer/#Signer
-   */
-  public getSigner(): Signer {
-    if (this.isNewAuthEnabled) {
-      throw new Error(
-        'getSigner() is not available in new auth mode. ' +
-        'Use signMessage() for signing operations.'
-      );
-    }
-    return (this.userAuthorization as IUserAuthorization).provider.getSigner();
-  }
-
-  /**
-   * Generates a SIWE message for authentication with session key capabilities.
-   * This method delegates to the UserAuthorization module.
-   *
-   * @deprecated This method is only available in legacy auth mode.
-   * When using `useNewAuth: true`, use `webAuth.prepareSessionForSigning()` for external signing flows.
-   *
-   * @param address - Ethereum address performing the signing
-   * @param partialSiweMessage - Optional partial SIWE message to override defaults
-   * @returns SiweMessage object ready for signing
-   * @throws Error if using new auth module (useNewAuth: true)
-   */
-  public async generateSiweMessage(
-    address: string,
-    partialSiweMessage?: Partial<SiweMessage>
-  ): Promise<SiweMessage> {
-    if (this.isNewAuthEnabled) {
-      throw new Error(
-        'generateSiweMessage() is not available in new auth mode. ' +
-        'Use webAuth.prepareSessionForSigning() for external signing flows.'
-      );
-    }
-    return (this.userAuthorization as IUserAuthorization).generateSiweMessage(address, partialSiweMessage);
-  }
-
-  /**
-   * Sign in using a pre-signed SIWE message.
-   * This method delegates to the UserAuthorization module.
-   *
-   * @deprecated This method is only available in legacy auth mode.
-   * When using `useNewAuth: true`, use `webAuth.signInWithPreparedSession()` for external signing flows.
-   *
-   * @param siweMessage - The SIWE message that was generated
-   * @param signature - The signature of the SIWE message
-   * @returns Object containing information about the session
-   * @throws Error if using new auth module (useNewAuth: true)
-   */
-  public async signInWithSignature(
-    siweMessage: SiweMessage,
-    signature: string
-  ): Promise<TCWClientSession> {
-    if (this.isNewAuthEnabled) {
-      throw new Error(
-        'signInWithSignature() is not available in new auth mode. ' +
-        'Use webAuth.signInWithPreparedSession() for external signing flows.'
-      );
-    }
-    const session = await (this.userAuthorization as IUserAuthorization).signInWithSignature(siweMessage, signature);
-    // Initialize KV service after sign-in
-    this.initializeKVService(session);
-    return session;
-  }
 
   // =========================================================================
   // New Auth Module Features (TC-714)
@@ -1804,7 +1687,6 @@ export class TinyCloudWeb {
     // Return the portable delegation
     return {
       cid: delegationSession.delegationCid,
-      delegationCid: delegationSession.delegationCid, // @deprecated - use cid
       delegationHeader: delegationSession.delegationHeader,
       spaceId: session.spaceId,
       path: params.path,
@@ -1829,7 +1711,7 @@ export class TinyCloudWeb {
 
     // Build KeyInfo for the capability registry
     const keyInfo: KeyInfo = {
-      id: `received:${delegation.cid || delegation.delegationCid!}`,
+      id: `received:${delegation.cid}`,
       did: this.sessionDid,
       type: 'ingested',
       jwk,
@@ -1838,7 +1720,7 @@ export class TinyCloudWeb {
 
     // Convert PortableDelegation to Delegation type
     const delegationRecord: Delegation = {
-      cid: delegation.cid || delegation.delegationCid!,
+      cid: delegation.cid,
       delegateDID: delegation.delegateDID,
       spaceId: delegation.spaceId,
       path: delegation.path,
@@ -1969,7 +1851,7 @@ export class TinyCloudWeb {
       expirationTime: actualExpiry.toISOString(),
       spaceId: parentDelegation.spaceId,
       delegateUri: params.delegateDID,
-      parents: [parentDelegation.cid || parentDelegation.delegationCid!],
+      parents: [parentDelegation.cid],
     });
 
     // Sign with THIS user's wallet
@@ -1998,7 +1880,6 @@ export class TinyCloudWeb {
     // Return the portable sub-delegation
     return {
       cid: subDelegationSession.delegationCid,
-      delegationCid: subDelegationSession.delegationCid, // @deprecated - use cid
       delegationHeader: subDelegationSession.delegationHeader,
       spaceId: parentDelegation.spaceId,
       path: params.path,
