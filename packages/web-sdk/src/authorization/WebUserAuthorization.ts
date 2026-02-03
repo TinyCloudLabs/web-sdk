@@ -42,7 +42,7 @@ import {
   completeSessionSetup,
   prepareSession,
 } from "../modules/Storage/tinycloud/module";
-import { SpaceConnection, Authenticator, Session } from "../modules/Storage/tinycloud";
+import { Session } from "../modules/Storage/tinycloud";
 
 /**
  * Web3 provider signer adapter.
@@ -184,9 +184,6 @@ export class WebUserAuthorization implements IUserAuthorization {
   private _tinyCloudSession?: TinyCloudSession;
   private _address?: string;
   private _chainId?: number;
-
-  // Space connection (created after sign-in)
-  private _spaceConnection?: SpaceConnection;
 
   constructor(config: WebUserAuthorizationConfig = {}) {
     // Set up configuration with defaults
@@ -379,13 +376,6 @@ export class WebUserAuthorization implements IUserAuthorization {
   }
 
   /**
-   * Get the space connection (for storage operations).
-   */
-  get spaceConnection(): SpaceConnection | undefined {
-    return this._spaceConnection;
-  }
-
-  /**
    * Get the TinyCloud session.
    */
   getTinycloudSession(): Session | undefined {
@@ -525,9 +515,6 @@ export class WebUserAuthorization implements IUserAuthorization {
     // Ensure space exists (creates if needed when autoCreateSpace is true)
     await this.ensureSpaceExists();
 
-    // Create space connection
-    await this.createSpaceConnection();
-
     // Call extension hooks AFTER space is ready
     for (const ext of this.extensions) {
       if (ext.afterSignIn) {
@@ -550,7 +537,6 @@ export class WebUserAuthorization implements IUserAuthorization {
 
     this._session = undefined;
     this._tinyCloudSession = undefined;
-    this._spaceConnection = undefined;
     // Note: We don't clear _provider/_signer - user can sign in again
   }
 
@@ -756,9 +742,6 @@ export class WebUserAuthorization implements IUserAuthorization {
     // Ensure space exists
     await this.ensureSpaceExists();
 
-    // Create space connection
-    await this.createSpaceConnection();
-
     // Call extension hooks AFTER space is ready
     for (const ext of this.extensions) {
       if (ext.afterSignIn) {
@@ -877,27 +860,6 @@ export class WebUserAuthorization implements IUserAuthorization {
     const result = await submitHostDelegation(host, headers);
 
     return result.success;
-  }
-
-  /**
-   * Create the SpaceConnection after session setup.
-   */
-  private async createSpaceConnection(): Promise<void> {
-    if (!this._tinyCloudSession) {
-      return;
-    }
-
-    const host = this.tinycloudHosts[0];
-    const session: Session = {
-      delegationHeader: this._tinyCloudSession.delegationHeader,
-      delegationCid: this._tinyCloudSession.delegationCid,
-      jwk: this._tinyCloudSession.jwk,
-      spaceId: this._tinyCloudSession.spaceId,
-      verificationMethod: this._tinyCloudSession.verificationMethod,
-    };
-
-    const authn = new Authenticator(session);
-    this._spaceConnection = new SpaceConnection(host, authn);
   }
 
   // =========================================================================
