@@ -1,21 +1,23 @@
-# TinyCloud Javascript SDK
+# TinyCloud SDK
 
 <img src="https://github.com/TinyCloudLabs/web-sdk/blob/master/documentation/static/img/tinycloudheader.png?raw=true" alt="TinyCloud" width="100%" />
 
-TinyCloud SDK is a comprehensive toolkit for building decentralized applications with TinyCloud. It provides easy-to-use interfaces for storage, authentication, and more.
+TinyCloud SDK is a comprehensive toolkit for building decentralized applications with TinyCloud. It provides easy-to-use interfaces for storage, authentication, delegations, and sharing.
 
-[![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/TinyCloudLabs/web-sdk/blob/main/LICENSE-MIT)
+[![license](https://img.shields.io/badge/License-EGPL--1.5-green.svg)](https://github.com/TinyCloudLabs/web-sdk/blob/master/LICENSE.md)
+[![version](https://img.shields.io/badge/Version-1.0.0-blue.svg)](https://github.com/TinyCloudLabs/web-sdk/releases)
 
 ## Features
 
 - **Web3 Authentication** - Sign-in with Ethereum (SIWE) using your wallet
-- **Namespace Management** - Create and manage user-owned data namespaces
-- **KV Storage** - Store and retrieve key-value data with your namespace
-- **Delegation System** - Share access to your data with fine-grained permissions
+- **Space Management** - Create and manage user-owned data spaces
+- **KV Storage** - Content-addressed key-value store scoped to user spaces
+- **Delegation System** - Cryptographic capability chains for fine-grained access control
+- **Sharing** - Portable delegation bundles for cross-user data sharing
+- **Protocol Version Check** - Automatic SDK-node compatibility verification during sign-in
 - **Wallet Integration** - Seamless connection with popular Ethereum wallets (browser SDK)
 - **Server Support** - Node.js SDK for server-side delegation chains and automation
 - **Type Safety** - Written in TypeScript with comprehensive type definitions
-- **Easy to Use** - Simple API for common decentralized application needs
 
 ## Packages
 
@@ -48,56 +50,44 @@ This monorepo contains the following packages:
 ### Browser SDK
 
 ```bash
-# Install the browser SDK
 npm install @tinycloudlabs/web-sdk
 ```
 
 ```typescript
 import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
 
-// Initialize the SDK
 const tc = new TinyCloudWeb();
+await tc.signIn();
 
-// Connect to the user's wallet
-await tc.connect();
-
-// Use storage
-const storage = tc.storage;
-await storage.put('myKey', { hello: 'world' });
-const result = await storage.get('myKey');
-console.log(result.data); // { hello: 'world' }
+// KV storage
+await tc.kv.put('myKey', { hello: 'world' });
+const result = await tc.kv.get('myKey');
 ```
 
 ### Node.js SDK
 
 ```bash
-# Install the Node.js SDK
 npm install @tinycloudlabs/node-sdk
 ```
 
 ```typescript
 import { TinyCloudNode } from '@tinycloudlabs/node-sdk';
 
-// Initialize with private key
 const tc = new TinyCloudNode({
-  privateKey: 'your-ethereum-private-key',
-  host: 'https://node.tinycloud.xyz',
-  autoCreateNamespace: true,
+  privateKey: process.env.PRIVATE_KEY,
+  domain: 'api.myapp.com',
 });
 
-// Sign in and create namespace
 await tc.signIn();
 
-// Use KV storage
+// KV storage
 await tc.kv.put('myKey', { hello: 'world' });
 const result = await tc.kv.get('myKey');
-console.log(result.data); // { hello: 'world' }
 
-// Create delegations
+// Delegations
 const delegation = await tc.createDelegation({
-  path: 'shared/',
-  actions: ['tinycloud.kv/get', 'tinycloud.kv/put'],
   delegateDID: 'did:pkh:eip155:1:0x...',
+  abilities: ['tinycloud.kv/get', 'tinycloud.kv/put'],
 });
 ```
 
@@ -153,7 +143,7 @@ The TinyCloud Web SDK is the spiritual successor to the [SSX SDK](https://github
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE-MIT](./LICENSE-MIT) file for details.
+This project is licensed under the TinyCloud Ecosystem General Public License (EGPL) v1.5 - see the [LICENSE.md](./LICENSE.md) file for details.
 
 ## Support
 

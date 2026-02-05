@@ -1,65 +1,65 @@
 import {
-  isTCWAlchemyProvider,
-  isTCWAnkrProvider,
-  isTCWCloudflareProvider,
-  isTCWCustomProvider,
-  isTCWEtherscanProvider,
-  isTCWInfuraProvider,
-  isTCWPocketProvider,
-  TCWAlchemyProviderNetworks,
-  TCWAnkrProviderNetworks,
-  TCWEnsData,
-  TCWEtherscanProviderNetworks,
-  TCWInfuraProviderNetworks,
-  TCWPocketProviderNetworks,
-  TCWRPCProvider,
+  isAlchemyProvider,
+  isAnkrProvider,
+  isCloudflareProvider,
+  isCustomProvider,
+  isEtherscanProvider,
+  isInfuraProvider,
+  isPocketProvider,
+  AlchemyProviderNetworks,
+  AnkrProviderNetworks,
+  EnsData,
+  EtherscanProviderNetworks,
+  InfuraProviderNetworks,
+  PocketProviderNetworks,
+  RPCProvider,
 } from '../types';
 import { ethers, getDefaultProvider } from 'ethers';
 
 /**
- * @param rpc - TCWRPCProvider
+ * @param rpc - RPCProvider
  * @returns an ethers provider based on the RPC configuration.
  */
 export const getProvider = (
-  rpc?: TCWRPCProvider
+  rpc?: RPCProvider
 ): ethers.providers.BaseProvider => {
   if (!rpc) {
     return getDefaultProvider();
   }
-  if (isTCWEtherscanProvider(rpc)) {
+  if (isEtherscanProvider(rpc)) {
     return new ethers.providers.EtherscanProvider(
-      rpc.network ?? TCWEtherscanProviderNetworks.MAINNET,
+      rpc.network ?? EtherscanProviderNetworks.MAINNET,
       rpc.apiKey
     );
   }
-  if (isTCWInfuraProvider(rpc)) {
+  if (isInfuraProvider(rpc)) {
     return new ethers.providers.InfuraProvider(
-      rpc.network ?? TCWInfuraProviderNetworks.MAINNET,
+      rpc.network ?? InfuraProviderNetworks.MAINNET,
       rpc.apiKey
     );
   }
-  if (isTCWAlchemyProvider(rpc)) {
+  if (isAlchemyProvider(rpc)) {
     return new ethers.providers.AlchemyProvider(
-      rpc.network ?? TCWAlchemyProviderNetworks.MAINNET,
+      rpc.network ?? AlchemyProviderNetworks.MAINNET,
       rpc.apiKey
     );
   }
-  if (isTCWCloudflareProvider(rpc)) {
+  if (isCloudflareProvider(rpc)) {
     return new ethers.providers.CloudflareProvider();
   }
-  if (isTCWPocketProvider(rpc)) {
+  if (isPocketProvider(rpc)) {
     return new ethers.providers.PocketProvider(
-      rpc.network ?? TCWPocketProviderNetworks.MAINNET,
+      rpc.network ?? PocketProviderNetworks.MAINNET,
       rpc.apiKey
     );
   }
-  if (isTCWAnkrProvider(rpc)) {
+  if (isAnkrProvider(rpc)) {
     return new ethers.providers.AnkrProvider(
-      rpc.network ?? TCWAnkrProviderNetworks.MAINNET,
+      rpc.network ?? AnkrProviderNetworks.MAINNET,
       rpc.apiKey
     );
   }
-  if (isTCWCustomProvider(rpc)) {
+  if (isCustomProvider(rpc)) {
     return new ethers.providers.JsonRpcProvider(rpc.url, rpc.network);
   }
   return getDefaultProvider();
@@ -71,15 +71,15 @@ export const getProvider = (
  * @param address - User address.
  * @returns Object containing ENS data.
  */
-export const tcwResolveEns = async (
+export const resolveEns = async (
   provider: ethers.providers.BaseProvider,
   /* User Address */
   address: string
-): Promise<TCWEnsData> => {
+): Promise<EnsData> => {
   if (!address) {
     throw new Error('Missing address.');
   }
-  const ens: TCWEnsData = {};
+  const ens: EnsData = {};
   const promises: Array<Promise<any>> = [];
   promises.push(provider.lookupAddress(address));
   promises.push(provider.getAvatar(address));

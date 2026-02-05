@@ -317,8 +317,8 @@ checksum = "b35204fbdc0b3f4446b89fc1ac2cf84a8a68971995d0bf2e925ec7cd960f9cb3"
 
 [[package]]
 name = "cacaos"
-version = "0.5.1"
-source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=758b667#758b667f1d4ee5023691a8e9811bafdd33aff11d"
+version = "1.0.0"
+source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=9b7b28f#9b7b28f9c3b583ffb3acbd10fe8f90eac4f28f05"
 dependencies = [
  "async-trait",
  "hex",
@@ -3791,7 +3791,7 @@ dependencies = [
 [[package]]
 name = "siwe"
 version = "1.0.0"
-source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=758b667#758b667f1d4ee5023691a8e9811bafdd33aff11d"
+source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=9b7b28f#9b7b28f9c3b583ffb3acbd10fe8f90eac4f28f05"
 dependencies = [
  "hex",
  "http 1.4.0",
@@ -3806,8 +3806,8 @@ dependencies = [
 
 [[package]]
 name = "siwe-recap"
-version = "0.2.0"
-source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=758b667#758b667f1d4ee5023691a8e9811bafdd33aff11d"
+version = "1.0.0"
+source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=9b7b28f#9b7b28f9c3b583ffb3acbd10fe8f90eac4f28f05"
 dependencies = [
  "base64 0.22.1",
  "ipld-core",
@@ -4869,8 +4869,8 @@ dependencies = [
 
 [[package]]
 name = "tinycloud-lib"
-version = "0.2.0"
-source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=758b667#758b667f1d4ee5023691a8e9811bafdd33aff11d"
+version = "1.0.0"
+source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=9b7b28f#9b7b28f9c3b583ffb3acbd10fe8f90eac4f28f05"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -4893,8 +4893,8 @@ dependencies = [
 
 [[package]]
 name = "tinycloud-sdk-rs"
-version = "0.2.0"
-source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=758b667#758b667f1d4ee5023691a8e9811bafdd33aff11d"
+version = "1.0.0"
+source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=9b7b28f#9b7b28f9c3b583ffb3acbd10fe8f90eac4f28f05"
 dependencies = [
  "async-trait",
  "hex",
@@ -4911,8 +4911,8 @@ dependencies = [
 
 [[package]]
 name = "tinycloud-sdk-wasm"
-version = "0.2.0"
-source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=758b667#758b667f1d4ee5023691a8e9811bafdd33aff11d"
+version = "1.0.0"
+source = "git+https://github.com/tinycloudlabs/tinycloud-node.git?rev=9b7b28f#9b7b28f9c3b583ffb3acbd10fe8f90eac4f28f05"
 dependencies = [
  "chrono",
  "console_error_panic_hook",

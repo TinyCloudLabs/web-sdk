@@ -1,5 +1,5 @@
 import {
-  TCWRPCProviders,
+  RPCProviders,
 } from '@tinycloudlabs/web-core';
 import {
   IUserAuthorization,
@@ -13,9 +13,9 @@ import {
   defaultWebSpaceCreationHandler,
 } from '../authorization';
 import {
-  TCWClientConfig,
-  TCWClientSession,
-  TCWExtension,
+  ClientConfig,
+  ClientSession,
+  Extension,
 } from '@tinycloudlabs/web-core/client';
 import type { providers } from 'ethers';
 import { SDKErrorHandler, ToastManager } from '../notifications';
@@ -70,7 +70,7 @@ declare global {
 /**
  * Configuration for TinyCloudWeb.
  *
- * Extends TCWClientConfig with notification options and the new unified auth module.
+ * Extends ClientConfig with notification options and the new unified auth module.
  *
  * ## New Auth Module (1.0.0)
  *
@@ -99,7 +99,7 @@ declare global {
  * console.log(tcw.sessionDid); // did:key:z6Mk...
  * ```
  */
-export interface TCWConfig extends TCWClientConfig {
+export interface Config extends ClientConfig {
   /** Notification configuration for error popups and toasts */
   notifications?: NotificationConfig;
 
@@ -199,7 +199,7 @@ export interface TCWConfig extends TCWClientConfig {
   spaceCreationHandler?: ISpaceCreationHandler;
 }
 
-const TCW_DEFAULT_CONFIG: TCWClientConfig = {
+const DEFAULT_CONFIG: ClientConfig = {
   providers: {
     web3: {
       driver: globalThis.ethereum,
@@ -270,7 +270,7 @@ export interface ShareReceiveResult<T = unknown> {
   spaceId: string;
 }
 
-/** TCW: TinyCloud Web SDK
+/** TinyCloud Web SDK
  *
  * An SDK for building user-controlled web apps.
  */
@@ -279,7 +279,7 @@ export class TinyCloudWeb {
   public provider: providers.Web3Provider;
 
   /** Supported RPC Providers */
-  public static RPCProviders = TCWRPCProviders;
+  public static RPCProviders = RPCProviders;
 
   /**
    * Receive and retrieve data from a v2 share link.
@@ -487,7 +487,7 @@ export class TinyCloudWeb {
   /** SharingService for generating/receiving share links */
   private _sharingService?: SharingService;
 
-  constructor(private config: TCWConfig = TCW_DEFAULT_CONFIG) {
+  constructor(private config: Config = DEFAULT_CONFIG) {
     // Initialize user authorization based on config
     if (config.useNewAuth) {
       // Use new WebUserAuthorization (TC-714: unified auth module)
@@ -518,11 +518,11 @@ export class TinyCloudWeb {
   }
 
   /**
-   * Create a WebUserAuthorization instance from TCWConfig.
+   * Create a WebUserAuthorization instance from the config.
    * Maps legacy config options to new WebUserAuthorizationConfig.
    * @private
    */
-  private createWebUserAuthorization(config: TCWConfig): WebUserAuthorization {
+  private createWebUserAuthorization(config: Config): WebUserAuthorization {
     // Map legacy config to WebUserAuthorizationConfig
     const webAuthConfig: WebUserAuthorizationConfig = {
       // Provider from legacy config
@@ -742,7 +742,7 @@ export class TinyCloudWeb {
    *
    * @internal
    */
-  private initializeKVService(session: TCWClientSession): void {
+  private initializeKVService(session: ClientSession): void {
     // Get hosts from userAuthorization or config
     const hosts = this.userAuthorization.getTinycloudHosts?.() ||
                   (this.config as any).tinycloudHosts ||
@@ -1134,9 +1134,9 @@ export class TinyCloudWeb {
   }
 
   /**
-   * Extends TCW with a functions that are called after connecting and signing in.
+   * Extends TinyCloudWeb with functions that are called after connecting and signing in.
    */
-  public extend(extension: TCWExtension): void {
+  public extend(extension: Extension): void {
     this.userAuthorization.extend(extension);
   }
 
@@ -1144,7 +1144,7 @@ export class TinyCloudWeb {
    * Request the user to sign in, and start the session.
    * @returns Object containing information about the session
    */
-  public signIn = async (): Promise<TCWClientSession> => {
+  public signIn = async (): Promise<ClientSession> => {
     const session = await this.userAuthorization.signIn();
     // Initialize KV service after sign-in
     this.initializeKVService(session);
@@ -1195,7 +1195,7 @@ export class TinyCloudWeb {
    * Gets the session representation (once signed in).
    * @returns Session object.
    */
-  public session: () => TCWClientSession | undefined = () =>
+  public session: () => ClientSession | undefined = () =>
     this.userAuthorization.session;
 
   /**

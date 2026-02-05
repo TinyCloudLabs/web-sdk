@@ -3,7 +3,17 @@
   "changelog": "@changesets/cli/changelog",
   "commit": false,
   "fixed": [],
-  "linked": [],
+  "linked": [
+    [
+      "@tinycloudlabs/sdk-core",
+      "@tinycloudlabs/web-sdk",
+      "@tinycloudlabs/node-sdk",
+      "@tinycloudlabs/web-core",
+      "@tinycloudlabs/sdk-services",
+      "@tinycloudlabs/web-sdk-wasm",
+      "@tinycloudlabs/node-sdk-wasm"
+    ]
+  ],
   "access": "public",
   "baseBranch": "master",
   "updateInternalDependencies": "patch",

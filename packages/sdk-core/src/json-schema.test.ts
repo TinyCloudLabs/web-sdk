@@ -11,7 +11,7 @@ import {
   getAllJsonSchemasFlat,
   SCHEMA_NAMES,
   // Individual schema functions - Storage
-  getTCWEnsDataJsonSchema,
+  getEnsDataJsonSchema,
   getPersistedTinyCloudSessionJsonSchema,
   getPersistedSessionDataJsonSchema,
   getTinyCloudSessionJsonSchema,
@@ -95,8 +95,8 @@ function isValidJsonSchema(schema: unknown): boolean {
 // =============================================================================
 
 describe("JSON Schema Export - Storage", () => {
-  it("should generate JSON Schema for TCWEnsData", () => {
-    const schema = getTCWEnsDataJsonSchema();
+  it("should generate JSON Schema for EnsData", () => {
+    const schema = getEnsDataJsonSchema();
     expect(isValidJsonSchema(schema)).toBe(true);
     expect(schema).toHaveProperty("$schema");
   });
@@ -386,7 +386,7 @@ describe("JSON Schema Export - Bundle", () => {
     expect(bundle).toHaveProperty("spaceService");
 
     // Check storage schemas
-    expect(isValidJsonSchema(bundle.storage.TCWEnsData)).toBe(true);
+    expect(isValidJsonSchema(bundle.storage.EnsData)).toBe(true);
     expect(isValidJsonSchema(bundle.storage.PersistedTinyCloudSession)).toBe(true);
     expect(isValidJsonSchema(bundle.storage.PersistedSessionData)).toBe(true);
     expect(isValidJsonSchema(bundle.storage.TinyCloudSession)).toBe(true);

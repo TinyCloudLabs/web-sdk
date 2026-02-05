@@ -5,18 +5,18 @@ import { SignStrategy, ISpaceCreationHandler } from "./authorization";
 // Re-export types from web-core to ensure type compatibility
 // Client types are exported from the /client subpath
 export {
-  TCWClientSession,
-  TCWExtension,
+  ClientSession,
+  Extension,
   SiweConfig,
   ConfigOverrides,
 } from "@tinycloudlabs/web-core/client";
 
 // Root types (ENS, SiweMessage) are exported from the main entry
-export { TCWEnsData, SiweMessage } from "@tinycloudlabs/web-core";
+export { EnsData, SiweMessage } from "@tinycloudlabs/web-core";
 
 import type {
-  TCWClientSession,
-  TCWExtension,
+  ClientSession,
+  Extension,
   SiweConfig,
 } from "@tinycloudlabs/web-core/client";
 import type { SiweMessage } from "@tinycloudlabs/web-core";
@@ -43,20 +43,20 @@ export interface IUserAuthorization {
   /**
    * The current active session, if signed in.
    */
-  session?: TCWClientSession;
+  session?: ClientSession;
 
   /**
    * Add an extension to the authorization flow.
    * Extensions can add capabilities and lifecycle hooks.
    */
-  extend(extension: TCWExtension): void;
+  extend(extension: Extension): void;
 
   /**
    * Sign in and create a new session.
    * This will prompt for wallet signature (browser) or use configured strategy (node).
    * @returns The new session
    */
-  signIn(): Promise<TCWClientSession>;
+  signIn(): Promise<ClientSession>;
 
   /**
    * Sign out and clear the current session.
@@ -109,7 +109,7 @@ export interface UserAuthorizationConfig {
   /** Domain for SIWE messages */
   domain?: string;
   /** Extensions to apply */
-  extensions?: TCWExtension[];
+  extensions?: Extension[];
 
   // Strategy configuration (added for auth module unification)
   /** Strategy for handling sign requests (default: auto-sign for node, callback for web) */

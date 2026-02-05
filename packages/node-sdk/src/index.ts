@@ -40,8 +40,8 @@ export {
   ISigner,
   ISessionStorage,
   IUserAuthorization,
-  TCWClientSession,
-  TCWExtension,
+  ClientSession,
+  Extension,
   PersistedSessionData,
   TinyCloudSession,
 } from "@tinycloudlabs/sdk-core";
@@ -164,6 +164,13 @@ export {
   SpaceConfig,
   ISpaceScopedDelegations,
   ISpaceScopedSharing,
+} from "@tinycloudlabs/sdk-core";
+
+// Protocol version checking
+export {
+  ProtocolMismatchError,
+  VersionCheckError,
+  checkNodeVersion,
 } from "@tinycloudlabs/sdk-core";
 
 // Re-export ServiceContext and related types for advanced usage

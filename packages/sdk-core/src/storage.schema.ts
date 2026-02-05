@@ -26,14 +26,14 @@ const ethereumAddressPattern = /^0x[a-fA-F0-9]{40}$/;
 /**
  * Schema for ENS data associated with a session.
  */
-export const TCWEnsDataSchema = z.object({
+export const EnsDataSchema = z.object({
   /** ENS name/domain. */
   domain: z.string().nullable().optional(),
   /** ENS avatar URL. */
   avatarUrl: z.string().nullable().optional(),
 });
 
-export type TCWEnsData = z.infer<typeof TCWEnsDataSchema>;
+export type EnsData = z.infer<typeof EnsDataSchema>;
 
 // =============================================================================
 // Persisted TinyCloud Session Schema
@@ -90,7 +90,7 @@ export const PersistedSessionDataSchema = z.object({
   /** Schema version for migrations */
   version: z.string(),
   /** Optional ENS data */
-  ens: TCWEnsDataSchema.optional(),
+  ens: EnsDataSchema.optional(),
 });
 
 export type PersistedSessionData = z.infer<typeof PersistedSessionDataSchema>;

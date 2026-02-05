@@ -1,38 +1,38 @@
 import {
   getProvider,
-  TCWRPCProvider,
-  TCWRPCProviders,
-  tcwResolveEns,
+  RPCProvider,
+  RPCProviders,
+  resolveEns,
 } from '../src';
 
-const tcwRPCProviders: Record<string, TCWRPCProvider> = {
+const rpcProviders: Record<string, RPCProvider> = {
   etherscan: {
-    service: TCWRPCProviders.TCWEtherscanProvider,
+    service: RPCProviders.EtherscanProvider,
   },
   infura: {
-    service: TCWRPCProviders.TCWInfuraProvider,
+    service: RPCProviders.InfuraProvider,
   },
   alchemy: {
-    service: TCWRPCProviders.TCWAlchemyProvider,
+    service: RPCProviders.AlchemyProvider,
   },
   cloudflare: {
-    service: TCWRPCProviders.TCWCloudflareProvider,
+    service: RPCProviders.CloudflareProvider,
   },
   pocket: {
-    service: TCWRPCProviders.TCWPocketProvider,
+    service: RPCProviders.PocketProvider,
   },
   ankr: {
-    service: TCWRPCProviders.TCWAnkrProvider,
+    service: RPCProviders.AnkrProvider,
   },
   custom: {
-    service: TCWRPCProviders.TCWCustomProvider,
+    service: RPCProviders.CustomProvider,
   },
 };
 
 test('Should get Etherscan Provider successfully', () => {
   let provider;
   expect(() => {
-    provider = getProvider(tcwRPCProviders.etherscan);
+    provider = getProvider(rpcProviders.etherscan);
   }).not.toThrowError();
 
   expect(provider.baseUrl).toEqual('https://api.etherscan.io');
@@ -41,7 +41,7 @@ test('Should get Etherscan Provider successfully', () => {
 test('Should get Infura Provider successfully', () => {
   let provider;
   expect(() => {
-    provider = getProvider(tcwRPCProviders.infura);
+    provider = getProvider(rpcProviders.infura);
   }).not.toThrowError();
 
   expect(provider.connection).toEqual(
@@ -54,7 +54,7 @@ test('Should get Infura Provider successfully', () => {
 test('Should get Alchemy Provider successfully', () => {
   let provider;
   expect(() => {
-    provider = getProvider(tcwRPCProviders.alchemy);
+    provider = getProvider(rpcProviders.alchemy);
   }).not.toThrowError();
 
   expect(provider.connection).toEqual(
@@ -67,7 +67,7 @@ test('Should get Alchemy Provider successfully', () => {
 test('Should get Cloudflare Provider successfully', () => {
   let provider;
   expect(() => {
-    provider = getProvider(tcwRPCProviders.cloudflare);
+    provider = getProvider(rpcProviders.cloudflare);
   }).not.toThrowError();
 
   expect(provider.connection).toEqual(
@@ -80,7 +80,7 @@ test('Should get Cloudflare Provider successfully', () => {
 test('Should get Poket Provider successfully', () => {
   let provider;
   expect(() => {
-    provider = getProvider(tcwRPCProviders.pocket);
+    provider = getProvider(rpcProviders.pocket);
   }).not.toThrowError();
 
   expect(provider.connection).toEqual(
@@ -93,7 +93,7 @@ test('Should get Poket Provider successfully', () => {
 test('Should get Ankr Provider successfully', () => {
   let provider;
   expect(() => {
-    provider = getProvider(tcwRPCProviders.ankr);
+    provider = getProvider(rpcProviders.ankr);
   }).not.toThrowError();
 
   expect(provider.connection).toEqual(
@@ -106,7 +106,7 @@ test('Should get Ankr Provider successfully', () => {
 test('Should get Custom Provider successfully', () => {
   let provider;
   expect(() => {
-    provider = getProvider(tcwRPCProviders.custom);
+    provider = getProvider(rpcProviders.custom);
   }).not.toThrowError();
 
   expect(provider.connection).toEqual(
@@ -124,14 +124,14 @@ test('Should get default Provider successfully', () => {
 });
 
 test('Should fail to resolve ENS domain', async () => {
-  const provider = getProvider(tcwRPCProviders.goerli);
-  await expect(tcwResolveEns(provider, '')).rejects.toThrow();
+  const provider = getProvider(rpcProviders.goerli);
+  await expect(resolveEns(provider, '')).rejects.toThrow();
 }, 30000);
 
 test('Should resolve ENS domain successfully', async () => {
-  const provider = getProvider(tcwRPCProviders.goerli);
+  const provider = getProvider(rpcProviders.goerli);
   await expect(
-    tcwResolveEns(provider, '0x96F7fB7ed32640d9D3a982f67CD6c09fc53EBEF1', {
+    resolveEns(provider, '0x96F7fB7ed32640d9D3a982f67CD6c09fc53EBEF1', {
       domain: true,
       avatar: false,
     })
@@ -139,9 +139,9 @@ test('Should resolve ENS domain successfully', async () => {
 }, 30000);
 
 test('Should resolve ENS avatar successfully', async () => {
-  const provider = getProvider(tcwRPCProviders.goerli);
+  const provider = getProvider(rpcProviders.goerli);
   await expect(
-    tcwResolveEns(provider, '0x96F7fB7ed32640d9D3a982f67CD6c09fc53EBEF1', {
+    resolveEns(provider, '0x96F7fB7ed32640d9D3a982f67CD6c09fc53EBEF1', {
       domain: false,
       avatar: true,
     })
@@ -149,9 +149,9 @@ test('Should resolve ENS avatar successfully', async () => {
 }, 30000);
 
 test('Should resolve ENS domain and avatar successfully', async () => {
-  const provider = getProvider(tcwRPCProviders.goerli);
+  const provider = getProvider(rpcProviders.goerli);
   await expect(
-    tcwResolveEns(provider, '0x96F7fB7ed32640d9D3a982f67CD6c09fc53EBEF1', {
+    resolveEns(provider, '0x96F7fB7ed32640d9D3a982f67CD6c09fc53EBEF1', {
       domain: true,
       avatar: true,
     })

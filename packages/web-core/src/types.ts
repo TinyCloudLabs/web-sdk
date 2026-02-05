@@ -1,6 +1,6 @@
 import { providers } from 'ethers';
 import { ConnectionInfo } from 'ethers/lib/utils';
-import { TCWClientSession } from './client';
+import { ClientSession } from './client';
 import type { AxiosRequestConfig } from 'axios';
 
 /** TCW Route Configuration
@@ -10,7 +10,7 @@ import type { AxiosRequestConfig } from 'axios';
  * This type does not explicitly extend AxiosRequestConfig,
  * but those options are supported by the client.
  */
-export interface TCWRouteConfig {
+export interface RouteConfig {
   /** Endpoint path. */
   url?: string;
   /** Endpoint request method. */
@@ -19,39 +19,39 @@ export interface TCWRouteConfig {
    * Replace the tcw function called with a function of your own
    **/
   customAPIOperation?(
-    params: TCWClientSession | Record<string, any> | any
+    params: ClientSession | Record<string, any> | any
   ): Promise<any>;
 }
 
-export interface TCWServerMiddlewareConfig {
+export interface ServerMiddlewareConfig {
   path: string;
   callback?: (req: any, body?: Record<string, any>) => Promise<void> | void;
 }
 
-/** Type-Guard for TCWServerMiddlewareConfig. */
-export const isTCWServerMiddlewareConfig = (
-  config: TCWServerRouteEndpointType
-): config is TCWServerMiddlewareConfig =>
-  (config as TCWServerMiddlewareConfig)?.path !== undefined;
+/** Type-Guard for ServerMiddlewareConfig. */
+export const isServerMiddlewareConfig = (
+  config: ServerRouteEndpointType
+): config is ServerMiddlewareConfig =>
+  (config as ServerMiddlewareConfig)?.path !== undefined;
 
-export type TCWServerRouteEndpointType =
-  | Partial<TCWRouteConfig>
+export type ServerRouteEndpointType =
+  | Partial<RouteConfig>
   | AxiosRequestConfig
   | string
-  | TCWServerMiddlewareConfig;
+  | ServerMiddlewareConfig;
 
 /** Server endpoints configuration. */
-export interface TCWServerRoutes {
+export interface ServerRoutes {
   /** Get nonce endpoint path. /tcw-nonce as default. */
-  nonce?: TCWServerRouteEndpointType;
+  nonce?: ServerRouteEndpointType;
   /** Post login endpoint path. /tcw-login as default. */
-  login?: TCWServerRouteEndpointType;
+  login?: ServerRouteEndpointType;
   /** Post logout endpoint path. /tcw-logout as default. */
-  logout?: TCWServerRouteEndpointType;
+  logout?: ServerRouteEndpointType;
 }
 
 /** Server endpoints name configuration. */
-export interface TCWServerRouteNames {
+export interface ServerRouteNames {
   /** Get nonce endpoint path. /tcw-nonce as default. */
   nonce?: string;
   /** Post login endpoint path. /tcw-login as default. */
@@ -61,29 +61,29 @@ export interface TCWServerRouteNames {
 }
 
 /** Supported provider types. */
-export type TCWRPCProvider =
-  | TCWGenericProvider
-  | TCWEtherscanProvider
-  | TCWInfuraProvider
-  | TCWAlchemyProvider
-  | TCWCloudflareProvider
-  | TCWPocketProvider
-  | TCWAnkrProvider
-  | TCWCustomProvider;
+export type RPCProvider =
+  | GenericProvider
+  | EtherscanProvider
+  | InfuraProvider
+  | AlchemyProvider
+  | CloudflareProvider
+  | PocketProvider
+  | AnkrProvider
+  | CustomProvider;
 
 /** Enum of supported EthersJS providers. */
-export enum TCWRPCProviders {
-  TCWAlchemyProvider = 'alchemy',
-  TCWAnkrProvider = 'ankr',
-  TCWCloudflareProvider = 'cloudflare',
-  TCWCustomProvider = 'custom',
-  TCWEtherscanProvider = 'etherscan',
-  TCWInfuraProvider = 'infura',
-  TCWPocketProvider = 'pocket',
+export enum RPCProviders {
+  AlchemyProvider = 'alchemy',
+  AnkrProvider = 'ankr',
+  CloudflareProvider = 'cloudflare',
+  CustomProvider = 'custom',
+  EtherscanProvider = 'etherscan',
+  InfuraProvider = 'infura',
+  PocketProvider = 'pocket',
 }
 
 /** Enum of supported networks for Etherscan. */
-export enum TCWEtherscanProviderNetworks {
+export enum EtherscanProviderNetworks {
   MAINNET = 'homestead',
   ROPSTEN = 'ropsten',
   RINKEBY = 'rinkeby',
@@ -92,20 +92,20 @@ export enum TCWEtherscanProviderNetworks {
 }
 
 /** Etherscan provider settings. */
-export type TCWEtherscanProvider = {
-  service: TCWRPCProviders.TCWEtherscanProvider;
+export type EtherscanProvider = {
+  service: RPCProviders.EtherscanProvider;
   apiKey?: string;
-  network?: TCWEtherscanProviderNetworks;
+  network?: EtherscanProviderNetworks;
 };
 
 /* Type-Guard for TCWEtherScanProvider. */
-export const isTCWEtherscanProvider = (
-  provider: TCWRPCProvider
-): provider is TCWEtherscanProvider =>
-  provider.service === TCWRPCProviders.TCWEtherscanProvider;
+export const isEtherscanProvider = (
+  provider: RPCProvider
+): provider is EtherscanProvider =>
+  provider.service === RPCProviders.EtherscanProvider;
 
 /** Enum of supported networks for Infura. */
-export enum TCWInfuraProviderNetworks {
+export enum InfuraProviderNetworks {
   MAINNET = 'homestead',
   ROPSTEN = 'ropsten',
   RINKEBY = 'rinkeby',
@@ -120,26 +120,26 @@ export enum TCWInfuraProviderNetworks {
 }
 
 /** Infura provider project settings. */
-export type TCWInfuraProviderProjectSettings = {
+export type InfuraProviderProjectSettings = {
   projectId: string;
   projectSecret: string;
 };
 
 /** Infura provider settings. */
-export type TCWInfuraProvider = {
-  service: TCWRPCProviders.TCWInfuraProvider;
-  apiKey: string | TCWInfuraProviderProjectSettings;
-  network?: TCWInfuraProviderNetworks;
+export type InfuraProvider = {
+  service: RPCProviders.InfuraProvider;
+  apiKey: string | InfuraProviderProjectSettings;
+  network?: InfuraProviderNetworks;
 };
 
-/* Type-Guard for TCWInfuraProvider. */
-export const isTCWInfuraProvider = (
-  provider: TCWRPCProvider
-): provider is TCWInfuraProvider =>
-  provider.service === TCWRPCProviders.TCWInfuraProvider;
+/* Type-Guard for InfuraProvider. */
+export const isInfuraProvider = (
+  provider: RPCProvider
+): provider is InfuraProvider =>
+  provider.service === RPCProviders.InfuraProvider;
 
 /** Enum of supported networks for Alchemy. */
-export enum TCWAlchemyProviderNetworks {
+export enum AlchemyProviderNetworks {
   MAINNET = 'homestead',
   ROPSTEN = 'ropsten',
   RINKEBY = 'rinkeby',
@@ -154,31 +154,31 @@ export enum TCWAlchemyProviderNetworks {
 }
 
 /** Alchemy provider settings. */
-export type TCWAlchemyProvider = {
-  service: TCWRPCProviders.TCWAlchemyProvider;
+export type AlchemyProvider = {
+  service: RPCProviders.AlchemyProvider;
   apiKey?: string;
-  network?: TCWAlchemyProviderNetworks;
+  network?: AlchemyProviderNetworks;
 };
 
-/* Type-Guard for TCWAlchemyProvider. */
-export const isTCWAlchemyProvider = (
-  provider: TCWRPCProvider
-): provider is TCWAlchemyProvider =>
-  provider.service === TCWRPCProviders.TCWAlchemyProvider;
+/* Type-Guard for AlchemyProvider. */
+export const isAlchemyProvider = (
+  provider: RPCProvider
+): provider is AlchemyProvider =>
+  provider.service === RPCProviders.AlchemyProvider;
 
 /** Cloudflare provider settings. */
-export type TCWCloudflareProvider = {
-  service: TCWRPCProviders.TCWCloudflareProvider;
+export type CloudflareProvider = {
+  service: RPCProviders.CloudflareProvider;
 };
 
-/* Type-Guard for TCWCloudflareProvider. */
-export const isTCWCloudflareProvider = (
-  provider: TCWRPCProvider
-): provider is TCWCloudflareProvider =>
-  provider.service === TCWRPCProviders.TCWCloudflareProvider;
+/* Type-Guard for CloudflareProvider. */
+export const isCloudflareProvider = (
+  provider: RPCProvider
+): provider is CloudflareProvider =>
+  provider.service === RPCProviders.CloudflareProvider;
 
 /** Enum of supported networks for Pocket. */
-export enum TCWPocketProviderNetworks {
+export enum PocketProviderNetworks {
   MAINNET = 'homestead',
   ROPSTEN = 'ropsten',
   RINKEBY = 'rinkeby',
@@ -186,61 +186,61 @@ export enum TCWPocketProviderNetworks {
 }
 
 /** Pocket provider settings. */
-export type TCWPocketProvider = {
-  service: TCWRPCProviders.TCWPocketProvider;
+export type PocketProvider = {
+  service: RPCProviders.PocketProvider;
   apiKey?: string;
-  network?: TCWPocketProviderNetworks;
+  network?: PocketProviderNetworks;
 };
 
-/** Type-Guard for TCWPocketProvider. */
-export const isTCWPocketProvider = (
-  provider: TCWRPCProvider
-): provider is TCWPocketProvider =>
-  provider.service === TCWRPCProviders.TCWPocketProvider;
+/** Type-Guard for PocketProvider. */
+export const isPocketProvider = (
+  provider: RPCProvider
+): provider is PocketProvider =>
+  provider.service === RPCProviders.PocketProvider;
 
 /** Enum of supported networks for Ankr. */
-export enum TCWAnkrProviderNetworks {
+export enum AnkrProviderNetworks {
   MAINNET = 'homestead',
   POLYGON = 'matic',
   ARBITRUM = 'arbitrum',
 }
 
 /** Ankr provider settings. */
-export type TCWAnkrProvider = {
-  service: TCWRPCProviders.TCWAnkrProvider;
+export type AnkrProvider = {
+  service: RPCProviders.AnkrProvider;
   apiKey?: string;
-  network?: TCWAnkrProviderNetworks;
+  network?: AnkrProviderNetworks;
 };
 
-/** Type-Guard for TCWAnkrProvider. */
-export const isTCWAnkrProvider = (
-  provider: TCWRPCProvider
-): provider is TCWAnkrProvider =>
-  provider.service === TCWRPCProviders.TCWAnkrProvider;
+/** Type-Guard for AnkrProvider. */
+export const isAnkrProvider = (
+  provider: RPCProvider
+): provider is AnkrProvider =>
+  provider.service === RPCProviders.AnkrProvider;
 
 /** Custom provider settings. */
-export type TCWCustomProvider = {
-  service: TCWRPCProviders.TCWCustomProvider;
+export type CustomProvider = {
+  service: RPCProviders.CustomProvider;
   url?: string | ConnectionInfo;
   network?: providers.Networkish;
 };
 
-/** Type-Guard for TCWCustomProvider. */
-export const isTCWCustomProvider = (
-  provider: TCWRPCProvider
-): provider is TCWCustomProvider =>
-  provider.service === TCWRPCProviders.TCWCustomProvider;
+/** Type-Guard for CustomProvider. */
+export const isCustomProvider = (
+  provider: RPCProvider
+): provider is CustomProvider =>
+  provider.service === RPCProviders.CustomProvider;
 
 /** Generic provider settings. */
-export type TCWGenericProvider = {
-  service: TCWRPCProviders;
+export type GenericProvider = {
+  service: RPCProviders;
   url?: string | ConnectionInfo;
   network?: providers.Networkish;
-  apiKey?: string | TCWInfuraProviderProjectSettings;
+  apiKey?: string | InfuraProviderProjectSettings;
 };
 
 /** ENS data supported by TCW. */
-export interface TCWEnsData {
+export interface EnsData {
   /** ENS name/domain. */
   domain?: string | null;
   /** ENS avatar. */

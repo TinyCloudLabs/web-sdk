@@ -1,6 +1,6 @@
 {
   "name": "@tinycloudlabs/sdk-rs",
-  "version": "0.3.1",
+  "version": "1.0.0",
   "private": true,
   "description": "TinyCloud WASM build source - builds web-sdk-wasm and node-sdk-wasm",
   "author": "TinyCloud, Inc.",

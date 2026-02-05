@@ -28,6 +28,8 @@ export {
   siweToDelegationHeaders,
   // Delegation creation
   createDelegation,
+  // Protocol version
+  protocolVersion,
 } from "../../../node-sdk-wasm/tinycloud_web_sdk_rs.js";
 
 // Re-export types for TypeScript consumers

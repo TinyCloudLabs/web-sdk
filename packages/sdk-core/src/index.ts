@@ -13,7 +13,7 @@
 // Signer interface
 export { ISigner, Bytes } from "./signer";
 
-// Session storage interface and schemas
+// Session storage interface and types
 export {
   // Interface
   ISessionStorage,
@@ -22,23 +22,16 @@ export {
   PersistedTinyCloudSession,
   TinyCloudSession,
   ValidationError,
-  // Schemas
-  PersistedSessionDataSchema,
-  PersistedTinyCloudSessionSchema,
-  TinyCloudSessionSchema,
-  TCWEnsDataSchema,
-  // Validation functions
+  // Validation
   validatePersistedSessionData,
-  validateTinyCloudSession,
-  validatePersistedTinyCloudSession,
 } from "./storage";
 
 // User authorization interface and types
 export {
   IUserAuthorization,
-  TCWExtension,
-  TCWEnsData,
-  TCWClientSession,
+  Extension,
+  EnsData,
+  ClientSession,
   SiweConfig,
   ConfigOverrides,
   PartialSiweMessage,
@@ -60,9 +53,6 @@ export {
   type IServiceContext,
   // Service types
   type IService,
-  BaseService,
-  type ServiceConstructor,
-  type ServiceRegistration,
   // KV Service
   KVService,
   PrefixedKVService,
@@ -77,7 +67,6 @@ export {
   type KVResponse,
   type KVListResponse,
   type KVResponseHeaders,
-  KVAction,
   // Result pattern
   type Result,
   ok,
@@ -90,31 +79,10 @@ export {
   type ServiceSession,
   // Platform dependencies
   type InvokeFunction,
-  type InvocationFacts,
   type FetchFunction,
-  type FetchRequestInit,
-  type FetchResponse,
-  type ServiceHeaders,
   // Retry
   type RetryPolicy,
   defaultRetryPolicy,
-  // Telemetry
-  TelemetryEvents,
-  type EventHandler,
-  type ServiceRequestEvent,
-  type ServiceResponseEvent,
-  type ServiceErrorEvent,
-  type ServiceRetryEvent,
-  // Error helpers
-  authRequiredError,
-  authExpiredError,
-  networkError,
-  timeoutError,
-  abortedError,
-  notFoundError,
-  permissionDeniedError,
-  wrapError,
-  errorResult,
 } from "@tinycloudlabs/sdk-services";
 
 // Space utilities
@@ -135,6 +103,8 @@ export {
   // Delegation types
   Delegation,
   CreateDelegationParams,
+  CreateDelegationWasmParams,
+  CreateDelegationWasmResult,
   DelegationChain,
   DelegationApiResponse,
   // Configuration types
@@ -166,9 +136,6 @@ export {
   ShareLinkData,
   IngestOptions,
   GenerateShareParams,
-  // WASM delegation types
-  CreateDelegationWasmParams,
-  CreateDelegationWasmResult,
 } from "./delegations";
 
 // Authorization (v2 spec)
@@ -224,96 +191,10 @@ export {
   CreateDelegationFunction,
 } from "./spaces";
 
-// WASM validation utilities (debug-only)
+// Protocol version checking
 export {
-  // Core validation function
-  validateWasmOutput,
-  type WasmValidationResult,
-  // createDelegation validation
-  validateCreateDelegationWasmOutput,
-  CreateDelegationWasmRawResultSchema,
-  type CreateDelegationWasmRawResult,
-  // invoke validation
-  validateInvokeWasmOutput,
-  InvokeWasmResultSchema,
-  type InvokeWasmResult,
-  // prepareSession validation
-  validatePrepareSessionWasmOutput,
-  PrepareSessionWasmResultSchema,
-  type PrepareSessionWasmResult,
-  // completeSessionSetup validation
-  validateCompleteSessionSetupWasmOutput,
-  SessionWasmResultSchema,
-  type SessionWasmResult,
-  // siweToDelegationHeaders validation
-  validateSiweToDelegationHeadersWasmOutput,
-  SiweToDelegationHeadersWasmResultSchema,
-  type SiweToDelegationHeadersWasmResult,
-} from "./wasm-validation";
+  ProtocolMismatchError,
+  VersionCheckError,
+  checkNodeVersion,
+} from "./version";
 
-// JSON Schema exports
-export {
-  // Options type
-  type JsonSchemaOptions,
-  // Bundle type
-  type JsonSchemaBundle,
-  // Schema names
-  SCHEMA_NAMES,
-  type SchemaName,
-  // Bundle functions
-  getAllJsonSchemas,
-  getAllJsonSchemasFlat,
-  // Individual schema functions - Storage
-  getTCWEnsDataJsonSchema,
-  getPersistedTinyCloudSessionJsonSchema,
-  getPersistedSessionDataJsonSchema,
-  getTinyCloudSessionJsonSchema,
-  // Individual schema functions - Delegations
-  getJWKJsonSchema,
-  getKeyTypeJsonSchema,
-  getKeyInfoJsonSchema,
-  getDelegationErrorJsonSchema,
-  getDelegationJsonSchema,
-  getCapabilityEntryJsonSchema,
-  getDelegationRecordJsonSchema,
-  getCreateDelegationParamsJsonSchema,
-  getDelegationChainJsonSchema,
-  getDelegationChainV2JsonSchema,
-  getDelegationDirectionJsonSchema,
-  getDelegationFiltersJsonSchema,
-  getSpaceOwnershipJsonSchema,
-  getSpaceInfoJsonSchema,
-  getShareSchemaJsonSchema,
-  getShareLinkJsonSchema,
-  getIngestOptionsJsonSchema,
-  getGenerateShareParamsJsonSchema,
-  getDelegationApiResponseJsonSchema,
-  getCreateDelegationWasmParamsJsonSchema,
-  getCreateDelegationWasmResultJsonSchema,
-  // Individual schema functions - Space Hosting
-  getSpaceHostResultJsonSchema,
-  // Individual schema functions - Space Creation
-  getSpaceCreationContextJsonSchema,
-  getSpaceCreationHandlerJsonSchema,
-  // Individual schema functions - Config
-  getBackoffStrategyJsonSchema,
-  getRetryPolicyJsonSchema,
-  getPartialRetryPolicyJsonSchema,
-  getTinyCloudConfigJsonSchema,
-  // Individual schema functions - Authorization
-  getPartialSiweMessageJsonSchema,
-  getUserAuthorizationConfigJsonSchema,
-  // Individual schema functions - Sign Strategy
-  getSignRequestTypeJsonSchema,
-  getSignRequestJsonSchema,
-  getSignResponseJsonSchema,
-  getAutoSignStrategyJsonSchema,
-  getAutoRejectStrategyJsonSchema,
-  getCallbackStrategyJsonSchema,
-  getEventEmitterStrategyJsonSchema,
-  getSignStrategyJsonSchema,
-  // Individual schema functions - Space Service
-  getSpaceConfigJsonSchema,
-  getSpaceServiceConfigJsonSchema,
-  getSpaceDelegationParamsJsonSchema,
-} from "./json-schema";

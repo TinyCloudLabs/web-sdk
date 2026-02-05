@@ -3,15 +3,15 @@ import { tcwSession } from '@tinycloudlabs/web-sdk-wasm';
 import { AxiosInstance } from 'axios';
 import { ethers } from 'ethers';
 import {
-  TCWEnsData,
-  TCWRPCProvider,
-  TCWServerRoutes,
+  EnsData,
+  RPCProvider,
+  ServerRoutes,
 } from '../types';
 
 /** Core config for TCW. */
-export interface TCWClientConfig {
+export interface ClientConfig {
   /** Connection to a cryptographic keypair and/or network. */
-  providers?: TCWClientProviders;
+  providers?: ClientProviders;
   /** Optional session configuration for the SIWE message. */
   siweConfig?: SiweConfig;
   /** Whether or not ENS resolution is enabled. True means resolve all on client. */
@@ -19,7 +19,7 @@ export interface TCWClientConfig {
 }
 
 /** Representation of an active TCWSession. */
-export type TCWClientSession = {
+export type ClientSession = {
   /** User address */
   address: string;
   /** User address without delegation */
@@ -32,21 +32,21 @@ export type TCWClientSession = {
   /** The signature of the siwe message */
   signature: string;
   /** ENS data supported by TCW */
-  ens?: TCWEnsData;
+  ens?: EnsData;
 };
 
 /** The URL of the server running tcw-server. Providing this field enables SIWE server communication */
-export type TCWServerHost = string;
+export type ServerHost = string;
 
 /** The tcw-powered server configuration settings */
-export type TCWProviderServer = {
-  host: TCWServerHost;
+export type ProviderServer = {
+  host: ServerHost;
   /** Optional configuration for the server's routes. */
-  routes?: TCWServerRoutes;
+  routes?: ServerRoutes;
 };
 
 /** Web3 provider configuration settings */
-export interface TCWProviderWeb3 {
+export interface ProviderWeb3 {
   /**
    * window.ethereum for Metamask;
    * web3modal.connect() for Web3Modal;
@@ -56,14 +56,14 @@ export interface TCWProviderWeb3 {
 }
 
 /** TCW web3 configuration settings */
-export interface TCWClientProviders {
+export interface ClientProviders {
   /** Web3 wallet provider */
-  web3?: TCWProviderWeb3;
+  web3?: ProviderWeb3;
   /** JSON RPC provider configurations */
-  rpc?: TCWRPCProvider;
+  rpc?: RPCProvider;
   /** Optional reference to server running tcw-server.
    * Providing this field enables communication with tcw-server */
-  server?: TCWProviderServer;
+  server?: ProviderServer;
 }
 
 /** Optional session configuration for the SIWE message. */
@@ -79,13 +79,13 @@ export type ConfigOverrides = {
 
 
 /** Interface to an intermediate TCW state: connected, but not signed-in. */
-export interface ITCWConnected {
+export interface IConnected {
   /** Instance of TCWSessionManager. */
   builder: tcwSession.TCWSessionManager;
   /** TCWConfig object. */
-  config: TCWClientConfig;
+  config: ClientConfig;
   /** List of enabled extensions. */
-  extensions: TCWExtension[];
+  extensions: Extension[];
   /** Web3 provider. */
   provider: ethers.providers.Web3Provider;
   /** Promise that is initialized on construction to run the "afterConnect" methods of extensions. */
@@ -97,15 +97,15 @@ export interface ITCWConnected {
   /** Method to apply the "afterConnect" methods and the delegated capabilities of the extensions. */
   applyExtensions: () => Promise<void>;
   /** Method to apply the "afterSignIn" methods of the extensions. */
-  afterSignIn: (session: TCWClientSession) => Promise<void>;
+  afterSignIn: (session: ClientSession) => Promise<void>;
   /** Method to request the user to sign in. */
-  signIn: () => Promise<TCWClientSession>;
+  signIn: () => Promise<ClientSession>;
   /** Method to request the user to sign out. */
-  signOut: (session: TCWClientSession) => Promise<void>;
+  signOut: (session: ClientSession) => Promise<void>;
 }
 
 /** Interface for an extension to TCW. */
-export interface TCWExtension {
+export interface Extension {
   /** [recap] Capability namespace. */
   namespace?: string;
   /** [recap] Default delegated actions in capability namespace. */
@@ -117,7 +117,7 @@ export interface TCWExtension {
   /** Hook to run after TCW has connected to the user's wallet.
    * This can return an object literal to override the session configuration before the user
    * signs in. */
-  afterConnect?(tcw: ITCWConnected): Promise<ConfigOverrides>;
+  afterConnect?(tcw: IConnected): Promise<ConfigOverrides>;
   /** Hook to run after TCW has signed in. */
-  afterSignIn?(session: TCWClientSession): Promise<void>;
+  afterSignIn?(session: ClientSession): Promise<void>;
 }

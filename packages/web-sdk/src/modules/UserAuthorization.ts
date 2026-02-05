@@ -1,14 +1,14 @@
 import { providers, Signer } from "ethers";
-import { initialized, tcwSession } from "@tinycloudlabs/web-sdk-wasm";
+import { initialized, tcwSession, tinycloud } from "@tinycloudlabs/web-sdk-wasm";
 import merge from "lodash.merge";
 import { AxiosInstance } from "axios";
 import { generateNonce, SiweMessage } from "siwe";
-import { TCWEnsData, tcwResolveEns } from "@tinycloudlabs/web-core";
+import { EnsData, resolveEns } from "@tinycloudlabs/web-core";
 import type {
-  TCWClientSession,
-  TCWClientConfig,
-  ITCWConnected,
-  TCWExtension,
+  ClientSession,
+  ClientConfig,
+  IConnected,
+  Extension,
 } from "@tinycloudlabs/web-core/client";
 import {
   IUserAuthorization as ICoreUserAuthorization,
@@ -17,6 +17,7 @@ import {
   fetchPeerId,
   submitHostDelegation,
   activateSessionWithHost,
+  checkNodeVersion,
 } from "@tinycloudlabs/sdk-core";
 import { dispatchSDKEvent } from "../notifications/ErrorHandler";
 import { WasmInitializer } from "./WasmInitializer";
@@ -34,10 +35,10 @@ import Registry from "./registry/Registry";
 import { multiaddrToUri } from "../utils/multiaddr";
 
 /**
- * Extended TCW Client Config with TinyCloud options
+ * Extended Client Config with TinyCloud options
  */
 declare module "@tinycloudlabs/web-core/client" {
-  interface TCWClientConfig {
+  interface ClientConfig {
     /** Whether to automatically create space if it doesn't exist (default: true) */
     autoCreateSpace?: boolean;
     /** TinyCloud server endpoints (default: ["https://node.tinycloud.xyz"]) */
@@ -51,7 +52,7 @@ declare module "@tinycloudlabs/web-core/client" {
  * Interface for tracking session state during SIWE message generation
  */
 interface PendingSession {
-  /** Instance of TCWSessionManager (null if consumed by build()) */
+  /** Instance of SessionManager (null if consumed by build()) */
   sessionManager: tcwSession.TCWSessionManager | null;
   /** Session key JWK string (stored before build() consumes sessionManager) */
   sessionKey?: string;
@@ -60,7 +61,7 @@ interface PendingSession {
   /** Timestamp when session was generated */
   generatedAt: number;
   /** Extensions that were applied to the session */
-  extensions: TCWExtension[];
+  extensions: Extension[];
 }
 
 /** UserAuthorization Module
@@ -76,14 +77,14 @@ interface PendingSession {
 interface IUserAuthorization {
   /* properties */
   provider: providers.Web3Provider;
-  session?: TCWClientSession;
+  session?: ClientSession;
 
   /* createUserAuthorization */
-  extend: (extension: TCWExtension) => void;
+  extend: (extension: Extension) => void;
   connect(): Promise<any>;
   signIn(): Promise<any>;
   /**
-   * ENS data supported by TCW.
+   * ENS data supported by the SDK.
    * @param address - User address.
    * @param resolveEnsOpts - Options to resolve ENS.
    * @returns Object containing ENS data.
@@ -91,7 +92,7 @@ interface IUserAuthorization {
   resolveEns(
     /** User address */
     address: string
-  ): Promise<TCWEnsData>;
+  ): Promise<EnsData>;
   address(): string | undefined;
   chainId(): number | undefined;
   /**
@@ -124,12 +125,12 @@ interface IUserAuthorization {
    * Sign in to the SDK using a pre-signed SIWE message.
    * @param siweMessage - The SIWE message that was generated
    * @param signature - The signature of the SIWE message
-   * @returns Promise with the TCWClientSession object
+   * @returns Promise with the ClientSession object
    */
   signInWithSignature(
     siweMessage: SiweMessage,
     signature: string
-  ): Promise<TCWClientSession>;
+  ): Promise<ClientSession>;
   /**
    * Get the space ID for the current session.
    * @returns Space ID or undefined if not available
@@ -154,16 +155,16 @@ interface IUserAuthorization {
 }
 
 class UserAuthorizationInit {
-  /** Extensions for the TCWClientSession. */
-  public extensions: TCWExtension[] = [];
+  /** Extensions for the session. */
+  public extensions: Extension[] = [];
 
   /** The session representation (once signed in). */
-  public session?: TCWClientSession;
+  public session?: ClientSession;
 
-  constructor(private config?: TCWClientConfig) { }
+  constructor(private config?: ClientConfig) { }
 
-  /** Extend the session with an TCW compatible extension. */
-  extend(extension: TCWExtension) {
+  /** Extend the session with a compatible extension. */
+  extend(extension: Extension) {
     this.extensions.push(extension);
   }
 
@@ -234,7 +235,7 @@ class UserAuthorizationInit {
         () => new tcwSession.TCWSessionManager()
       );
     } catch (err) {
-      // TCW wasm related error
+      // WASM related error
       debug.error(err);
       dispatchSDKEvent.error(
         "wasm.initialization_failed",
@@ -253,8 +254,8 @@ class UserAuthorizationInit {
   }
 }
 
-/** An intermediate TCW state: connected, but not signed-in. */
-class UserAuthorizationConnected implements ITCWConnected {
+/** An intermediate state: connected, but not signed-in. */
+class UserAuthorizationConnected implements IConnected {
   /**
    * Promise that is initialized on construction of this class to run the "afterConnect" methods
    * of the extensions.
@@ -271,12 +272,12 @@ class UserAuthorizationConnected implements ITCWConnected {
   /** Ethereum Provider */
 
   constructor(
-    /** Instance of TCWSessionManager */
+    /** Instance of SessionManager */
     public builder: tcwSession.TCWSessionManager,
-    /** TCWConfig object. */
-    public config: TCWClientConfig,
+    /** Config object. */
+    public config: ClientConfig,
     /** Enabled extensions. */
-    public extensions: TCWExtension[],
+    public extensions: Extension[],
     /** EthersJS provider. */
     public provider: providers.Web3Provider
   ) {
@@ -361,9 +362,9 @@ class UserAuthorizationConnected implements ITCWConnected {
 
   /**
    * Applies the "afterSignIn" methods of the extensions.
-   * @param session - TCWClientSession object.
+   * @param session - ClientSession object.
    */
-  public async afterSignIn(session: TCWClientSession): Promise<void> {
+  public async afterSignIn(session: ClientSession): Promise<void> {
     for (const extension of this.extensions) {
       if (extension.afterSignIn) {
         await extension.afterSignIn(session);
@@ -376,9 +377,9 @@ class UserAuthorizationConnected implements ITCWConnected {
    * Generates the SIWE message for this session, requests the configured
    * Signer to sign the message, calls the "afterSignIn" methods of the
    * extensions.
-   * @returns Promise with the TCWClientSession object.
+   * @returns Promise with the ClientSession object.
    */
-  async signIn(): Promise<TCWClientSession> {
+  async signIn(): Promise<ClientSession> {
     await this.afterConnectHooksPromise;
 
     const sessionKey = this.builder.jwk();
@@ -427,14 +428,14 @@ class UserAuthorizationConnected implements ITCWConnected {
 
   /**
    * Requests the user to sign out.
-   * @param session - TCWClientSession object.
+   * @param session - ClientSession object.
    */
-  async signOut(session: TCWClientSession): Promise<void> {
+  async signOut(session: ClientSession): Promise<void> {
     // TODO: kill sessions
   }
 }
 
-const TCW_DEFAULT_CONFIG: TCWClientConfig = {
+const DEFAULT_CONFIG: ClientConfig = {
   providers: {
     web3: {
       driver: globalThis.ethereum,
@@ -447,16 +448,16 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
   public provider: providers.Web3Provider;
 
   /** The session representation (once signed in). */
-  public session?: TCWClientSession;
+  public session?: ClientSession;
 
-  /** TCWClientSession builder. */
+  /** Session builder. */
   private init: UserAuthorizationInit;
 
-  /** Current connection of TCW */
+  /** Current connection */
   private connection?: UserAuthorizationConnected;
 
-  /** The TCWClientConfig object. */
-  private config: TCWClientConfig;
+  /** The config object. */
+  private config: ClientConfig;
 
   /** Pending session state for signature-based initialization */
   private pendingSession?: PendingSession;
@@ -485,12 +486,12 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
   /** The host where the user's space was found or created */
   private _activeHost?: string;
 
-  constructor(private _config: TCWClientConfig = TCW_DEFAULT_CONFIG) {
+  constructor(private _config: ClientConfig = DEFAULT_CONFIG) {
     this.config = _config;
     this.init = new UserAuthorizationInit({
       ...this.config,
       providers: {
-        ...TCW_DEFAULT_CONFIG.providers,
+        ...DEFAULT_CONFIG.providers,
         ...this.config?.providers,
       },
     });
@@ -506,9 +507,9 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
   }
 
   /**
-   * Extends TCW with a functions that are called after connecting and signing in.
+   * Extends with functions that are called after connecting and signing in.
    */
-  public extend(extension: TCWExtension): void {
+  public extend(extension: Extension): void {
     this.init.extend(extension);
   }
 
@@ -550,7 +551,7 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
     }
   }
 
-  public async signIn(): Promise<TCWClientSession> {
+  public async signIn(): Promise<ClientSession> {
     await this.connect();
 
     try {
@@ -587,6 +588,9 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
     // Setup space session (generates spaceId and delegation header)
     await this.setupSpaceSession(this.session);
 
+    // Verify SDK-node protocol compatibility
+    await checkNodeVersion(this.tinycloudHosts[0], tinycloud.protocolVersion());
+
     // Ensure space exists on TinyCloud server (creates if needed)
     if (this._spaceId && this._delegationHeader) {
       try {
@@ -606,7 +610,7 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
   }
 
   /**
-   * ENS data supported by TCW.
+   * ENS data supported by the SDK.
    * @param address - User address.
    * @param resolveEnsOpts - Options to resolve ENS.
    * @returns Object containing ENS data.
@@ -614,8 +618,8 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
   public async resolveEns(
     /** User address */
     address: string
-  ): Promise<TCWEnsData> {
-    return tcwResolveEns(this.connection.provider, address);
+  ): Promise<EnsData> {
+    return resolveEns(this.connection.provider, address);
   }
 
   /**
@@ -627,7 +631,7 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
         await this.connection.signOut(this.session);
       }
     } catch (err) {
-      // request to /tcw-logout went wrong
+      // request to logout went wrong
       debug.error(err);
       dispatchSDKEvent.error(
         "auth.signout_failed",
@@ -684,7 +688,7 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
 
   /**
    * Generates a SIWE message for authentication with session key capabilities.
-   * This method initializes a TCWSessionManager, generates a session key,
+   * This method initializes a SessionManager, generates a session key,
    * applies extension capabilities, and builds a SIWE message for signing.
    *
    * @param address - Ethereum address performing the signing
@@ -703,7 +707,7 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
         );
       }
 
-      // Initialize TCWSessionManager from WASM
+      // Initialize SessionManager from WASM
       let sessionManager: tcwSession.TCWSessionManager;
       try {
         sessionManager = await initialized.then(
@@ -801,12 +805,12 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
    * This method must be called after generateSiweMessage().
    * @param siweMessage - The SIWE message that was generated
    * @param signature - The signature of the SIWE message
-   * @returns Promise with the TCWClientSession object
+   * @returns Promise with the ClientSession object
    */
   public async signInWithSignature(
     siweMessage: SiweMessage,
     signature: string
-  ): Promise<TCWClientSession> {
+  ): Promise<ClientSession> {
     // Validate that generateSiweMessage() was called first
     if (!this.pendingSession) {
       throw new Error(
@@ -821,8 +825,8 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
         throw new Error("unable to retrieve session key from pending session");
       }
 
-      // Create TCWClientSession object
-      const session: TCWClientSession = {
+      // Create ClientSession object
+      const session: ClientSession = {
         address: siweMessage.address,
         walletAddress: siweMessage.address, // For signature-based init, address and walletAddress are the same
         chainId: siweMessage.chainId || 1, // Default to mainnet if not specified
@@ -839,6 +843,9 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
 
       // Setup space session (generates spaceId and delegation header)
       await this.setupSpaceSession(session);
+
+      // Verify SDK-node protocol compatibility
+      await checkNodeVersion(this.tinycloudHosts[0], tinycloud.protocolVersion());
 
       // Ensure space exists on TinyCloud server (creates if needed)
       // This must happen BEFORE extension hooks so extensions can use the space
@@ -887,7 +894,7 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
    * This method also adds default KV and capabilities actions.
    *
    * @private
-   * @param sessionManager - TCWSessionManager instance to apply capabilities to
+   * @param sessionManager - SessionManager instance to apply capabilities to
    * @param extensions - Array of extensions to apply
    * @param address - User's Ethereum address (for building target URIs)
    * @param chainId - Chain ID (for building target URIs)
@@ -896,7 +903,7 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
    */
   private async applyExtensionCapabilities(
     sessionManager: tcwSession.TCWSessionManager,
-    extensions: TCWExtension[],
+    extensions: Extension[],
     address: string,
     chainId: number,
     spacePrefix: string = "default",
@@ -1151,10 +1158,10 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
 
   /**
    * Apply extension afterSignIn hooks to the session.
-   * @param session - The TCWClientSession object
+   * @param session - The ClientSession object
    */
   private async applyAfterSignInHooks(
-    session: TCWClientSession
+    session: ClientSession
   ): Promise<void> {
     const extensions = this.init.extensions;
 
@@ -1168,9 +1175,9 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
   /**
    * Generate space ID and delegation header for the current session.
    * This sets up the internal state needed for ensureSpaceExists() and SpaceConnection.
-   * @param session - The TCWClientSession object
+   * @param session - The ClientSession object
    */
-  private async setupSpaceSession(session: TCWClientSession): Promise<void> {
+  private async setupSpaceSession(session: ClientSession): Promise<void> {
     try {
       // Ensure WASM modules are initialized
       await WasmInitializer.ensureInitialized();

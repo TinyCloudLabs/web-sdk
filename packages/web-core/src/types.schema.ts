@@ -16,14 +16,14 @@ import { z } from "zod";
 /**
  * ENS data supported by TCW.
  */
-export const TCWEnsDataSchema = z.object({
+export const EnsDataSchema = z.object({
   /** ENS name/domain. */
   domain: z.string().nullable().optional(),
   /** ENS avatar. */
   avatarUrl: z.string().nullable().optional(),
 });
 
-export type TCWEnsData = z.infer<typeof TCWEnsDataSchema>;
+export type EnsData = z.infer<typeof EnsDataSchema>;
 
 // =============================================================================
 // RPC Provider Enums
@@ -32,7 +32,7 @@ export type TCWEnsData = z.infer<typeof TCWEnsDataSchema>;
 /**
  * Enum of supported EthersJS providers.
  */
-export const TCWRPCProvidersSchema = z.enum([
+export const RPCProvidersSchema = z.enum([
   "alchemy",
   "ankr",
   "cloudflare",
@@ -42,19 +42,19 @@ export const TCWRPCProvidersSchema = z.enum([
   "pocket",
 ]);
 
-export type TCWRPCProviders = z.infer<typeof TCWRPCProvidersSchema>;
+export type RPCProviders = z.infer<typeof RPCProvidersSchema>;
 
 /**
- * Enum values for TCWRPCProviders (for backwards compatibility).
+ * Enum values for RPCProviders (for backwards compatibility).
  */
-export const TCWRPCProviders = {
-  TCWAlchemyProvider: "alchemy",
-  TCWAnkrProvider: "ankr",
-  TCWCloudflareProvider: "cloudflare",
-  TCWCustomProvider: "custom",
-  TCWEtherscanProvider: "etherscan",
-  TCWInfuraProvider: "infura",
-  TCWPocketProvider: "pocket",
+export const RPCProviders = {
+  AlchemyProvider: "alchemy",
+  AnkrProvider: "ankr",
+  CloudflareProvider: "cloudflare",
+  CustomProvider: "custom",
+  EtherscanProvider: "etherscan",
+  InfuraProvider: "infura",
+  PocketProvider: "pocket",
 } as const;
 
 // =============================================================================
@@ -64,7 +64,7 @@ export const TCWRPCProviders = {
 /**
  * Enum of supported networks for Etherscan.
  */
-export const TCWEtherscanProviderNetworksSchema = z.enum([
+export const EtherscanProviderNetworksSchema = z.enum([
   "homestead",
   "ropsten",
   "rinkeby",
@@ -72,9 +72,9 @@ export const TCWEtherscanProviderNetworksSchema = z.enum([
   "kovan",
 ]);
 
-export type TCWEtherscanProviderNetworks = z.infer<typeof TCWEtherscanProviderNetworksSchema>;
+export type EtherscanProviderNetworks = z.infer<typeof EtherscanProviderNetworksSchema>;
 
-export const TCWEtherscanProviderNetworks = {
+export const EtherscanProviderNetworks = {
   MAINNET: "homestead",
   ROPSTEN: "ropsten",
   RINKEBY: "rinkeby",
@@ -85,7 +85,7 @@ export const TCWEtherscanProviderNetworks = {
 /**
  * Enum of supported networks for Infura.
  */
-export const TCWInfuraProviderNetworksSchema = z.enum([
+export const InfuraProviderNetworksSchema = z.enum([
   "homestead",
   "ropsten",
   "rinkeby",
@@ -99,9 +99,9 @@ export const TCWInfuraProviderNetworksSchema = z.enum([
   "arbitrum-rinkeby",
 ]);
 
-export type TCWInfuraProviderNetworks = z.infer<typeof TCWInfuraProviderNetworksSchema>;
+export type InfuraProviderNetworks = z.infer<typeof InfuraProviderNetworksSchema>;
 
-export const TCWInfuraProviderNetworks = {
+export const InfuraProviderNetworks = {
   MAINNET: "homestead",
   ROPSTEN: "ropsten",
   RINKEBY: "rinkeby",
@@ -118,7 +118,7 @@ export const TCWInfuraProviderNetworks = {
 /**
  * Enum of supported networks for Alchemy.
  */
-export const TCWAlchemyProviderNetworksSchema = z.enum([
+export const AlchemyProviderNetworksSchema = z.enum([
   "homestead",
   "ropsten",
   "rinkeby",
@@ -132,9 +132,9 @@ export const TCWAlchemyProviderNetworksSchema = z.enum([
   "arbitrum-rinkeby",
 ]);
 
-export type TCWAlchemyProviderNetworks = z.infer<typeof TCWAlchemyProviderNetworksSchema>;
+export type AlchemyProviderNetworks = z.infer<typeof AlchemyProviderNetworksSchema>;
 
-export const TCWAlchemyProviderNetworks = {
+export const AlchemyProviderNetworks = {
   MAINNET: "homestead",
   ROPSTEN: "ropsten",
   RINKEBY: "rinkeby",
@@ -151,16 +151,16 @@ export const TCWAlchemyProviderNetworks = {
 /**
  * Enum of supported networks for Pocket.
  */
-export const TCWPocketProviderNetworksSchema = z.enum([
+export const PocketProviderNetworksSchema = z.enum([
   "homestead",
   "ropsten",
   "rinkeby",
   "goerli",
 ]);
 
-export type TCWPocketProviderNetworks = z.infer<typeof TCWPocketProviderNetworksSchema>;
+export type PocketProviderNetworks = z.infer<typeof PocketProviderNetworksSchema>;
 
-export const TCWPocketProviderNetworks = {
+export const PocketProviderNetworks = {
   MAINNET: "homestead",
   ROPSTEN: "ropsten",
   RINKEBY: "rinkeby",
@@ -170,15 +170,15 @@ export const TCWPocketProviderNetworks = {
 /**
  * Enum of supported networks for Ankr.
  */
-export const TCWAnkrProviderNetworksSchema = z.enum([
+export const AnkrProviderNetworksSchema = z.enum([
   "homestead",
   "matic",
   "arbitrum",
 ]);
 
-export type TCWAnkrProviderNetworks = z.infer<typeof TCWAnkrProviderNetworksSchema>;
+export type AnkrProviderNetworks = z.infer<typeof AnkrProviderNetworksSchema>;
 
-export const TCWAnkrProviderNetworks = {
+export const AnkrProviderNetworks = {
   MAINNET: "homestead",
   POLYGON: "matic",
   ARBITRUM: "arbitrum",
@@ -191,148 +191,148 @@ export const TCWAnkrProviderNetworks = {
 /**
  * Infura provider project settings.
  */
-export const TCWInfuraProviderProjectSettingsSchema = z.object({
+export const InfuraProviderProjectSettingsSchema = z.object({
   projectId: z.string(),
   projectSecret: z.string(),
 });
 
-export type TCWInfuraProviderProjectSettings = z.infer<typeof TCWInfuraProviderProjectSettingsSchema>;
+export type InfuraProviderProjectSettings = z.infer<typeof InfuraProviderProjectSettingsSchema>;
 
 /**
  * Etherscan provider settings.
  */
-export const TCWEtherscanProviderSchema = z.object({
+export const EtherscanProviderSchema = z.object({
   service: z.literal("etherscan"),
   apiKey: z.string().optional(),
-  network: TCWEtherscanProviderNetworksSchema.optional(),
+  network: EtherscanProviderNetworksSchema.optional(),
 });
 
-export type TCWEtherscanProvider = z.infer<typeof TCWEtherscanProviderSchema>;
+export type EtherscanProvider = z.infer<typeof EtherscanProviderSchema>;
 
 /**
  * Infura provider settings.
  */
-export const TCWInfuraProviderSchema = z.object({
+export const InfuraProviderSchema = z.object({
   service: z.literal("infura"),
-  apiKey: z.union([z.string(), TCWInfuraProviderProjectSettingsSchema]),
-  network: TCWInfuraProviderNetworksSchema.optional(),
+  apiKey: z.union([z.string(), InfuraProviderProjectSettingsSchema]),
+  network: InfuraProviderNetworksSchema.optional(),
 });
 
-export type TCWInfuraProvider = z.infer<typeof TCWInfuraProviderSchema>;
+export type InfuraProvider = z.infer<typeof InfuraProviderSchema>;
 
 /**
  * Alchemy provider settings.
  */
-export const TCWAlchemyProviderSchema = z.object({
+export const AlchemyProviderSchema = z.object({
   service: z.literal("alchemy"),
   apiKey: z.string().optional(),
-  network: TCWAlchemyProviderNetworksSchema.optional(),
+  network: AlchemyProviderNetworksSchema.optional(),
 });
 
-export type TCWAlchemyProvider = z.infer<typeof TCWAlchemyProviderSchema>;
+export type AlchemyProvider = z.infer<typeof AlchemyProviderSchema>;
 
 /**
  * Cloudflare provider settings.
  */
-export const TCWCloudflareProviderSchema = z.object({
+export const CloudflareProviderSchema = z.object({
   service: z.literal("cloudflare"),
 });
 
-export type TCWCloudflareProvider = z.infer<typeof TCWCloudflareProviderSchema>;
+export type CloudflareProvider = z.infer<typeof CloudflareProviderSchema>;
 
 /**
  * Pocket provider settings.
  */
-export const TCWPocketProviderSchema = z.object({
+export const PocketProviderSchema = z.object({
   service: z.literal("pocket"),
   apiKey: z.string().optional(),
-  network: TCWPocketProviderNetworksSchema.optional(),
+  network: PocketProviderNetworksSchema.optional(),
 });
 
-export type TCWPocketProvider = z.infer<typeof TCWPocketProviderSchema>;
+export type PocketProvider = z.infer<typeof PocketProviderSchema>;
 
 /**
  * Ankr provider settings.
  */
-export const TCWAnkrProviderSchema = z.object({
+export const AnkrProviderSchema = z.object({
   service: z.literal("ankr"),
   apiKey: z.string().optional(),
-  network: TCWAnkrProviderNetworksSchema.optional(),
+  network: AnkrProviderNetworksSchema.optional(),
 });
 
-export type TCWAnkrProvider = z.infer<typeof TCWAnkrProviderSchema>;
+export type AnkrProvider = z.infer<typeof AnkrProviderSchema>;
 
 /**
  * Custom provider settings.
  * Note: url and network are ethers types, validated as unknown.
  */
-export const TCWCustomProviderSchema = z.object({
+export const CustomProviderSchema = z.object({
   service: z.literal("custom"),
   url: z.unknown().optional(),
   network: z.unknown().optional(),
 });
 
-export type TCWCustomProvider = z.infer<typeof TCWCustomProviderSchema>;
+export type CustomProvider = z.infer<typeof CustomProviderSchema>;
 
 /**
  * Generic provider settings.
  * Note: url and network are ethers types, validated as unknown.
  */
-export const TCWGenericProviderSchema = z.object({
-  service: TCWRPCProvidersSchema,
+export const GenericProviderSchema = z.object({
+  service: RPCProvidersSchema,
   url: z.unknown().optional(),
   network: z.unknown().optional(),
-  apiKey: z.union([z.string(), TCWInfuraProviderProjectSettingsSchema]).optional(),
+  apiKey: z.union([z.string(), InfuraProviderProjectSettingsSchema]).optional(),
 });
 
-export type TCWGenericProvider = z.infer<typeof TCWGenericProviderSchema>;
+export type GenericProvider = z.infer<typeof GenericProviderSchema>;
 
 /**
  * Supported provider types (discriminated union).
  */
-export const TCWRPCProviderSchema = z.discriminatedUnion("service", [
-  TCWEtherscanProviderSchema,
-  TCWInfuraProviderSchema,
-  TCWAlchemyProviderSchema,
-  TCWCloudflareProviderSchema,
-  TCWPocketProviderSchema,
-  TCWAnkrProviderSchema,
-  TCWCustomProviderSchema,
+export const RPCProviderSchema = z.discriminatedUnion("service", [
+  EtherscanProviderSchema,
+  InfuraProviderSchema,
+  AlchemyProviderSchema,
+  CloudflareProviderSchema,
+  PocketProviderSchema,
+  AnkrProviderSchema,
+  CustomProviderSchema,
 ]);
 
-export type TCWRPCProvider = z.infer<typeof TCWRPCProviderSchema>;
+export type RPCProvider = z.infer<typeof RPCProviderSchema>;
 
 // =============================================================================
 // Type Guards (for backwards compatibility)
 // =============================================================================
 
-export const isTCWEtherscanProvider = (
-  provider: TCWRPCProvider
-): provider is TCWEtherscanProvider => provider.service === "etherscan";
+export const isEtherscanProvider = (
+  provider: RPCProvider
+): provider is EtherscanProvider => provider.service === "etherscan";
 
-export const isTCWInfuraProvider = (
-  provider: TCWRPCProvider
-): provider is TCWInfuraProvider => provider.service === "infura";
+export const isInfuraProvider = (
+  provider: RPCProvider
+): provider is InfuraProvider => provider.service === "infura";
 
-export const isTCWAlchemyProvider = (
-  provider: TCWRPCProvider
-): provider is TCWAlchemyProvider => provider.service === "alchemy";
+export const isAlchemyProvider = (
+  provider: RPCProvider
+): provider is AlchemyProvider => provider.service === "alchemy";
 
-export const isTCWCloudflareProvider = (
-  provider: TCWRPCProvider
-): provider is TCWCloudflareProvider => provider.service === "cloudflare";
+export const isCloudflareProvider = (
+  provider: RPCProvider
+): provider is CloudflareProvider => provider.service === "cloudflare";
 
-export const isTCWPocketProvider = (
-  provider: TCWRPCProvider
-): provider is TCWPocketProvider => provider.service === "pocket";
+export const isPocketProvider = (
+  provider: RPCProvider
+): provider is PocketProvider => provider.service === "pocket";
 
-export const isTCWAnkrProvider = (
-  provider: TCWRPCProvider
-): provider is TCWAnkrProvider => provider.service === "ankr";
+export const isAnkrProvider = (
+  provider: RPCProvider
+): provider is AnkrProvider => provider.service === "ankr";
 
-export const isTCWCustomProvider = (
-  provider: TCWRPCProvider
-): provider is TCWCustomProvider => provider.service === "custom";
+export const isCustomProvider = (
+  provider: RPCProvider
+): provider is CustomProvider => provider.service === "custom";
 
 // =============================================================================
 // Route Configuration Types
@@ -342,7 +342,7 @@ export const isTCWCustomProvider = (
  * TCW Route Configuration.
  * This configuration is used to override the default endpoint paths.
  */
-export const TCWRouteConfigSchema = z.object({
+export const RouteConfigSchema = z.object({
   /** Endpoint path. */
   url: z.string().optional(),
   /** Endpoint request method. */
@@ -351,59 +351,59 @@ export const TCWRouteConfigSchema = z.object({
   customAPIOperation: z.function().optional(),
 });
 
-export type TCWRouteConfig = z.infer<typeof TCWRouteConfigSchema>;
+export type RouteConfig = z.infer<typeof RouteConfigSchema>;
 
 /**
  * Server middleware configuration.
  */
-export const TCWServerMiddlewareConfigSchema = z.object({
+export const ServerMiddlewareConfigSchema = z.object({
   path: z.string(),
   callback: z.function().optional(),
 });
 
-export type TCWServerMiddlewareConfig = z.infer<typeof TCWServerMiddlewareConfigSchema>;
+export type ServerMiddlewareConfig = z.infer<typeof ServerMiddlewareConfigSchema>;
 
 /**
- * Type-Guard for TCWServerMiddlewareConfig.
+ * Type-Guard for ServerMiddlewareConfig.
  */
-export const isTCWServerMiddlewareConfig = (
-  config: TCWServerRouteEndpointType
-): config is TCWServerMiddlewareConfig =>
+export const isServerMiddlewareConfig = (
+  config: ServerRouteEndpointType
+): config is ServerMiddlewareConfig =>
   typeof config === "object" &&
   config !== null &&
   "path" in config &&
-  typeof (config as TCWServerMiddlewareConfig).path === "string";
+  typeof (config as ServerMiddlewareConfig).path === "string";
 
 /**
  * Server route endpoint type (union).
  */
-export const TCWServerRouteEndpointTypeSchema = z.union([
-  TCWRouteConfigSchema.partial(),
+export const ServerRouteEndpointTypeSchema = z.union([
+  RouteConfigSchema.partial(),
   z.unknown(), // AxiosRequestConfig
   z.string(),
-  TCWServerMiddlewareConfigSchema,
+  ServerMiddlewareConfigSchema,
 ]);
 
-export type TCWServerRouteEndpointType = z.infer<typeof TCWServerRouteEndpointTypeSchema>;
+export type ServerRouteEndpointType = z.infer<typeof ServerRouteEndpointTypeSchema>;
 
 /**
  * Server endpoints configuration.
  */
-export const TCWServerRoutesSchema = z.object({
+export const ServerRoutesSchema = z.object({
   /** Get nonce endpoint path. /tcw-nonce as default. */
-  nonce: TCWServerRouteEndpointTypeSchema.optional(),
+  nonce: ServerRouteEndpointTypeSchema.optional(),
   /** Post login endpoint path. /tcw-login as default. */
-  login: TCWServerRouteEndpointTypeSchema.optional(),
+  login: ServerRouteEndpointTypeSchema.optional(),
   /** Post logout endpoint path. /tcw-logout as default. */
-  logout: TCWServerRouteEndpointTypeSchema.optional(),
+  logout: ServerRouteEndpointTypeSchema.optional(),
 });
 
-export type TCWServerRoutes = z.infer<typeof TCWServerRoutesSchema>;
+export type ServerRoutes = z.infer<typeof ServerRoutesSchema>;
 
 /**
  * Server endpoints name configuration.
  */
-export const TCWServerRouteNamesSchema = z.object({
+export const ServerRouteNamesSchema = z.object({
   /** Get nonce endpoint path. /tcw-nonce as default. */
   nonce: z.string().optional(),
   /** Post login endpoint path. /tcw-login as default. */
@@ -412,7 +412,7 @@ export const TCWServerRouteNamesSchema = z.object({
   logout: z.string().optional(),
 });
 
-export type TCWServerRouteNames = z.infer<typeof TCWServerRouteNamesSchema>;
+export type ServerRouteNames = z.infer<typeof ServerRouteNamesSchema>;
 
 // =============================================================================
 // Validation Helpers
@@ -435,10 +435,10 @@ export type ValidationResult<T> =
   | { ok: false; error: ValidationError };
 
 /**
- * Validates TCWEnsData.
+ * Validates EnsData.
  */
-export function validateTCWEnsData(data: unknown): ValidationResult<TCWEnsData> {
-  const result = TCWEnsDataSchema.safeParse(data);
+export function validateEnsData(data: unknown): ValidationResult<EnsData> {
+  const result = EnsDataSchema.safeParse(data);
   if (!result.success) {
     return {
       ok: false,
@@ -453,10 +453,10 @@ export function validateTCWEnsData(data: unknown): ValidationResult<TCWEnsData> 
 }
 
 /**
- * Validates TCWRPCProvider.
+ * Validates RPCProvider.
  */
-export function validateTCWRPCProvider(data: unknown): ValidationResult<TCWRPCProvider> {
-  const result = TCWRPCProviderSchema.safeParse(data);
+export function validateRPCProvider(data: unknown): ValidationResult<RPCProvider> {
+  const result = RPCProviderSchema.safeParse(data);
   if (!result.success) {
     return {
       ok: false,
@@ -471,10 +471,10 @@ export function validateTCWRPCProvider(data: unknown): ValidationResult<TCWRPCPr
 }
 
 /**
- * Validates TCWServerRoutes.
+ * Validates ServerRoutes.
  */
-export function validateTCWServerRoutes(data: unknown): ValidationResult<TCWServerRoutes> {
-  const result = TCWServerRoutesSchema.safeParse(data);
+export function validateServerRoutes(data: unknown): ValidationResult<ServerRoutes> {
+  const result = ServerRoutesSchema.safeParse(data);
   if (!result.success) {
     return {
       ok: false,

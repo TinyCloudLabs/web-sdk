@@ -16,8 +16,8 @@ import {
   IUserAuthorization,
   ISigner,
   ISessionStorage,
-  TCWClientSession,
-  TCWExtension,
+  ClientSession,
+  Extension,
   PersistedSessionData,
   TinyCloudSession,
   SignStrategy,
@@ -30,6 +30,7 @@ import {
   fetchPeerId,
   submitHostDelegation,
   activateSessionWithHost,
+  checkNodeVersion,
   JWK,
 } from "@tinycloudlabs/sdk-core";
 import { dispatchSDKEvent } from "../notifications/ErrorHandler";
@@ -179,8 +180,8 @@ export class WebUserAuthorization implements IUserAuthorization {
   // Session management
   private sessionManager: tcwSession.TCWSessionManager;
   private sessionKeyId: string;
-  private extensions: TCWExtension[] = [];
-  private _session?: TCWClientSession;
+  private extensions: Extension[] = [];
+  private _session?: ClientSession;
   private _tinyCloudSession?: TinyCloudSession;
   private _address?: string;
   private _chainId?: number;
@@ -350,7 +351,7 @@ export class WebUserAuthorization implements IUserAuthorization {
   /**
    * The current active session (web-core compatible).
    */
-  get session(): TCWClientSession | undefined {
+  get session(): ClientSession | undefined {
     return this._session;
   }
 
@@ -364,7 +365,7 @@ export class WebUserAuthorization implements IUserAuthorization {
   /**
    * Add an extension to the authorization flow.
    */
-  extend(extension: TCWExtension): void {
+  extend(extension: Extension): void {
     this.extensions.push(extension);
   }
 
@@ -401,7 +402,7 @@ export class WebUserAuthorization implements IUserAuthorization {
    *
    * @throws Error if in session-only mode (no wallet connected)
    */
-  async signIn(): Promise<TCWClientSession> {
+  async signIn(): Promise<ClientSession> {
     if (!this._provider || !this._signer) {
       throw new Error(
         "No wallet connected. Call connectWallet() first or provide a provider in config."
@@ -464,7 +465,7 @@ export class WebUserAuthorization implements IUserAuthorization {
     });
 
     // Create client session (web-core compatible)
-    const clientSession: TCWClientSession = {
+    const clientSession: ClientSession = {
       address,
       walletAddress: address,
       chainId,
@@ -511,6 +512,9 @@ export class WebUserAuthorization implements IUserAuthorization {
     // Set current session
     this._session = clientSession;
     this._tinyCloudSession = tinycloudSession;
+
+    // Verify SDK-node protocol compatibility
+    await checkNodeVersion(this.tinycloudHosts[0], tinycloud.protocolVersion());
 
     // Ensure space exists (creates if needed when autoCreateSpace is true)
     await this.ensureSpaceExists();
@@ -668,7 +672,7 @@ export class WebUserAuthorization implements IUserAuthorization {
     signature: string,
     keyId: string,
     jwk: Record<string, unknown>
-  ): Promise<TCWClientSession> {
+  ): Promise<ClientSession> {
     if (!this._signer) {
       throw new Error("No wallet connected");
     }
@@ -683,7 +687,7 @@ export class WebUserAuthorization implements IUserAuthorization {
     const chainId = await this._signer.getChainId();
 
     // Create client session
-    const clientSession: TCWClientSession = {
+    const clientSession: ClientSession = {
       address,
       walletAddress: address,
       chainId,
@@ -738,6 +742,9 @@ export class WebUserAuthorization implements IUserAuthorization {
     this._tinyCloudSession = tinycloudSession;
     this._address = address;
     this._chainId = chainId;
+
+    // Verify SDK-node protocol compatibility
+    await checkNodeVersion(this.tinycloudHosts[0], tinycloud.protocolVersion());
 
     // Ensure space exists
     await this.ensureSpaceExists();

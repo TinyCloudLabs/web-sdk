@@ -1,7 +1,7 @@
 /**
  * WasmKeyProvider - KeyProvider implementation using WASM session manager.
  *
- * This provider wraps the TCWSessionManager from web-sdk-wasm to provide
+ * This provider wraps the SessionManager from web-sdk-wasm to provide
  * cryptographic key operations required by the SharingService.
  *
  * Supports multiple named session keys that can coexist within a single
@@ -13,7 +13,7 @@
 import type { KeyProvider, JWK } from "@tinycloudlabs/sdk-core";
 import { initialized, tcwSession } from "@tinycloudlabs/web-sdk-wasm";
 
-/** Type alias for TCWSessionManager from the tcwSession namespace */
+/** Type alias for SessionManager from the tcwSession namespace */
 type TCWSessionManager = tcwSession.TCWSessionManager;
 
 /**
