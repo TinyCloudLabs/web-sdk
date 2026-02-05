@@ -533,36 +533,44 @@ export class SharingService implements ISharingService {
       };
     }
 
-    // Step 2: Check if we need a root delegation (expiry exceeds session)
-    // This is the CORRECT solution for long-lived share links:
-    // - Instead of trying to extend the session (which still creates a sub-delegation chain)
-    // - We create a DIRECT delegation from wallet (PKH) to the share key
-    // - This bypasses the session chain entirely
-    const needsRootDelegation = this.sessionExpiry && requestedExpiry > this.sessionExpiry;
+    // Step 2: Check if any existing key can satisfy this delegation
+    // Only prompt for root delegation if NO existing key in the registry can handle it
     let delegation: Delegation;
     // Strip fragment from DID URL to get plain DID for UCAN audience
     // getDID() returns "did:key:z6Mk...#z6Mk..." but audience needs "did:key:z6Mk..."
     const plainDID = keyDid.split('#')[0];
 
     // Helper to handle delegation result (returns early on error)
-    // createSessionDelegation returns Delegation | Result<never, DelegationError>
-    // We need to check if it's a Result (has 'ok' property) and if so, whether it's an error
     const handleDelegationResult = (
       result: Awaited<ReturnType<typeof this.createSessionDelegation>>
     ): Delegation | { ok: false; error: DelegationError } => {
       if (result && typeof result === 'object' && 'ok' in result) {
-        // It's a Result type (error case)
         return result as { ok: false; error: DelegationError };
       }
-      // It's a Delegation
       return result as Delegation;
     };
 
-    if (needsRootDelegation && this.onRootDelegationNeeded) {
-      // Try to get a direct root delegation from the wallet to the share key
-      // This is the preferred path for long-lived share links because:
-      // - It creates a fresh delegation chain: PKH -> share key
-      // - Not constrained by session expiry (no sub-delegation from session key)
+    // Check if any key in the registry can satisfy this delegation request
+    // A key can satisfy the request if it has a delegation that:
+    // 1. Covers the required path and actions
+    // 2. Has sufficient expiry (delegation.expiry >= requestedExpiry)
+    // 3. Allows sub-delegation
+    const canSatisfyFromRegistry = this.findSuitableKeyForDelegation(
+      fullPath,
+      actions,
+      requestedExpiry
+    );
+
+    if (canSatisfyFromRegistry) {
+      // An existing key can satisfy this request - use session delegation (no prompt)
+      const delegationResult = await this.createSessionDelegation(plainDID, fullPath, actions, expiry);
+      const parsed = handleDelegationResult(delegationResult);
+      if ('ok' in parsed && parsed.ok === false) {
+        return parsed;
+      }
+      delegation = parsed as Delegation;
+    } else if (this.onRootDelegationNeeded) {
+      // No existing key can satisfy the request - try root delegation
       try {
         const rootDelegation = await this.onRootDelegationNeeded({
           shareKeyDID: plainDID,
@@ -573,11 +581,10 @@ export class SharingService implements ISharingService {
         });
 
         if (rootDelegation) {
-          // Successfully got a root delegation - use it directly
           delegation = rootDelegation;
           expiry = requestedExpiry;
         } else {
-          // Root delegation was not provided, fall back to session extension or clamping
+          // Root delegation declined, clamp to session expiry
           const fallbackResult = await this.handleSessionExtensionFallback(requestedExpiry);
           expiry = fallbackResult.expiry;
           const delegationResult = await this.createSessionDelegation(plainDID, fullPath, actions, expiry);
@@ -588,7 +595,7 @@ export class SharingService implements ISharingService {
           delegation = parsed as Delegation;
         }
       } catch (err) {
-        // Root delegation failed, fall back to session extension or clamping
+        // Root delegation failed, clamp to session expiry
         const fallbackResult = await this.handleSessionExtensionFallback(requestedExpiry);
         expiry = fallbackResult.expiry;
         const delegationResult = await this.createSessionDelegation(plainDID, fullPath, actions, expiry);
@@ -598,18 +605,10 @@ export class SharingService implements ISharingService {
         }
         delegation = parsed as Delegation;
       }
-    } else if (needsRootDelegation) {
-      // No root delegation callback, try session extension or clamp
+    } else {
+      // No root delegation callback, clamp to what session can provide
       const fallbackResult = await this.handleSessionExtensionFallback(requestedExpiry);
       expiry = fallbackResult.expiry;
-      const delegationResult = await this.createSessionDelegation(plainDID, fullPath, actions, expiry);
-      const parsed = handleDelegationResult(delegationResult);
-      if ('ok' in parsed && parsed.ok === false) {
-        return parsed;
-      }
-      delegation = parsed as Delegation;
-    } else {
-      // Expiry is within session bounds, use normal delegation flow
       const delegationResult = await this.createSessionDelegation(plainDID, fullPath, actions, expiry);
       const parsed = handleDelegationResult(delegationResult);
       if ('ok' in parsed && parsed.ok === false) {
@@ -646,6 +645,98 @@ export class SharingService implements ISharingService {
     };
 
     return { ok: true, data: shareLink };
+  }
+
+  /**
+   * Check if any key in the registry can satisfy the delegation request.
+   * A key can satisfy if it has a delegation that:
+   * 1. Covers the required path (exact match or parent path)
+   * 2. Has all required actions
+   * 3. Has sufficient expiry (delegation.expiry >= requestedExpiry)
+   * 4. Allows sub-delegation
+   * @internal
+   */
+  private findSuitableKeyForDelegation(
+    path: string,
+    actions: string[],
+    requestedExpiry: Date
+  ): boolean {
+    // Check session expiry first (most common case)
+    if (this.sessionExpiry && requestedExpiry <= this.sessionExpiry) {
+      return true;
+    }
+
+    // Check registry for keys with sufficient capabilities
+    const allKeys = this.registry.getAllKeys();
+    for (const key of allKeys) {
+      const delegations = this.registry.getDelegationsForKey(key.id);
+      for (const delegation of delegations) {
+        // Check if delegation is valid and not expired
+        if (!this.registry.isDelegationValid(delegation)) {
+          continue;
+        }
+
+        // Check if delegation has sufficient expiry
+        if (delegation.expiry < requestedExpiry) {
+          continue;
+        }
+
+        // Check if delegation allows sub-delegation
+        if (delegation.allowSubDelegation === false) {
+          continue;
+        }
+
+        // Check if delegation covers the path (exact match or parent path)
+        const delegationPath = delegation.path || '';
+        if (!this.pathMatches(delegationPath, path)) {
+          continue;
+        }
+
+        // Check if delegation has all required actions
+        const delegationActions = delegation.actions || [];
+        const hasAllActions = actions.every(action =>
+          delegationActions.includes(action) || delegationActions.includes('*')
+        );
+        if (!hasAllActions) {
+          continue;
+        }
+
+        // Found a suitable key
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Check if a delegation path matches/covers the requested path.
+   * A delegation path covers the request if:
+   * - It's an exact match
+   * - It's a parent path (e.g., delegation for "" covers "foo/bar")
+   * - It uses wildcards that match
+   * @internal
+   */
+  private pathMatches(delegationPath: string, requestedPath: string): boolean {
+    // Empty delegation path covers everything
+    if (delegationPath === '' || delegationPath === '*') {
+      return true;
+    }
+
+    // Exact match
+    if (delegationPath === requestedPath) {
+      return true;
+    }
+
+    // Check if delegation path is a parent of requested path
+    const normalizedDelegation = delegationPath.replace(/\/$/, '');
+    const normalizedRequest = requestedPath.replace(/\/$/, '');
+
+    if (normalizedRequest.startsWith(normalizedDelegation + '/')) {
+      return true;
+    }
+
+    return false;
   }
 
   /**
