@@ -17,7 +17,7 @@ The TinyCloud Web SDK provides a simple way to authenticate users using Ethereum
 Authentication is handled by the `UserAuthorization` module, which is automatically initialized when you create a TinyCloudWeb instance:
 
 ```typescript
-import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
+import { TinyCloudWeb } from '@tinycloud/web-sdk';
 
 // Initialize the SDK
 const tc = new TinyCloudWeb({

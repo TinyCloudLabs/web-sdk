@@ -5,13 +5,13 @@
   "fixed": [],
   "linked": [
     [
-      "@tinycloudlabs/sdk-core",
-      "@tinycloudlabs/web-sdk",
-      "@tinycloudlabs/node-sdk",
-      "@tinycloudlabs/web-core",
-      "@tinycloudlabs/sdk-services",
-      "@tinycloudlabs/web-sdk-wasm",
-      "@tinycloudlabs/node-sdk-wasm"
+      "@tinycloud/sdk-core",
+      "@tinycloud/web-sdk",
+      "@tinycloud/node-sdk",
+      "@tinycloud/web-core",
+      "@tinycloud/sdk-services",
+      "@tinycloud/web-sdk-wasm",
+      "@tinycloud/node-sdk-wasm"
     ]
   ],
   "access": "public",

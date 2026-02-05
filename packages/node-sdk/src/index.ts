@@ -1,5 +1,5 @@
 /**
- * @tinycloudlabs/node-sdk
+ * @tinycloud/node-sdk
  *
  * TinyCloud SDK for Node.js environments.
  *
@@ -11,12 +11,12 @@
  *
  * @example
  * ```typescript
- * import { TinyCloud } from '@tinycloudlabs/sdk-core';
+ * import { TinyCloud } from '@tinycloud/sdk-core';
  * import {
  *   NodeUserAuthorization,
  *   PrivateKeySigner,
  *   FileSessionStorage,
- * } from '@tinycloudlabs/node-sdk';
+ * } from '@tinycloud/node-sdk';
  *
  * const signer = new PrivateKeySigner(process.env.PRIVATE_KEY);
  * const auth = new NodeUserAuthorization({
@@ -44,7 +44,7 @@ export {
   Extension,
   PersistedSessionData,
   TinyCloudSession,
-} from "@tinycloudlabs/sdk-core";
+} from "@tinycloud/sdk-core";
 
 // Signers
 export { PrivateKeySigner } from "./signers/PrivateKeySigner";
@@ -94,7 +94,7 @@ export {
   // Prefixed KV
   PrefixedKVService,
   IPrefixedKVService,
-} from "@tinycloudlabs/sdk-core";
+} from "@tinycloud/sdk-core";
 
 // Re-export v2 Delegation services and types
 export {
@@ -136,7 +136,7 @@ export {
   ShareLinkData,
   IngestOptions,
   GenerateShareParams,
-} from "@tinycloudlabs/sdk-core";
+} from "@tinycloud/sdk-core";
 
 // Re-export CapabilityKeyRegistry (v2)
 export {
@@ -146,7 +146,7 @@ export {
   StoredDelegationChain,
   CapabilityKeyRegistryErrorCodes,
   CapabilityKeyRegistryErrorCode,
-} from "@tinycloudlabs/sdk-core";
+} from "@tinycloud/sdk-core";
 
 // Re-export SpaceService (v2)
 export {
@@ -164,14 +164,14 @@ export {
   SpaceConfig,
   ISpaceScopedDelegations,
   ISpaceScopedSharing,
-} from "@tinycloudlabs/sdk-core";
+} from "@tinycloud/sdk-core";
 
 // Protocol version checking
 export {
   ProtocolMismatchError,
   VersionCheckError,
   checkNodeVersion,
-} from "@tinycloudlabs/sdk-core";
+} from "@tinycloud/sdk-core";
 
 // Re-export ServiceContext and related types for advanced usage
 export {
@@ -180,10 +180,10 @@ export {
   ServiceSession,
   InvokeFunction,
   FetchFunction,
-} from "@tinycloudlabs/sdk-core";
+} from "@tinycloud/sdk-core";
 
 // Re-export KeyProvider interface from sdk-core
-export type { KeyProvider } from "@tinycloudlabs/sdk-core";
+export type { KeyProvider } from "@tinycloud/sdk-core";
 
 // Key management for node-sdk
 export {

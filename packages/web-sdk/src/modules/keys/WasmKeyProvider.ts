@@ -10,8 +10,8 @@
  * @packageDocumentation
  */
 
-import type { KeyProvider, JWK } from "@tinycloudlabs/sdk-core";
-import { initialized, tcwSession } from "@tinycloudlabs/web-sdk-wasm";
+import type { KeyProvider, JWK } from "@tinycloud/sdk-core";
+import { initialized, tcwSession } from "@tinycloud/web-sdk-wasm";
 
 /** Type alias for SessionManager from the tcwSession namespace */
 type TCWSessionManager = tcwSession.TCWSessionManager;

@@ -4,7 +4,7 @@
 
 The TinyCloud Web SDK provides all the tools you need to build decentralized web applications with TinyCloud.
 
-[![npm version](https://img.shields.io/npm/v/@tinycloudlabs/web-sdk.svg)](https://www.npmjs.com/package/@tinycloudlabs/web-sdk)
+[![npm version](https://img.shields.io/npm/v/@tinycloud/web-sdk.svg)](https://www.npmjs.com/package/@tinycloud/web-sdk)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/TinyCloudLabs/web-sdk/blob/main/LICENSE-MIT)
 
 ## Features
@@ -19,19 +19,19 @@ The TinyCloud Web SDK provides all the tools you need to build decentralized web
 
 ```bash
 # Using npm
-npm install @tinycloudlabs/web-sdk
+npm install @tinycloud/web-sdk
 
 # Using Yarn
-yarn add @tinycloudlabs/web-sdk
+yarn add @tinycloud/web-sdk
 
 # Using Bun (recommended)
-bun add @tinycloudlabs/web-sdk
+bun add @tinycloud/web-sdk
 ```
 
 ## Quick Start
 
 ```typescript
-import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
+import { TinyCloudWeb } from '@tinycloud/web-sdk';
 
 // Initialize the SDK
 const tc = new TinyCloudWeb();

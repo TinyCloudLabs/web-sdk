@@ -15,7 +15,7 @@ import {
   RetryPolicy,
   defaultRetryPolicy,
   ServiceConstructor,
-} from "@tinycloudlabs/sdk-services";
+} from "@tinycloud/sdk-services";
 
 /**
  * Configuration for the TinyCloud SDK.
@@ -88,8 +88,8 @@ export interface TinyCloudConfig {
  * @example
  * ```typescript
  * // Web usage
- * import { TinyCloud } from '@tinycloudlabs/sdk-core';
- * import { WebUserAuthorization } from '@tinycloudlabs/web-sdk';
+ * import { TinyCloud } from '@tinycloud/sdk-core';
+ * import { WebUserAuthorization } from '@tinycloud/web-sdk';
  *
  * const auth = new WebUserAuthorization({ ... });
  * const tc = new TinyCloud(auth);
@@ -97,8 +97,8 @@ export interface TinyCloudConfig {
  * const result = await tc.kv.put('key', 'value');
  *
  * // Node usage
- * import { TinyCloud } from '@tinycloudlabs/sdk-core';
- * import { NodeUserAuthorization, PrivateKeySigner } from '@tinycloudlabs/node-sdk';
+ * import { TinyCloud } from '@tinycloud/sdk-core';
+ * import { NodeUserAuthorization, PrivateKeySigner } from '@tinycloud/node-sdk';
  *
  * const signer = new PrivateKeySigner(process.env.PRIVATE_KEY);
  * const auth = new NodeUserAuthorization({

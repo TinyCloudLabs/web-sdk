@@ -17,7 +17,7 @@ import {
   TCWSessionManager,
   exportKey,
   initPanicHook,
-} from "@tinycloudlabs/node-sdk-wasm";
+} from "@tinycloud/node-sdk-wasm";
 
 initPanicHook();
 

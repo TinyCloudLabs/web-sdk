@@ -18,7 +18,7 @@ import type {
   ServiceSession,
   InvokeFunction,
   FetchFunction,
-} from "@tinycloudlabs/sdk-services";
+} from "@tinycloud/sdk-services";
 import type {
   Result,
   DelegationError,
@@ -277,7 +277,7 @@ export interface ISharingService {
  *
  * @example
  * ```typescript
- * import { SharingService } from "@tinycloudlabs/sdk-core/delegations";
+ * import { SharingService } from "@tinycloud/sdk-core/delegations";
  *
  * const sharing = new SharingService({
  *   hosts: ["https://node.tinycloud.xyz"],

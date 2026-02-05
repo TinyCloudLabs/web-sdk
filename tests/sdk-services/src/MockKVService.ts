@@ -19,8 +19,8 @@ import type {
   KVResponse,
   KVListResponse,
   KVResponseHeaders,
-} from "@tinycloudlabs/sdk-services";
-import { ok, err, ErrorCodes, serviceError, PrefixedKVService } from "@tinycloudlabs/sdk-services";
+} from "@tinycloud/sdk-services";
+import { ok, err, ErrorCodes, serviceError, PrefixedKVService } from "@tinycloud/sdk-services";
 
 /**
  * Recorded operation for assertions.

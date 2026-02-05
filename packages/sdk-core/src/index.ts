@@ -1,5 +1,5 @@
 /**
- * @tinycloudlabs/sdk-core
+ * @tinycloud/sdk-core
  *
  * Core TinyCloud SDK package providing shared interfaces and the TinyCloud class.
  *
@@ -83,7 +83,7 @@ export {
   // Retry
   type RetryPolicy,
   defaultRetryPolicy,
-} from "@tinycloudlabs/sdk-services";
+} from "@tinycloud/sdk-services";
 
 // Space utilities
 export {

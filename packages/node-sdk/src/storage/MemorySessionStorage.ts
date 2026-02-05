@@ -1,4 +1,4 @@
-import { ISessionStorage, PersistedSessionData } from "@tinycloudlabs/sdk-core";
+import { ISessionStorage, PersistedSessionData } from "@tinycloud/sdk-core";
 
 /**
  * In-memory session storage for Node.js.

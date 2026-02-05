@@ -11,8 +11,8 @@
  * @packageDocumentation
  */
 
-import type { Result, ServiceError } from "@tinycloudlabs/sdk-services";
-import { ok, err, serviceError } from "@tinycloudlabs/sdk-services";
+import type { Result, ServiceError } from "@tinycloud/sdk-services";
+import { ok, err, serviceError } from "@tinycloud/sdk-services";
 import type {
   KeyInfo,
   CapabilityEntry,

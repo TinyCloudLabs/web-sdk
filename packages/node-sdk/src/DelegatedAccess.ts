@@ -4,8 +4,8 @@ import {
   IKVService,
   ServiceSession,
   ServiceContext,
-} from "@tinycloudlabs/sdk-core";
-import { invoke } from "@tinycloudlabs/node-sdk-wasm";
+} from "@tinycloud/sdk-core";
+import { invoke } from "@tinycloud/node-sdk-wasm";
 import { PortableDelegation } from "./delegation";
 
 /**

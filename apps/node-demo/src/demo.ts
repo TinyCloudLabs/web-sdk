@@ -30,7 +30,7 @@ import {
   TinyCloudNode,
   serializeDelegation,
   deserializeDelegation,
-} from "@tinycloudlabs/node-sdk";
+} from "@tinycloud/node-sdk";
 import { Wallet } from "ethers";
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";

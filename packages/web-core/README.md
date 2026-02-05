@@ -4,7 +4,7 @@
 
 TinyCloud Web Core provides foundational utilities and types used by TinyCloud SDKs.
 
-[![npm version](https://img.shields.io/npm/v/@tinycloudlabs/web-core.svg)](https://www.npmjs.com/package/@tinycloudlabs/web-core)
+[![npm version](https://img.shields.io/npm/v/@tinycloud/web-core.svg)](https://www.npmjs.com/package/@tinycloud/web-core)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/TinyCloudLabs/web-sdk/blob/main/LICENSE-MIT)
 
 ## Overview
@@ -22,19 +22,19 @@ This package is a library made to aggregate types and utilities for other TinyCl
 
 ```bash
 # Using npm
-npm install @tinycloudlabs/web-core
+npm install @tinycloud/web-core
 
 # Using Yarn
-yarn add @tinycloudlabs/web-core
+yarn add @tinycloud/web-core
 
 # Using Bun (recommended)
-bun add @tinycloudlabs/web-core
+bun add @tinycloud/web-core
 ```
 
 ## Usage
 
 ```typescript
-import { IStorageGetOptions, IStoragePutOptions } from '@tinycloudlabs/web-core';
+import { IStorageGetOptions, IStoragePutOptions } from '@tinycloud/web-core';
 ```
 
 ## Documentation
@@ -54,4 +54,4 @@ This project is licensed under the MIT License - see the [LICENSE-MIT](https://g
 
 ## Related Packages
 
-- [**@tinycloudlabs/web-sdk**](https://www.npmjs.com/package/@tinycloudlabs/web-sdk) - The main TinyCloud Web SDK package
+- [**@tinycloud/web-sdk**](https://www.npmjs.com/package/@tinycloud/web-sdk) - The main TinyCloud Web SDK package

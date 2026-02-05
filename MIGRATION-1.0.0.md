@@ -132,7 +132,7 @@ import {
   SignResponse,
   ISpaceCreationHandler,
   SpaceCreationContext,
-} from '@tinycloudlabs/web-sdk';
+} from '@tinycloud/web-sdk';
 ```
 
 ## FAQ

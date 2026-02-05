@@ -1,8 +1,8 @@
-import { ISigner, Bytes } from "@tinycloudlabs/sdk-core";
+import { ISigner, Bytes } from "@tinycloud/sdk-core";
 import {
   signEthereumMessage,
   ensureEip55,
-} from "@tinycloudlabs/node-sdk-wasm";
+} from "@tinycloud/node-sdk-wasm";
 
 /**
  * Private key signer for Node.js environments.

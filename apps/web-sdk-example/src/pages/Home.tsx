@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { TinyCloudWeb } from "@tinycloudlabs/web-sdk";
+import { TinyCloudWeb } from "@tinycloud/web-sdk";
 import Title from "../components/Title";
 import RadioGroup from "../components/RadioGroup";
 import Input from "../components/Input";

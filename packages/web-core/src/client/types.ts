@@ -1,5 +1,5 @@
 /* eslint-disable no-shadow */
-import { tcwSession } from '@tinycloudlabs/web-sdk-wasm';
+import { tcwSession } from '@tinycloud/web-sdk-wasm';
 import { AxiosInstance } from 'axios';
 import { ethers } from 'ethers';
 import {

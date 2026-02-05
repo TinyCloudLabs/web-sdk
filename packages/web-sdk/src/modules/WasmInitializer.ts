@@ -2,7 +2,7 @@ import {
   initialized,
   tinycloud,
   tcwSession,
-} from "@tinycloudlabs/web-sdk-wasm";
+} from "@tinycloud/web-sdk-wasm";
 
 /**
  * Centralized WASM initialization for the TinyCloud SDK.

@@ -1,4 +1,4 @@
-import { KVService, IKVService, ServiceSession } from "@tinycloudlabs/sdk-core";
+import { KVService, IKVService, ServiceSession } from "@tinycloud/sdk-core";
 import { invoke } from "./module";
 import { Session } from "./types";
 

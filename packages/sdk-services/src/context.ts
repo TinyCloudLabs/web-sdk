@@ -1,6 +1,6 @@
 /**
  * ServiceContext implementation for TinyCloud SDK Services
- * @module @tinycloudlabs/sdk-services
+ * @module @tinycloud/sdk-services
  */
 
 import {

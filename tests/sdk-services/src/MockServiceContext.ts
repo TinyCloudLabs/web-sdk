@@ -16,7 +16,7 @@ import type {
   FetchRequestInit,
   EventHandler,
   ServiceHeaders,
-} from "@tinycloudlabs/sdk-services";
+} from "@tinycloud/sdk-services";
 
 /**
  * Recorded event with timestamp for assertion.

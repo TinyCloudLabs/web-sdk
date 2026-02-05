@@ -11,7 +11,7 @@ import {
   submitHostDelegation,
   activateSessionWithHost,
   checkNodeVersion,
-} from "@tinycloudlabs/sdk-core";
+} from "@tinycloud/sdk-core";
 import {
   TCWSessionManager as SessionManager,
   prepareSession,
@@ -22,7 +22,7 @@ import {
   generateHostSIWEMessage,
   siweToDelegationHeaders,
   protocolVersion,
-} from "@tinycloudlabs/node-sdk-wasm";
+} from "@tinycloud/node-sdk-wasm";
 import {
   SignStrategy,
   SignRequest,

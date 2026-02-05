@@ -55,7 +55,7 @@ import {
   DelegationResult,
   CreateDelegationWasmParams,
   CreateDelegationWasmResult,
-} from "@tinycloudlabs/sdk-core";
+} from "@tinycloud/sdk-core";
 import { NodeUserAuthorization } from "./authorization/NodeUserAuthorization";
 import { PrivateKeySigner } from "./signers/PrivateKeySigner";
 import { FileSessionStorage } from "./storage/FileSessionStorage";
@@ -69,7 +69,7 @@ import {
   makeSpaceId,
   initPanicHook,
   createDelegation,
-} from "@tinycloudlabs/node-sdk-wasm";
+} from "@tinycloud/node-sdk-wasm";
 import { PortableDelegation } from "./delegation";
 import { DelegatedAccess } from "./DelegatedAccess";
 import { WasmKeyProvider } from "./keys/WasmKeyProvider";

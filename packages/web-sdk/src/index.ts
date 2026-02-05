@@ -36,13 +36,13 @@ export {
   SpaceCreationContext,
   AutoApproveSpaceCreationHandler,
   defaultSpaceCreationHandler,
-} from '@tinycloudlabs/sdk-core';
+} from '@tinycloud/sdk-core';
 
 // =============================================================================
 // Re-exports from web-core packages
 // =============================================================================
-export * from '@tinycloudlabs/web-core/client';
-export * from '@tinycloudlabs/web-core';
+export * from '@tinycloud/web-core/client';
+export * from '@tinycloud/web-core';
 export { SiweMessage } from 'siwe';
 
 // Re-export sdk-core interfaces for platform-agnostic code
@@ -54,7 +54,7 @@ export {
   PersistedSessionData,
   SiweConfig,
   PartialSiweMessage,
-} from '@tinycloudlabs/sdk-core';
+} from '@tinycloud/sdk-core';
 
 // Re-export KV service types for direct usage
 export {
@@ -63,7 +63,7 @@ export {
   KVResponse,
   PrefixedKVService,
   IPrefixedKVService,
-} from '@tinycloudlabs/sdk-core';
+} from '@tinycloud/sdk-core';
 
 // Re-export delegation types and services from sdk-core
 export {
@@ -103,7 +103,7 @@ export {
   ShareLinkData,
   IngestOptions,
   GenerateShareParams,
-} from '@tinycloudlabs/sdk-core';
+} from '@tinycloud/sdk-core';
 
 // Re-export CapabilityKeyRegistry from sdk-core
 export {
@@ -113,7 +113,7 @@ export {
   StoredDelegationChain,
   CapabilityKeyRegistryErrorCodes,
   CapabilityKeyRegistryErrorCode,
-} from '@tinycloudlabs/sdk-core';
+} from '@tinycloud/sdk-core';
 
 // Re-export SpaceService from sdk-core
 export {
@@ -131,14 +131,14 @@ export {
   SpaceConfig,
   ISpaceScopedDelegations,
   ISpaceScopedSharing,
-} from '@tinycloudlabs/sdk-core';
+} from '@tinycloud/sdk-core';
 
 // Protocol version checking
 export {
   ProtocolMismatchError,
   VersionCheckError,
   checkNodeVersion,
-} from '@tinycloudlabs/sdk-core';
+} from '@tinycloud/sdk-core';
 
 // Adapter for web-sdk
 export { createKVService } from './modules/Storage/tinycloud/KVServiceAdapter';

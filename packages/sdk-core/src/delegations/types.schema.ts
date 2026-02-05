@@ -12,7 +12,7 @@ import type {
   FetchFunction,
   InvokeFunction,
   ServiceSession,
-} from "@tinycloudlabs/sdk-services";
+} from "@tinycloud/sdk-services";
 
 // =============================================================================
 // Result Type (Generic)

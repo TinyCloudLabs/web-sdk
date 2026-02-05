@@ -81,7 +81,7 @@ export type ExtraFields = z.infer<typeof ExtraFieldsSchema>;
 
 /**
  * Optional session configuration for the SIWE message.
- * Note: Extends Partial<tcwSession.SiweConfig> from @tinycloudlabs/web-sdk-wasm.
+ * Note: Extends Partial<tcwSession.SiweConfig> from @tinycloud/web-sdk-wasm.
  */
 export const SiweConfigSchema = z.object({
   /** Domain for the SIWE message. */

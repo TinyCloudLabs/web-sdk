@@ -1,5 +1,5 @@
 {
-  "name": "@tinycloudlabs/sdk-services-test",
+  "name": "@tinycloud/sdk-services-test",
   "version": "1.0.0",
   "description": "Testing utilities for TinyCloud SDK Services",
   "author": "TinyCloud, Inc.",
@@ -24,10 +24,10 @@
     "test": "bun test"
   },
   "peerDependencies": {
-    "@tinycloudlabs/sdk-services": "workspace:*"
+    "@tinycloud/sdk-services": "workspace:*"
   },
   "devDependencies": {
-    "@tinycloudlabs/sdk-services": "workspace:*",
+    "@tinycloud/sdk-services": "workspace:*",
     "@types/node": "^20",
     "typescript": "^5.0.0"
   },

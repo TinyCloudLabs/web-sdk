@@ -74,7 +74,7 @@ module.exports = {
   output: {
     filename: "index.js",
     path: path.resolve(__dirname, "dist"),
-    library: "@tinycloudlabs/web-sdk",
+    library: "@tinycloud/web-sdk",
     libraryTarget: "umd",
     umdNamedDefine: true,
     globalObject: "this",

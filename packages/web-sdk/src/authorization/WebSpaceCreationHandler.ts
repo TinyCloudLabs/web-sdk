@@ -7,7 +7,7 @@
 import {
   ISpaceCreationHandler,
   SpaceCreationContext,
-} from "@tinycloudlabs/sdk-core";
+} from "@tinycloud/sdk-core";
 import { showSpaceCreationModal } from "../notifications/ModalManager";
 import { dispatchSDKEvent } from "../notifications/ErrorHandler";
 

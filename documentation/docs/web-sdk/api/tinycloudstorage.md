@@ -9,7 +9,7 @@ sidebar_position: 2
 TinyCloudStorage provides decentralized storage functionality through TinyCloud's storage protocol. This class implements both the IStorage and ITinyCloudStorage interfaces.
 
 ```typescript
-import { TinyCloudStorage } from '@tinycloudlabs/web-sdk';
+import { TinyCloudStorage } from '@tinycloud/web-sdk';
 ```
 
 ## Description

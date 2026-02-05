@@ -1,5 +1,5 @@
 {
-  "name": "@tinycloudlabs/node-demo",
+  "name": "@tinycloud/node-demo",
   "version": "0.0.3",
   "private": true,
   "type": "module",
@@ -12,9 +12,9 @@
     "generate-keys": "bun run src/generate-keys.ts"
   },
   "dependencies": {
-    "@tinycloudlabs/sdk-core": "workspace:*",
-    "@tinycloudlabs/node-sdk": "workspace:*",
-    "@tinycloudlabs/node-sdk-wasm": "workspace:*",
+    "@tinycloud/sdk-core": "workspace:*",
+    "@tinycloud/node-sdk": "workspace:*",
+    "@tinycloud/node-sdk-wasm": "workspace:*",
     "ethers": "^5.7.2"
   },
   "devDependencies": {

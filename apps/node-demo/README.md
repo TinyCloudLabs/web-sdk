@@ -83,7 +83,7 @@ bun run demo
 ### Initialize TinyCloudNode
 
 ```typescript
-import { TinyCloudNode } from "@tinycloudlabs/node-sdk";
+import { TinyCloudNode } from "@tinycloud/node-sdk";
 import { Wallet } from "ethers";
 
 // Create instance with private key
@@ -135,7 +135,7 @@ const delegation = await tc.createDelegation({
 console.log("Delegation CID:", delegation.delegationCid);
 
 // Serialize to send to the delegate
-import { serializeDelegation } from "@tinycloudlabs/node-sdk";
+import { serializeDelegation } from "@tinycloud/node-sdk";
 const serialized = serializeDelegation(delegation);
 // Send `serialized` to Bob via secure channel
 ```
@@ -143,7 +143,7 @@ const serialized = serializeDelegation(delegation);
 ### Use Delegations
 
 ```typescript
-import { deserializeDelegation } from "@tinycloudlabs/node-sdk";
+import { deserializeDelegation } from "@tinycloud/node-sdk";
 
 // Bob receives serialized delegation from Alice
 const delegation = deserializeDelegation(serialized);

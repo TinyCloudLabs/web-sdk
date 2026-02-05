@@ -1,5 +1,5 @@
 {
-  "name": "@tinycloudlabs/web-sdk-wasm",
+  "name": "@tinycloud/web-sdk-wasm",
   "version": "1.0.0",
   "description": "TinyCloud WASM bindings for web browsers",
   "main": "dist/index.js",
@@ -11,7 +11,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@tinycloudlabs/sdk-rs": "workspace:*"
+    "@tinycloud/sdk-rs": "workspace:*"
   },
   "devDependencies": {
     "@rollup/plugin-wasm": "^5.2.0",

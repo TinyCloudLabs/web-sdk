@@ -32,4 +32,4 @@ export namespace tinycloud {
 }
 
 // Note: CreateDelegationWasmParams and CreateDelegationWasmResult types are available
-// from @tinycloudlabs/sdk-core for TypeScript consumers
+// from @tinycloud/sdk-core for TypeScript consumers

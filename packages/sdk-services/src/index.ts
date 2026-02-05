@@ -4,7 +4,7 @@
  * Platform-agnostic services with plugin architecture for TinyCloud.
  *
  * @packageDocumentation
- * @module @tinycloudlabs/sdk-services
+ * @module @tinycloud/sdk-services
  *
  * @example
  * ```typescript
@@ -13,7 +13,7 @@
  *   BaseService,
  *   Result,
  *   ErrorCodes,
- * } from '@tinycloudlabs/sdk-services';
+ * } from '@tinycloud/sdk-services';
  *
  * // Create a context
  * const context = new ServiceContext({

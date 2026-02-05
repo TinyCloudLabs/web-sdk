@@ -9,7 +9,7 @@ sidebar_position: 3
 The UserAuthorization module handles authentication and authorization for the TinyCloud Web SDK.
 
 ```typescript
-import { UserAuthorization } from '@tinycloudlabs/web-sdk';
+import { UserAuthorization } from '@tinycloud/web-sdk';
 ```
 
 ## Description

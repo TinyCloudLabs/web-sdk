@@ -1,5 +1,5 @@
 /**
- * @tinycloudlabs/node-sdk-wasm
+ * @tinycloud/node-sdk-wasm
  *
  * TinyCloud WASM bindings for Node.js environments.
  *
@@ -41,4 +41,4 @@ export type {
 } from "../../../node-sdk-wasm/tinycloud_web_sdk_rs.js";
 
 // Note: CreateDelegationWasmParams and CreateDelegationWasmResult types are available
-// from @tinycloudlabs/sdk-core for TypeScript consumers
+// from @tinycloud/sdk-core for TypeScript consumers

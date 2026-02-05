@@ -1,4 +1,4 @@
-import { Delegation } from "@tinycloudlabs/sdk-core";
+import { Delegation } from "@tinycloud/sdk-core";
 
 /**
  * A portable delegation that can be transported between users.

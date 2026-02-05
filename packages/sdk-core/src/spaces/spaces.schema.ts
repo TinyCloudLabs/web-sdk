@@ -8,7 +8,7 @@
  */
 
 import { z } from "zod";
-import type { Result, ServiceError } from "@tinycloudlabs/sdk-services";
+import type { Result, ServiceError } from "@tinycloud/sdk-services";
 import { CreateDelegationParamsSchema } from "../delegations/types.schema.js";
 
 // =============================================================================

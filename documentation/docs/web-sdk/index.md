@@ -19,15 +19,15 @@ Welcome to the TinyCloud Web SDK documentation. This SDK provides all the tools 
 To get started with the TinyCloud Web SDK, first install the package:
 
 ```bash
-npm install @tinycloudlabs/web-sdk
+npm install @tinycloud/web-sdk
 # or
-bun add @tinycloudlabs/web-sdk
+bun add @tinycloud/web-sdk
 ```
 
 Then import and initialize the SDK in your application:
 
 ```typescript
-import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
+import { TinyCloudWeb } from '@tinycloud/web-sdk';
 
 const tc = new TinyCloudWeb({
   // Configuration options here

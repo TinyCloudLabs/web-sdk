@@ -15,8 +15,8 @@ import type {
   ServiceSession,
   FetchFunction,
   InvokeFunction,
-} from "@tinycloudlabs/sdk-services";
-import { ok, err, serviceError } from "@tinycloudlabs/sdk-services";
+} from "@tinycloud/sdk-services";
+import { ok, err, serviceError } from "@tinycloud/sdk-services";
 import type {
   SpaceInfo,
   SpaceOwnership,

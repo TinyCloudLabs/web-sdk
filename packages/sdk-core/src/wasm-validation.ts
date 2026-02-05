@@ -60,7 +60,7 @@ export interface WasmValidationResult<T> {
  *
  * @example
  * ```typescript
- * import { validateWasmOutput, CreateDelegationWasmResultSchema } from "@tinycloudlabs/sdk-core";
+ * import { validateWasmOutput, CreateDelegationWasmResultSchema } from "@tinycloud/sdk-core";
  *
  * const rawResult = wasmCreateDelegation(...args);
  * const result = validateWasmOutput(
@@ -143,7 +143,7 @@ export type CreateDelegationWasmRawResult = z.infer<
  *
  * @example
  * ```typescript
- * import { validateCreateDelegationWasmOutput } from "@tinycloudlabs/sdk-core";
+ * import { validateCreateDelegationWasmOutput } from "@tinycloud/sdk-core";
  *
  * const rawResult = wasmCreateDelegation(session, delegateDID, ...);
  * const { data, issues } = validateCreateDelegationWasmOutput(rawResult);

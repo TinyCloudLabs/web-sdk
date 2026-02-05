@@ -4,7 +4,7 @@
 
 WebAssembly library written in Rust for the TinyCloud Web SDK.
 
-[![npm version](https://img.shields.io/npm/v/@tinycloudlabs/web-sdk-wasm.svg)](https://www.npmjs.com/package/@tinycloudlabs/web-sdk-wasm)
+[![npm version](https://img.shields.io/npm/v/@tinycloud/web-sdk-wasm.svg)](https://www.npmjs.com/package/@tinycloud/web-sdk-wasm)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/TinyCloudLabs/web-sdk/blob/main/LICENSE-MIT)
 
 ## Overview
@@ -21,13 +21,13 @@ This package provides high-performance WebAssembly components for TinyCloud Web 
 
 ```bash
 # Using npm
-npm install @tinycloudlabs/web-sdk-wasm
+npm install @tinycloud/web-sdk-wasm
 
 # Using Yarn
-yarn add @tinycloudlabs/web-sdk-wasm
+yarn add @tinycloud/web-sdk-wasm
 
 # Using Bun (recommended)
-bun add @tinycloudlabs/web-sdk-wasm
+bun add @tinycloud/web-sdk-wasm
 ```
 
 ## Usage
@@ -35,7 +35,7 @@ bun add @tinycloudlabs/web-sdk-wasm
 This package is typically used internally by the main TinyCloud Web SDK, but you can also use it directly:
 
 ```typescript
-import { initialize } from '@tinycloudlabs/web-sdk-wasm';
+import { initialize } from '@tinycloud/web-sdk-wasm';
 
 // Initialize the WASM module
 await initialize();
@@ -88,5 +88,5 @@ This project is licensed under the MIT License - see the [LICENSE-MIT](https://g
 
 ## Related Packages
 
-- [**@tinycloudlabs/web-sdk**](https://www.npmjs.com/package/@tinycloudlabs/web-sdk) - The main TinyCloud Web SDK package
-- [**@tinycloudlabs/web-core**](https://www.npmjs.com/package/@tinycloudlabs/web-core) - Core utilities and types
+- [**@tinycloud/web-sdk**](https://www.npmjs.com/package/@tinycloud/web-sdk) - The main TinyCloud Web SDK package
+- [**@tinycloud/web-core**](https://www.npmjs.com/package/@tinycloud/web-core) - Core utilities and types

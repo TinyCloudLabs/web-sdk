@@ -4,7 +4,7 @@
  * Used to verify autoCreateSpace behavior.
  */
 
-import { TinyCloudNode } from "@tinycloudlabs/node-sdk";
+import { TinyCloudNode } from "@tinycloud/node-sdk";
 import { Wallet } from "ethers";
 
 const TINYCLOUD_URL = process.env.TINYCLOUD_URL || "http://localhost:8000";

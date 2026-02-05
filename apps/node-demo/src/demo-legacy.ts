@@ -32,7 +32,7 @@ import {
   ensureEip55,
   signEthereumMessage,
   initPanicHook,
-} from "@tinycloudlabs/node-sdk-wasm";
+} from "@tinycloud/node-sdk-wasm";
 
 initPanicHook();
 

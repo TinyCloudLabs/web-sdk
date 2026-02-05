@@ -13,7 +13,7 @@ import {
   ServiceSession,
   ServiceContext,
   JWK,
-} from "@tinycloudlabs/sdk-core";
+} from "@tinycloud/sdk-core";
 import { invoke } from "./modules/Storage/tinycloud/module";
 
 /**

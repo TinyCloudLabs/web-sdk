@@ -673,7 +673,7 @@ bun run docs:dev            # Development server
 ### Browser SDK Usage Pattern
 
 ```typescript
-import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
+import { TinyCloudWeb } from '@tinycloud/web-sdk';
 
 // 1. SDK Initialization
 const tcw = new TinyCloudWeb({
@@ -700,7 +700,7 @@ tcw.extend(customExtension);
 ### Node.js SDK Usage Pattern
 
 ```typescript
-import { TinyCloudNode, serializeDelegation } from '@tinycloudlabs/node-sdk';
+import { TinyCloudNode, serializeDelegation } from '@tinycloud/node-sdk';
 
 // 1. SDK Initialization (with private key)
 const tc = new TinyCloudNode({

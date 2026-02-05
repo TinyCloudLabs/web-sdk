@@ -18,7 +18,7 @@ export {
   AutoSignStrategy,
   AutoRejectStrategy,
   CallbackStrategy,
-} from "@tinycloudlabs/sdk-core";
+} from "@tinycloud/sdk-core";
 
 // Import types for use in local definitions
 import type {
@@ -28,7 +28,7 @@ import type {
   AutoSignStrategy,
   AutoRejectStrategy,
   CallbackStrategy,
-} from "@tinycloudlabs/sdk-core";
+} from "@tinycloud/sdk-core";
 
 /**
  * Node.js event emitter strategy: emits sign requests as events.
