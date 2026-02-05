@@ -37,6 +37,8 @@ module.exports = function override(config, env) {
   config.resolve.fallback = {
     buffer: require.resolve('buffer/'),
     process: require.resolve('process/browser'),
+    // MetaMask SDK includes React Native code paths not needed in browser
+    '@react-native-async-storage/async-storage': false,
   };
 
   // Handle ESM modules
