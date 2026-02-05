@@ -1,4 +1,4 @@
-# @tinycloudlabs/web-sdk-wasm
+# @tinycloudlabs/sdk-services
 
 ## 2.0.0
 
@@ -24,26 +24,3 @@
   - Blanket re-exports from `@tinycloudlabs/web-core` removed; use explicit named imports
   - Some internal sdk-core utilities removed from public API
   - `SharingServiceV2` alias removed; use `SharingService` directly
-
-## 0.4.0
-
-### Minor Changes
-
-- 8c448f1: Update namespace references
-
-### Patch Changes
-
-- a2b4b66: Fix build order to ensure WASM artifacts are built before TypeScript packages
-
-  Added `@tinycloudlabs/sdk-rs` as a dependency so turbo builds WASM first.
-
-- a2b4b66: Rename web-sdk-rs to sdk-rs for clearer naming
-
-  - Renamed `packages/web-sdk-rs` to `packages/sdk-rs`
-  - Renamed WASM output directories:
-    - `pkg` -> `web-sdk-wasm`
-    - `pkg-nodejs` -> `node-sdk-wasm`
-  - Updated all build scripts, documentation, and CI workflows
-
-- Updated dependencies [69fc83e]
-  - @tinycloudlabs/sdk-rs@0.3.1
