@@ -7,7 +7,8 @@
  */
 
 // Re-export everything from the Node.js WASM build
-export * from "../../../node-sdk-wasm/tinycloud_web_sdk_rs.js";
+// Note: The wasm/ directory is created during build from wasm-pack output
+export * from "./wasm/index.js";
 
 // Also export common utilities directly for convenience
 export {
@@ -30,7 +31,7 @@ export {
   createDelegation,
   // Protocol version
   protocolVersion,
-} from "../../../node-sdk-wasm/tinycloud_web_sdk_rs.js";
+} from "./wasm/index.js";
 
 // Re-export types for TypeScript consumers
 export type {
@@ -38,7 +39,7 @@ export type {
   Session,
   SessionConfig,
   SiweConfig,
-} from "../../../node-sdk-wasm/tinycloud_web_sdk_rs.js";
+} from "./wasm/index.js";
 
 // Note: CreateDelegationWasmParams and CreateDelegationWasmResult types are available
 // from @tinycloud/sdk-core for TypeScript consumers

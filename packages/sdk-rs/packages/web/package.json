@@ -10,9 +10,6 @@
     "build": "rollup -c && ./fixup-types.sh",
     "clean": "rm -rf dist"
   },
-  "dependencies": {
-    "@tinycloud/sdk-rs": "workspace:*"
-  },
   "devDependencies": {
     "@rollup/plugin-wasm": "^5.2.0",
     "rollup": "^2.79.2",
