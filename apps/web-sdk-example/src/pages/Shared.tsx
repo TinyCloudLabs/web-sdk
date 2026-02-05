@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
 import Button from '../components/Button';
@@ -45,7 +45,7 @@ const Shared = () => {
   const [inspectedData, setInspectedData] = useState<ParsedShare | null>(null);
   const [inspectError, setInspectError] = useState<string | null>(null);
 
-  const inspectShareData = () => {
+  const inspectShareData = useCallback(() => {
     setInspectError(null);
     setInspectedData(null);
     try {
@@ -63,14 +63,14 @@ const Shared = () => {
     } catch (err) {
       setInspectError(`Failed to parse share link: ${err instanceof Error ? err.message : String(err)}`);
     }
-  };
+  }, [shareData]);
 
   // Auto-inspect in dev mode when share data is present
   useEffect(() => {
     if (window.__DEV_MODE__ && shareData) {
       inspectShareData();
     }
-  }, [shareData]);
+  }, [shareData, inspectShareData]);
 
   const fetchShareData = async () => {
     setIsLoading(true);

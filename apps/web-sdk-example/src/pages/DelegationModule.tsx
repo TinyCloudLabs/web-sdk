@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { TinyCloudWeb, Delegation, PortableDelegation, serializeDelegation } from '@tinycloudlabs/web-sdk';
 import Input from '../components/Input';
 import Button from '../components/Button';
@@ -52,7 +52,6 @@ function DelegationModule({ tcw }: IDelegationModule) {
   const [selectedActions, setSelectedActions] = useState<string[]>(['tinycloud.kv/get']);
   const [expiryDays, setExpiryDays] = useState<string>('7');
   const [generatedUrl, setGeneratedUrl] = useState<string>('');
-  const [lastDelegation, setLastDelegation] = useState<Delegation | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
 
@@ -63,12 +62,7 @@ function DelegationModule({ tcw }: IDelegationModule) {
     { value: 'tinycloud.kv/list', label: 'List (list)' },
   ];
 
-  // Load delegations on mount
-  useEffect(() => {
-    loadDelegations();
-  }, [tcw]);
-
-  const loadDelegations = async () => {
+  const loadDelegations = useCallback(async () => {
     setError(null);
     try {
       const space = tcw.space('default');
@@ -83,7 +77,12 @@ function DelegationModule({ tcw }: IDelegationModule) {
       console.error('Error loading delegations:', err);
       setError(`Error loading delegations: ${err instanceof Error ? err.message : String(err)}`);
     }
-  };
+  }, [tcw]);
+
+  // Load delegations on mount
+  useEffect(() => {
+    loadDelegations();
+  }, [loadDelegations]);
 
   const handleActionToggle = (action: string) => {
     setSelectedActions(prev => {
@@ -122,7 +121,6 @@ function DelegationModule({ tcw }: IDelegationModule) {
 
       if (result.ok) {
         const delegation = result.data;
-        setLastDelegation(delegation);
 
         // Get transport fields from tcw
         const ownerAddress = tcw.address() || '';
@@ -291,10 +289,7 @@ function DelegationModule({ tcw }: IDelegationModule) {
             <Button
               variant="neutral"
               size="sm"
-              onClick={() => {
-                setGeneratedUrl('');
-                setLastDelegation(null);
-              }}
+              onClick={() => setGeneratedUrl('')}
             >
               Close
             </Button>

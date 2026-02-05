@@ -14,7 +14,7 @@ interface ISpaceModule {
  * Shows the difference between root-level and space-scoped KV access.
  */
 function SpaceModule({ tcw }: ISpaceModule) {
-  const [spaceName, setSpaceName] = useState<string>('default');
+  const [spaceName] = useState<string>('default');
   const [space, setSpace] = useState<ISpace | null>(null);
   const [contentList, setContentList] = useState<Array<string>>([]);
   const [selectedContent, setSelectedContent] = useState<string | null>(null);
