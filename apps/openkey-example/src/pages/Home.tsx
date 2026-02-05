@@ -109,6 +109,7 @@ function Home() {
             driver: web3Provider,
           },
         },
+        useNewAuth: true, // Use WebUserAuthorization for proper space creation modal
       });
 
       const tcwProvider = new TinyCloudWeb(tcwConfig);

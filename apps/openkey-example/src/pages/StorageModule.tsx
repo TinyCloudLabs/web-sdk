@@ -24,6 +24,17 @@ function StorageModule({ tcw }: IStorageModule) {
   const [allowPost, setAllowPost] = useState<boolean>(false);
   const [sharingLink, setSharingLink] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+  const [showExpiryModal, setShowExpiryModal] = useState<boolean>(false);
+  const [pendingShareKey, setPendingShareKey] = useState<string | null>(null);
+  const [selectedExpiry, setSelectedExpiry] = useState<string>('1hour');
+
+  // Expiry options
+  const expiryOptions = [
+    { value: '1hour', label: '1 Hour', ms: 60 * 60 * 1000 },
+    { value: '24hours', label: '24 Hours', ms: 24 * 60 * 60 * 1000 },
+    { value: '7days', label: '7 Days', ms: 7 * 24 * 60 * 60 * 1000 },
+    { value: '30days', label: '30 Days', ms: 30 * 24 * 60 * 60 * 1000 },
+  ];
 
   // Get prefix from tcw (used for display purposes)
   const prefix = tcw.kvPrefix;
@@ -61,17 +72,33 @@ function StorageModule({ tcw }: IStorageModule) {
     };
   }, [tcw]);
 
-  const handleShareContent = async (key: string) => {
+  // Open expiry selection modal before sharing
+  const handleShareContent = (key: string) => {
     setError(null);
     setSharingLink('');
+    setPendingShareKey(key);
+    setSelectedExpiry('1hour'); // Reset to default
+    setShowExpiryModal(true);
+  };
+
+  // Generate share link with selected expiry
+  const handleGenerateShare = async () => {
+    if (!pendingShareKey) return;
+
+    setShowExpiryModal(false);
+    setError(null);
+
+    const expiryOption = expiryOptions.find(o => o.value === selectedExpiry);
+    const expiryMs = expiryOption?.ms ?? 60 * 60 * 1000;
+    const expiryDate = new Date(Date.now() + expiryMs);
 
     try {
       // Generate a sharing link using the v2 SharingService
       // The SharingService will prepend the pathPrefix automatically
       const result = await tcw.sharing.generate({
-        path: key,
+        path: pendingShareKey,
         actions: ['tinycloud.kv/get', 'tinycloud.kv/list'],
-        expiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+        expiry: expiryDate,
       });
 
       if (result.ok) {
@@ -79,12 +106,22 @@ function StorageModule({ tcw }: IStorageModule) {
         const shareUrl = `${window.location.origin}/share?share=${encodeURIComponent(result.data.token)}`;
         setSharingLink(shareUrl);
       } else {
-        console.error('Failed to generate share link:', result.error.code, result.error.message);
-        setError(`Failed to generate share link: ${result.error.message}`);
+        // Check if it's an expiry issue and provide helpful guidance
+        if (result.error.message.includes('expiry exceeds parent expiry')) {
+          setError(
+            `Share duration exceeds your session. ` +
+            `Try a shorter duration or sign out and back in with a longer session.`
+          );
+        } else {
+          console.error('Failed to generate share link:', result.error.code, result.error.message);
+          setError(`Failed to generate share link: ${result.error.message}`);
+        }
       }
     } catch (err) {
       console.error('Error generating share link:', err);
       setError(`Error generating share link: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setPendingShareKey(null);
     }
   };
 
@@ -184,6 +221,59 @@ function StorageModule({ tcw }: IStorageModule) {
         {error && (
           <div className="rounded-base border-2 border-red-300 bg-red-50 p-3">
             <p className="text-sm text-red-800">{error}</p>
+          </div>
+        )}
+
+        {/* Expiry Selection Modal */}
+        {showExpiryModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-bw rounded-base border-2 border-border p-6 max-w-sm w-full mx-4 space-y-4">
+              <h3 className="text-lg font-heading text-text">Share Duration</h3>
+              <p className="text-sm text-text/70">
+                How long should this share link be valid?
+              </p>
+              <div className="space-y-2">
+                {expiryOptions.map((option) => (
+                  <label
+                    key={option.value}
+                    className={`flex items-center p-3 rounded-base border-2 cursor-pointer transition-colors ${
+                      selectedExpiry === option.value
+                        ? 'border-main bg-main/10'
+                        : 'border-border/50 hover:border-border'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="expiry"
+                      value={option.value}
+                      checked={selectedExpiry === option.value}
+                      onChange={(e) => setSelectedExpiry(e.target.value)}
+                      className="mr-3"
+                    />
+                    <span className="text-text">{option.label}</span>
+                  </label>
+                ))}
+              </div>
+              <div className="flex space-x-3 pt-2">
+                <Button
+                  variant="default"
+                  onClick={handleGenerateShare}
+                  className="flex-1"
+                >
+                  Generate Link
+                </Button>
+                <Button
+                  variant="neutral"
+                  onClick={() => {
+                    setShowExpiryModal(false);
+                    setPendingShareKey(null);
+                  }}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
           </div>
         )}
 

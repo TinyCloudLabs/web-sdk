@@ -232,9 +232,53 @@ export interface SharingServiceConfig {
   pathPrefix?: string;
   /**
    * Session expiry time.
-   * When set, sharing link expiry is clamped to not exceed this value.
+   * When set, sharing link expiry is clamped to not exceed this value
+   * unless onSessionExtensionNeeded is provided and returns a new session.
    */
   sessionExpiry?: Date;
+  /**
+   * Callback when a share request needs a longer session than currently available.
+   * If provided and returns a new session with sufficient expiry, that session is used.
+   * If not provided or returns undefined, the share expiry is clamped to session expiry.
+   *
+   * @deprecated Use onRootDelegationNeeded instead for proper delegation chain handling.
+   * @param requestedExpiry - The requested expiry for the share
+   * @returns A new session with the required expiry, or undefined to clamp
+   */
+  onSessionExtensionNeeded?: (requestedExpiry: Date) => Promise<{
+    session: ServiceSession;
+    expiry: Date;
+  } | undefined>;
+  /**
+   * Callback to create a DIRECT delegation from the root (wallet) to a share key.
+   * This bypasses the session delegation chain, allowing share links with
+   * expiry longer than the current session.
+   *
+   * When provided and share expiry > session expiry:
+   * 1. SharingService creates the ephemeral share key
+   * 2. This callback is invoked with the share key DID
+   * 3. The callback signs a direct PKH -> share key delegation with the wallet
+   * 4. The returned delegation is used for the share link
+   *
+   * This is the CORRECT solution for long-lived share links because:
+   * - It creates a fresh delegation chain: PKH -> share key
+   * - Not constrained by session expiry (no sub-delegation from session key)
+   *
+   * @param params - Parameters for creating the root delegation
+   * @returns The delegation from wallet to share key, or undefined to fall back to session extension
+   */
+  onRootDelegationNeeded?: (params: {
+    /** DID of the share key to delegate to */
+    shareKeyDID: string;
+    /** Space ID */
+    spaceId: string;
+    /** Path to grant access to */
+    path: string;
+    /** Actions to grant */
+    actions: string[];
+    /** Requested expiry time */
+    requestedExpiry: Date;
+  }) => Promise<Delegation | undefined>;
 }
 
 /**
@@ -323,6 +367,8 @@ export class SharingService implements ISharingService {
   private createDelegationWasmFn?: SharingServiceConfig["createDelegationWasm"];
   private pathPrefix: string;
   private sessionExpiry?: Date;
+  private onSessionExtensionNeeded?: SharingServiceConfig["onSessionExtensionNeeded"];
+  private onRootDelegationNeeded?: SharingServiceConfig["onRootDelegationNeeded"];
 
   /**
    * Creates a new SharingService instance.
@@ -341,6 +387,8 @@ export class SharingService implements ISharingService {
     this.createDelegationWasmFn = config.createDelegationWasm;
     this.pathPrefix = config.pathPrefix ?? "";
     this.sessionExpiry = config.sessionExpiry;
+    this.onSessionExtensionNeeded = config.onSessionExtensionNeeded;
+    this.onRootDelegationNeeded = config.onRootDelegationNeeded;
   }
 
   /**
@@ -361,7 +409,7 @@ export class SharingService implements ISharingService {
    * Updates the service configuration.
    * Used to add full capabilities (session, delegationManager, createDelegation, createDelegationWasm) after signIn.
    */
-  public updateConfig(config: Partial<Pick<SharingServiceConfig, "session" | "delegationManager" | "createDelegation" | "createDelegationWasm" | "sessionExpiry">>): void {
+  public updateConfig(config: Partial<Pick<SharingServiceConfig, "session" | "delegationManager" | "createDelegation" | "createDelegationWasm" | "sessionExpiry" | "onSessionExtensionNeeded" | "onRootDelegationNeeded">>): void {
     if (config.session !== undefined) {
       this.session = config.session;
     }
@@ -376,6 +424,12 @@ export class SharingService implements ISharingService {
     }
     if (config.sessionExpiry !== undefined) {
       this.sessionExpiry = config.sessionExpiry;
+    }
+    if (config.onSessionExtensionNeeded !== undefined) {
+      this.onSessionExtensionNeeded = config.onSessionExtensionNeeded;
+    }
+    if (config.onRootDelegationNeeded !== undefined) {
+      this.onRootDelegationNeeded = config.onRootDelegationNeeded;
     }
   }
 
@@ -425,10 +479,8 @@ export class SharingService implements ISharingService {
 
     const actions = params.actions ?? DEFAULT_READ_ACTIONS;
     const requestedExpiry = params.expiry ?? new Date(Date.now() + DEFAULT_EXPIRY_MS);
-    // Clamp expiry to session expiry if set
-    const expiry = this.sessionExpiry && requestedExpiry > this.sessionExpiry
-      ? this.sessionExpiry
-      : requestedExpiry;
+    let expiry = requestedExpiry;
+
     const schema: ShareSchema = params.schema ?? "base64";
 
     // Build full path with prefix (matches how KVService stores data)
@@ -449,6 +501,7 @@ export class SharingService implements ISharingService {
     }
 
     // Step 1: Spawn a new session key unique to this share
+    // We create this FIRST so we can pass its DID to onRootDelegationNeeded if needed
     let keyId: string;
     let keyDid: string;
     let keyJwk: JWK;
@@ -480,97 +533,89 @@ export class SharingService implements ISharingService {
       };
     }
 
-    // Step 2: Create delegation from current session to spawned key
-    // Prefer client-side WASM creation, fall back to server-side
+    // Step 2: Check if we need a root delegation (expiry exceeds session)
+    // This is the CORRECT solution for long-lived share links:
+    // - Instead of trying to extend the session (which still creates a sub-delegation chain)
+    // - We create a DIRECT delegation from wallet (PKH) to the share key
+    // - This bypasses the session chain entirely
+    const needsRootDelegation = this.sessionExpiry && requestedExpiry > this.sessionExpiry;
     let delegation: Delegation;
+    // Strip fragment from DID URL to get plain DID for UCAN audience
+    // getDID() returns "did:key:z6Mk...#z6Mk..." but audience needs "did:key:z6Mk..."
+    const plainDID = keyDid.split('#')[0];
 
-    if (this.createDelegationWasmFn) {
-      // Client-side delegation creation via WASM
+    // Helper to handle delegation result (returns early on error)
+    // createSessionDelegation returns Delegation | Result<never, DelegationError>
+    // We need to check if it's a Result (has 'ok' property) and if so, whether it's an error
+    const handleDelegationResult = (
+      result: Awaited<ReturnType<typeof this.createSessionDelegation>>
+    ): Delegation | { ok: false; error: DelegationError } => {
+      if (result && typeof result === 'object' && 'ok' in result) {
+        // It's a Result type (error case)
+        return result as { ok: false; error: DelegationError };
+      }
+      // It's a Delegation
+      return result as Delegation;
+    };
+
+    if (needsRootDelegation && this.onRootDelegationNeeded) {
+      // Try to get a direct root delegation from the wallet to the share key
+      // This is the preferred path for long-lived share links because:
+      // - It creates a fresh delegation chain: PKH -> share key
+      // - Not constrained by session expiry (no sub-delegation from session key)
       try {
-        // Strip fragment from DID URL to get plain DID for UCAN audience
-        // getDID() returns "did:key:z6Mk...#z6Mk..." but audience needs "did:key:z6Mk..."
-        const plainDID = keyDid.split('#')[0];
-
-        const wasmResult = this.createDelegationWasmFn({
-          session: this.session,
-          delegateDID: plainDID,
+        const rootDelegation = await this.onRootDelegationNeeded({
+          shareKeyDID: plainDID,
           spaceId: this.session.spaceId,
           path: fullPath,
           actions,
-          expirationSecs: Math.floor(expiry.getTime() / 1000),
+          requestedExpiry,
         });
 
-        // Register the delegation with the server
-        // The server needs to know about this delegation for proof chain validation
-        const registerRes = await this.fetchFn(`${this.host}/delegate`, {
-          method: "POST",
-          headers: {
-            Authorization: wasmResult.delegation, // The UCAN JWT
-          },
-        });
-
-        if (!registerRes.ok) {
-          const errorText = await registerRes.text();
-          return {
-            ok: false,
-            error: createError(
-              DelegationErrorCodes.CREATION_FAILED,
-              `Failed to register delegation with server: ${registerRes.status} ${errorText}`
-            ),
-          };
+        if (rootDelegation) {
+          // Successfully got a root delegation - use it directly
+          delegation = rootDelegation;
+          expiry = requestedExpiry;
+        } else {
+          // Root delegation was not provided, fall back to session extension or clamping
+          const fallbackResult = await this.handleSessionExtensionFallback(requestedExpiry);
+          expiry = fallbackResult.expiry;
+          const delegationResult = await this.createSessionDelegation(plainDID, fullPath, actions, expiry);
+          const parsed = handleDelegationResult(delegationResult);
+          if ('ok' in parsed && parsed.ok === false) {
+            return parsed;
+          }
+          delegation = parsed as Delegation;
         }
-
-        delegation = {
-          cid: wasmResult.cid,
-          delegateDID: wasmResult.delegateDID,
-          spaceId: this.session.spaceId,
-          path: wasmResult.path,
-          actions: wasmResult.actions,
-          expiry: wasmResult.expiry,
-          isRevoked: false,
-          authHeader: wasmResult.delegation, // The UCAN JWT (no Bearer prefix - SDK adds it internally)
-          allowSubDelegation: true,
-          createdAt: new Date(),
-        };
       } catch (err) {
-        return {
-          ok: false,
-          error: createError(
-            DelegationErrorCodes.CREATION_FAILED,
-            `Failed to create delegation via WASM: ${err instanceof Error ? err.message : String(err)}`,
-            err instanceof Error ? err : undefined
-          ),
-        };
+        // Root delegation failed, fall back to session extension or clamping
+        const fallbackResult = await this.handleSessionExtensionFallback(requestedExpiry);
+        expiry = fallbackResult.expiry;
+        const delegationResult = await this.createSessionDelegation(plainDID, fullPath, actions, expiry);
+        const parsed = handleDelegationResult(delegationResult);
+        if ('ok' in parsed && parsed.ok === false) {
+          return parsed;
+        }
+        delegation = parsed as Delegation;
       }
+    } else if (needsRootDelegation) {
+      // No root delegation callback, try session extension or clamp
+      const fallbackResult = await this.handleSessionExtensionFallback(requestedExpiry);
+      expiry = fallbackResult.expiry;
+      const delegationResult = await this.createSessionDelegation(plainDID, fullPath, actions, expiry);
+      const parsed = handleDelegationResult(delegationResult);
+      if ('ok' in parsed && parsed.ok === false) {
+        return parsed;
+      }
+      delegation = parsed as Delegation;
     } else {
-      // Server-side delegation creation (fallback)
-      const delegationParams: CreateDelegationParams = {
-        delegateDID: keyDid,
-        path: fullPath,
-        actions,
-        expiry,
-        statement: params.description ?? `Share access for ${params.path}`,
-        disableSubDelegation: false, // Allow sub-delegation for auto-subdelegate flow
-      };
-
-      const delegationResult = this.createDelegationFn
-        ? await this.createDelegationFn(delegationParams)
-        // delegationManager is guaranteed to exist by the guard check above
-        : await this.delegationManager!.create(delegationParams);
-
-      if (!delegationResult.ok) {
-        return {
-          ok: false,
-          error: createError(
-            DelegationErrorCodes.CREATION_FAILED,
-            `Failed to create delegation for share: ${delegationResult.error.message}`,
-            delegationResult.error.cause,
-            delegationResult.error.meta
-          ),
-        };
+      // Expiry is within session bounds, use normal delegation flow
+      const delegationResult = await this.createSessionDelegation(plainDID, fullPath, actions, expiry);
+      const parsed = handleDelegationResult(delegationResult);
+      if ('ok' in parsed && parsed.ok === false) {
+        return parsed;
       }
-
-      delegation = delegationResult.data;
+      delegation = parsed as Delegation;
     }
 
     // Step 3: Package the share data
@@ -601,6 +646,132 @@ export class SharingService implements ISharingService {
     };
 
     return { ok: true, data: shareLink };
+  }
+
+  /**
+   * Handle fallback to session extension when root delegation is not available.
+   * @internal
+   */
+  private async handleSessionExtensionFallback(requestedExpiry: Date): Promise<{ expiry: Date }> {
+    if (this.onSessionExtensionNeeded) {
+      try {
+        const extended = await this.onSessionExtensionNeeded(requestedExpiry);
+        if (extended) {
+          // Use the extended session
+          this.session = extended.session;
+          this.sessionExpiry = extended.expiry;
+          return { expiry: requestedExpiry <= extended.expiry ? requestedExpiry : extended.expiry };
+        }
+      } catch {
+        // Extension failed, clamp to session expiry
+      }
+    }
+    // Clamp to current session expiry
+    return { expiry: this.sessionExpiry ?? requestedExpiry };
+  }
+
+  /**
+   * Create a delegation from the current session to a share key.
+   * This is the fallback path when root delegation is not available.
+   * @internal
+   */
+  private async createSessionDelegation(
+    delegateDID: string,
+    path: string,
+    actions: string[],
+    expiry: Date
+  ): Promise<Delegation | Result<never, DelegationError>> {
+    if (!this.session) {
+      return {
+        ok: false,
+        error: createError(
+          DelegationErrorCodes.NOT_INITIALIZED,
+          "Session required for creating delegation"
+        ),
+      };
+    }
+
+    if (this.createDelegationWasmFn) {
+      // Client-side delegation creation via WASM
+      try {
+        const wasmResult = this.createDelegationWasmFn({
+          session: this.session,
+          delegateDID,
+          spaceId: this.session.spaceId,
+          path,
+          actions,
+          expirationSecs: Math.floor(expiry.getTime() / 1000),
+        });
+
+        // Register the delegation with the server
+        const registerRes = await this.fetchFn(`${this.host}/delegate`, {
+          method: "POST",
+          headers: {
+            Authorization: wasmResult.delegation,
+          },
+        });
+
+        if (!registerRes.ok) {
+          const errorText = await registerRes.text();
+          return {
+            ok: false,
+            error: createError(
+              DelegationErrorCodes.CREATION_FAILED,
+              `Failed to register delegation with server: ${registerRes.status} ${errorText}`
+            ),
+          };
+        }
+
+        return {
+          cid: wasmResult.cid,
+          delegateDID: wasmResult.delegateDID,
+          spaceId: this.session.spaceId,
+          path: wasmResult.path,
+          actions: wasmResult.actions,
+          expiry: wasmResult.expiry,
+          isRevoked: false,
+          authHeader: wasmResult.delegation,
+          allowSubDelegation: true,
+          createdAt: new Date(),
+        };
+      } catch (err) {
+        return {
+          ok: false,
+          error: createError(
+            DelegationErrorCodes.CREATION_FAILED,
+            `Failed to create delegation via WASM: ${err instanceof Error ? err.message : String(err)}`,
+            err instanceof Error ? err : undefined
+          ),
+        };
+      }
+    } else {
+      // Server-side delegation creation (fallback)
+      const delegationParams: CreateDelegationParams = {
+        delegateDID,
+        path,
+        actions,
+        expiry,
+        disableSubDelegation: false,
+      };
+
+      const delegationResult = this.createDelegationFn
+        ? await this.createDelegationFn(delegationParams)
+        : await this.delegationManager!.create(delegationParams);
+
+      if (!delegationResult.ok) {
+        return {
+          ok: false,
+          error: createError(
+            DelegationErrorCodes.CREATION_FAILED,
+            `Failed to create delegation for share: ${delegationResult.error.message}`,
+            delegationResult.error.cause,
+            delegationResult.error.meta
+          ),
+        };
+      }
+
+      return delegationResult.data;
+    }
   }
 
   /**
