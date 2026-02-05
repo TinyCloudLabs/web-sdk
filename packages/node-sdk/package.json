@@ -1,5 +1,5 @@
 {
-  "name": "@tinycloudlabs/node-sdk",
+  "name": "@tinycloud/node-sdk",
   "version": "1.0.0",
   "description": "TinyCloud SDK for Node.js with configurable authorization strategies",
   "author": "TinyCloud, Inc.",
@@ -27,9 +27,9 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@tinycloudlabs/sdk-core": "workspace:*",
-    "@tinycloudlabs/node-sdk-wasm": "workspace:*",
-    "@tinycloudlabs/web-core": "workspace:*",
+    "@tinycloud/sdk-core": "workspace:*",
+    "@tinycloud/node-sdk-wasm": "workspace:*",
+    "@tinycloud/web-core": "workspace:*",
     "siwe": "^2.3.2"
   },
   "devDependencies": {

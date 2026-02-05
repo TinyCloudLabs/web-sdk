@@ -35,4 +35,4 @@ export {
   SpaceCreationContext,
   AutoApproveSpaceCreationHandler,
   defaultSpaceCreationHandler,
-} from "@tinycloudlabs/sdk-core";
+} from "@tinycloud/sdk-core";

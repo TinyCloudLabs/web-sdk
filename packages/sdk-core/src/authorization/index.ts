@@ -12,7 +12,7 @@
  *   CapabilityKeyRegistry,
  *   ICapabilityKeyRegistry,
  *   createCapabilityKeyRegistry,
- * } from "@tinycloudlabs/sdk-core/authorization";
+ * } from "@tinycloud/sdk-core/authorization";
  *
  * // Create a capability registry
  * const registry = createCapabilityKeyRegistry();

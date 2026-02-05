@@ -7,7 +7,7 @@
  * @packageDocumentation
  */
 
-import type { IKVService, Result, ServiceError } from "@tinycloudlabs/sdk-services";
+import type { IKVService, Result, ServiceError } from "@tinycloud/sdk-services";
 import type { SpaceInfo } from "../delegations/types";
 
 /**

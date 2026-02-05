@@ -13,7 +13,7 @@ import type {
   IKVService,
   InvokeFunction,
   ServiceSession,
-} from "@tinycloudlabs/sdk-services";
+} from "@tinycloud/sdk-services";
 import {
   JWKSchema,
   DelegationSchema,

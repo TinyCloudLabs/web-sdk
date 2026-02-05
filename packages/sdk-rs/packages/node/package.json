@@ -1,5 +1,5 @@
 {
-  "name": "@tinycloudlabs/node-sdk-wasm",
+  "name": "@tinycloud/node-sdk-wasm",
   "version": "1.0.0",
   "description": "TinyCloud WASM bindings for Node.js",
   "main": "dist/index.js",
@@ -15,7 +15,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@tinycloudlabs/sdk-rs": "workspace:*"
+    "@tinycloud/sdk-rs": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20",

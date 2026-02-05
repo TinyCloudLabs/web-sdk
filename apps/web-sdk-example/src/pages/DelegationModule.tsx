@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { TinyCloudWeb, Delegation, PortableDelegation, serializeDelegation } from '@tinycloudlabs/web-sdk';
+import { TinyCloudWeb, Delegation, PortableDelegation, serializeDelegation } from '@tinycloud/web-sdk';
 import Input from '../components/Input';
 import Button from '../components/Button';
 

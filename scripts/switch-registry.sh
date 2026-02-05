@@ -8,14 +8,14 @@ if [ "$1" == "github" ]; then
     exit 1
   fi
 
-  echo "@tinycloudlabs:registry=https://npm.pkg.github.com/
+  echo "@tinycloud:registry=https://npm.pkg.github.com/
 //npm.pkg.github.com/:_authToken=$GITHUB_PACKAGE_TOKEN" > .npmrc
-  echo "Switched to GitHub Packages for @tinycloudlabs"
+  echo "Switched to GitHub Packages for @tinycloud"
 elif [ "$1" == "npm" ]; then
   echo "registry=https://registry.npmjs.org/" > .npmrc
   echo "Switched to npm Registry"
 else
   echo "Usage: $0 [github|npm]"
-  echo "  github - Switch to GitHub Packages registry for @tinycloudlabs"
+  echo "  github - Switch to GitHub Packages registry for @tinycloud"
   echo "  npm    - Switch to public npm registry"
 fi

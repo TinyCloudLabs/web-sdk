@@ -13,9 +13,9 @@ This guide will help you get started with the TinyCloud Web SDK.
 Install the SDK using your preferred package manager:
 
 ```bash
-npm install @tinycloudlabs/web-sdk
+npm install @tinycloud/web-sdk
 # or
-bun add @tinycloudlabs/web-sdk
+bun add @tinycloud/web-sdk
 ```
 
 ## Basic Usage
@@ -23,7 +23,7 @@ bun add @tinycloudlabs/web-sdk
 Here's a simple example of how to initialize the SDK and connect to a user's wallet:
 
 ```typescript
-import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
+import { TinyCloudWeb } from '@tinycloud/web-sdk';
 
 // Initialize the SDK
 const tc = new TinyCloudWeb({

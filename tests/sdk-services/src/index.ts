@@ -5,7 +5,7 @@
  * without network dependencies.
  *
  * @packageDocumentation
- * @module @tinycloudlabs/sdk-services-test
+ * @module @tinycloud/sdk-services-test
  *
  * @example
  * ```typescript
@@ -14,7 +14,7 @@
  *   createMockKV,
  *   createMockSession,
  *   waitForEvent,
- * } from '@tinycloudlabs/sdk-services-test';
+ * } from '@tinycloud/sdk-services-test';
  *
  * // Create an authenticated test context
  * const context = createTestContext({ authenticated: true });

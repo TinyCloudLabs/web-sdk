@@ -155,6 +155,6 @@ fi
 
 echo "Publish completed successfully!"
 echo "The following packages were released:"
-echo "- @tinycloudlabs/web-core@$CORE_VERSION"
-echo "- @tinycloudlabs/web-sdk-wasm@$SDK_RS_VERSION"
-echo "- @tinycloudlabs/web-sdk@$SDK_VERSION"
+echo "- @tinycloud/web-core@$CORE_VERSION"
+echo "- @tinycloud/web-sdk-wasm@$SDK_RS_VERSION"
+echo "- @tinycloud/web-sdk@$SDK_VERSION"

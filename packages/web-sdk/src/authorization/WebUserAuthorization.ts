@@ -11,7 +11,7 @@
  */
 
 import { providers, Signer } from "ethers";
-import { initialized, tcwSession, tinycloud } from "@tinycloudlabs/web-sdk-wasm";
+import { initialized, tcwSession, tinycloud } from "@tinycloud/web-sdk-wasm";
 import {
   IUserAuthorization,
   ISigner,
@@ -32,7 +32,7 @@ import {
   activateSessionWithHost,
   checkNodeVersion,
   JWK,
-} from "@tinycloudlabs/sdk-core";
+} from "@tinycloud/sdk-core";
 import { dispatchSDKEvent } from "../notifications/ErrorHandler";
 import { WasmInitializer } from "../modules/WasmInitializer";
 import { debug } from "../utils/debug";

@@ -1,6 +1,6 @@
 import {
   RPCProviders,
-} from '@tinycloudlabs/web-core';
+} from '@tinycloud/web-core';
 import {
   IUserAuthorization,
   UserAuthorization,
@@ -16,7 +16,7 @@ import {
   ClientConfig,
   ClientSession,
   Extension,
-} from '@tinycloudlabs/web-core/client';
+} from '@tinycloud/web-core/client';
 import type { providers } from 'ethers';
 import { SDKErrorHandler, ToastManager } from '../notifications';
 import type { NotificationConfig } from '../notifications/types';
@@ -54,11 +54,11 @@ import {
   // Space delegation types
   SpaceDelegationParams,
   activateSessionWithHost,
-} from '@tinycloudlabs/sdk-core';
+} from '@tinycloud/sdk-core';
 import { WasmKeyProvider } from './keys';
 import { WasmInitializer } from './WasmInitializer';
 import { invoke, prepareSession, completeSessionSetup } from './Storage/tinycloud/module';
-import { tinycloud } from '@tinycloudlabs/web-sdk-wasm';
+import { tinycloud } from '@tinycloud/web-sdk-wasm';
 import { PortableDelegation, DelegatedAccess } from '../delegation';
 
 declare global {

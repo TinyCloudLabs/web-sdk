@@ -852,15 +852,15 @@ Welcome to the TinyCloud Web SDK documentation. This SDK provides all the tools 
 To get started with the TinyCloud Web SDK, first install the package:
 
 \`\`\`bash
-npm install @tinycloudlabs/web-sdk
+npm install @tinycloud/web-sdk
 # or
-bun add @tinycloudlabs/web-sdk
+bun add @tinycloud/web-sdk
 \`\`\`
 
 Then import and initialize the SDK in your application:
 
 \`\`\`typescript
-import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
+import { TinyCloudWeb } from '@tinycloud/web-sdk';
 
 const tc = new TinyCloudWeb({
   // Configuration options here
@@ -914,10 +914,10 @@ Install the SDK using your preferred package manager:
 
 \`\`\`bash
 # Using npm
-npm install @tinycloudlabs/web-sdk
+npm install @tinycloud/web-sdk
 
 # Using Bun (recommended)
-bun add @tinycloudlabs/web-sdk
+bun add @tinycloud/web-sdk
 \`\`\`
 
 ## Basic Usage
@@ -925,7 +925,7 @@ bun add @tinycloudlabs/web-sdk
 Here's a simple example of how to initialize the SDK and connect to a user's wallet:
 
 \`\`\`typescript
-import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
+import { TinyCloudWeb } from '@tinycloud/web-sdk';
 
 // Initialize the SDK
 const tc = new TinyCloudWeb();
@@ -985,7 +985,7 @@ TinyCloud provides a decentralized storage solution that lets you store and retr
 Once you've initialized the SDK and connected to a wallet, you can access the storage interface:
 
 \`\`\`typescript
-import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
+import { TinyCloudWeb } from '@tinycloud/web-sdk';
 
 const tc = new TinyCloudWeb();
 
@@ -1122,7 +1122,7 @@ TinyCloud uses Web3 authentication methods, primarily Sign-in with Ethereum (SIW
 The first step is to connect to the user's wallet:
 
 \`\`\`typescript
-import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
+import { TinyCloudWeb } from '@tinycloud/web-sdk';
 
 const tc = new TinyCloudWeb();
 

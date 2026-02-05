@@ -10,7 +10,7 @@ const Footer: React.FC = () => {
           </div>
           <div className="flex space-x-6">
             <a 
-              href="https://www.npmjs.com/package/@tinycloudlabs/web-sdk" 
+              href="https://www.npmjs.com/package/@tinycloud/web-sdk" 
               target="_blank" 
               rel="noopener noreferrer" 
               className="text-sm text-text-muted hover:text-primary-600 transition-colors"

@@ -7,8 +7,8 @@
  * @packageDocumentation
  */
 
-import type { KeyProvider, JWK } from "@tinycloudlabs/sdk-core";
-import type { TCWSessionManager as SessionManager } from "@tinycloudlabs/node-sdk-wasm";
+import type { KeyProvider, JWK } from "@tinycloud/sdk-core";
+import type { TCWSessionManager as SessionManager } from "@tinycloud/node-sdk-wasm";
 
 /**
  * Configuration for WasmKeyProvider.
@@ -29,8 +29,8 @@ export interface WasmKeyProviderConfig {
  *
  * @example
  * ```typescript
- * import { SessionManager } from "@tinycloudlabs/node-sdk-wasm";
- * import { WasmKeyProvider } from "@tinycloudlabs/node-sdk";
+ * import { SessionManager } from "@tinycloud/node-sdk-wasm";
+ * import { WasmKeyProvider } from "@tinycloud/node-sdk";
  *
  * const sessionManager = new SessionManager();
  * const keyProvider = new WasmKeyProvider({ sessionManager });

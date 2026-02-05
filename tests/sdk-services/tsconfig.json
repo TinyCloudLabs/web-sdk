@@ -16,8 +16,8 @@
     "resolveJsonModule": true,
     "baseUrl": ".",
     "paths": {
-      "@tinycloudlabs/sdk-services": ["../../packages/sdk-services/dist/index.d.ts"],
-      "@tinycloudlabs/sdk-services/*": ["../../packages/sdk-services/dist/*"]
+      "@tinycloud/sdk-services": ["../../packages/sdk-services/dist/index.d.ts"],
+      "@tinycloud/sdk-services/*": ["../../packages/sdk-services/dist/*"]
     }
   },
   "include": ["src/**/*"],

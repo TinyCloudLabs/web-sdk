@@ -1,4 +1,4 @@
-import { ISessionStorage, PersistedSessionData, validatePersistedSessionData } from "@tinycloudlabs/sdk-core";
+import { ISessionStorage, PersistedSessionData, validatePersistedSessionData } from "@tinycloud/sdk-core";
 import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from "fs";
 import { dirname, join } from "path";
 

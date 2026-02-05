@@ -14,7 +14,7 @@ import type {
   InvokeFunction,
   FetchFunction,
   ServiceConstructor,
-} from "@tinycloudlabs/sdk-services";
+} from "@tinycloud/sdk-services";
 
 // =============================================================================
 // Retry Policy Schema

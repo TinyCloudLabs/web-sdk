@@ -14,7 +14,7 @@
  *   SharingService,
  *   Delegation,
  *   CreateDelegationParams,
- * } from "@tinycloudlabs/sdk-core/delegations";
+ * } from "@tinycloud/sdk-core/delegations";
  *
  * // Create delegation manager
  * const delegations = new DelegationManager({

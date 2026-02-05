@@ -4,7 +4,7 @@
  * Factory functions and helpers for creating test fixtures.
  */
 
-import type { ServiceSession } from "@tinycloudlabs/sdk-services";
+import type { ServiceSession } from "@tinycloud/sdk-services";
 import {
   MockServiceContext,
   MockServiceContextConfig,

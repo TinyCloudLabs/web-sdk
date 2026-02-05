@@ -9,17 +9,17 @@ export {
   Extension,
   SiweConfig,
   ConfigOverrides,
-} from "@tinycloudlabs/web-core/client";
+} from "@tinycloud/web-core/client";
 
 // Root types (ENS, SiweMessage) are exported from the main entry
-export { EnsData, SiweMessage } from "@tinycloudlabs/web-core";
+export { EnsData, SiweMessage } from "@tinycloud/web-core";
 
 import type {
   ClientSession,
   Extension,
   SiweConfig,
-} from "@tinycloudlabs/web-core/client";
-import type { SiweMessage } from "@tinycloudlabs/web-core";
+} from "@tinycloud/web-core/client";
+import type { SiweMessage } from "@tinycloud/web-core";
 
 /**
  * Partial SIWE message for overrides.

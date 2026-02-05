@@ -178,7 +178,7 @@ function ExampleSection() {
                 <code className="language-typescript">
                   <span className="token comment" style={{color: '#7d8799'}}>// Install the SDK</span><br/>
                   <span className="token" style={{color: '#FDF9D2'}}>npm install </span>
-                  <span className="token string" style={{color: '#a5d6ff'}}>@tinycloudlabs/web-sdk</span><br/><br/>
+                  <span className="token string" style={{color: '#a5d6ff'}}>@tinycloud/web-sdk</span><br/><br/>
                   
                   <span className="token comment" style={{color: '#7d8799'}}>// Import and initialize</span><br/>
                   <span className="token keyword" style={{color: '#ff7b72'}}>import</span>
@@ -187,7 +187,7 @@ function ExampleSection() {
                   <span className="token" style={{color: '#FDF9D2'}}> {'}'} </span>
                   <span className="token keyword" style={{color: '#ff7b72'}}>from</span>
                   <span className="token" style={{color: '#FDF9D2'}}> </span>
-                  <span className="token string" style={{color: '#a5d6ff'}}>'@tinycloudlabs/web-sdk'</span>
+                  <span className="token string" style={{color: '#a5d6ff'}}>'@tinycloud/web-sdk'</span>
                   <span className="token" style={{color: '#FDF9D2'}}>;</span><br/><br/>
                   
                   <span className="token keyword" style={{color: '#ff7b72'}}>const</span>

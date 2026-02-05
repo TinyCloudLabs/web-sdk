@@ -856,7 +856,7 @@ describe('SDK Error Integration', () => {
 
 ### Basic SDK Usage with Default Notifications
 ```typescript
-import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
+import { TinyCloudWeb } from '@tinycloud/web-sdk';
 
 // Default configuration: popups: true, throwErrors: false
 const tcw = new TinyCloudWeb();
@@ -872,7 +872,7 @@ try {
 
 ### Custom Configuration
 ```typescript
-import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
+import { TinyCloudWeb } from '@tinycloud/web-sdk';
 
 const tcw = new TinyCloudWeb({
   notifications: {
@@ -887,7 +887,7 @@ const tcw = new TinyCloudWeb({
 
 ### Programmatic Toast Usage
 ```typescript
-import { toast } from '@tinycloudlabs/web-sdk/notifications';
+import { toast } from '@tinycloud/web-sdk/notifications';
 
 // Manual toast notifications
 toast.success('Operation completed successfully');

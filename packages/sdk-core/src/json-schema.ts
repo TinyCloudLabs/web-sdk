@@ -757,7 +757,7 @@ export interface JsonSchemaBundle {
  *
  * @example
  * ```typescript
- * import { getAllJsonSchemas } from "@tinycloudlabs/sdk-core";
+ * import { getAllJsonSchemas } from "@tinycloud/sdk-core";
  *
  * const schemas = getAllJsonSchemas();
  *
@@ -843,7 +843,7 @@ export function getAllJsonSchemas(options?: JsonSchemaOptions): JsonSchemaBundle
  *
  * @example
  * ```typescript
- * import { getAllJsonSchemasFlat } from "@tinycloudlabs/sdk-core";
+ * import { getAllJsonSchemasFlat } from "@tinycloud/sdk-core";
  *
  * const schemas = getAllJsonSchemasFlat();
  * console.log(Object.keys(schemas)); // ["EnsData", "Delegation", ...]

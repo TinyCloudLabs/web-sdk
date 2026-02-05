@@ -17,7 +17,7 @@ The TinyCloud Web SDK provides decentralized storage through TinyCloud's storage
 Once you've initialized the SDK and connected to a user's wallet, you can access the storage functionality:
 
 ```typescript
-import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
+import { TinyCloudWeb } from '@tinycloud/web-sdk';
 
 // Initialize and connect
 const tc = new TinyCloudWeb();

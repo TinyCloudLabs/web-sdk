@@ -27,34 +27,34 @@ This monorepo contains the following packages:
 
 | Package | Description | Platform |
 |---------|-------------|----------|
-| [`@tinycloudlabs/web-sdk`](./packages/web-sdk/) | Browser SDK with wallet integration | Browser |
-| [`@tinycloudlabs/node-sdk`](./packages/node-sdk/) | Node.js SDK for server-side applications | Node.js |
+| [`@tinycloud/web-sdk`](./packages/web-sdk/) | Browser SDK with wallet integration | Browser |
+| [`@tinycloud/node-sdk`](./packages/node-sdk/) | Node.js SDK for server-side applications | Node.js |
 
 ### Core Libraries
 
 | Package | Description |
 |---------|-------------|
-| [`@tinycloudlabs/web-core`](./packages/web-core/) | Shared types and utilities for browser SDK |
-| [`@tinycloudlabs/sdk-core`](./packages/sdk-core/) | Core utilities and types shared across all SDKs |
-| [`@tinycloudlabs/sdk-rs`](./packages/sdk-rs/) | Rust implementation with cryptographic primitives |
+| [`@tinycloud/web-core`](./packages/web-core/) | Shared types and utilities for browser SDK |
+| [`@tinycloud/sdk-core`](./packages/sdk-core/) | Core utilities and types shared across all SDKs |
+| [`@tinycloud/sdk-rs`](./packages/sdk-rs/) | Rust implementation with cryptographic primitives |
 
 ### WASM Bindings
 
 | Package | Description |
 |---------|-------------|
-| [`@tinycloudlabs/web-sdk-wasm`](./packages/sdk-rs/web-sdk-wasm/) | WASM bindings for browser environments |
-| [`@tinycloudlabs/node-sdk-wasm`](./packages/sdk-rs/node-sdk-wasm/) | WASM bindings for Node.js environments |
+| [`@tinycloud/web-sdk-wasm`](./packages/sdk-rs/web-sdk-wasm/) | WASM bindings for browser environments |
+| [`@tinycloud/node-sdk-wasm`](./packages/sdk-rs/node-sdk-wasm/) | WASM bindings for Node.js environments |
 
 ## Quick Start
 
 ### Browser SDK
 
 ```bash
-npm install @tinycloudlabs/web-sdk
+npm install @tinycloud/web-sdk
 ```
 
 ```typescript
-import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
+import { TinyCloudWeb } from '@tinycloud/web-sdk';
 
 const tc = new TinyCloudWeb();
 await tc.signIn();
@@ -67,11 +67,11 @@ const result = await tc.kv.get('myKey');
 ### Node.js SDK
 
 ```bash
-npm install @tinycloudlabs/node-sdk
+npm install @tinycloud/node-sdk
 ```
 
 ```typescript
-import { TinyCloudNode } from '@tinycloudlabs/node-sdk';
+import { TinyCloudNode } from '@tinycloud/node-sdk';
 
 const tc = new TinyCloudNode({
   privateKey: process.env.PRIVATE_KEY,

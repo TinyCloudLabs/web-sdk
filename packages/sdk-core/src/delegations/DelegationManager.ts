@@ -13,7 +13,7 @@ import type {
   FetchResponse,
   InvokeFunction,
   ServiceSession,
-} from "@tinycloudlabs/sdk-services";
+} from "@tinycloud/sdk-services";
 import {
   Result,
   DelegationError,
@@ -59,7 +59,7 @@ function createError(
  *
  * @example
  * ```typescript
- * import { DelegationManager } from "@tinycloudlabs/sdk-core/delegations";
+ * import { DelegationManager } from "@tinycloud/sdk-core/delegations";
  *
  * const delegations = new DelegationManager({
  *   hosts: ["https://node.tinycloud.xyz"],

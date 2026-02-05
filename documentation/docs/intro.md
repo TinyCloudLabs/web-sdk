@@ -38,14 +38,14 @@ The TinyCloud SDK ecosystem includes:
 
 ```bash
 # Install with npm
-npm install @tinycloudlabs/web-sdk
+npm install @tinycloud/web-sdk
 
 # Or with Bun (recommended)
-bun add @tinycloudlabs/web-sdk
+bun add @tinycloud/web-sdk
 ```
 
 ```typescript
-import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
+import { TinyCloudWeb } from '@tinycloud/web-sdk';
 
 // Initialize the SDK
 const tc = new TinyCloudWeb();

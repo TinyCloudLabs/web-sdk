@@ -1,5 +1,5 @@
 {
-  "name": "@tinycloudlabs/sdk-core",
+  "name": "@tinycloud/sdk-core",
   "version": "1.0.0",
   "description": "Core TinyCloud SDK - shared interfaces and TinyCloud class",
   "author": "TinyCloud, Inc.",
@@ -24,8 +24,8 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@tinycloudlabs/sdk-services": "workspace:*",
-    "@tinycloudlabs/web-core": "workspace:*",
+    "@tinycloud/sdk-services": "workspace:*",
+    "@tinycloud/web-core": "workspace:*",
     "zod": "^3.22.0",
     "zod-to-json-schema": "^3.22.0"
   },

@@ -189,7 +189,7 @@ Available strategies:
 Control how space creation is confirmed:
 
 ```typescript
-import { ModalSpaceCreationHandler } from '@tinycloudlabs/web-sdk';
+import { ModalSpaceCreationHandler } from '@tinycloud/web-sdk';
 
 // Default: shows modal dialog
 const tcw = new TinyCloudWeb({
@@ -227,7 +227,7 @@ const tcw = new TinyCloudWeb({
 ### Step 1: Update Package
 
 ```bash
-npm install @tinycloudlabs/web-sdk@1.0.0
+npm install @tinycloud/web-sdk@1.0.0
 ```
 
 ### Step 2: Choose Migration Path
@@ -322,7 +322,7 @@ const tcw = new TinyCloudWeb({
 
 ## New Type Exports
 
-The following types are now exported from `@tinycloudlabs/web-sdk`:
+The following types are now exported from `@tinycloud/web-sdk`:
 
 ```typescript
 // Auth module types
@@ -341,10 +341,10 @@ import {
   ISpaceCreationHandler,
   SpaceCreationContext,
   AutoApproveSpaceCreationHandler,
-} from '@tinycloudlabs/web-sdk';
+} from '@tinycloud/web-sdk';
 
 // Also available as alias
-import { WebSpaceCreationHandler } from '@tinycloudlabs/web-sdk';
+import { WebSpaceCreationHandler } from '@tinycloud/web-sdk';
 // WebSpaceCreationHandler === ModalSpaceCreationHandler
 ```
 

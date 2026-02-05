@@ -1,15 +1,15 @@
 import { providers, Signer } from "ethers";
-import { initialized, tcwSession, tinycloud } from "@tinycloudlabs/web-sdk-wasm";
+import { initialized, tcwSession, tinycloud } from "@tinycloud/web-sdk-wasm";
 import merge from "lodash.merge";
 import { AxiosInstance } from "axios";
 import { generateNonce, SiweMessage } from "siwe";
-import { EnsData, resolveEns } from "@tinycloudlabs/web-core";
+import { EnsData, resolveEns } from "@tinycloud/web-core";
 import type {
   ClientSession,
   ClientConfig,
   IConnected,
   Extension,
-} from "@tinycloudlabs/web-core/client";
+} from "@tinycloud/web-core/client";
 import {
   IUserAuthorization as ICoreUserAuthorization,
   SiweMessage as CoreSiweMessage,
@@ -18,7 +18,7 @@ import {
   submitHostDelegation,
   activateSessionWithHost,
   checkNodeVersion,
-} from "@tinycloudlabs/sdk-core";
+} from "@tinycloud/sdk-core";
 import { dispatchSDKEvent } from "../notifications/ErrorHandler";
 import { WasmInitializer } from "./WasmInitializer";
 import { debug } from "../utils/debug";
@@ -37,7 +37,7 @@ import { multiaddrToUri } from "../utils/multiaddr";
 /**
  * Extended Client Config with TinyCloud options
  */
-declare module "@tinycloudlabs/web-core/client" {
+declare module "@tinycloud/web-core/client" {
   interface ClientConfig {
     /** Whether to automatically create space if it doesn't exist (default: true) */
     autoCreateSpace?: boolean;

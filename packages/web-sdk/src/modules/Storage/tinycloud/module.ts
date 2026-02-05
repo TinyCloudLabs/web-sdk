@@ -1,4 +1,4 @@
-import { tinycloud } from '@tinycloudlabs/web-sdk-wasm';
+import { tinycloud } from '@tinycloud/web-sdk-wasm';
 
 type TinyCloudModule = typeof tinycloud;
 const msg =
