@@ -104,7 +104,7 @@ function Home() {
 
       // 4. Configure and create TinyCloudWeb
       const tcwConfig = getTinyCloudWebConfig({
-        provider: {
+        providers: {
           web3: {
             driver: web3Provider,
           },
