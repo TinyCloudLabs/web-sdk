@@ -1,5 +1,14 @@
 # @tinycloudlabs/node-sdk-wasm
 
+## 1.0.1
+
+### Patch Changes
+
+- c97e40d: Fix broken npm packages by removing invalid @tinycloud/sdk-rs dependency
+
+  - web-sdk-wasm: Removed runtime dependency on sdk-rs (WASM is bundled by rollup)
+  - node-sdk-wasm: Removed runtime dependency on sdk-rs, now properly bundles WASM files into dist/wasm/ during build
+
 ## 1.0.0
 
 ### Major Changes
