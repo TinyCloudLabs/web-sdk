@@ -1,7 +1,7 @@
 // @ts-nocheck - Pre-existing type issues with web-sdk version mismatch
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
+import { TinyCloudWeb } from '@tinycloud/web-sdk';
 import Button from '../components/Button';
 import Title from '../components/Title';
 import Input from '../components/Input';

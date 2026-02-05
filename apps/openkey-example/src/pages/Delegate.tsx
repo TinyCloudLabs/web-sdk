@@ -1,7 +1,7 @@
 // @ts-nocheck - Pre-existing type issues with web-sdk version mismatch
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { TinyCloudWeb, PortableDelegation, DelegatedAccess, deserializeDelegation } from '@tinycloudlabs/web-sdk';
+import { TinyCloudWeb, PortableDelegation, DelegatedAccess, deserializeDelegation } from '@tinycloud/web-sdk';
 import Input from '../components/Input';
 import Button from '../components/Button';
 import Header from '../components/Header';

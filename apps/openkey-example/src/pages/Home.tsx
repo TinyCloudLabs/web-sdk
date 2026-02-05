@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { TinyCloudWeb } from "@tinycloudlabs/web-sdk";
+import { TinyCloudWeb } from "@tinycloud/web-sdk";
 import { OpenKey } from "@openkey/sdk";
 import { providers } from "ethers";
 import { OpenKeyEIP1193Provider } from "../utils/openkey-provider";
