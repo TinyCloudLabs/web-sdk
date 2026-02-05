@@ -4,7 +4,7 @@
 
 ## Overview
 
-Test suite for `@tinycloudlabs/node-sdk` covering authentication, session management, signing, and storage functionality.
+Test suite for `@tinycloud/node-sdk` covering authentication, session management, signing, and storage functionality.
 
 **Location**: `tests/node-sdk/`
 **Test Runner**: `bun test` (configured in package.json)
@@ -17,7 +17,7 @@ Test suite for `@tinycloudlabs/node-sdk` covering authentication, session manage
 ### WASM Bindings
 **Decision**: Use real WASM bindings, not mocks.
 
-- Tests require `@tinycloudlabs/node-sdk-wasm` to be built before running
+- Tests require `@tinycloud/node-sdk-wasm` to be built before running
 - Tests validate actual crypto/session logic from WASM
 - Build dependency: `bun run build` in `packages/sdk-rs` must complete first
 

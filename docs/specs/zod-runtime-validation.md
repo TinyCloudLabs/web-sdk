@@ -82,7 +82,7 @@ Start with node-sdk as it's lower risk (server-side, can iterate before web bund
 
 3. Create validation wrapper:
    ```typescript
-   import { Result } from "@tinycloudlabs/sdk-core";
+   import { Result } from "@tinycloud/sdk-core";
 
    export function validateDelegation(data: unknown): Result<Delegation, ValidationError> {
      const result = DelegationSchema.safeParse(data);
@@ -223,4 +223,4 @@ Not estimated. Work is tracked via Linear epic with sub-tasks per domain/package
 
 - [Zod Documentation](https://zod.dev)
 - [zod-to-json-schema](https://github.com/StefanTerdell/zod-to-json-schema)
-- Existing Result pattern in `@tinycloudlabs/sdk-services/types.ts`
+- Existing Result pattern in `@tinycloud/sdk-services/types.ts`
