@@ -1,5 +1,12 @@
 # @tinycloudlabs/web-core
 
+## 1.0.1
+
+### Patch Changes
+
+- Updated dependencies [c97e40d]
+  - @tinycloud/web-sdk-wasm@1.0.1
+
 ## 1.0.0
 
 ### Major Changes

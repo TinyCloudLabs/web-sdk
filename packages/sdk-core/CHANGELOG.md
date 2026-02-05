@@ -1,5 +1,11 @@
 # @tinycloudlabs/sdk-core
 
+## 1.0.1
+
+### Patch Changes
+
+- @tinycloud/web-core@1.0.1
+
 ## 1.0.0
 
 ### Major Changes
