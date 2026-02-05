@@ -24,7 +24,7 @@
     "test": "bun test"
   },
   "peerDependencies": {
-    "@tinycloudlabs/sdk-services": "^0.1.0"
+    "@tinycloudlabs/sdk-services": "workspace:*"
   },
   "devDependencies": {
     "@tinycloudlabs/sdk-services": "workspace:*",
