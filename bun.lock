@@ -18,7 +18,7 @@
     },
     "apps/node-demo": {
       "name": "@tinycloudlabs/node-demo",
-      "version": "0.0.2",
+      "version": "0.0.3",
       "dependencies": {
         "@tinycloudlabs/node-sdk": "workspace:*",
         "@tinycloudlabs/node-sdk-wasm": "workspace:*",
@@ -47,7 +47,6 @@
         "@types/node": "^18.19.74",
         "@types/react": "^18.3.18",
         "@types/react-dom": "^18.3.5",
-        "@wagmi/core": "2.16.3",
         "buffer": "^6.0.3",
         "connectkit": "^1.8.2",
         "ethers": "^5.7.2",
@@ -84,7 +83,7 @@
     },
     "packages/node-sdk": {
       "name": "@tinycloudlabs/node-sdk",
-      "version": "0.2.0",
+      "version": "1.0.0",
       "dependencies": {
         "@tinycloudlabs/node-sdk-wasm": "workspace:*",
         "@tinycloudlabs/sdk-core": "workspace:*",
@@ -98,7 +97,7 @@
     },
     "packages/sdk-core": {
       "name": "@tinycloudlabs/sdk-core",
-      "version": "0.2.0",
+      "version": "1.0.0",
       "dependencies": {
         "@tinycloudlabs/sdk-services": "workspace:*",
         "@tinycloudlabs/web-core": "workspace:*",
@@ -120,7 +119,7 @@
     },
     "packages/sdk-rs/packages/node": {
       "name": "@tinycloudlabs/node-sdk-wasm",
-      "version": "0.1.1",
+      "version": "1.0.0",
       "dependencies": {
         "@tinycloudlabs/sdk-rs": "workspace:*",
       },
@@ -131,7 +130,7 @@
     },
     "packages/sdk-rs/packages/web": {
       "name": "@tinycloudlabs/web-sdk-wasm",
-      "version": "0.4.0",
+      "version": "1.0.0",
       "dependencies": {
         "@tinycloudlabs/sdk-rs": "workspace:*",
       },
@@ -145,7 +144,7 @@
     },
     "packages/sdk-services": {
       "name": "@tinycloudlabs/sdk-services",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "zod": "^3.23.0",
       },
@@ -156,7 +155,7 @@
     },
     "packages/web-core": {
       "name": "@tinycloudlabs/web-core",
-      "version": "0.3.1",
+      "version": "1.0.0",
       "dependencies": {
         "@tinycloudlabs/web-sdk-wasm": "workspace:*",
         "@types/axios": "^0.14.4",
@@ -182,7 +181,7 @@
     },
     "packages/web-sdk": {
       "name": "@tinycloudlabs/web-sdk",
-      "version": "0.4.0",
+      "version": "1.0.0",
       "dependencies": {
         "@metamask/detect-provider": "^1.2.0",
         "@multiformats/multiaddr": "^13.0.1",
@@ -240,7 +239,7 @@
     },
     "tests/sdk-services": {
       "name": "@tinycloudlabs/sdk-services-test",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "devDependencies": {
         "@tinycloudlabs/sdk-services": "workspace:*",
         "@types/node": "^20",
@@ -1597,7 +1596,7 @@
 
     "@wagmi/connectors": ["@wagmi/connectors@6.2.0", "", { "dependencies": { "@base-org/account": "2.4.0", "@coinbase/wallet-sdk": "4.3.6", "@gemini-wallet/core": "0.3.2", "@metamask/sdk": "0.33.1", "@safe-global/safe-apps-provider": "0.18.6", "@safe-global/safe-apps-sdk": "9.1.0", "@walletconnect/ethereum-provider": "2.21.1", "cbw-sdk": "npm:@coinbase/wallet-sdk@3.9.3", "porto": "0.2.35" }, "peerDependencies": { "@wagmi/core": "2.22.1", "typescript": ">=5.0.4", "viem": "2.x" }, "optionalPeers": ["typescript"] }, "sha512-2NfkbqhNWdjfibb4abRMrn7u6rPjEGolMfApXss6HCDVt9AW2oVC6k8Q5FouzpJezElxLJSagWz9FW1zaRlanA=="],
 
-    "@wagmi/core": ["@wagmi/core@2.16.3", "", { "dependencies": { "eventemitter3": "5.0.1", "mipd": "0.0.7", "zustand": "5.0.0" }, "peerDependencies": { "@tanstack/query-core": ">=5.0.0", "typescript": ">=5.0.4", "viem": "2.x" }, "optionalPeers": ["@tanstack/query-core", "typescript"] }, "sha512-SVovoWHaQ2AIkmGf+ucNijT6AHXcTMffFcLmcFF6++y21x+ge7Gkh3UoJiU91SDDv8n08eTQ9jbyia3GEgU5jQ=="],
+    "@wagmi/core": ["@wagmi/core@2.22.1", "", { "dependencies": { "eventemitter3": "5.0.1", "mipd": "0.0.7", "zustand": "5.0.0" }, "peerDependencies": { "@tanstack/query-core": ">=5.0.0", "typescript": ">=5.0.4", "viem": "2.x" }, "optionalPeers": ["@tanstack/query-core", "typescript"] }, "sha512-cG/xwQWsBEcKgRTkQVhH29cbpbs/TdcUJVFXCyri3ZknxhMyGv0YEjTcrNpRgt2SaswL1KrvslSNYKKo+5YEAg=="],
 
     "@walletconnect/core": ["@walletconnect/core@2.21.1", "", { "dependencies": { "@walletconnect/heartbeat": "1.2.2", "@walletconnect/jsonrpc-provider": "1.0.14", "@walletconnect/jsonrpc-types": "1.0.4", "@walletconnect/jsonrpc-utils": "1.0.8", "@walletconnect/jsonrpc-ws-connection": "1.0.16", "@walletconnect/keyvaluestorage": "1.1.1", "@walletconnect/logger": "2.1.2", "@walletconnect/relay-api": "1.0.11", "@walletconnect/relay-auth": "1.1.0", "@walletconnect/safe-json": "1.0.2", "@walletconnect/time": "1.0.2", "@walletconnect/types": "2.21.1", "@walletconnect/utils": "2.21.1", "@walletconnect/window-getters": "1.0.1", "es-toolkit": "1.33.0", "events": "3.3.0", "uint8arrays": "3.1.0" } }, "sha512-Tp4MHJYcdWD846PH//2r+Mu4wz1/ZU/fr9av1UWFiaYQ2t2TPLDiZxjLw54AAEpMqlEHemwCgiRiAmjR1NDdTQ=="],
 
@@ -5137,8 +5136,6 @@
 
     "@typescript-eslint/utils/eslint-scope": ["eslint-scope@5.1.1", "", { "dependencies": { "esrecurse": "^4.3.0", "estraverse": "^4.1.1" } }, "sha512-2NxwbF/hZ0KpepYN0cNbo+FN6XoK7GaHlQhgx/hIZl6Va0bF45RQOOwhLIy8lQDbuCiadSLCBnH2CFYquit5bw=="],
 
-    "@wagmi/connectors/@wagmi/core": ["@wagmi/core@2.22.1", "", { "dependencies": { "eventemitter3": "5.0.1", "mipd": "0.0.7", "zustand": "5.0.0" }, "peerDependencies": { "@tanstack/query-core": ">=5.0.0", "typescript": ">=5.0.4", "viem": "2.x" }, "optionalPeers": ["@tanstack/query-core", "typescript"] }, "sha512-cG/xwQWsBEcKgRTkQVhH29cbpbs/TdcUJVFXCyri3ZknxhMyGv0YEjTcrNpRgt2SaswL1KrvslSNYKKo+5YEAg=="],
-
     "@walletconnect/core/uint8arrays": ["uint8arrays@3.1.0", "", { "dependencies": { "multiformats": "^9.4.2" } }, "sha512-ei5rfKtoRO8OyOIor2Rz5fhzjThwIHJZ3uyDPnDHTXbP0aMQ1RN/6AI5B5d9dBxJOU+BvOAk7ZQ1xphsX8Lrog=="],
 
     "@walletconnect/environment/tslib": ["tslib@1.14.1", "", {}, "sha512-Xni35NKzjgMrwevysHTCArtLDpPvye8zV/0E4EyYn43P7/7qvQwPh9BGkHewbMulVntbigmcT7rdX3BNo9wRJg=="],
@@ -5956,8 +5953,6 @@
     "valtio/use-sync-external-store": ["use-sync-external-store@1.2.0", "", { "peerDependencies": { "react": "^16.8.0 || ^17.0.0 || ^18.0.0" } }, "sha512-eEgnFxGQ1Ife9bzYs6VLi8/4X6CObHMw9Qr9tPY43iKwsPw8xE8+EFsf/2cFZ5S3esXgpWgtSCtLNS41F+sKPA=="],
 
     "vinyl-file/pify": ["pify@2.3.0", "", {}, "sha512-udgsAY+fTnvv7kI7aaxbqwWNb0AHiB0qBO89PZKPkoTmGOgdbrHDKD+0B2X4uTfJ/FT1R09r9gTsjUjNJotuog=="],
-
-    "wagmi/@wagmi/core": ["@wagmi/core@2.22.1", "", { "dependencies": { "eventemitter3": "5.0.1", "mipd": "0.0.7", "zustand": "5.0.0" }, "peerDependencies": { "@tanstack/query-core": ">=5.0.0", "typescript": ">=5.0.4", "viem": "2.x" }, "optionalPeers": ["@tanstack/query-core", "typescript"] }, "sha512-cG/xwQWsBEcKgRTkQVhH29cbpbs/TdcUJVFXCyri3ZknxhMyGv0YEjTcrNpRgt2SaswL1KrvslSNYKKo+5YEAg=="],
 
     "webpack/eslint-scope": ["eslint-scope@5.1.1", "", { "dependencies": { "esrecurse": "^4.3.0", "estraverse": "^4.1.1" } }, "sha512-2NxwbF/hZ0KpepYN0cNbo+FN6XoK7GaHlQhgx/hIZl6Va0bF45RQOOwhLIy8lQDbuCiadSLCBnH2CFYquit5bw=="],
 
