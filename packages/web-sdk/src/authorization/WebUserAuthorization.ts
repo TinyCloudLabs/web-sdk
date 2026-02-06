@@ -802,8 +802,9 @@ export class WebUserAuthorization implements IUserAuthorization {
 
       const confirmed = await this.spaceCreationHandler.confirmSpaceCreation(context);
       if (!confirmed) {
-        debug.log("Space creation cancelled by handler");
-        return;
+        throw new Error(
+          "Space creation was cancelled. Sign-in requires a space."
+        );
       }
 
       // Create the space
