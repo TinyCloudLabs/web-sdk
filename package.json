@@ -25,6 +25,7 @@
     "doc": "turbo doc",
     "dev:apps": "turbo dev --filter=./apps/web-sdk-example",
     "demo:build": "turbo build --filter=tinycloud-web-sdk-example-app",
+    "openkey-demo:build": "turbo build --filter=tinycloud-openkey-example-app...",
     "demo:test": "bun --cwd apps/web-sdk-example run test",
     "demo:test:e2e": "bun --cwd apps/web-sdk-example run test:e2e",
     "node-demo": "turbo build --filter=@tinycloud/node-sdk... && bun run --cwd apps/node-demo src/demo.ts",
