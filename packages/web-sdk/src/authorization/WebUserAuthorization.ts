@@ -218,9 +218,10 @@ export class WebUserAuthorization implements IUserAuthorization {
       this.setProvider(config.provider);
     }
 
-    // Initialize session manager (creates session key immediately for session-only mode)
+    // Initialize session manager (constructor auto-creates "default" key in Rust)
     this.sessionManager = new tcwSession.TCWSessionManager();
-    this.sessionKeyId = this.sessionManager.createSessionKey("default");
+    // Don't call createSessionKey - the Rust constructor already creates "default" key
+    this.sessionKeyId = "default";
   }
 
   /**
@@ -801,8 +802,9 @@ export class WebUserAuthorization implements IUserAuthorization {
 
       const confirmed = await this.spaceCreationHandler.confirmSpaceCreation(context);
       if (!confirmed) {
-        debug.log("Space creation cancelled by handler");
-        return;
+        throw new Error(
+          "Space creation was cancelled. Sign-in requires a space."
+        );
       }
 
       // Create the space

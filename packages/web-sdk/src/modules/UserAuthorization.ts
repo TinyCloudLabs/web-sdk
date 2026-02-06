@@ -593,12 +593,7 @@ class UserAuthorization implements IUserAuthorization, ICoreUserAuthorization {
 
     // Ensure space exists on TinyCloud server (creates if needed)
     if (this._spaceId && this._delegationHeader) {
-      try {
-        await this.ensureSpaceExists();
-      } catch (error) {
-        console.warn("[TinyCloud] Failed to ensure space exists:", error);
-        // Don't throw - space creation can be retried later
-      }
+      await this.ensureSpaceExists();
     }
 
     // Apply extension afterSignIn hooks AFTER space is ready

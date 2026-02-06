@@ -918,6 +918,19 @@ export class TinyCloudWeb {
         const response = await this.createDelegationForSharing(params, serviceSession, hosts);
         return response;
       },
+      // Callback to extend session when share duration exceeds current session
+      // @deprecated - kept for backward compatibility, prefer onRootDelegationNeeded
+      onSessionExtensionNeeded: async (requestedExpiry: Date) => {
+        return this.extendSessionForSharing(requestedExpiry, hosts);
+      },
+      // Callback to create a DIRECT delegation from wallet to share key
+      // This is the CORRECT solution for long-lived share links:
+      // - Creates PKH -> share key delegation directly
+      // - Not constrained by session expiry (no sub-delegation chain)
+      // - Will trigger OpenKey popup to sign the delegation
+      onRootDelegationNeeded: async (params) => {
+        return this.createRootDelegationForSharing(params, hosts);
+      },
     });
   }
 
@@ -1001,13 +1014,218 @@ export class TinyCloudWeb {
   }
 
   /**
-   * Get the session expiry time.
+   * Get the session expiry time by parsing the SIWE message.
    * @internal
    */
   private getSessionExpiry(): Date {
-    // Default to 1 hour from now if not explicitly set
-    // The actual expiry is in the SIWE message, but we don't have easy access to it here
+    // For new auth mode, use the full TinyCloudSession which has siwe
+    if (this.isNewAuthEnabled) {
+      const fullSession = this.webAuth.tinyCloudSession;
+      if (fullSession?.siwe) {
+        const expirationMatch = fullSession.siwe.match(/Expiration Time: (.+)/);
+        if (expirationMatch?.[1]) {
+          const parsed = new Date(expirationMatch[1]);
+          if (!isNaN(parsed.getTime())) {
+            return parsed;
+          }
+        }
+      }
+    }
+    // Default to 1 hour from now if not available (legacy mode or SIWE parse failure)
     return new Date(Date.now() + 60 * 60 * 1000);
+  }
+
+  /**
+   * Extend the session for sharing by creating a new SIWE delegation.
+   * This is called when a share request needs a longer duration than the current session.
+   * Only works in new auth mode.
+   *
+   * @deprecated Use createRootDelegationForSharing instead. This method creates a delegation
+   * to the session key, which doesn't actually solve the expiry problem because the share key
+   * delegation is still a sub-delegation limited by the session chain.
+   * @internal
+   */
+  private async extendSessionForSharing(
+    requestedExpiry: Date,
+    hosts: string[]
+  ): Promise<{ session: ServiceSession; expiry: Date } | undefined> {
+    // Session extension only works in new auth mode
+    if (!this.isNewAuthEnabled) {
+      return undefined;
+    }
+
+    const fullSession = this.webAuth.tinyCloudSession;
+    const address = this.userAuthorization.address();
+    const chainId = this.userAuthorization.chainId();
+
+    if (!fullSession || !address || !chainId) {
+      return undefined;
+    }
+
+    try {
+      const host = hosts[0];
+      const now = new Date();
+
+      // Use the same abilities as the original session (full KV access)
+      const abilities: Record<string, Record<string, string[]>> = {
+        kv: {
+          "": ["tinycloud.kv/put", "tinycloud.kv/get", "tinycloud.kv/del", "tinycloud.kv/list", "tinycloud.kv/metadata"],
+        },
+      };
+
+      // Prepare a new session with the requested expiry
+      const prepared = prepareSession({
+        abilities,
+        address: tinycloud.ensureEip55(address),
+        chainId,
+        domain: new URL(host).hostname,
+        issuedAt: now.toISOString(),
+        expirationTime: requestedExpiry.toISOString(),
+        spaceId: fullSession.spaceId,
+        jwk: fullSession.jwk,
+      });
+
+      // Sign the new SIWE message with the wallet (will trigger OpenKey popup)
+      const signature = await this.userAuthorization.signMessage(prepared.siwe);
+
+      // Complete the session setup
+      const newSession = completeSessionSetup({
+        ...prepared,
+        signature,
+      });
+
+      // Activate the new session with the server
+      const activateResult = await activateSessionWithHost(host, newSession.delegationHeader);
+
+      if (!activateResult.success) {
+        console.warn('Failed to activate extended session:', activateResult.error);
+        return undefined;
+      }
+
+      // Convert to ServiceSession
+      const serviceSession: ServiceSession = {
+        delegationHeader: newSession.delegationHeader,
+        delegationCid: newSession.delegationCid,
+        spaceId: fullSession.spaceId,
+        verificationMethod: fullSession.verificationMethod,
+        jwk: fullSession.jwk,
+      };
+
+      return {
+        session: serviceSession,
+        expiry: requestedExpiry,
+      };
+    } catch (err) {
+      console.warn('Failed to extend session for sharing:', err);
+      return undefined;
+    }
+  }
+
+  /**
+   * Create a direct root delegation from the wallet to a share key.
+   * This is the CORRECT solution for long-lived share links.
+   *
+   * Instead of creating a sub-delegation chain (PKH -> session key -> share key),
+   * this creates a DIRECT delegation (PKH -> share key), which is not constrained
+   * by the session's expiry time.
+   *
+   * This will trigger the OpenKey popup to sign a new SIWE message.
+   *
+   * @param params - Parameters for creating the root delegation
+   * @param hosts - TinyCloud host URLs
+   * @returns The delegation from wallet to share key, or undefined if failed
+   * @internal
+   */
+  private async createRootDelegationForSharing(
+    params: {
+      shareKeyDID: string;
+      spaceId: string;
+      path: string;
+      actions: string[];
+      requestedExpiry: Date;
+    },
+    hosts: string[]
+  ): Promise<Delegation | undefined> {
+    // Root delegation only works in new auth mode
+    if (!this.isNewAuthEnabled) {
+      return undefined;
+    }
+
+    const address = this.userAuthorization.address();
+    const chainId = this.userAuthorization.chainId();
+
+    if (!address || !chainId) {
+      return undefined;
+    }
+
+    try {
+      const host = hosts[0];
+      const now = new Date();
+
+      // Build abilities for the share key
+      // Note: We use the full path as-is (already includes any prefix)
+      const abilities: Record<string, Record<string, string[]>> = {
+        kv: {
+          [params.path]: params.actions,
+        },
+      };
+
+      // Prepare a NEW delegation directly to the share key
+      // Key differences from extendSessionForSharing:
+      // 1. delegateUri targets the share key DID directly
+      // 2. NO parents - this is a root delegation, not a sub-delegation
+      // 3. NO jwk - we're not delegating to our session key
+      const prepared = prepareSession({
+        abilities,
+        address: tinycloud.ensureEip55(address),
+        chainId,
+        domain: new URL(host).hostname,
+        issuedAt: now.toISOString(),
+        expirationTime: params.requestedExpiry.toISOString(),
+        spaceId: params.spaceId,
+        delegateUri: params.shareKeyDID, // Direct delegation to share key
+        // NO parents - this is a fresh root delegation from PKH
+        // NO jwk - we're delegating to the share key, not our session key
+      });
+
+      // Sign the SIWE message with the wallet (will trigger OpenKey popup)
+      const signature = await this.userAuthorization.signMessage(prepared.siwe);
+
+      // Complete the session setup to get the delegation header
+      const delegationSession = completeSessionSetup({
+        ...prepared,
+        signature,
+      });
+
+      // Activate the delegation with the server
+      const activateResult = await activateSessionWithHost(host, delegationSession.delegationHeader);
+
+      if (!activateResult.success) {
+        console.warn('Failed to activate root delegation for sharing:', activateResult.error);
+        return undefined;
+      }
+
+      // Return the delegation
+      const delegation: Delegation = {
+        cid: delegationSession.delegationCid,
+        delegateDID: params.shareKeyDID,
+        delegatorDID: `did:pkh:eip155:${chainId}:${address}`,
+        spaceId: params.spaceId,
+        path: params.path,
+        actions: params.actions,
+        expiry: params.requestedExpiry,
+        isRevoked: false,
+        allowSubDelegation: true,
+        createdAt: now,
+        // Include authHeader for the share link
+        authHeader: delegationSession.delegationHeader.Authorization,
+      };
+
+      return delegation;
+    } catch (err) {
+      console.warn('Failed to create root delegation for sharing:', err);
+      return undefined;
+    }
   }
 
   /**
