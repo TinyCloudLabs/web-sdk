@@ -187,16 +187,6 @@ export const SharingServiceConfigSchema = z.object({
    */
   sessionExpiry: z.date().optional(),
   /**
-   * Callback when a share request needs a longer session than currently available.
-   * @deprecated Use onRootDelegationNeeded instead for proper delegation chain handling.
-   */
-  onSessionExtensionNeeded: z
-    .unknown()
-    .refine((val) => val === undefined || typeof val === "function", {
-      message: "Expected an onSessionExtensionNeeded function or undefined",
-    })
-    .optional(),
-  /**
    * Callback to create a DIRECT delegation from wallet to share key.
    * This is the preferred method for long-lived share links because it
    * bypasses the session delegation chain entirely.

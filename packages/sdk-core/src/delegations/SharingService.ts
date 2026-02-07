@@ -233,22 +233,9 @@ export interface SharingServiceConfig {
   /**
    * Session expiry time.
    * When set, sharing link expiry is clamped to not exceed this value
-   * unless onSessionExtensionNeeded is provided and returns a new session.
+   * unless onRootDelegationNeeded is provided and returns a new delegation.
    */
   sessionExpiry?: Date;
-  /**
-   * Callback when a share request needs a longer session than currently available.
-   * If provided and returns a new session with sufficient expiry, that session is used.
-   * If not provided or returns undefined, the share expiry is clamped to session expiry.
-   *
-   * @deprecated Use onRootDelegationNeeded instead for proper delegation chain handling.
-   * @param requestedExpiry - The requested expiry for the share
-   * @returns A new session with the required expiry, or undefined to clamp
-   */
-  onSessionExtensionNeeded?: (requestedExpiry: Date) => Promise<{
-    session: ServiceSession;
-    expiry: Date;
-  } | undefined>;
   /**
    * Callback to create a DIRECT delegation from the root (wallet) to a share key.
    * This bypasses the session delegation chain, allowing share links with
@@ -367,7 +354,6 @@ export class SharingService implements ISharingService {
   private createDelegationWasmFn?: SharingServiceConfig["createDelegationWasm"];
   private pathPrefix: string;
   private sessionExpiry?: Date;
-  private onSessionExtensionNeeded?: SharingServiceConfig["onSessionExtensionNeeded"];
   private onRootDelegationNeeded?: SharingServiceConfig["onRootDelegationNeeded"];
 
   /**
@@ -387,7 +373,6 @@ export class SharingService implements ISharingService {
     this.createDelegationWasmFn = config.createDelegationWasm;
     this.pathPrefix = config.pathPrefix ?? "";
     this.sessionExpiry = config.sessionExpiry;
-    this.onSessionExtensionNeeded = config.onSessionExtensionNeeded;
     this.onRootDelegationNeeded = config.onRootDelegationNeeded;
   }
 
@@ -409,7 +394,7 @@ export class SharingService implements ISharingService {
    * Updates the service configuration.
    * Used to add full capabilities (session, delegationManager, createDelegation, createDelegationWasm) after signIn.
    */
-  public updateConfig(config: Partial<Pick<SharingServiceConfig, "session" | "delegationManager" | "createDelegation" | "createDelegationWasm" | "sessionExpiry" | "onSessionExtensionNeeded" | "onRootDelegationNeeded">>): void {
+  public updateConfig(config: Partial<Pick<SharingServiceConfig, "session" | "delegationManager" | "createDelegation" | "createDelegationWasm" | "sessionExpiry" | "onRootDelegationNeeded">>): void {
     if (config.session !== undefined) {
       this.session = config.session;
     }
@@ -424,9 +409,6 @@ export class SharingService implements ISharingService {
     }
     if (config.sessionExpiry !== undefined) {
       this.sessionExpiry = config.sessionExpiry;
-    }
-    if (config.onSessionExtensionNeeded !== undefined) {
-      this.onSessionExtensionNeeded = config.onSessionExtensionNeeded;
     }
     if (config.onRootDelegationNeeded !== undefined) {
       this.onRootDelegationNeeded = config.onRootDelegationNeeded;
@@ -744,19 +726,6 @@ export class SharingService implements ISharingService {
    * @internal
    */
   private async handleSessionExtensionFallback(requestedExpiry: Date): Promise<{ expiry: Date }> {
-    if (this.onSessionExtensionNeeded) {
-      try {
-        const extended = await this.onSessionExtensionNeeded(requestedExpiry);
-        if (extended) {
-          // Use the extended session
-          this.session = extended.session;
-          this.sessionExpiry = extended.expiry;
-          return { expiry: requestedExpiry <= extended.expiry ? requestedExpiry : extended.expiry };
-        }
-      } catch {
-        // Extension failed, clamp to session expiry
-      }
-    }
     // Clamp to current session expiry
     return { expiry: this.sessionExpiry ?? requestedExpiry };
   }

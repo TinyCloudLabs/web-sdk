@@ -873,11 +873,6 @@ export class TinyCloudWeb {
         const response = await this.createDelegationForSharing(params, serviceSession, hosts);
         return response;
       },
-      // Callback to extend session when share duration exceeds current session
-      // @deprecated - kept for backward compatibility, prefer onRootDelegationNeeded
-      onSessionExtensionNeeded: async (requestedExpiry: Date) => {
-        return this.extendSessionForSharing(requestedExpiry, hosts);
-      },
       // Callback to create a DIRECT delegation from wallet to share key
       // This is the CORRECT solution for long-lived share links:
       // - Creates PKH -> share key delegation directly
@@ -974,98 +969,18 @@ export class TinyCloudWeb {
    */
   private getSessionExpiry(): Date {
     const fullSession = this.webAuth.tinyCloudSession;
-    if (fullSession?.siwe) {
-      const expirationMatch = fullSession.siwe.match(/Expiration Time: (.+)/);
-      if (expirationMatch?.[1]) {
-        const parsed = new Date(expirationMatch[1]);
-        if (!isNaN(parsed.getTime())) {
-          return parsed;
-        }
-      }
+    if (!fullSession?.siwe) {
+      throw new Error('No SIWE message available. Ensure user is signed in.');
     }
-    // Default to 1 hour from now if SIWE parse failure
-    return new Date(Date.now() + 60 * 60 * 1000);
-  }
-
-  /**
-   * Extend the session for sharing by creating a new SIWE delegation.
-   * This is called when a share request needs a longer duration than the current session.
-   * Only works in new auth mode.
-   *
-   * @deprecated Use createRootDelegationForSharing instead. This method creates a delegation
-   * to the session key, which doesn't actually solve the expiry problem because the share key
-   * delegation is still a sub-delegation limited by the session chain.
-   * @internal
-   */
-  private async extendSessionForSharing(
-    requestedExpiry: Date,
-    hosts: string[]
-  ): Promise<{ session: ServiceSession; expiry: Date } | undefined> {
-    const fullSession = this.webAuth.tinyCloudSession;
-    const address = this.userAuthorization.address();
-    const chainId = this.userAuthorization.chainId();
-
-    if (!fullSession || !address || !chainId) {
-      return undefined;
+    const expirationMatch = fullSession.siwe.match(/Expiration Time: (.+)/);
+    if (!expirationMatch?.[1]) {
+      throw new Error('SIWE message does not contain an Expiration Time field.');
     }
-
-    try {
-      const host = hosts[0];
-      const now = new Date();
-
-      // Use the same abilities as the original session (full KV access)
-      const abilities: Record<string, Record<string, string[]>> = {
-        kv: {
-          "": ["tinycloud.kv/put", "tinycloud.kv/get", "tinycloud.kv/del", "tinycloud.kv/list", "tinycloud.kv/metadata"],
-        },
-      };
-
-      // Prepare a new session with the requested expiry
-      const prepared = prepareSession({
-        abilities,
-        address: tinycloud.ensureEip55(address),
-        chainId,
-        domain: new URL(host).hostname,
-        issuedAt: now.toISOString(),
-        expirationTime: requestedExpiry.toISOString(),
-        spaceId: fullSession.spaceId,
-        jwk: fullSession.jwk,
-      });
-
-      // Sign the new SIWE message with the wallet (will trigger OpenKey popup)
-      const signature = await this.userAuthorization.signMessage(prepared.siwe);
-
-      // Complete the session setup
-      const newSession = completeSessionSetup({
-        ...prepared,
-        signature,
-      });
-
-      // Activate the new session with the server
-      const activateResult = await activateSessionWithHost(host, newSession.delegationHeader);
-
-      if (!activateResult.success) {
-        console.warn('Failed to activate extended session:', activateResult.error);
-        return undefined;
-      }
-
-      // Convert to ServiceSession
-      const serviceSession: ServiceSession = {
-        delegationHeader: newSession.delegationHeader,
-        delegationCid: newSession.delegationCid,
-        spaceId: fullSession.spaceId,
-        verificationMethod: fullSession.verificationMethod,
-        jwk: fullSession.jwk,
-      };
-
-      return {
-        session: serviceSession,
-        expiry: requestedExpiry,
-      };
-    } catch (err) {
-      console.warn('Failed to extend session for sharing:', err);
-      return undefined;
+    const parsed = new Date(expirationMatch[1]);
+    if (isNaN(parsed.getTime())) {
+      throw new Error(`Failed to parse SIWE expiration time: ${expirationMatch[1]}`);
     }
+    return parsed;
   }
 
   /**
@@ -1113,7 +1028,6 @@ export class TinyCloudWeb {
       };
 
       // Prepare a NEW delegation directly to the share key
-      // Key differences from extendSessionForSharing:
       // 1. delegateUri targets the share key DID directly
       // 2. NO parents - this is a root delegation, not a sub-delegation
       // 3. NO jwk - we're not delegating to our session key

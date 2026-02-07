@@ -56,15 +56,12 @@ export function serializeDelegation(delegation: PortableDelegation): string {
 
 /**
  * Deserialize a PortableDelegation from transport.
- * Handles both new format (cid) and legacy format (delegationCid).
  */
 export function deserializeDelegation(data: string): PortableDelegation {
   const parsed = JSON.parse(data);
-  // Support both cid (new) and delegationCid (legacy)
-  const cid = parsed.cid || parsed.delegationCid;
   return {
     ...parsed,
-    cid,
+    cid: parsed.cid,
     expiry: new Date(parsed.expiry),
   };
 }
