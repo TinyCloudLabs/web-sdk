@@ -1,5 +1,36 @@
 # @tinycloudlabs/sdk-core
 
+## 1.1.0
+
+### Minor Changes
+
+- 855e0d9: Remove legacy code for v1 cleanup
+
+  - Remove deprecated `onSessionExtensionNeeded` callback from SharingService (use `onRootDelegationNeeded` instead)
+  - Remove deprecated `extendSessionForSharing()` method from TinyCloudWeb
+  - Remove legacy `delegationCid` share link format support (only `cid` is supported)
+  - Remove legacy fallback in `getSessionExpiry()`
+  - Remove unused `express` and `express-session` dependencies from web-core
+
+- ba988fb: feat: Add root delegation support for long-lived share links
+
+  When creating share links with expiry longer than the current session, the SDK now creates a direct delegation from the wallet (PKH) to the share key, bypassing the session delegation chain. This allows share links to have any expiry duration regardless of session length.
+
+  **New callback**: `onRootDelegationNeeded` in SharingServiceConfig
+
+  - Called when share expiry exceeds session expiry
+  - Receives the share key DID to delegate to
+  - Returns a direct wallet-to-share-key delegation
+
+  **Deprecated**: `onSessionExtensionNeeded` - does not solve the expiry problem as sub-delegations are still constrained by parent expiry.
+
+  **Breaking change**: None - new callback is optional, falls back to existing behavior.
+
+### Patch Changes
+
+- Updated dependencies [855e0d9]
+  - @tinycloud/web-core@1.1.0
+
 ## 1.0.1
 
 ### Patch Changes
