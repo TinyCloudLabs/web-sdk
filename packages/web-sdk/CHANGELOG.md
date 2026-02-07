@@ -1,5 +1,46 @@
 # @tinycloudlabs/web-sdk
 
+## 1.1.0
+
+### Minor Changes
+
+- 0499ab9: Remove legacy UserAuthorization, make WebUserAuthorization the default
+
+  - Remove `useNewAuth` config flag — `WebUserAuthorization` is now always used
+  - Delete legacy `UserAuthorization` class (1,231 lines)
+  - Remove `isNewAuthEnabled` getter and all legacy mode guards
+  - Auth modes simplified from legacy/new-wallet/new-session-only to wallet/session-only
+
+- 855e0d9: Remove legacy code for v1 cleanup
+
+  - Remove deprecated `onSessionExtensionNeeded` callback from SharingService (use `onRootDelegationNeeded` instead)
+  - Remove deprecated `extendSessionForSharing()` method from TinyCloudWeb
+  - Remove legacy `delegationCid` share link format support (only `cid` is supported)
+  - Remove legacy fallback in `getSessionExpiry()`
+  - Remove unused `express` and `express-session` dependencies from web-core
+
+- ba988fb: feat: Add root delegation support for long-lived share links
+
+  When creating share links with expiry longer than the current session, the SDK now creates a direct delegation from the wallet (PKH) to the share key, bypassing the session delegation chain. This allows share links to have any expiry duration regardless of session length.
+
+  **New callback**: `onRootDelegationNeeded` in SharingServiceConfig
+
+  - Called when share expiry exceeds session expiry
+  - Receives the share key DID to delegate to
+  - Returns a direct wallet-to-share-key delegation
+
+  **Deprecated**: `onSessionExtensionNeeded` - does not solve the expiry problem as sub-delegations are still constrained by parent expiry.
+
+  **Breaking change**: None - new callback is optional, falls back to existing behavior.
+
+### Patch Changes
+
+- ba988fb: Fix space-not-found race condition during sign-in. Both auth paths could complete signIn() without the space being active on the server, causing immediate "Space not found" errors from KV operations. Legacy path no longer silently swallows ensureSpaceExists() errors. New auth path throws when space creation modal is dismissed instead of returning silently.
+- Updated dependencies [855e0d9]
+- Updated dependencies [ba988fb]
+  - @tinycloud/sdk-core@1.1.0
+  - @tinycloud/web-core@1.1.0
+
 ## 1.0.1
 
 ### Patch Changes
