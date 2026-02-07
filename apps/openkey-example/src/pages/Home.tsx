@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { TinyCloudWeb } from "@tinycloud/web-sdk";
-import { OpenKey } from "@openkey/sdk";
+import { OpenKey, OpenKeyEIP1193Provider } from "@openkey/sdk";
 import { providers } from "ethers";
-import { OpenKeyEIP1193Provider } from "../utils/openkey-provider";
 import Title from "../components/Title";
 import RadioGroup from "../components/RadioGroup";
 import Input from "../components/Input";
@@ -93,11 +92,11 @@ function Home() {
     try {
       // 1. Connect to OpenKey - opens popup for auth + key selection
       const openkey = new OpenKey({ host: openKeyHost });
-      const { address, keyId } = await openkey.connect();
-      setOpenKeyAddress(address);
+      const authResult = await openkey.connect();
+      setOpenKeyAddress(authResult.address);
 
-      // 2. Create EIP-1193 provider that routes signing to OpenKey
-      const eip1193Provider = new OpenKeyEIP1193Provider(openkey, address, keyId);
+      // 2. Create EIP-1193 provider that routes signing to OpenKey (or wallet for external keys)
+      const eip1193Provider = new OpenKeyEIP1193Provider(openkey, authResult);
 
       // 3. Wrap in ethers Web3Provider for TinyCloudWeb compatibility
       const web3Provider = new providers.Web3Provider(eip1193Provider as any);

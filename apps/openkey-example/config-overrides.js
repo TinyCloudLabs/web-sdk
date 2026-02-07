@@ -3,6 +3,10 @@ const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
 
 // You can modify the webpack config in here, for instance to add polyfills.
 module.exports = function override(config, env) {
+  // Remove ModuleScopePlugin to allow imports from hoisted monorepo node_modules
+  config.resolve.plugins = config.resolve.plugins.filter(
+    plugin => plugin.constructor.name !== 'ModuleScopePlugin'
+  );
   // Add bundle analyzer in analyze mode
   if (process.env.ANALYZE) {
     config.plugins.push(
