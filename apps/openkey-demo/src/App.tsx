@@ -33,7 +33,6 @@ function App() {
             driver: provider as any,
           },
         },
-        useNewAuth: true,
         autoCreateSpace: true,
       });
 
@@ -65,7 +64,6 @@ function App() {
             driver: ethereum,
           },
         },
-        useNewAuth: true,
         autoCreateSpace: true,
       });
 

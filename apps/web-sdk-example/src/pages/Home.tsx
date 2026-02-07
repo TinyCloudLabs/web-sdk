@@ -30,11 +30,10 @@ declare global {
 
 /**
  * Auth mode options for the example app.
- * - legacy: Uses the original UserAuthorization (requires wallet from start)
- * - new-wallet: Uses new WebUserAuthorization with wallet-popup strategy
- * - new-session-only: Uses new WebUserAuthorization in session-only mode (no wallet initially)
+ * - wallet: Uses WebUserAuthorization with wallet-popup strategy
+ * - session-only: Uses WebUserAuthorization in session-only mode (no wallet initially)
  */
-type AuthMode = "legacy" | "new-wallet" | "new-session-only";
+type AuthMode = "wallet" | "session-only";
 
 /**
  * Sign strategy options (only for new auth modes).
@@ -53,8 +52,8 @@ function Home() {
   const [resolveEns, setResolveEns] = useState<string>("On");
   const [siweConfig, setSiweConfig] = useState<string>("Off");
 
-  // New auth mode options
-  const [authMode, setAuthMode] = useState<AuthMode>("legacy");
+  // Auth mode options
+  const [authMode, setAuthMode] = useState<AuthMode>("wallet");
   const [signStrategyOption, setSignStrategyOption] = useState<SignStrategyOption>("wallet-popup");
   const [callbackApproved, setCallbackApproved] = useState<boolean>(true); // For demo callback strategy
   // siweConfig Fields
@@ -130,14 +129,8 @@ function Home() {
   };
 
   const getTinyCloudWebConfig = (tcwConfig: Record<string, any> = {}) => {
-    // Handle new auth mode
-    if (authMode !== "legacy") {
-      tcwConfig.useNewAuth = true;
-      tcwConfig.signStrategy = buildSignStrategy();
-
-      // For session-only mode, we don't need to pass provider initially
-      // The provider will be connected later via connectWallet()
-    }
+    // Set sign strategy
+    tcwConfig.signStrategy = buildSignStrategy();
 
     if (siweConfig === "On") {
       const siweConfig: Record<string, any> = {};
@@ -158,8 +151,7 @@ function Home() {
       };
     }
 
-    if (resolveEns === "On" && authMode === "legacy") {
-      // resolveEns is only available in legacy mode
+    if (resolveEns === "On") {
       tcwConfig = {
         ...tcwConfig,
         resolveEns: true,
@@ -189,7 +181,7 @@ function Home() {
       modules,
     };
 
-    // Add TinyCloud hosts at top level for UserAuthorization
+    // Add TinyCloud hosts at top level
     if (tinyCloudHost.trim()) {
       tcwConfig.tinycloudHosts = [tinyCloudHost.trim()];
     }
@@ -222,14 +214,12 @@ function Home() {
       await tcwProvider.signIn();
       setTinyCloudWeb(tcwProvider);
 
-      // Log new auth info if enabled
-      if (authMode !== "legacy" && tcwProvider.isNewAuthEnabled) {
-        console.log("New Auth Mode Enabled:");
-        console.log("  - DID:", tcwProvider.did);
-        console.log("  - Session DID:", tcwProvider.sessionDid);
-        console.log("  - Is Session Only:", tcwProvider.isSessionOnly);
-        console.log("  - Is Wallet Connected:", tcwProvider.isWalletConnected);
-      }
+      // Log auth info
+      console.log("Auth Info:");
+      console.log("  - DID:", tcwProvider.did);
+      console.log("  - Session DID:", tcwProvider.sessionDid);
+      console.log("  - Is Session Only:", tcwProvider.isSessionOnly);
+      console.log("  - Is Wallet Connected:", tcwProvider.isWalletConnected);
     } catch (err) {
       console.error("Sign-in failed:", err);
     }
@@ -307,7 +297,7 @@ function Home() {
 
   const tcwHandler = async () => {
     // Handle session-only mode differently
-    if (authMode === "new-session-only") {
+    if (authMode === "session-only") {
       if (!tcw) {
         // Start in session-only mode
         startSessionOnlyMode();
@@ -315,7 +305,7 @@ function Home() {
       }
 
       // If we have a tcw in session-only mode but no wallet, prompt to connect
-      if (tcw.isNewAuthEnabled && tcw.isSessionOnly) {
+      if (tcw.isSessionOnly) {
         if (!isConnected || !walletClient) {
           setOpen(true);
           return;
@@ -326,7 +316,7 @@ function Home() {
       }
     }
 
-    // Standard flow (legacy or new-wallet mode)
+    // Standard flow (wallet mode)
     if (!isConnected || !walletClient) {
       // User wants to sign in, so first connect the wallet
       setOpen(true);
@@ -357,88 +347,82 @@ function Home() {
           </AccordionTrigger>
           <AccordionContent>
             <div className="space-y-4">
-              {/* Auth Mode Selection - NEW for 1.0.0 */}
+              {/* Auth Mode Selection */}
               <div className="space-y-4 border-b border-border/20 pb-4">
                 <h4 className="text-md font-heading text-text">
-                  Auth Mode (1.0.0)
+                  Auth Mode
                 </h4>
                 <p className="text-sm text-text/70">
-                  Choose the authentication architecture. New modes offer session-only
-                  support, SignStrategy patterns, and improved DID model.
+                  Choose the authentication mode. Wallet mode connects a wallet
+                  for signing. Session-only mode starts without a wallet.
                 </p>
                 <RadioGroup
                   name="authMode"
-                  options={["Legacy", "New (Wallet)", "New (Session-Only)"]}
+                  options={["Wallet", "Session-Only"]}
                   value={
-                    authMode === "legacy"
-                      ? "Legacy"
-                      : authMode === "new-wallet"
-                      ? "New (Wallet)"
-                      : "New (Session-Only)"
+                    authMode === "wallet"
+                      ? "Wallet"
+                      : "Session-Only"
                   }
                   onChange={(v) =>
                     setAuthMode(
-                      v === "Legacy"
-                        ? "legacy"
-                        : v === "New (Wallet)"
-                        ? "new-wallet"
-                        : "new-session-only"
+                      v === "Wallet"
+                        ? "wallet"
+                        : "session-only"
                     )
                   }
                   label="Select auth mode"
                 />
 
-                {/* Sign Strategy - only for new auth modes */}
-                {authMode !== "legacy" && (
-                  <div className="mt-4 p-3 bg-bg rounded border">
-                    <h5 className="text-sm font-heading text-text mb-2">
-                      Sign Strategy
-                    </h5>
-                    <p className="text-xs text-text/70 mb-2">
-                      Control how signing requests are handled.
-                    </p>
-                    <RadioGroup
-                      name="signStrategy"
-                      options={["Wallet Popup", "Callback", "Auto Approve"]}
-                      value={
-                        signStrategyOption === "wallet-popup"
-                          ? "Wallet Popup"
-                          : signStrategyOption === "callback"
-                          ? "Callback"
-                          : "Auto Approve"
-                      }
-                      onChange={(v) =>
-                        setSignStrategyOption(
-                          v === "Wallet Popup"
-                            ? "wallet-popup"
-                            : v === "Callback"
-                            ? "callback"
-                            : "auto-approve"
-                        )
-                      }
-                      label="Sign strategy"
-                    />
+                {/* Sign Strategy */}
+                <div className="mt-4 p-3 bg-bg rounded border">
+                  <h5 className="text-sm font-heading text-text mb-2">
+                    Sign Strategy
+                  </h5>
+                  <p className="text-xs text-text/70 mb-2">
+                    Control how signing requests are handled.
+                  </p>
+                  <RadioGroup
+                    name="signStrategy"
+                    options={["Wallet Popup", "Callback", "Auto Approve"]}
+                    value={
+                      signStrategyOption === "wallet-popup"
+                        ? "Wallet Popup"
+                        : signStrategyOption === "callback"
+                        ? "Callback"
+                        : "Auto Approve"
+                    }
+                    onChange={(v) =>
+                      setSignStrategyOption(
+                        v === "Wallet Popup"
+                          ? "wallet-popup"
+                          : v === "Callback"
+                          ? "callback"
+                          : "auto-approve"
+                      )
+                    }
+                    label="Sign strategy"
+                  />
 
-                    {/* Callback demo control */}
-                    {signStrategyOption === "callback" && (
-                      <div className="mt-3 p-2 bg-main/10 rounded">
-                        <p className="text-xs text-text/70 mb-1">
-                          Demo: Callback will {callbackApproved ? "approve" : "reject"} sign requests
-                        </p>
-                        <RadioGroup
-                          name="callbackApproved"
-                          options={["Approve", "Reject"]}
-                          value={callbackApproved ? "Approve" : "Reject"}
-                          onChange={(v) => setCallbackApproved(v === "Approve")}
-                          label="Callback response"
-                        />
-                      </div>
-                    )}
-                  </div>
-                )}
+                  {/* Callback demo control */}
+                  {signStrategyOption === "callback" && (
+                    <div className="mt-3 p-2 bg-main/10 rounded">
+                      <p className="text-xs text-text/70 mb-1">
+                        Demo: Callback will {callbackApproved ? "approve" : "reject"} sign requests
+                      </p>
+                      <RadioGroup
+                        name="callbackApproved"
+                        options={["Approve", "Reject"]}
+                        value={callbackApproved ? "Approve" : "Reject"}
+                        onChange={(v) => setCallbackApproved(v === "Approve")}
+                        label="Callback response"
+                      />
+                    </div>
+                  )}
+                </div>
 
                 {/* Session-Only mode info */}
-                {authMode === "new-session-only" && (
+                {authMode === "session-only" && (
                   <div className="mt-3 p-3 bg-main/10 rounded border border-main/30">
                     <p className="text-sm text-text font-medium">Session-Only Mode</p>
                     <p className="text-xs text-text/70 mt-1">
@@ -666,12 +650,11 @@ function Home() {
                     SIGN-OUT FROM TINYCLOUD
                   </Button>
 
-                  {/* New Auth Info Section */}
-                  {tcw.isNewAuthEnabled && (
-                    <div className="p-4 bg-main/10 rounded-base border border-main/30">
-                      <h4 className="text-sm font-heading text-text mb-2">
-                        New Auth Module Active
-                      </h4>
+                  {/* Auth Info Section */}
+                  <div className="p-4 bg-main/10 rounded-base border border-main/30">
+                    <h4 className="text-sm font-heading text-text mb-2">
+                      Auth Info
+                    </h4>
                       <div className="space-y-2 text-xs">
                         <div className="flex justify-between">
                           <span className="text-text/70">Mode:</span>
@@ -722,8 +705,7 @@ function Home() {
                           </Button>
                         </div>
                       )}
-                    </div>
-                  )}
+                  </div>
 
                   <AccountInfo
                     address={address || tcw?.address()}
@@ -734,7 +716,7 @@ function Home() {
               ) : (
                 <div className="space-y-4">
                   {/* Instructions based on auth mode */}
-                  {authMode === "new-session-only" ? (
+                  {authMode === "session-only" ? (
                     <div className="text-sm text-text/70 text-center p-3 bg-main/10 rounded border border-main/30">
                       <p className="font-medium text-text">Session-Only Mode</p>
                       <p className="mt-1">
@@ -758,7 +740,7 @@ function Home() {
                     variant="default"
                     className="w-full"
                   >
-                    {authMode === "new-session-only"
+                    {authMode === "session-only"
                       ? "START SESSION-ONLY MODE"
                       : isConnected
                       ? "SIGN-IN TO TINYCLOUD"
@@ -795,7 +777,7 @@ function Home() {
           )}
 
           {/* Session-only mode storage info */}
-          {storageEnabled === "On" && tcw && tcw.isNewAuthEnabled && tcw.isSessionOnly && !tcw.session() && (
+          {storageEnabled === "On" && tcw && tcw.isSessionOnly && !tcw.session() && (
             <div className="mt-8 rounded-base border-2 border-border bg-bw p-6 shadow-shadow">
               <div className="text-center p-4">
                 <p className="text-sm text-text/70 mb-2">

@@ -1,36 +1,42 @@
 # web-sdk 1.0.0 Migration Guide
 
-Quick reference for migrating to the new unified auth module. For detailed documentation, see [docs/web-sdk/guides/migration-1.0.0.md](documentation/docs/web-sdk/guides/migration-1.0.0.md).
+Quick reference for migrating to the unified auth module. For detailed documentation, see [docs/web-sdk/guides/migration-1.0.0.md](documentation/docs/web-sdk/guides/migration-1.0.0.md).
 
 ## What's New
 
+- **WebUserAuthorization is now the default**: The legacy `UserAuthorization` class has been removed. `useNewAuth` config flag has been removed.
 - **Session-only mode**: Start without a wallet, receive delegations
 - **SignStrategy pattern**: Control sign request handling
 - **Identity model**: Clear `did` vs `sessionDid` distinction
 - **`connectWallet()` upgrade**: Transition from session-only to wallet mode
 
-## Enabling New Auth
-
-```typescript
-const tcw = new TinyCloudWeb({
-  useNewAuth: true,  // Enable new auth module
-  providers: { web3: { driver: window.ethereum } }
-});
-```
-
 ## Breaking Changes Summary
 
-### Deprecated Methods (throw when `useNewAuth: true`)
+### Removed: `useNewAuth` config flag
 
-| Legacy | New Auth Replacement |
-|--------|----------------------|
+The `useNewAuth` config option has been removed. `WebUserAuthorization` is now always used.
+If you were passing `useNewAuth: true`, simply remove it. If you were relying on the legacy
+`UserAuthorization` class, you must migrate to `WebUserAuthorization`.
+
+### Removed: Legacy `UserAuthorization` class
+
+The `UserAuthorization` and `IUserAuthorization` exports from `@tinycloud/web-sdk` have been removed.
+
+### Removed: `isNewAuthEnabled` property
+
+`tcw.isNewAuthEnabled` has been removed since the new auth is always enabled.
+
+### Removed Methods from Legacy Auth
+
+| Legacy | Replacement |
+|--------|-------------|
 | `resolveEns()` | Use ethers.js/viem directly |
 | `getProvider()` | `tcw.isWalletConnected` |
 | `getSigner()` | `tcw.signMessage()` |
 | `generateSiweMessage()` | `tcw.webAuth.prepareSessionForSigning()` |
 | `signInWithSignature()` | `tcw.webAuth.signInWithPreparedSession()` |
 
-### New Properties
+### Properties
 
 | Property | Description |
 |----------|-------------|
@@ -38,20 +44,18 @@ const tcw = new TinyCloudWeb({
 | `tcw.sessionDid` | Session key DID (always available) |
 | `tcw.isSessionOnly` | True if no wallet connected |
 | `tcw.isWalletConnected` | True if wallet connected (may not be signed in) |
-| `tcw.isNewAuthEnabled` | True if using new auth module |
 | `tcw.webAuth` | Access to WebUserAuthorization instance |
 
-### New Methods
+### Methods
 
 | Method | Description |
 |--------|-------------|
 | `tcw.connectWallet(provider)` | Upgrade from session-only to wallet mode |
 
-## New Config Options
+## Config Options
 
 ```typescript
 interface TCWConfig {
-  useNewAuth?: boolean;                    // Enable new auth (default: false)
   signStrategy?: WebSignStrategy;          // How to handle signing
   spaceCreationHandler?: ISpaceCreationHandler; // Space creation UI
 }
@@ -78,25 +82,24 @@ signStrategy: { type: 'event-emitter', emitter: myEmitter }
 ### Standard Web App
 
 ```typescript
-// Before
+// Before (0.x)
 const tcw = new TinyCloudWeb({
   providers: { web3: { driver: window.ethereum } }
 });
 await tcw.signIn();
 
-// After (minimal change)
+// After (1.0.0) - same API, WebUserAuthorization is used automatically
 const tcw = new TinyCloudWeb({
-  useNewAuth: true,
   providers: { web3: { driver: window.ethereum } }
 });
 await tcw.signIn();
 ```
 
-### Session-Only Mode (New Feature)
+### Session-Only Mode
 
 ```typescript
 // Start without wallet
-const tcw = new TinyCloudWeb({ useNewAuth: true });
+const tcw = new TinyCloudWeb();
 console.log(tcw.sessionDid);  // Available immediately
 
 // Later, connect wallet
@@ -119,7 +122,7 @@ const sig = await external.sign(prep.prepared.siwe);
 await tcw.webAuth.signInWithPreparedSession(prep.prepared, sig, prep.keyId, prep.jwk);
 ```
 
-## New Type Exports
+## Type Exports
 
 ```typescript
 import {
@@ -137,11 +140,8 @@ import {
 
 ## FAQ
 
-**Q: Is legacy mode still supported?**
-A: Yes, `useNewAuth: false` (default) maintains full backward compatibility.
-
 **Q: Can session-only users access storage?**
 A: They can receive delegations but not create their own space. Connect a wallet and sign in to create a space.
 
 **Q: How do I check which mode I'm in?**
-A: Use `tcw.isNewAuthEnabled` and `tcw.isSessionOnly`.
+A: Use `tcw.isSessionOnly`.

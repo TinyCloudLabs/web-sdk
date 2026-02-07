@@ -2,10 +2,6 @@ import {
   RPCProviders,
 } from '@tinycloud/web-core';
 import {
-  IUserAuthorization,
-  UserAuthorization,
-} from '.';
-import {
   WebUserAuthorization,
   WebUserAuthorizationConfig,
   WebSignStrategy,
@@ -70,11 +66,10 @@ declare global {
 /**
  * Configuration for TinyCloudWeb.
  *
- * Extends ClientConfig with notification options and the new unified auth module.
+ * Extends ClientConfig with notification options and the unified auth module.
  *
- * ## New Auth Module (1.0.0)
+ * ## Auth Module Features
  *
- * Set `useNewAuth: true` to enable the new unified auth architecture with:
  * - **SignStrategy pattern**: Control how sign requests are handled
  * - **Session-only mode**: Receive delegations without a wallet
  * - **`did` vs `sessionDid` model**: Clear identity distinction
@@ -82,20 +77,15 @@ declare global {
  *
  * @example
  * ```typescript
- * // Legacy mode (default)
+ * // Standard wallet popup flow
  * const tcw = new TinyCloudWeb({
- *   providers: { web3: { driver: window.ethereum } }
- * });
- *
- * // New auth mode (recommended for new projects)
- * const tcw = new TinyCloudWeb({
- *   useNewAuth: true,
+ *   providers: { web3: { driver: window.ethereum } },
  *   signStrategy: { type: 'wallet-popup' },
  *   spaceCreationHandler: new ModalSpaceCreationHandler()
  * });
  *
  * // Session-only mode (no wallet required)
- * const tcw = new TinyCloudWeb({ useNewAuth: true });
+ * const tcw = new TinyCloudWeb();
  * console.log(tcw.sessionDid); // did:key:z6Mk...
  * ```
  */
@@ -124,32 +114,10 @@ export interface Config extends ClientConfig {
    */
   autoCreateSpace?: boolean;
 
-  // =========================================================================
-  // New Auth Module Options (TC-714/TC-715)
-  // Available when useNewAuth: true
-  // =========================================================================
-
-  /**
-   * Whether to use the new WebUserAuthorization class.
-   *
-   * When `true`, uses the new unified auth module architecture featuring:
-   * - SignStrategy pattern for controlling sign requests
-   * - Session-only mode (receive delegations without wallet)
-   * - Clear `did` vs `sessionDid` model
-   * - `connectWallet()` upgrade pattern
-   *
-   * When `false` (default), uses the legacy UserAuthorization for backward compatibility.
-   *
-   * **Recommended**: Set to `true` for new projects or when migrating to 1.0.0.
-   *
-   * @default false
-   */
-  useNewAuth?: boolean;
-
   /**
    * Sign strategy for handling sign requests.
    *
-   * Only used when `useNewAuth: true`. Determines how SIWE signing is handled:
+   * Determines how SIWE signing is handled:
    * - `'wallet-popup'` (default): Show browser wallet popup
    * - `{ type: 'auto-sign' }`: Automatically sign (requires external signer setup)
    * - `{ type: 'callback', handler: fn }`: Custom callback for sign requests
@@ -175,7 +143,7 @@ export interface Config extends ClientConfig {
   /**
    * Handler for space creation confirmation.
    *
-   * Only used when `useNewAuth: true`. Controls how space creation is confirmed:
+   * Controls how space creation is confirmed:
    * - `ModalSpaceCreationHandler` (default): Shows a modal dialog
    * - `{ confirmSpaceCreation: async () => true }`: Auto-approve
    * - Custom implementation of `ISpaceCreationHandler`
@@ -456,12 +424,8 @@ export class TinyCloudWeb {
    * - session key management
    * - creates, manages, and handles session data
    * - manages/provides capabilities
-   *
-   * NOTE: When useNewAuth is true, this is a WebUserAuthorization instance.
-   * The type is `any` to allow both legacy and new auth modules.
-   * Use `webAuth` getter for typed access to WebUserAuthorization.
    */
-  public userAuthorization: IUserAuthorization | WebUserAuthorization;
+  public userAuthorization: WebUserAuthorization;
 
   /** Error Handler for Notifications */
   private errorHandler: SDKErrorHandler;
@@ -488,14 +452,8 @@ export class TinyCloudWeb {
   private _sharingService?: SharingService;
 
   constructor(private config: Config = DEFAULT_CONFIG) {
-    // Initialize user authorization based on config
-    if (config.useNewAuth) {
-      // Use new WebUserAuthorization (TC-714: unified auth module)
-      this.userAuthorization = this.createWebUserAuthorization(config);
-    } else {
-      // Use legacy UserAuthorization for backward compatibility
-      this.userAuthorization = new UserAuthorization(config);
-    }
+    // Initialize user authorization
+    this.userAuthorization = this.createWebUserAuthorization(config);
 
     // Initialize error handling system
     const notificationConfig = {
@@ -519,16 +477,15 @@ export class TinyCloudWeb {
 
   /**
    * Create a WebUserAuthorization instance from the config.
-   * Maps legacy config options to new WebUserAuthorizationConfig.
+   * Maps Config options to WebUserAuthorizationConfig.
    * @private
    */
   private createWebUserAuthorization(config: Config): WebUserAuthorization {
-    // Map legacy config to WebUserAuthorizationConfig
     const webAuthConfig: WebUserAuthorizationConfig = {
-      // Provider from legacy config
+      // Provider from config
       provider: config.providers?.web3?.driver,
 
-      // New strategy options (or defaults)
+      // Strategy options (or defaults)
       signStrategy: config.signStrategy,
       spaceCreationHandler: config.spaceCreationHandler ?? new ModalSpaceCreationHandler(),
       autoCreateSpace: config.autoCreateSpace,
@@ -744,9 +701,7 @@ export class TinyCloudWeb {
    */
   private initializeKVService(session: ClientSession): void {
     // Get hosts from userAuthorization or config
-    const hosts = this.userAuthorization.getTinycloudHosts?.() ||
-                  (this.config as any).tinycloudHosts ||
-                  ['https://node.tinycloud.xyz'];
+    const hosts = this.userAuthorization.getTinycloudHosts();
 
     // Get prefix from config
     const prefix = this.config.kvPrefix || '';
@@ -793,7 +748,7 @@ export class TinyCloudWeb {
     this._capabilityRegistry = new CapabilityKeyRegistry();
 
     // Register the session key with its capabilities
-    const tinycloudSession = this.userAuthorization.getTinycloudSession?.();
+    const tinycloudSession = this.userAuthorization.getTinycloudSession();
     const address = this.userAuthorization.address();
     const chainId = this.userAuthorization.chainId();
 
@@ -1018,20 +973,17 @@ export class TinyCloudWeb {
    * @internal
    */
   private getSessionExpiry(): Date {
-    // For new auth mode, use the full TinyCloudSession which has siwe
-    if (this.isNewAuthEnabled) {
-      const fullSession = this.webAuth.tinyCloudSession;
-      if (fullSession?.siwe) {
-        const expirationMatch = fullSession.siwe.match(/Expiration Time: (.+)/);
-        if (expirationMatch?.[1]) {
-          const parsed = new Date(expirationMatch[1]);
-          if (!isNaN(parsed.getTime())) {
-            return parsed;
-          }
+    const fullSession = this.webAuth.tinyCloudSession;
+    if (fullSession?.siwe) {
+      const expirationMatch = fullSession.siwe.match(/Expiration Time: (.+)/);
+      if (expirationMatch?.[1]) {
+        const parsed = new Date(expirationMatch[1]);
+        if (!isNaN(parsed.getTime())) {
+          return parsed;
         }
       }
     }
-    // Default to 1 hour from now if not available (legacy mode or SIWE parse failure)
+    // Default to 1 hour from now if SIWE parse failure
     return new Date(Date.now() + 60 * 60 * 1000);
   }
 
@@ -1049,11 +1001,6 @@ export class TinyCloudWeb {
     requestedExpiry: Date,
     hosts: string[]
   ): Promise<{ session: ServiceSession; expiry: Date } | undefined> {
-    // Session extension only works in new auth mode
-    if (!this.isNewAuthEnabled) {
-      return undefined;
-    }
-
     const fullSession = this.webAuth.tinyCloudSession;
     const address = this.userAuthorization.address();
     const chainId = this.userAuthorization.chainId();
@@ -1146,11 +1093,6 @@ export class TinyCloudWeb {
     },
     hosts: string[]
   ): Promise<Delegation | undefined> {
-    // Root delegation only works in new auth mode
-    if (!this.isNewAuthEnabled) {
-      return undefined;
-    }
-
     const address = this.userAuthorization.address();
     const chainId = this.userAuthorization.chainId();
 
@@ -1332,12 +1274,12 @@ export class TinyCloudWeb {
 
   /**
    * Convert TinyCloud session to ServiceSession.
-   * Gets session from UserAuthorization.
+   * Gets session from WebUserAuthorization.
    * @internal
    */
   private toServiceSession(): ServiceSession | null {
-    // Get the TinyCloud session from UserAuthorization
-    const tinycloudSession = this.userAuthorization.getTinycloudSession?.();
+    // Get the TinyCloud session from WebUserAuthorization
+    const tinycloudSession = this.userAuthorization.getTinycloudSession();
     if (!tinycloudSession) {
       return null;
     }
@@ -1431,72 +1373,47 @@ export class TinyCloudWeb {
     this.userAuthorization.chainId();
 
   // =========================================================================
-  // New Auth Module Features (TC-714)
-  // Available when useNewAuth: true
+  // Auth Module Features
   // =========================================================================
 
   /**
-   * Check if the new auth module is being used.
-   * @returns true if using WebUserAuthorization, false if using legacy UserAuthorization
-   */
-  public get isNewAuthEnabled(): boolean {
-    return this.config.useNewAuth === true;
-  }
-
-  /**
-   * Get the WebUserAuthorization instance (new auth module only).
-   * Throws if not using new auth module.
-   *
-   * @throws Error if useNewAuth is false
+   * Get the WebUserAuthorization instance.
    */
   public get webAuth(): WebUserAuthorization {
-    if (!this.isNewAuthEnabled) {
-      throw new Error(
-        'WebUserAuthorization is not available. Set useNewAuth: true in config to use the new auth module.'
-      );
-    }
-    return this.userAuthorization as unknown as WebUserAuthorization;
+    return this.userAuthorization;
   }
 
   /**
-   * Get the primary DID for this user (new auth module only).
+   * Get the primary DID for this user.
    *
    * - If wallet connected and signed in: returns PKH DID (persistent identity)
    * - If session-only mode: returns session key DID (ephemeral)
-   *
-   * @throws Error if useNewAuth is false
    */
   public get did(): string {
     return this.webAuth.did;
   }
 
   /**
-   * Get the session key DID (new auth module only).
+   * Get the session key DID.
    * Always available, even before sign-in.
    *
    * Format: `did:key:z6Mk...#z6Mk...`
-   *
-   * @throws Error if useNewAuth is false
    */
   public get sessionDid(): string {
     return this.webAuth.sessionDid;
   }
 
   /**
-   * Check if in session-only mode (new auth module only).
+   * Check if in session-only mode.
    * Session-only mode means no wallet is connected, but delegations can be received.
-   *
-   * @throws Error if useNewAuth is false
    */
   public get isSessionOnly(): boolean {
     return this.webAuth.isSessionOnly;
   }
 
   /**
-   * Check if a wallet is connected (new auth module only).
+   * Check if a wallet is connected.
    * Wallet may be connected but not signed in.
-   *
-   * @throws Error if useNewAuth is false
    */
   public get isWalletConnected(): boolean {
     return this.webAuth.isWalletConnected;
@@ -1511,12 +1428,10 @@ export class TinyCloudWeb {
    * @param provider - Web3 provider (e.g., window.ethereum)
    * @param options - Optional configuration
    *
-   * @throws Error if useNewAuth is false
-   *
    * @example
    * ```typescript
    * // Create in session-only mode
-   * const tcw = new TinyCloudWeb({ useNewAuth: true });
+   * const tcw = new TinyCloudWeb();
    * console.log(tcw.isSessionOnly); // true
    *
    * // User clicks "Connect Wallet"
@@ -1547,14 +1462,13 @@ export class TinyCloudWeb {
    * @param delegation - The PortableDelegation to use (from createDelegation or transport)
    * @returns A DelegatedAccess instance for performing operations
    *
-   * @throws Error if useNewAuth is false (legacy auth not supported)
    * @throws Error if in session-only mode and delegation doesn't target this user's DID
    * @throws Error if in wallet mode and not signed in
    *
    * @example
    * ```typescript
    * // Session-only mode (most common for receiving delegations)
-   * const tcw = new TinyCloudWeb({ useNewAuth: true });
+   * const tcw = new TinyCloudWeb();
    * const delegation = deserializeDelegation(receivedData);
    *
    * // The delegation must target tcw.did (session key DID in session-only mode)
@@ -1565,7 +1479,7 @@ export class TinyCloudWeb {
    * await access.kv.put("shared/notes.txt", "Hello!");
    *
    * // Wallet mode (signed in user receiving delegation)
-   * const tcw = new TinyCloudWeb({ useNewAuth: true, providers: { web3: { driver: window.ethereum } } });
+   * const tcw = new TinyCloudWeb({ providers: { web3: { driver: window.ethereum } } });
    * await tcw.signIn();
    *
    * // The delegation should target tcw.did (PKH DID when signed in)
@@ -1573,12 +1487,6 @@ export class TinyCloudWeb {
    * ```
    */
   public async useDelegation(delegation: PortableDelegation): Promise<DelegatedAccess> {
-    if (!this.isNewAuthEnabled) {
-      throw new Error(
-        "useDelegation() requires new auth module. Set useNewAuth: true in config."
-      );
-    }
-
     const delegationHeader = delegation.delegationHeader;
 
     // Use the host from the delegation if provided, otherwise fall back to config
@@ -1811,7 +1719,6 @@ export class TinyCloudWeb {
    * @returns A portable delegation that can be sent to the recipient
    *
    * @throws Error if not signed in
-   * @throws Error if using legacy auth mode (requires useNewAuth: true)
    *
    * @example
    * ```typescript
@@ -1838,12 +1745,6 @@ export class TinyCloudWeb {
     /** Expiration time in milliseconds from now (default: 1 hour) */
     expiryMs?: number;
   }): Promise<PortableDelegation> {
-    if (!this.isNewAuthEnabled) {
-      throw new Error(
-        "createDelegation() requires new auth module. Set useNewAuth: true in config."
-      );
-    }
-
     const session = this.webAuth.tinyCloudSession;
     if (!session) {
       throw new Error("Not signed in. Call signIn() first.");
@@ -1962,7 +1863,6 @@ export class TinyCloudWeb {
    * @param params - Sub-delegation parameters (must be within parent's scope)
    * @returns A portable delegation for the sub-delegate
    *
-   * @throws Error if useNewAuth is false (legacy auth not supported)
    * @throws Error if in session-only mode (requires wallet)
    * @throws Error if not signed in
    * @throws Error if parent delegation does not allow sub-delegation
@@ -1997,12 +1897,6 @@ export class TinyCloudWeb {
       expiryMs?: number;
     }
   ): Promise<PortableDelegation> {
-    if (!this.isNewAuthEnabled) {
-      throw new Error(
-        "createSubDelegation() requires new auth module. Set useNewAuth: true in config."
-      );
-    }
-
     if (this.isSessionOnly) {
       throw new Error(
         "Cannot createSubDelegation() in session-only mode. Requires wallet mode."

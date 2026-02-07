@@ -73,10 +73,8 @@ function Delegate() {
     setError(null);
 
     try {
-      // Create TinyCloudWeb in session-only mode (new auth)
-      const tcwInstance = new TinyCloudWeb({
-        useNewAuth: true,
-      });
+      // Create TinyCloudWeb in session-only mode
+      const tcwInstance = new TinyCloudWeb({});
 
       // The session DID is available immediately
       console.log('Session DID:', tcwInstance.sessionDid);

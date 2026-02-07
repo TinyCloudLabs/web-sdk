@@ -4,12 +4,7 @@
 export { TinyCloudWeb, Config, ShareReceiveResult } from './modules/tcw';
 
 // =============================================================================
-// Legacy auth (UserAuthorization)
-// =============================================================================
-export { UserAuthorization, IUserAuthorization } from './modules/UserAuthorization';
-
-// =============================================================================
-// New auth module (WebUserAuthorization) and strategies
+// Auth module (WebUserAuthorization) and strategies
 // =============================================================================
 export {
   WebUserAuthorization,
