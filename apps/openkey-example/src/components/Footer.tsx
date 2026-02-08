@@ -4,6 +4,9 @@ const Footer: React.FC = () => {
   return (
     <footer className="bg-bg-alt py-6 border-t border-border">
       <div className="container mx-auto px-4">
+        <p className="text-center text-xs font-mono text-text-muted mb-4">
+          @openkey/sdk v{window.__OPENKEY_SDK_VERSION__} · @tinycloud/web-sdk v{window.__WEB_SDK_VERSION__}
+        </p>
         <div className="flex flex-col md:flex-row justify-between items-center">
           <div className="mb-4 md:mb-0">
             <p className="text-sm text-text-muted">&copy; {new Date().getFullYear()} TinyCloud. All rights reserved.</p>

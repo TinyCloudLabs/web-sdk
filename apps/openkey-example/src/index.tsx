@@ -8,6 +8,8 @@ import reportWebVitals from './reportWebVitals';
 declare global {
   interface Window {
     __DEV_MODE__: boolean;
+    __OPENKEY_SDK_VERSION__: string;
+    __WEB_SDK_VERSION__: string;
     enableDev: () => void;
   }
 }

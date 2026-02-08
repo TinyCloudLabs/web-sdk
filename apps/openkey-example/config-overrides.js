@@ -1,5 +1,10 @@
 const webpack = require('webpack');
 const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
+const path = require('path');
+
+// Read package versions for display in the app
+const openkeySdkVersion = require(path.resolve(__dirname, '../../../openkey/packages/sdk/package.json')).version;
+const webSdkVersion = require(path.resolve(__dirname, '../../packages/web-sdk/package.json')).version;
 
 // You can modify the webpack config in here, for instance to add polyfills.
 module.exports = function override(config, env) {
@@ -54,6 +59,10 @@ module.exports = function override(config, env) {
     new webpack.ProvidePlugin({
       process: 'process/browser.js',
       Buffer: ['buffer', 'Buffer'],
+    }),
+    new webpack.DefinePlugin({
+      'window.__OPENKEY_SDK_VERSION__': JSON.stringify(openkeySdkVersion),
+      'window.__WEB_SDK_VERSION__': JSON.stringify(webSdkVersion),
     }),
   );
 
