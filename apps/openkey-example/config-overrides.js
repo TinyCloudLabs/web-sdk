@@ -3,7 +3,7 @@ const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
 const path = require('path');
 
 // Read package versions for display in the app
-const openkeySdkVersion = require(path.resolve(__dirname, '../../../openkey/packages/sdk/package.json')).version;
+const openkeySdkVersion = require('@openkey/sdk/package.json').version;
 const webSdkVersion = require(path.resolve(__dirname, '../../packages/web-sdk/package.json')).version;
 
 // You can modify the webpack config in here, for instance to add polyfills.
