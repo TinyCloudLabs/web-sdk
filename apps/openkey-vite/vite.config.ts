@@ -1,4 +1,5 @@
 import { defineConfig, type Plugin } from "vite";
+import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { readFileSync, readdirSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -60,7 +61,7 @@ export default sdk;`;
 }
 
 export default defineConfig({
-  plugins: [react(), externalWebSdkBuild()],
+  plugins: [tailwindcss(), react(), externalWebSdkBuild()],
   server: {
     port: 5175,
     strictPort: true,
