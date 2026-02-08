@@ -63,8 +63,8 @@ module.exports = {
         marquee2: 'marquee2 15s linear infinite',
       },
       screens: {
-        w900: { raw: '(max-width: 900px)' },
-        w500: { raw: '(max-width: 500px)' },
+        w900: { max: '900px' },
+        w500: { max: '500px' },
       },
     },
   },
