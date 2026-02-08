@@ -33,9 +33,8 @@ module.exports = function override(config, env) {
         cssRule.use.forEach(loader => {
           if (loader.options && loader.options.postcssOptions) {
             loader.options.postcssOptions.plugins = [
-              require('tailwindcss'),
+              require('@tailwindcss/postcss'),
               require('autoprefixer'),
-              ...(loader.options.postcssOptions.plugins || []),
             ];
           }
         });
