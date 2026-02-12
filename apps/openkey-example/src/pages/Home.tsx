@@ -90,8 +90,8 @@ function Home() {
     setLoading(true);
 
     try {
-      // 1. Connect to OpenKey - opens popup for auth + key selection
-      const openkey = new OpenKey({ host: openKeyHost });
+      // 1. Connect to OpenKey - opens iframe overlay for auth + key selection
+      const openkey = new OpenKey({ host: openKeyHost, mode: 'iframe' });
       const authResult = await openkey.connect();
       setOpenKeyAddress(authResult.address);
 
@@ -113,7 +113,7 @@ function Home() {
 
       const tcwProvider = new TinyCloudWeb(tcwConfig);
 
-      // 5. Sign in - SIWE signing routed through OpenKey popup
+      // 5. Sign in - SIWE signing routed through OpenKey iframe
       await tcwProvider.signIn();
       setTinyCloudWeb(tcwProvider);
     } catch (err) {
@@ -297,7 +297,7 @@ function Home() {
                     <p>
                       Click the button below to connect with OpenKey and sign
                       into TinyCloud. Signing requests will be routed through
-                      OpenKey popups.
+                      OpenKey.
                     </p>
                   </div>
 
