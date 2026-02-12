@@ -42,6 +42,15 @@ module.exports = function override(config, env) {
     }
   }
 
+  // Force single React instance — in a monorepo, multiple resolution paths
+  // can cause libs like next-themes to get a different React than the app,
+  // breaking useContext(). require.resolve finds the actual installed copy.
+  config.resolve.alias = {
+    ...config.resolve.alias,
+    react: path.dirname(require.resolve('react/package.json')),
+    'react-dom': path.dirname(require.resolve('react-dom/package.json')),
+  };
+
   // Handle webpack fallbacks - only include essential ones
   config.resolve.fallback = {
     buffer: require.resolve('buffer/'),
