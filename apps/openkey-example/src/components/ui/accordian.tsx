@@ -31,7 +31,7 @@ const AccordionItem = React.forwardRef<HTMLDivElement, AccordionItemProps>(
     <RadixItem
       ref={ref}
       className={cn(
-        "rounded-base overflow-x-hidden border-2 border-b border-border dark:border-darkBorder shadow-light dark:shadow-dark",
+        "rounded-base overflow-x-hidden border-2 border-b border-border shadow-shadow",
         className,
       )}
       {...props}
@@ -46,7 +46,7 @@ const AccordionTrigger = React.forwardRef<HTMLButtonElement, AccordionTriggerPro
       <RadixTrigger
         ref={ref}
         className={cn(
-          "flex flex-1 items-center justify-between text-text border-border dark:border-darkBorder bg-main p-4 font-heading transition-all [&[data-state=open]>svg]:rotate-180 [&[data-state=open]]:rounded-b-none [&[data-state=open]]:border-b-2",
+          "flex flex-1 items-center justify-between text-text border-border bg-main p-4 font-heading transition-all [&[data-state=open]>svg]:rotate-180 [&[data-state=open]]:rounded-b-none [&[data-state=open]]:border-b-2",
           className,
         )}
         {...props}
