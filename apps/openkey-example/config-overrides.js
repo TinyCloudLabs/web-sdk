@@ -74,30 +74,5 @@ module.exports = function override(config, env) {
     }
   });
   
-  // Enable code splitting
-  if (env === 'production') {
-    config.optimization = {
-      ...config.optimization,
-      splitChunks: {
-        chunks: 'all',
-        maxInitialRequests: Infinity,
-        minSize: 0,
-        cacheGroups: {
-          vendor: {
-            test: /[\\/]node_modules[\\/]/,
-            name(module) {
-              // Get the name. E.g. node_modules/packageName/not/this/part.js
-              // or node_modules/packageName
-              const packageName = module.context.match(/[\\/]node_modules[\\/](.*?)([\\/]|$)/)[1];
-              
-              // Create separate chunks for large packages
-              return `vendor.${packageName.replace('@', '')}`;
-            },
-          },
-        },
-      },
-    };
-  }
-  
   return config;
 }
