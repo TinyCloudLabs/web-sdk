@@ -39,6 +39,7 @@ import {
   IKVService,
   ServiceSession,
   ServiceContext,
+  ISessionStorage,
   // v2 services
   DelegationManager,
   SpaceService,
@@ -94,6 +95,8 @@ export interface TinyCloudNodeConfig {
   sessionExpirationMs?: number;
   /** Whether to automatically create space if it doesn't exist (default: false) */
   autoCreateSpace?: boolean;
+  /** Custom session storage implementation (default: MemorySessionStorage) */
+  sessionStorage?: ISessionStorage;
 }
 
 /**
@@ -232,7 +235,7 @@ export class TinyCloudNode {
       this.auth = new NodeUserAuthorization({
         signer: this.signer,
         signStrategy: { type: "auto-sign" },
-        sessionStorage: new MemorySessionStorage(),
+        sessionStorage: config.sessionStorage ?? new MemorySessionStorage(),
         domain,
         spacePrefix: config.prefix,
         sessionExpirationMs: config.sessionExpirationMs ?? 60 * 60 * 1000,
@@ -352,7 +355,7 @@ export class TinyCloudNode {
    * console.log(node.did); // did:pkh:eip155:1:0x... (PKH)
    * ```
    */
-  connectWallet(privateKey: string, options?: { prefix?: string }): void {
+  connectWallet(privateKey: string, options?: { prefix?: string; sessionStorage?: ISessionStorage }): void {
     if (this.signer) {
       throw new Error("Wallet already connected. Cannot connect another wallet.");
     }
@@ -368,7 +371,7 @@ export class TinyCloudNode {
     this.auth = new NodeUserAuthorization({
       signer: this.signer,
       signStrategy: { type: "auto-sign" },
-      sessionStorage: new MemorySessionStorage(),
+      sessionStorage: options?.sessionStorage ?? this.config.sessionStorage ?? new MemorySessionStorage(),
       domain,
       spacePrefix: prefix,
       sessionExpirationMs: this.config.sessionExpirationMs ?? 60 * 60 * 1000,
