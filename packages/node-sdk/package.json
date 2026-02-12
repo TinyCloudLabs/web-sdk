@@ -5,7 +5,7 @@
   "author": "TinyCloud, Inc.",
   "license": "EGPL",
   "type": "module",
-  "main": "dist/index.js",
+  "main": "dist/index.cjs",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
@@ -22,7 +22,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsup",
     "clean": "rm -rf dist",
     "test": "bun test"
   },
@@ -34,6 +34,7 @@
   },
   "devDependencies": {
     "@types/node": "^20",
+    "tsup": "^8.0.0",
     "typescript": "^5.0.0"
   },
   "repository": {
