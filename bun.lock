@@ -3,6 +3,9 @@
   "workspaces": {
     "": {
       "name": "tinycloud-web-sdk",
+      "dependencies": {
+        "@openkey/sdk": "^0.4.0",
+      },
       "devDependencies": {
         "@changesets/cli": "^2.28.1",
         "@docusaurus/core": "^3.7.0",
@@ -1216,7 +1219,7 @@
 
     "@octokit/types": ["@octokit/types@6.41.0", "", { "dependencies": { "@octokit/openapi-types": "^12.11.0" } }, "sha512-eJ2jbzjdijiL3B4PrSQaSjuF2sPEQPVCPzBvTHJD9Nz+9dw2SGH4K4xeQJ77YfTq5bRQ+bD8wT11JbeDPmxmGg=="],
 
-    "@openkey/sdk": ["@openkey/sdk@0.2.1", "", {}, "sha512-FihSe3s9Ni1g4uGAuURwSfkaYJXcFFVDIUNhIVgCqIfVKMjBYvmmOzwAyX1G8zBHPZYaMrXee12yTIB0YPvRqw=="],
+    "@openkey/sdk": ["@openkey/sdk@0.4.0", "", {}, "sha512-qMmbpHzNT/lZHwZOZz19k12tts2ZA22w+8ZtjUChLWfNLsUEmozTPeYzPgGg+G2CpXB7uS76Y0oT1Fq3wEcKAg=="],
 
     "@paulmillr/qr": ["@paulmillr/qr@0.2.1", "", {}, "sha512-IHnV6A+zxU7XwmKFinmYjUcwlyK9+xkG3/s9KcQhI9BjQKycrJ1JRO+FbNYPwZiPKW3je/DR0k7w8/gLa5eaxQ=="],
 
@@ -6041,6 +6044,8 @@
     "null-loader/schema-utils": ["schema-utils@3.3.0", "", { "dependencies": { "@types/json-schema": "^7.0.8", "ajv": "^6.12.5", "ajv-keywords": "^3.5.2" } }, "sha512-pN/yOAvcC+5rQ5nERGuwrjLlYvLTbCibnZ1I7B1LaiAz9BRBlE9GMgE/eqV30P7aJQUf7Ddimy/RsbYO/GrVGg=="],
 
     "obj-multiplex/readable-stream": ["readable-stream@2.3.8", "", { "dependencies": { "core-util-is": "~1.0.0", "inherits": "~2.0.3", "isarray": "~1.0.0", "process-nextick-args": "~2.0.0", "safe-buffer": "~5.1.1", "string_decoder": "~1.1.1", "util-deprecate": "~1.0.1" } }, "sha512-8p0AUk4XODgIewSi0l8Epjs+EVnWiK7NoDIEGU0HhE7+ZyY8D1IMY7odu5lRrFXGg71L15KG8QrPmum45RTtdA=="],
+
+    "openkey-vite/@openkey/sdk": ["@openkey/sdk@0.2.1", "", {}, "sha512-FihSe3s9Ni1g4uGAuURwSfkaYJXcFFVDIUNhIVgCqIfVKMjBYvmmOzwAyX1G8zBHPZYaMrXee12yTIB0YPvRqw=="],
 
     "p-filter/p-map": ["p-map@2.1.0", "", {}, "sha512-y3b8Kpd8OAN444hxfBbFfj1FY/RjtTd8tzYwhUqNYXx0fXx2iX4maP4Qr6qhIKbQXI02wTLAda4fYUbDagTUFw=="],
 
