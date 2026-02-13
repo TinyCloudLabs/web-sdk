@@ -1,5 +1,11 @@
 # @tinycloudlabs/node-sdk
 
+## 1.2.0
+
+### Minor Changes
+
+- 2014a20: Add sessionStorage to TinyCloudNodeConfig types and switch build to tsup for proper ESM/CJS output
+
 ## 1.1.0
 
 ### Patch Changes
