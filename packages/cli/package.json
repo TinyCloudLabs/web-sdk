@@ -1,0 +1,34 @@
+{
+  "name": "@tinycloud/cli",
+  "version": "0.0.0",
+  "description": "TinyCloud CLI - manage data, delegations, and nodes from the terminal",
+  "author": "TinyCloud, Inc.",
+  "license": "EGPL",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "tc": "./bin/tc"
+  },
+  "files": ["dist", "bin"],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsup",
+    "clean": "rm -rf dist",
+    "dev": "tsup --watch"
+  },
+  "dependencies": {
+    "@tinycloud/node-sdk": "workspace:*",
+    "@tinycloud/node-sdk-wasm": "workspace:*",
+    "commander": "^12.0.0",
+    "open": "^10.0.0",
+    "ora": "^8.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  }
+}
