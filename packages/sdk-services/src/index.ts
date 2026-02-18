@@ -150,3 +150,19 @@ export type {
   KVResponseHeaders,
   KVActionType,
 } from "./kv";
+
+// SQL service
+export { SQLService, DatabaseHandle, SQLAction } from "./sql";
+export type { ISQLService, IDatabaseHandle } from "./sql";
+export type {
+  SQLServiceConfig,
+  QueryOptions,
+  ExecuteOptions,
+  BatchOptions,
+  SqlValue,
+  SqlStatement,
+  QueryResponse,
+  ExecuteResponse,
+  BatchResponse,
+  SQLActionType,
+} from "./sql";
