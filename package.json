@@ -78,5 +78,8 @@
     "@reown/appkit",
     "core-js",
     "core-js-pure"
-  ]
+  ],
+  "dependencies": {
+    "@openkey/sdk": "^0.4.0"
+  }
 }
