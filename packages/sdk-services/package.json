@@ -18,6 +18,11 @@
       "types": "./dist/kv/index.d.ts",
       "import": "./dist/kv/index.js",
       "default": "./dist/kv/index.js"
+    },
+    "./sql": {
+      "types": "./dist/sql/index.d.ts",
+      "import": "./dist/sql/index.js",
+      "default": "./dist/sql/index.js"
     }
   },
   "files": [

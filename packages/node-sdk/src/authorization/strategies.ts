@@ -10,18 +10,15 @@
 
 import { EventEmitter } from "events";
 
-// Re-export common types from sdk-core
-export {
-  SignRequest,
-  SignResponse,
-  SignCallback,
+// Import types for local use in SignStrategy union
+import type {
   AutoSignStrategy,
   AutoRejectStrategy,
   CallbackStrategy,
 } from "@tinycloud/sdk-core";
 
-// Import types for use in local definitions
-import type {
+// Re-export common types from sdk-core (type-only — erased at runtime in sdk-core dist)
+export type {
   SignRequest,
   SignResponse,
   SignCallback,

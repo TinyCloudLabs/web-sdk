@@ -83,6 +83,22 @@ export {
   // Retry
   type RetryPolicy,
   defaultRetryPolicy,
+  // SQL Service
+  SQLService,
+  DatabaseHandle,
+  SQLAction,
+  type ISQLService,
+  type IDatabaseHandle,
+  type SQLServiceConfig,
+  type SqlValue,
+  type SqlStatement,
+  type QueryOptions,
+  type ExecuteOptions,
+  type BatchOptions,
+  type QueryResponse,
+  type ExecuteResponse,
+  type BatchResponse,
+  type SQLActionType,
 } from "@tinycloud/sdk-services";
 
 // Space utilities

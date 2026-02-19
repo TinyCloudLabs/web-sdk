@@ -33,9 +33,11 @@
  * @packageDocumentation
  */
 
-// Re-export core types for convenience
-export {
-  TinyCloud,
+// Re-export core values
+export { TinyCloud } from "@tinycloud/sdk-core";
+
+// Re-export core types
+export type {
   TinyCloudConfig,
   ISigner,
   ISessionStorage,
@@ -59,17 +61,17 @@ export {
   NodeUserAuthorizationConfig,
 } from "./authorization/NodeUserAuthorization";
 
-// Sign strategies (re-exported from sdk-core + Node.js-specific types)
-export {
-  // Common types from sdk-core
+// Sign strategies — value exports
+export { defaultSignStrategy } from "./authorization/strategies";
+
+// Sign strategies — type exports (re-exported from sdk-core + Node.js-specific types)
+export type {
   SignRequest,
   SignResponse,
   SignCallback,
   AutoSignStrategy,
   AutoRejectStrategy,
   CallbackStrategy,
-  defaultSignStrategy,
-  // Node.js-specific types
   NodeEventEmitterStrategy,
   SignStrategy,
 } from "./authorization/strategies";
@@ -85,81 +87,104 @@ export {
   deserializeDelegation,
 } from "./delegation";
 
-// Re-export KV service for direct usage
-export {
+// Re-export KV service values
+export { KVService, PrefixedKVService } from "@tinycloud/sdk-core";
+
+// Re-export KV service types
+export type {
   IKVService,
-  KVService,
   KVServiceConfig,
   KVResponse,
-  // Prefixed KV
-  PrefixedKVService,
   IPrefixedKVService,
 } from "@tinycloud/sdk-core";
 
-// Re-export v2 Delegation services and types
+// Re-export SQL service values
+export { SQLService, SQLAction, DatabaseHandle } from "@tinycloud/sdk-core";
+
+// Re-export SQL service types
+export type {
+  ISQLService,
+  IDatabaseHandle,
+  SQLServiceConfig,
+  SqlValue,
+  SqlStatement,
+  QueryOptions,
+  ExecuteOptions,
+  BatchOptions,
+  QueryResponse,
+  ExecuteResponse,
+  BatchResponse,
+  SQLActionType,
+} from "@tinycloud/sdk-core";
+
+// Re-export v2 Delegation service values
 export {
-  // DelegationManager (v2 DelegationService)
   DelegationManager,
-  DelegationManagerConfig,
-  // SharingService (v2)
   SharingService,
+  createSharingService,
+  DelegationErrorCodes,
+} from "@tinycloud/sdk-core";
+
+// Re-export v2 Delegation types
+export type {
+  DelegationManagerConfig,
   ISharingService,
   SharingServiceConfig,
-  createSharingService,
   EncodedShareData,
   ReceiveOptions,
   ShareAccess,
-  // Delegation types
   Delegation,
   CreateDelegationParams,
-  DelegationChain,
-  DelegationChainV2,
-  DelegationDirection,
-  DelegationFilters,
-  // Error types
   DelegationResult,
   DelegationError,
-  DelegationErrorCodes,
   DelegationErrorCode,
-  // Key types
   JWK,
   KeyType,
   KeyInfo,
   CapabilityEntry,
   DelegationRecord,
-  // Space types
   SpaceOwnership,
   SpaceInfo,
-  // Share types
   ShareSchema,
   ShareLink,
   ShareLinkData,
   IngestOptions,
   GenerateShareParams,
+  DelegationChain,
+  DelegationChainV2,
+  DelegationDirection,
+  DelegationFilters,
 } from "@tinycloud/sdk-core";
 
-// Re-export CapabilityKeyRegistry (v2)
+// Re-export CapabilityKeyRegistry values (v2)
 export {
   CapabilityKeyRegistry,
-  ICapabilityKeyRegistry,
   createCapabilityKeyRegistry,
-  StoredDelegationChain,
   CapabilityKeyRegistryErrorCodes,
+} from "@tinycloud/sdk-core";
+
+// Re-export CapabilityKeyRegistry types (v2)
+export type {
+  ICapabilityKeyRegistry,
+  StoredDelegationChain,
   CapabilityKeyRegistryErrorCode,
 } from "@tinycloud/sdk-core";
 
-// Re-export SpaceService (v2)
+// Re-export SpaceService values (v2)
 export {
   SpaceService,
-  ISpaceService,
-  SpaceServiceConfig,
   SpaceErrorCodes,
-  SpaceErrorCode,
   createSpaceService,
   parseSpaceUri,
   buildSpaceUri,
-  // Space object
   Space,
+} from "@tinycloud/sdk-core";
+
+// Re-export SpaceService types (v2)
+export type {
+  ISpaceService,
+  SpaceServiceConfig,
+  SpaceErrorCode,
   ISpace,
   SpaceConfig,
   ISpaceScopedDelegations,
@@ -173,9 +198,11 @@ export {
   checkNodeVersion,
 } from "@tinycloud/sdk-core";
 
-// Re-export ServiceContext and related types for advanced usage
-export {
-  ServiceContext,
+// Re-export ServiceContext value for advanced usage
+export { ServiceContext } from "@tinycloud/sdk-core";
+
+// Re-export ServiceContext types for advanced usage
+export type {
   ServiceContextConfig,
   ServiceSession,
   InvokeFunction,

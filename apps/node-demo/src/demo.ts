@@ -412,6 +412,119 @@ async function runDemo() {
   console.log();
 
   // =========================================================================
+  // PART 5: SQL Service - Relational Database
+  // =========================================================================
+  console.log();
+  console.log("=".repeat(70));
+  console.log("PART 5: SQL Service - Relational Database");
+  console.log("=".repeat(70));
+  console.log();
+
+  // Step 1: Alice creates a table and inserts data
+  console.log("[Alice] Creating users table...");
+  const createResult = await alice.sql.execute(
+    "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT NOT NULL, email TEXT)",
+    [],
+    { schema: ["CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT NOT NULL, email TEXT)"] }
+  );
+
+  if (!createResult.ok) {
+    console.error(`[Alice] ✗ Failed to create table: ${createResult.error.message}`);
+  } else {
+    console.log("[Alice] ✓ Table created");
+  }
+
+  // Step 2: Insert rows
+  console.log("[Alice] Inserting users...");
+  const insertResult = await alice.sql.execute(
+    "INSERT INTO users (name, email) VALUES (?, ?)",
+    ["Alice", "alice@example.com"]
+  );
+  if (insertResult.ok) {
+    console.log(`[Alice] ✓ Inserted user (id: ${insertResult.data.lastInsertRowId})`);
+  }
+
+  await alice.sql.execute(
+    "INSERT INTO users (name, email) VALUES (?, ?)",
+    ["Bob", "bob@example.com"]
+  );
+
+  // Step 3: Query rows
+  console.log("[Alice] Querying users...");
+  const queryResult = await alice.sql.query<[number, string, string]>(
+    "SELECT * FROM users ORDER BY id"
+  );
+  if (queryResult.ok) {
+    console.log(`[Alice] ✓ Found ${queryResult.data.rowCount} users:`);
+    console.log(`  Columns: ${queryResult.data.columns.join(", ")}`);
+    for (const row of queryResult.data.rows) {
+      console.log(`  Row: ${JSON.stringify(row)}`);
+    }
+  }
+
+  // Step 4: Batch operations (transaction)
+  console.log("[Alice] Running batch insert...");
+  const batchResult = await alice.sql.batch([
+    { sql: "INSERT INTO users (name, email) VALUES (?, ?)", params: ["Charlie", "charlie@example.com"] },
+    { sql: "INSERT INTO users (name, email) VALUES (?, ?)", params: ["Dave", "dave@example.com"] },
+  ]);
+  if (batchResult.ok) {
+    console.log(`[Alice] ✓ Batch completed: ${batchResult.data.results.length} statements executed`);
+  }
+
+  // Step 5: Named databases
+  console.log("[Alice] Using named database 'analytics'...");
+  const analyticsDb = alice.sql.db("analytics");
+  const analyticsCreateResult = await analyticsDb.execute(
+    "CREATE TABLE IF NOT EXISTS events (id INTEGER PRIMARY KEY, event TEXT, ts TEXT)"
+  );
+  if (analyticsCreateResult.ok) {
+    console.log("[Alice] ✓ analytics.events table created");
+  }
+  await analyticsDb.execute(
+    "INSERT INTO events (event, ts) VALUES (?, ?)",
+    ["page_view", new Date().toISOString()]
+  );
+  const eventsResult = await analyticsDb.query("SELECT COUNT(*) as count FROM events");
+  if (eventsResult.ok) {
+    console.log(`[Alice] ✓ Analytics events: ${JSON.stringify(eventsResult.data.rows[0])}`);
+  }
+
+  // Step 6: Delegated SQL access
+  console.log();
+  console.log("[Alice] Delegating SQL read access to Bob...");
+  const sqlDelegation = await alice.createDelegation({
+    delegateDID: bob.did,
+    path: "default",
+    actions: ["tinycloud.sql/read"],
+    expiryMs: 60 * 60 * 1000,
+  });
+  console.log(`[Alice] ✓ SQL delegation created: ${sqlDelegation.cid}`);
+
+  const bobSqlAccess = await bob.useDelegation(sqlDelegation);
+  console.log("[Bob] Querying Alice's database via delegation...");
+  const bobQueryResult = await bobSqlAccess.sql.query("SELECT name FROM users ORDER BY id");
+  if (bobQueryResult.ok) {
+    console.log(`[Bob] ✓ Read ${bobQueryResult.data.rowCount} users from Alice's database`);
+    for (const row of bobQueryResult.data.rows) {
+      console.log(`  - ${row[0]}`);
+    }
+  }
+
+  // Step 7: Read-only enforcement (Bob should not be able to write)
+  console.log("[Bob] Attempting write (should fail)...");
+  const bobWriteResult2 = await bobSqlAccess.sql.execute(
+    "INSERT INTO users (name, email) VALUES (?, ?)",
+    ["Hacker", "hack@evil.com"]
+  );
+  if (!bobWriteResult2.ok) {
+    console.log(`[Bob] ✓ Write correctly denied: ${bobWriteResult2.error.code}`);
+  } else {
+    console.log("[Bob] ✗ Write should have been denied!");
+  }
+  console.log();
+
+  // =========================================================================
   // PART 4: Space Management (Skipped - Space API not yet implemented)
   // =========================================================================
   console.log();
@@ -460,6 +573,14 @@ async function runDemo() {
   console.log("  ✓ Alice generated sharing link with embedded private key");
   console.log("  ✓ Dave received link WITHOUT signIn() or wallet");
   console.log("  ✓ Dave accessed Alice's space using pre-configured KV from share");
+  console.log();
+  console.log("PART 5 - SQL Service:");
+  console.log("  ✓ Created table with alice.sql.execute()");
+  console.log("  ✓ Queried rows with alice.sql.query()");
+  console.log("  ✓ Batch operations with alice.sql.batch()");
+  console.log("  ✓ Named database handle with alice.sql.db('analytics')");
+  console.log("  ✓ SQL delegation with read-only enforcement");
+  console.log("  ✓ Bob queried via delegation, write correctly denied");
   console.log();
   console.log("PART 4 - Space Management:");
   console.log("  ⏳ Skipped (server-side tinycloud.space/* not yet implemented)");

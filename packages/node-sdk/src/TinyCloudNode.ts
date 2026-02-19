@@ -37,6 +37,8 @@ import {
   activateSessionWithHost,
   KVService,
   IKVService,
+  SQLService,
+  ISQLService,
   ServiceSession,
   ServiceContext,
   ISessionStorage,
@@ -118,6 +120,7 @@ export class TinyCloudNode {
   private sessionManager: SessionManager;
   private _serviceContext?: ServiceContext;
   private _kv?: KVService;
+  private _sql?: SQLService;
 
   /** Session key ID - always available */
   private sessionKeyId: string;
@@ -320,8 +323,9 @@ export class TinyCloudNode {
     this._address = await this.signer.getAddress();
     this._chainId = await this.signer.getChainId();
 
-    // Reset KV service so it gets recreated with new session
+    // Reset services so they get recreated with new session
     this._kv = undefined;
+    this._sql = undefined;
     this._serviceContext = undefined;
 
     await this.tc.signIn();
@@ -408,6 +412,11 @@ export class TinyCloudNode {
     this._kv.initialize(this._serviceContext);
     this._serviceContext.registerService('kv', this._kv);
 
+    // Create and register SQL service
+    this._sql = new SQLService({});
+    this._sql.initialize(this._serviceContext);
+    this._serviceContext.registerService('sql', this._sql);
+
     // Set session on context
     const serviceSession: ServiceSession = {
       delegationHeader: session.delegationHeader,
@@ -454,6 +463,10 @@ export class TinyCloudNode {
           "tinycloud.kv/del",
           "tinycloud.kv/list",
           "tinycloud.kv/metadata",
+          "tinycloud.sql/read",
+          "tinycloud.sql/write",
+          "tinycloud.sql/admin",
+          "tinycloud.sql/*",
         ],
         expiry: this.getSessionExpiry(),
         isRevoked: false,
@@ -631,6 +644,16 @@ export class TinyCloudNode {
       throw new Error("Not signed in. Call signIn() first.");
     }
     return this._kv;
+  }
+
+  /**
+   * SQL database operations on this user's space.
+   */
+  get sql(): ISQLService {
+    if (!this._sql) {
+      throw new Error("Not signed in. Call signIn() first.");
+    }
+    return this._sql;
   }
 
   // ===========================================================================
@@ -909,11 +932,15 @@ export class TinyCloudNode {
     }
 
     // Build abilities for the delegation
-    const abilities: Record<string, Record<string, string[]>> = {
-      kv: {
-        [params.path]: params.actions,
-      },
-    };
+    const abilities: Record<string, Record<string, string[]>> = {};
+    const kvActions = params.actions.filter(a => a.startsWith("tinycloud.kv/"));
+    const sqlActions = params.actions.filter(a => a.startsWith("tinycloud.sql/"));
+    if (kvActions.length > 0) {
+      abilities.kv = { [params.path]: kvActions };
+    }
+    if (sqlActions.length > 0) {
+      abilities.sql = { [params.path]: sqlActions };
+    }
 
     const now = new Date();
     const expiryMs = params.expiryMs ?? 60 * 60 * 1000; // Default 1 hour
@@ -1032,11 +1059,15 @@ export class TinyCloudNode {
     const jwk = mySession.jwk;
 
     // Build abilities from the delegation
-    const abilities: Record<string, Record<string, string[]>> = {
-      kv: {
-        [delegation.path]: delegation.actions,
-      },
-    };
+    const abilities: Record<string, Record<string, string[]>> = {};
+    const kvActions = delegation.actions.filter(a => a.startsWith("tinycloud.kv/"));
+    const sqlActions = delegation.actions.filter(a => a.startsWith("tinycloud.sql/"));
+    if (kvActions.length > 0) {
+      abilities.kv = { [delegation.path]: kvActions };
+    }
+    if (sqlActions.length > 0) {
+      abilities.sql = { [delegation.path]: sqlActions };
+    }
 
     const now = new Date();
     // Use delegation expiry or 1 hour, whichever is sooner
@@ -1162,11 +1193,15 @@ export class TinyCloudNode {
       requestedExpiry > parentDelegation.expiry ? parentDelegation.expiry : requestedExpiry;
 
     // Build abilities for the sub-delegation
-    const abilities: Record<string, Record<string, string[]>> = {
-      kv: {
-        [params.path]: params.actions,
-      },
-    };
+    const abilities: Record<string, Record<string, string[]>> = {};
+    const kvActions = params.actions.filter(a => a.startsWith("tinycloud.kv/"));
+    const sqlActions = params.actions.filter(a => a.startsWith("tinycloud.sql/"));
+    if (kvActions.length > 0) {
+      abilities.kv = { [params.path]: kvActions };
+    }
+    if (sqlActions.length > 0) {
+      abilities.sql = { [params.path]: sqlActions };
+    }
 
     // Use parent's host or fall back to config
     const targetHost = parentDelegation.host ?? this.config.host!;

@@ -9,6 +9,8 @@ import {
   IServiceContext,
   IKVService,
   KVService,
+  ISQLService,
+  SQLService,
   ServiceSession,
   InvokeFunction,
   FetchFunction,
@@ -198,6 +200,7 @@ export class TinyCloud {
     // Register default services (can be overridden via config.services)
     const serviceConstructors: Record<string, ServiceConstructor> = {
       kv: KVService,
+      sql: SQLService,
       ...this.config.services,
     };
 
@@ -250,6 +253,24 @@ export class TinyCloud {
     const service = this._services.get("kv") as IKVService | undefined;
     if (!service) {
       throw new Error("KV service is not registered.");
+    }
+    return service;
+  }
+
+  /**
+   * Get the SQL service.
+   * @throws Error if services are not initialized
+   */
+  public get sql(): ISQLService {
+    if (!this._servicesInitialized) {
+      throw new Error(
+        "Services not initialized. Call initializeServices() first, " +
+          "or use TinyCloudWeb/TinyCloudNode which handles this automatically."
+      );
+    }
+    const service = this._services.get("sql") as ISQLService | undefined;
+    if (!service) {
+      throw new Error("SQL service is not registered.");
     }
     return service;
   }
