@@ -1,5 +1,5 @@
 ---
-"@tinycloud/cli": minor
+"@tinycloud/cli": patch
 ---
 
 Initial release
