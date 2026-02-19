@@ -138,6 +138,14 @@ export class NodeUserAuthorization implements IUserAuthorization {
           "tinycloud.kv/metadata",
         ],
       },
+      sql: {
+        "": [
+          "tinycloud.sql/read",
+          "tinycloud.sql/write",
+          "tinycloud.sql/admin",
+          "tinycloud.sql/export",
+        ],
+      },
       capabilities: {
         "": ["tinycloud.capabilities/read"],
       },

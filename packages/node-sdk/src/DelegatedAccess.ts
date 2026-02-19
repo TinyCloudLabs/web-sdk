@@ -2,6 +2,8 @@ import {
   TinyCloudSession,
   KVService,
   IKVService,
+  SQLService,
+  ISQLService,
   ServiceSession,
   ServiceContext,
 } from "@tinycloud/sdk-core";
@@ -20,6 +22,7 @@ export class DelegatedAccess {
   private host: string;
   private _serviceContext: ServiceContext;
   private _kv: KVService;
+  private _sql: SQLService;
 
   constructor(
     session: TinyCloudSession,
@@ -43,6 +46,11 @@ export class DelegatedAccess {
     this._kv = new KVService({ prefix });
     this._kv.initialize(this._serviceContext);
     this._serviceContext.registerService('kv', this._kv);
+
+    // Create and initialize SQL service with same delegation context
+    this._sql = new SQLService({});
+    this._sql.initialize(this._serviceContext);
+    this._serviceContext.registerService('sql', this._sql);
 
     // Set session on context
     const serviceSession: ServiceSession = {
@@ -81,5 +89,12 @@ export class DelegatedAccess {
    */
   get kv(): IKVService {
     return this._kv;
+  }
+
+  /**
+   * SQL operations on the delegated space.
+   */
+  get sql(): ISQLService {
+    return this._sql;
   }
 }
