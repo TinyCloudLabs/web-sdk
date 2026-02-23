@@ -1,0 +1,96 @@
+name: Dependency Bump
+
+on:
+  repository_dispatch:
+    types: [dependency-bump]
+
+jobs:
+  bump:
+    name: Bump dependency from ${{ github.event.client_payload.source }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Update dependency versions
+        id: update
+        env:
+          PACKAGES: ${{ toJSON(github.event.client_payload.packages) }}
+          SOURCE: ${{ github.event.client_payload.source }}
+          VERSION: ${{ github.event.client_payload.version }}
+        run: |
+          echo "Bumping dependencies from $SOURCE to $VERSION"
+          echo "Packages: $PACKAGES"
+
+          UPDATED=""
+
+          # Update root package.json and apps/*/package.json
+          for pkg_file in package.json apps/*/package.json; do
+            [ -f "$pkg_file" ] || continue
+
+            for pkg in $(echo "$PACKAGES" | jq -r 'keys[]'); do
+              ver=$(echo "$PACKAGES" | jq -r --arg k "$pkg" '.[$k]')
+
+              if jq -e --arg p "$pkg" '.dependencies[$p]' "$pkg_file" > /dev/null 2>&1; then
+                jq --arg p "$pkg" --arg v "^$ver" '.dependencies[$p] = $v' "$pkg_file" > "$pkg_file.tmp" && mv "$pkg_file.tmp" "$pkg_file"
+                echo "Updated $pkg to ^$ver in $pkg_file"
+                UPDATED="${UPDATED}${pkg}@^${ver} "
+              fi
+
+              if jq -e --arg p "$pkg" '.devDependencies[$p]' "$pkg_file" > /dev/null 2>&1; then
+                jq --arg p "$pkg" --arg v "^$ver" '.devDependencies[$p] = $v' "$pkg_file" > "$pkg_file.tmp" && mv "$pkg_file.tmp" "$pkg_file"
+                echo "Updated $pkg to ^$ver in $pkg_file (devDependencies)"
+                UPDATED="${UPDATED}${pkg}@^${ver} (dev) "
+              fi
+            done
+          done
+
+          if [ -z "$UPDATED" ]; then
+            echo "has_updates=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_updates=true" >> "$GITHUB_OUTPUT"
+            echo "updated_list=${UPDATED}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install dependencies
+        if: steps.update.outputs.has_updates == 'true'
+        run: bun install
+
+      - name: Generate changeset
+        if: steps.update.outputs.has_updates == 'true'
+        env:
+          SOURCE: ${{ github.event.client_payload.source }}
+          VERSION: ${{ github.event.client_payload.version }}
+        run: |
+          CHANGESET_ID="bump-${SOURCE}-$(echo $VERSION | tr '.' '-')-$(date +%s)"
+          printf '%s\n' '---' '"@tinycloud/web-sdk": patch' '---' '' "chore: bump ${SOURCE} dependencies to ${VERSION}" > ".changeset/${CHANGESET_ID}.md"
+
+      - name: Create Pull Request
+        if: steps.update.outputs.has_updates == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+          commit-message: "chore(deps): bump ${{ github.event.client_payload.source }} to ${{ github.event.client_payload.version }}"
+          title: "chore(deps): bump ${{ github.event.client_payload.source }} to ${{ github.event.client_payload.version }}"
+          body: |
+            Automated dependency bump triggered by ${{ github.event.client_payload.source }} release.
+
+            **Source:** ${{ github.event.client_payload.source }}
+            **Version:** ${{ github.event.client_payload.version }}
+            **Updated:** ${{ steps.update.outputs.updated_list }}
+
+            This PR includes a changeset that will trigger a web-sdk release when merged,
+            which cascades to web-sdk consumers (OpenCredentials).
+          branch: chore/bump-${{ github.event.client_payload.source }}-${{ github.event.client_payload.version }}
+          base: master
+          delete-branch: true

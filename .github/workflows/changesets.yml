@@ -52,3 +52,34 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Dispatch dependency-bump to consumer repos
+        if: steps.changesets.outputs.published == 'true'
+        env:
+          DISPATCH_TOKEN: ${{ secrets.DISPATCH_TOKEN }}
+          PUBLISHED_PACKAGES: ${{ steps.changesets.outputs.publishedPackages }}
+        run: |
+          # Convert changesets array [{name, version}] to object {name: version}
+          PACKAGES=$(echo "$PUBLISHED_PACKAGES" | jq -c '[.[] | {(.name): .version}] | add')
+
+          # Use the first published package version as the top-level version
+          VERSION=$(echo "$PUBLISHED_PACKAGES" | jq -r '.[0].version')
+
+          PAYLOAD=$(jq -nc \
+            --arg source "web-sdk" \
+            --arg version "$VERSION" \
+            --argjson packages "$PACKAGES" \
+            '{source: $source, version: $version, packages: $packages}')
+
+          REPOS=(
+            "tinycloudlabs/OpenCredentials"
+          )
+
+          for repo in "${REPOS[@]}"; do
+            echo "Dispatching dependency-bump to $repo"
+            curl -s -X POST \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: token $DISPATCH_TOKEN" \
+              "https://api.github.com/repos/$repo/dispatches" \
+              -d "$(jq -nc --argjson payload "$PAYLOAD" '{event_type: "dependency-bump", client_payload: $payload}')"
+          done
