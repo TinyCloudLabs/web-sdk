@@ -39,6 +39,9 @@ import {
   IKVService,
   SQLService,
   ISQLService,
+  DataVaultService,
+  IDataVaultService,
+  VaultCrypto,
   ServiceSession,
   ServiceContext,
   ISessionStorage,
@@ -72,6 +75,14 @@ import {
   makeSpaceId,
   initPanicHook,
   createDelegation,
+  // Vault crypto
+  vault_encrypt,
+  vault_decrypt,
+  vault_derive_key,
+  vault_x25519_from_seed,
+  vault_x25519_dh,
+  vault_random_bytes,
+  vault_sha256,
 } from "@tinycloud/node-sdk-wasm";
 import { PortableDelegation } from "./delegation";
 import { DelegatedAccess } from "./DelegatedAccess";
@@ -121,6 +132,7 @@ export class TinyCloudNode {
   private _serviceContext?: ServiceContext;
   private _kv?: KVService;
   private _sql?: SQLService;
+  private _vault?: DataVaultService;
 
   /** Session key ID - always available */
   private sessionKeyId: string;
@@ -427,6 +439,35 @@ export class TinyCloudNode {
     };
     this._serviceContext.setSession(serviceSession);
 
+    // Create and register Vault service
+    const vaultCrypto: VaultCrypto = {
+      encrypt: vault_encrypt,
+      decrypt: vault_decrypt,
+      deriveKey: vault_derive_key,
+      x25519FromSeed: vault_x25519_from_seed,
+      x25519Dh: vault_x25519_dh,
+      randomBytes: vault_random_bytes,
+      sha256: vault_sha256,
+    };
+    this._vault = new DataVaultService({
+      spaceId: session.spaceId,
+      crypto: vaultCrypto,
+      tc: {
+        kv: this._kv!,
+        ensurePublicSpace: () => this.tc!.ensurePublicSpace(),
+        publicKV: this.tc!.publicKV,
+        readPublicSpace: <T>(host: string, spaceId: string, key: string) =>
+          TinyCloud.readPublicSpace<T>(host, spaceId, key),
+        makePublicSpaceId: TinyCloud.makePublicSpaceId,
+        did: this.did,
+        address: this._address!,
+        chainId: this._chainId,
+        hosts: [this.config.host!],
+      },
+    });
+    this._vault.initialize(this._serviceContext);
+    this._serviceContext.registerService('vault', this._vault);
+
     // Initialize v2 services
     this.initializeV2Services(serviceSession);
   }
@@ -654,6 +695,17 @@ export class TinyCloudNode {
       throw new Error("Not signed in. Call signIn() first.");
     }
     return this._sql;
+  }
+
+  /**
+   * Data Vault operations - client-side encrypted KV storage.
+   * Call `vault.unlock(signer)` after signIn() to derive encryption keys.
+   */
+  get vault(): IDataVaultService {
+    if (!this._vault) {
+      throw new Error("Not signed in. Call signIn() first.");
+    }
+    return this._vault;
   }
 
   // ===========================================================================

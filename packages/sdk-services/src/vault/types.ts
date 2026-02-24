@@ -71,14 +71,22 @@ export interface VaultEntry<T> {
 /**
  * Structured error codes for vault operations.
  */
-export type VaultError =
-  | { code: "DECRYPTION_FAILED"; message: string }
-  | { code: "KEY_NOT_FOUND"; key: string }
-  | { code: "INTEGRITY_ERROR"; message: string }
-  | { code: "GRANT_NOT_FOUND"; grantor: string; key: string }
-  | { code: "VAULT_LOCKED"; message: string }
-  | { code: "PUBLIC_KEY_NOT_FOUND"; did: string }
-  | { code: "STORAGE_ERROR"; cause: Error };
+/**
+ * Input types for creating vault errors (service field added automatically).
+ */
+export type VaultErrorInput =
+  | { code: "DECRYPTION_FAILED"; message?: string; cause?: Error }
+  | { code: "KEY_NOT_FOUND"; key: string; message?: string }
+  | { code: "INTEGRITY_ERROR"; message?: string; cause?: Error }
+  | { code: "GRANT_NOT_FOUND"; grantor: string; key: string; message?: string }
+  | { code: "VAULT_LOCKED"; message?: string }
+  | { code: "PUBLIC_KEY_NOT_FOUND"; did: string; message?: string }
+  | { code: "STORAGE_ERROR"; cause: Error; message?: string };
+
+/**
+ * Vault error with service field (compatible with ServiceError).
+ */
+export type VaultError = VaultErrorInput & { service: "vault"; message: string };
 
 /**
  * Vault action types for UCAN invocations.

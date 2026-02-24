@@ -100,9 +100,11 @@ export {
   type BatchResponse,
   type SQLActionType,
   // Vault Service
+  DataVaultService,
   VaultAction,
   VaultHeaders,
   type IDataVaultService,
+  type VaultCrypto,
   type DataVaultConfig,
   type VaultPutOptions,
   type VaultGetOptions,

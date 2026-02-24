@@ -32,6 +32,7 @@ import {
   VaultGrantOptions,
   VaultEntry,
   VaultError,
+  VaultErrorInput,
   VaultHeaders,
 } from "./types";
 
@@ -68,6 +69,7 @@ export interface VaultCrypto {
  * Includes crypto operations and TinyCloud instance references.
  */
 interface DataVaultServiceConfig extends DataVaultConfig {
+  [key: string]: unknown;
   /** Crypto operations (WASM bindings) */
   crypto: VaultCrypto;
   /** TinyCloud instance for space/kv/delegation operations */
@@ -134,7 +136,24 @@ function base64Decode(str: string): Uint8Array {
   return bytes;
 }
 
-function vaultError(error: VaultError): Result<never, VaultError> {
+function defaultVaultMessage(input: VaultErrorInput): string {
+  switch (input.code) {
+    case "DECRYPTION_FAILED": return input.message ?? "Decryption failed";
+    case "KEY_NOT_FOUND": return input.message ?? `Key not found: ${input.key}`;
+    case "INTEGRITY_ERROR": return input.message ?? "Integrity check failed";
+    case "GRANT_NOT_FOUND": return input.message ?? `Grant not found: ${input.grantor} / ${input.key}`;
+    case "VAULT_LOCKED": return input.message ?? "Vault is locked";
+    case "PUBLIC_KEY_NOT_FOUND": return input.message ?? `Public key not found for ${input.did}`;
+    case "STORAGE_ERROR": return input.message ?? input.cause.message;
+  }
+}
+
+function vaultError(input: VaultErrorInput): Result<never, VaultError> {
+  const error: VaultError = {
+    ...input,
+    service: "vault",
+    message: defaultVaultMessage(input),
+  };
   return { ok: false, error };
 }
 
@@ -1035,7 +1054,7 @@ export class DataVaultService extends BaseService implements IDataVaultService {
       }
 
       const pubKeyBytes = base64Decode(result.data as string);
-      return ok(pubKeyBytes);
+      return { ok: true, data: pubKeyBytes } as Result<Uint8Array, VaultError>;
     } catch (error) {
       return vaultError({ code: "PUBLIC_KEY_NOT_FOUND", did });
     }
