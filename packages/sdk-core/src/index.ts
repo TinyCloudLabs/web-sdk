@@ -99,6 +99,18 @@ export {
   type ExecuteResponse,
   type BatchResponse,
   type SQLActionType,
+  // Vault Service
+  VaultAction,
+  VaultHeaders,
+  type IDataVaultService,
+  type DataVaultConfig,
+  type VaultPutOptions,
+  type VaultGetOptions,
+  type VaultListOptions,
+  type VaultGrantOptions,
+  type VaultEntry,
+  type VaultError,
+  type VaultActionType,
 } from "@tinycloud/sdk-services";
 
 // Space utilities

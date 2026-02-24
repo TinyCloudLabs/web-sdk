@@ -31,6 +31,14 @@ export {
   createDelegation,
   // Protocol version
   protocolVersion,
+  // Vault crypto
+  vault_encrypt,
+  vault_decrypt,
+  vault_derive_key,
+  vault_x25519_from_seed,
+  vault_x25519_dh,
+  vault_random_bytes,
+  vault_sha256,
 } from "./wasm/index.js";
 
 // Re-export types for TypeScript consumers

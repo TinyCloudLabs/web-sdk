@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "bun run src/demo.ts",
     "demo": "bun run src/demo.ts",
+    "demo:vault": "bun run src/demo-data-vault.ts",
     "demo:public-spaces": "bun run src/demo-public-spaces.ts",
     "demo:legacy": "bun run src/demo-legacy.ts",
     "test:space": "bun run src/test-space.ts",

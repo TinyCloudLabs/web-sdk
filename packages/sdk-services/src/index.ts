@@ -166,3 +166,17 @@ export type {
   BatchResponse,
   SQLActionType,
 } from "./sql";
+
+// Vault service
+export { DataVaultService, VaultAction, VaultHeaders } from "./vault";
+export type { IDataVaultService, VaultCrypto } from "./vault";
+export type {
+  DataVaultConfig,
+  VaultPutOptions,
+  VaultGetOptions,
+  VaultListOptions,
+  VaultGrantOptions,
+  VaultEntry,
+  VaultError,
+  VaultActionType,
+} from "./vault";
