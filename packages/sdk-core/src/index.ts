@@ -202,6 +202,8 @@ export {
   // URI utilities
   parseSpaceUri,
   buildSpaceUri,
+  // Public space utility
+  makePublicSpaceId,
   // Delegation creation types
   SpaceDelegationParams,
   CreateDelegationFunction,
