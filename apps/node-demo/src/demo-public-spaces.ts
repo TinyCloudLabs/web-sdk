@@ -5,13 +5,13 @@
  * Demonstrates the public spaces feature:
  *
  * 1. Alice creates her public space and publishes data
- * 2. Bob (authenticated) reads Alice's public data via SDK
+ * 2. Bob reads Alice's public data via the SDK (unauthenticated, no delegation)
  * 3. A raw fetch request reads Alice's public data (no SDK, no auth)
  *
  * Key concepts demonstrated:
- * - Public spaces are created with the reserved name "public"
+ * - Public spaces use the reserved name "public" (prefix: "public")
  * - Anyone can read from public spaces without authentication
- * - Writes still require authentication (owner/delegate)
+ * - Writes require authentication (owner session scoped to the public space)
  * - `TinyCloud.readPublicKey()` is a static, unauthenticated read
  * - `GET /public/{spaceId}/kv/{key}` works with a plain HTTP request
  *
@@ -74,40 +74,16 @@ async function runDemo() {
   await checkServerHealth();
 
   // =========================================================================
-  // Setup: Alice (wallet mode) and Bob (wallet mode, separate user)
+  // Setup
   // =========================================================================
 
   const aliceKey = process.env.ALICE_PRIVATE_KEY || generateKey();
   const aliceWallet = new Wallet(`0x${aliceKey}`);
   console.log(`[Setup] Alice: ${aliceWallet.address}`);
 
-  const alice = new TinyCloudNode({
-    privateKey: aliceKey,
-    host: TINYCLOUD_URL,
-    prefix: "demo-alice",
-    autoCreateSpace: true,
-  });
-
   const bobKey = generateKey();
   const bobWallet = new Wallet(`0x${bobKey}`);
   console.log(`[Setup] Bob:   ${bobWallet.address}`);
-
-  const bob = new TinyCloudNode({
-    privateKey: bobKey,
-    host: TINYCLOUD_URL,
-    prefix: "demo-bob",
-    autoCreateSpace: true,
-  });
-
-  // Sign in both users
-  console.log();
-  console.log("[Alice] Signing in...");
-  await alice.signIn();
-  console.log(`[Alice] Space: ${alice.spaceId}`);
-
-  console.log("[Bob] Signing in...");
-  await bob.signIn();
-  console.log(`[Bob] Space: ${bob.spaceId}`);
   console.log();
 
   // =========================================================================
@@ -123,18 +99,22 @@ async function runDemo() {
   console.log(`[Alice] Public space ID: ${alicePublicSpaceId}`);
   console.log();
 
-  // Ensure the public space exists (creates it if needed)
-  console.log("[Alice] Ensuring public space exists...");
-  const ensureResult = await alice.ensurePublicSpace();
-  if (!ensureResult.ok) {
-    console.error(`[Alice] Failed to create public space: ${ensureResult.error.message}`);
-    process.exit(1);
-  }
-  console.log("[Alice] Public space ready");
+  // Alice signs in with prefix "public" — this creates the public space
+  // and gives her an authenticated session scoped to it
+  const alice = new TinyCloudNode({
+    privateKey: aliceKey,
+    host: TINYCLOUD_URL,
+    prefix: "public",
+    autoCreateSpace: true,
+  });
+
+  console.log("[Alice] Signing in to public space...");
+  await alice.signIn();
+  console.log(`[Alice] Space: ${alice.spaceId}`);
   console.log();
 
   // Write a profile to the public space
-  console.log("[Alice] Publishing profile to .well-known/profile...");
+  console.log("[Alice] Publishing profile to well-known/profile...");
   const profileData = {
     name: "Alice",
     bio: "Decentralized storage enthusiast",
@@ -142,7 +122,7 @@ async function runDemo() {
     updatedAt: new Date().toISOString(),
   };
 
-  const putResult = await alice.publicKV.put(".well-known/profile", profileData);
+  const putResult = await alice.kv.put("well-known/profile", profileData);
   if (!putResult.ok) {
     console.error(`[Alice] Failed to publish profile: ${putResult.error.message}`);
     process.exit(1);
@@ -156,7 +136,7 @@ async function runDemo() {
     message: "Hello from my public space!",
     timestamp: new Date().toISOString(),
   };
-  const statusResult = await alice.publicKV.put("status", statusData);
+  const statusResult = await alice.kv.put("status", statusData);
   if (!statusResult.ok) {
     console.error(`[Alice] Failed to publish status: ${statusResult.error.message}`);
   } else {
@@ -172,7 +152,7 @@ async function runDemo() {
   console.log("=".repeat(70));
   console.log();
 
-  // Bob constructs Alice's public space ID from her address
+  // Bob doesn't need to sign in — static methods work without any session
   console.log(`[Bob] Looking up Alice's public data by address: ${aliceWallet.address}`);
   console.log();
 
@@ -181,7 +161,7 @@ async function runDemo() {
     TINYCLOUD_URL,
     aliceWallet.address,
     1,
-    ".well-known/profile"
+    "well-known/profile"
   );
 
   if (!profileResult.ok) {
@@ -217,7 +197,7 @@ async function runDemo() {
   console.log("=".repeat(70));
   console.log();
 
-  const publicUrl = `${TINYCLOUD_URL}/public/${encodeURIComponent(alicePublicSpaceId)}/kv/.well-known/profile`;
+  const publicUrl = `${TINYCLOUD_URL}/public/${encodeURIComponent(alicePublicSpaceId)}/kv/well-known/profile`;
   console.log(`[HTTP] GET ${publicUrl}`);
   console.log();
 
@@ -229,7 +209,6 @@ async function runDemo() {
 
   if (rawResponse.ok) {
     const body = await rawResponse.text();
-    // Try to parse as JSON for pretty display
     try {
       const parsed = JSON.parse(body);
       console.log(`[HTTP] Body: ${JSON.stringify(parsed, null, 2)}`);
@@ -262,8 +241,8 @@ async function runDemo() {
   console.log("What was demonstrated:");
   console.log();
   console.log("PART 1 - Publishing to Public Space:");
-  console.log("  - alice.ensurePublicSpace() creates the public space");
-  console.log("  - alice.publicKV.put() writes to the public space (authenticated)");
+  console.log("  - TinyCloudNode with prefix: 'public' creates the public space");
+  console.log("  - alice.kv.put() writes to the public space (authenticated)");
   console.log("  - makePublicSpaceId(address, chainId) constructs deterministic ID");
   console.log();
   console.log("PART 2 - SDK Unauthenticated Read:");

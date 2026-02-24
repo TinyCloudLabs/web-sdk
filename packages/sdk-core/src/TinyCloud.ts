@@ -615,7 +615,8 @@ export class TinyCloud {
     fetchFn?: FetchFunction
   ): Promise<Result<T, ServiceError>> {
     const doFetch = fetchFn ?? globalThis.fetch.bind(globalThis);
-    const url = `${host}/public/${encodeURIComponent(spaceId)}/kv/${encodeURIComponent(key)}`;
+    const encodedKey = key.split('/').map(encodeURIComponent).join('/');
+    const url = `${host}/public/${encodeURIComponent(spaceId)}/kv/${encodedKey}`;
 
     try {
       const response = await doFetch(url, { method: "GET" });
