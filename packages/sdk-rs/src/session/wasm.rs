@@ -117,7 +117,8 @@ impl TCWSessionManager {
         key_id: Option<String>,
         override_existing: bool,
     ) -> Result<String, String> {
-        self.manager.import_session_key(key, key_id, override_existing)
+        self.manager
+            .import_session_key(key, key_id, override_existing)
     }
 
     /// Get the JWK for a key ID (internal method for use by keys module)

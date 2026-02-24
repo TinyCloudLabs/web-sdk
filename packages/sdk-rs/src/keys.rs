@@ -40,11 +40,10 @@ pub fn import_key(
 /// # Returns
 /// JWK as a JSON string
 #[wasm_bindgen(js_name = exportKey)]
-pub fn export_key(
-    manager: &TCWSessionManager,
-    key_id: Option<String>,
-) -> Result<String, String> {
-    manager.jwk(key_id).ok_or_else(|| "Key not found".to_string())
+pub fn export_key(manager: &TCWSessionManager, key_id: Option<String>) -> Result<String, String> {
+    manager
+        .jwk(key_id)
+        .ok_or_else(|| "Key not found".to_string())
 }
 
 /// Import a key from an environment variable value (JWK JSON string).
@@ -79,9 +78,11 @@ pub fn import_key_from_env_value(
 pub fn sign_secp256k1(message: &[u8], private_key_hex: String) -> Result<Vec<u8>, String> {
     use k256::ecdsa::{signature::Signer, Signature, SigningKey};
 
-    let hex_str = private_key_hex.strip_prefix("0x").unwrap_or(&private_key_hex);
-    let key_bytes = hex::decode(hex_str)
-        .map_err(|e| format!("Invalid hex encoding for private key: {}", e))?;
+    let hex_str = private_key_hex
+        .strip_prefix("0x")
+        .unwrap_or(&private_key_hex);
+    let key_bytes =
+        hex::decode(hex_str).map_err(|e| format!("Invalid hex encoding for private key: {}", e))?;
 
     let signing_key = SigningKey::from_slice(&key_bytes)
         .map_err(|e| format!("Invalid secp256k1 private key: {}", e))?;
@@ -102,24 +103,19 @@ pub fn sign_secp256k1(message: &[u8], private_key_hex: String) -> Result<Vec<u8>
 /// # Returns
 /// Hex-encoded signature (130 characters = 65 bytes: r || s || v)
 #[wasm_bindgen(js_name = signEthereumMessage)]
-pub fn sign_ethereum_message(
-    message: String,
-    private_key_hex: String,
-) -> Result<String, String> {
+pub fn sign_ethereum_message(message: String, private_key_hex: String) -> Result<String, String> {
     use k256::ecdsa::SigningKey;
     use sha3::{Digest, Keccak256};
 
     // Apply Ethereum message prefix
-    let prefixed = format!(
-        "\x19Ethereum Signed Message:\n{}{}",
-        message.len(),
-        message
-    );
+    let prefixed = format!("\x19Ethereum Signed Message:\n{}{}", message.len(), message);
     let hash = Keccak256::digest(prefixed.as_bytes());
 
-    let hex_str = private_key_hex.strip_prefix("0x").unwrap_or(&private_key_hex);
-    let key_bytes = hex::decode(hex_str)
-        .map_err(|e| format!("Invalid hex encoding for private key: {}", e))?;
+    let hex_str = private_key_hex
+        .strip_prefix("0x")
+        .unwrap_or(&private_key_hex);
+    let key_bytes =
+        hex::decode(hex_str).map_err(|e| format!("Invalid hex encoding for private key: {}", e))?;
 
     let signing_key = SigningKey::from_slice(&key_bytes)
         .map_err(|e| format!("Invalid secp256k1 private key: {}", e))?;

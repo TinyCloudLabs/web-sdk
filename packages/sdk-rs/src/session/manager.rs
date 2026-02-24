@@ -10,8 +10,8 @@ use tinycloud_sdk_rs::tinycloud_lib::{
 };
 use wasm_bindgen::prelude::*;
 
-use crate::platform::log_error;
 use super::types::*;
+use crate::platform::log_error;
 
 use tinycloud_sdk_wasm::session::Session;
 
