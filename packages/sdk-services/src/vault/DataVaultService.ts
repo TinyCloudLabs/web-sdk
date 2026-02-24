@@ -305,39 +305,31 @@ export class DataVaultService extends BaseService implements IDataVaultService {
         );
         this.encryptionIdentity = this.crypto.x25519FromSeed(seed);
 
-        // Step 3: Ensure public space exists and publish public key
-        const ensureResult = await this.tc.ensurePublicSpace();
-        if (!ensureResult.ok) {
-          // Clear key material on failure
-          this.masterKey = null;
-          this.encryptionIdentity = null;
-          return vaultError({
-            code: "STORAGE_ERROR",
-            cause: new Error(
-              `Failed to ensure public space: ${
-                (ensureResult as { error: { message?: string } }).error
-                  ?.message ?? "unknown"
-              }`
-            ),
-          });
-        }
+        // Step 3: Publish vault metadata to public space (best-effort)
+        // This enables other users to discover our public key and vault location.
+        // Non-fatal: key derivation succeeded, publishing is optional.
+        try {
+          // Try to ensure public space exists (may fail if delegation lacks space/info action)
+          await this.tc.ensurePublicSpace();
 
-        // Publish public key to public space
-        const pubKeyB64 = base64Encode(this.encryptionIdentity.publicKey);
-        const putResult = await this.tc.publicKV.put(
-          ".well-known/vault-pubkey",
-          pubKeyB64
-        );
-        if (!putResult.ok) {
-          // Non-fatal: key material is still derived, just publishing failed
-          // Log but don't fail the unlock
+          // Publish regardless — the space may already exist even if ensurePublicSpace failed
+          const pubKeyB64 = base64Encode(this.encryptionIdentity.publicKey);
+          await this.tc.publicKV.put(
+            ".well-known/vault-pubkey",
+            pubKeyB64
+          );
+          await this.tc.publicKV.put(
+            ".well-known/vault-version",
+            "1"
+          );
+          // Publish vault space ID so getShared() can find grants and data
+          await this.tc.publicKV.put(
+            ".well-known/vault-space",
+            this.vaultConfig.spaceId
+          );
+        } catch {
+          // Public key publishing failed — vault still usable
         }
-
-        // Publish vault version
-        await this.tc.publicKV.put(
-          ".well-known/vault-version",
-          "1"
-        );
 
         this._isUnlocked = true;
         return ok(undefined);
@@ -850,12 +842,14 @@ export class DataVaultService extends BaseService implements IDataVaultService {
         // Step 8: Store grant in key space
         const grantPayload = JSON.stringify({
           grant: base64Encode(grantBlob),
+          spaceId: this.vaultConfig.spaceId,
           metadata: {
             [VaultHeaders.GRANT_VERSION]: "1",
             [VaultHeaders.GRANTOR]: this.tc.did,
             ...(options?.metadata ?? {}),
           },
         });
+        // Store grant in the vault's space (main space)
         const grantPutResult = await this.tc.kv.put(
           `grants/${recipientDID}/${key}`,
           grantPayload
@@ -924,17 +918,25 @@ export class DataVaultService extends BaseService implements IDataVaultService {
           });
         }
 
-        const grantorSpaceId = this.tc.makePublicSpaceId(
+        const grantorPublicSpaceId = this.tc.makePublicSpaceId(
           grantorParts.address,
           grantorParts.chainId
         );
 
-        // Step 2: Fetch grant from grantor's key space
-        // The grantor stored the grant at grants/{myDID}/{key} in their space
-        // We read it via the public read endpoint
+        // Step 2: Resolve grantor's vault space ID from their public space
+        const vaultSpaceResult = await this.tc.readPublicSpace<string>(
+          this.host,
+          grantorPublicSpaceId,
+          ".well-known/vault-space"
+        );
+        const grantorVaultSpaceId = vaultSpaceResult.ok
+          ? (vaultSpaceResult.data as string)
+          : grantorPublicSpaceId;
+
+        // Step 3: Fetch grant from grantor's vault space
         const grantResult = await this.tc.readPublicSpace<string>(
           this.host,
-          grantorSpaceId,
+          grantorVaultSpaceId,
           `grants/${myDID}/${key}`
         );
         if (!grantResult.ok) {
@@ -945,33 +947,35 @@ export class DataVaultService extends BaseService implements IDataVaultService {
           });
         }
 
-        const grantEnvelope = JSON.parse(grantResult.data as string);
-        const grantBlobBytes = base64Decode(grantEnvelope.grant);
+        const grantEnvelope = typeof grantResult.data === "string"
+          ? JSON.parse(grantResult.data)
+          : grantResult.data;
+        const grantBlobBytes = base64Decode((grantEnvelope as any).grant);
 
-        // Step 3: Extract ephemeral public key and encrypted grant
+        // Step 4: Extract ephemeral public key and encrypted grant
         const ephemeralPubKey = grantBlobBytes.slice(0, 32);
         const encryptedGrant = grantBlobBytes.slice(32);
 
-        // Step 4: Compute shared secret using our private key
+        // Step 5: Compute shared secret using our private key
         const sharedSecret = this.crypto.x25519Dh(
           this.encryptionIdentity.privateKey,
           ephemeralPubKey
         );
 
-        // Step 5: Derive decryption key
+        // Step 6: Derive decryption key
         const encryptionKey = this.crypto.deriveKey(
           sharedSecret,
           toBytes("tinycloud-x25519"),
           toBytes("vault-grant")
         );
 
-        // Step 6: Decrypt entry key
+        // Step 7: Decrypt entry key
         const entryKey = this.crypto.decrypt(encryptionKey, encryptedGrant);
 
-        // Step 7: Fetch encrypted value from grantor's data space
+        // Step 8: Fetch encrypted value from grantor's vault space
         const valueResult = await this.tc.readPublicSpace<string>(
           this.host,
-          grantorSpaceId,
+          grantorVaultSpaceId,
           `vault/${key}`
         );
         if (!valueResult.ok) {
@@ -981,12 +985,14 @@ export class DataVaultService extends BaseService implements IDataVaultService {
           });
         }
 
-        const valueEnvelope = JSON.parse(valueResult.data as string);
-        const encryptedBytes = base64Decode(valueEnvelope.data);
+        const valueEnvelope = typeof valueResult.data === "string"
+          ? JSON.parse(valueResult.data)
+          : valueResult.data;
+        const encryptedBytes = base64Decode((valueEnvelope as any).data);
         const plaintext = this.crypto.decrypt(entryKey, encryptedBytes);
 
         // Read metadata
-        const metadata: Record<string, string> = valueEnvelope.metadata ?? {};
+        const metadata: Record<string, string> = (valueEnvelope as any).metadata ?? {};
         const contentType =
           metadata[VaultHeaders.CONTENT_TYPE] ?? "application/json";
         const keyId = metadata[VaultHeaders.KEY_ID] ?? "";

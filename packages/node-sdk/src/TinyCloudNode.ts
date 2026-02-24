@@ -412,6 +412,9 @@ export class TinyCloudNode {
       return;
     }
 
+    // Initialize TinyCloud core services (needed for publicKV, ensurePublicSpace)
+    this.tc!.initializeServices(invoke, [this.config.host!]);
+
     // Create service context
     this._serviceContext = new ServiceContext({
       invoke,
@@ -438,6 +441,7 @@ export class TinyCloudNode {
       jwk: session.jwk,
     };
     this._serviceContext.setSession(serviceSession);
+    (this.tc!.serviceContext as ServiceContext).setSession(serviceSession);
 
     // Create and register Vault service
     const vaultCrypto: VaultCrypto = {

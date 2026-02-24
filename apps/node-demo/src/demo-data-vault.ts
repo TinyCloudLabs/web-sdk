@@ -84,17 +84,19 @@ async function runDemo() {
   console.log(`[Setup] Bob:   ${bobWallet.address}`);
   console.log();
 
+  // Vault data lives in the public space (encrypted, so safe for public reads).
+  // This allows getShared() to read grants and data via the public endpoint.
   const alice = new TinyCloudNode({
     privateKey: aliceKey,
     host: TINYCLOUD_URL,
-    prefix: "vault-demo-alice",
+    prefix: "public",
     autoCreateSpace: true,
   });
 
   const bob = new TinyCloudNode({
     privateKey: bobKey,
     host: TINYCLOUD_URL,
-    prefix: "vault-demo-bob",
+    prefix: "public",
     autoCreateSpace: true,
   });
 
@@ -121,15 +123,14 @@ async function runDemo() {
   if (!aliceUnlock.ok) {
     throw new Error(`Alice vault unlock failed: ${(aliceUnlock as any).error?.message}`);
   }
-  console.log("[Alice] Vault unlocked, public key published to public space");
-  console.log();
+  console.log("[Alice] Vault unlocked, public key published");
 
   console.log("[Bob] Unlocking vault...");
   const bobUnlock = await bob.vault.unlock(bobWallet);
   if (!bobUnlock.ok) {
     throw new Error(`Bob vault unlock failed: ${(bobUnlock as any).error?.message}`);
   }
-  console.log("[Bob] Vault unlocked, public key published to public space");
+  console.log("[Bob] Vault unlocked, public key published");
   console.log();
 
   // =========================================================================
