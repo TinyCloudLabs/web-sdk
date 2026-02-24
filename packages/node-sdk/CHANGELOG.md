@@ -1,5 +1,32 @@
 # @tinycloudlabs/node-sdk
 
+## 1.2.0
+
+### Minor Changes
+
+- 2014a20: Add sessionStorage to TinyCloudNodeConfig types and switch build to tsup for proper ESM/CJS output
+- bcbebbe: Add public space support for discoverable, unauthenticated data publishing
+
+  - `makePublicSpaceId(address, chainId)` utility for deterministic public space ID construction
+  - `TinyCloud.ensurePublicSpace()` creates the user's public space on first need
+  - `TinyCloud.publicKV` getter returns IKVService scoped to the user's public space
+  - `TinyCloud.readPublicSpace(host, spaceId, key)` static method for unauthenticated reads
+  - `TinyCloud.readPublicKey(host, address, chainId, key)` static convenience method
+
+- ca9b2c6: Add SQL service (tinycloud.sql/\*) with full TypeScript SDK support
+
+  - New SQLService in sdk-services: query, execute, batch, executeStatement, export
+  - DatabaseHandle for per-database operations
+  - SQL re-exports in sdk-core with TinyCloud.sql getter
+  - Node-SDK: SQL wiring in TinyCloudNode, DelegatedAccess, root delegation defaults
+  - Fix type-only re-exports preventing bun runtime resolution
+
+### Patch Changes
+
+- Updated dependencies [bcbebbe]
+- Updated dependencies [ca9b2c6]
+  - @tinycloud/sdk-core@1.2.0
+
 ## 1.1.0
 
 ### Patch Changes
