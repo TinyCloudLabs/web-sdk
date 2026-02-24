@@ -449,13 +449,14 @@ export class TinyCloudNode {
       randomBytes: vault_random_bytes,
       sha256: vault_sha256,
     };
+    const tcInstance = this.tc!;
     this._vault = new DataVaultService({
       spaceId: session.spaceId,
       crypto: vaultCrypto,
       tc: {
         kv: this._kv!,
-        ensurePublicSpace: () => this.tc!.ensurePublicSpace(),
-        publicKV: this.tc!.publicKV,
+        ensurePublicSpace: () => tcInstance.ensurePublicSpace(),
+        get publicKV() { return tcInstance.publicKV; },
         readPublicSpace: <T>(host: string, spaceId: string, key: string) =>
           TinyCloud.readPublicSpace<T>(host, spaceId, key),
         makePublicSpaceId: TinyCloud.makePublicSpaceId,
