@@ -120,6 +120,7 @@ export {
   createSpaceService,
   parseSpaceUri,
   buildSpaceUri,
+  makePublicSpaceId,
   // Space object
   Space,
   ISpace,

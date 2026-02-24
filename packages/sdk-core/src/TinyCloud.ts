@@ -17,7 +17,14 @@ import {
   RetryPolicy,
   defaultRetryPolicy,
   ServiceConstructor,
+  Result,
+  ok,
+  err,
+  serviceError,
+  ServiceError,
+  ErrorCodes,
 } from "@tinycloud/sdk-services";
+import { makePublicSpaceId } from "./spaces/SpaceService";
 
 /**
  * Configuration for the TinyCloud SDK.
@@ -377,6 +384,9 @@ export class TinyCloud {
 
     await this.userAuthorization.signOut();
 
+    // Clear cached public KV service
+    this._publicKV = undefined;
+
     // Clear session from services
     this.notifyServicesOfSessionChange(null);
   }
@@ -401,6 +411,284 @@ export class TinyCloud {
    */
   public async signMessage(message: string): Promise<string> {
     return this.userAuthorization.signMessage(message);
+  }
+
+  // === Public Space Methods ===
+
+  /**
+   * Cached public KV service instance.
+   */
+  private _publicKV?: IKVService;
+
+  /**
+   * Construct the deterministic public space ID for a given address and chain ID.
+   *
+   * @param address - Ethereum address (0x-prefixed)
+   * @param chainId - Chain ID (e.g., 1 for mainnet)
+   * @returns The public space ID
+   */
+  static makePublicSpaceId(address: string, chainId: number): string {
+    return makePublicSpaceId(address, chainId);
+  }
+
+  /**
+   * Ensure the user's public space exists.
+   * Creates it via spaces.create('public') if it doesn't.
+   * Called automatically by modules that need to publish data.
+   *
+   * Requires the user to be signed in and services to be initialized.
+   */
+  public async ensurePublicSpace(): Promise<Result<void, ServiceError>> {
+    const address = this.address();
+    const chainId = this.chainId();
+    if (!address || !chainId) {
+      return err(
+        serviceError(
+          ErrorCodes.AUTH_REQUIRED,
+          "Must be signed in to ensure public space",
+          "public-space"
+        )
+      );
+    }
+
+    if (!this._serviceContext) {
+      return err(
+        serviceError(
+          ErrorCodes.AUTH_REQUIRED,
+          "Services not initialized. Call initializeServices() or signIn() first.",
+          "public-space"
+        )
+      );
+    }
+
+    const spaceId = makePublicSpaceId(address, chainId);
+
+    // Check if it already exists via invoke
+    try {
+      const session = this._serviceContext.session;
+      if (!session) {
+        return err(
+          serviceError(
+            ErrorCodes.AUTH_REQUIRED,
+            "No active session",
+            "public-space"
+          )
+        );
+      }
+
+      const headers = this._serviceContext.invoke(
+        session,
+        "space",
+        spaceId,
+        "tinycloud.space/info"
+      );
+
+      const response = await this._serviceContext.fetch(
+        `${this._serviceContext.hosts[0]}/invoke`,
+        { method: "POST", headers, body: JSON.stringify({ spaceId }) }
+      );
+
+      if (response.ok) {
+        return ok(undefined);
+      }
+
+      if (response.status === 404) {
+        // Space doesn't exist — create it
+        const createHeaders = this._serviceContext.invoke(
+          session,
+          "space",
+          "public",
+          "tinycloud.space/create"
+        );
+
+        const createResponse = await this._serviceContext.fetch(
+          `${this._serviceContext.hosts[0]}/invoke`,
+          {
+            method: "POST",
+            headers: createHeaders,
+            body: JSON.stringify({ name: "public" }),
+          }
+        );
+
+        if (!createResponse.ok) {
+          // 409 means it already exists — that's fine
+          if (createResponse.status === 409) {
+            return ok(undefined);
+          }
+          const errorText = await createResponse.text();
+          return err(
+            serviceError(
+              ErrorCodes.NETWORK_ERROR,
+              `Failed to create public space: ${createResponse.status} - ${errorText}`,
+              "public-space"
+            )
+          );
+        }
+
+        return ok(undefined);
+      }
+
+      // Other error from info check
+      const errorText = await response.text();
+      return err(
+        serviceError(
+          ErrorCodes.NETWORK_ERROR,
+          `Failed to check public space: ${response.status} - ${errorText}`,
+          "public-space"
+        )
+      );
+    } catch (error) {
+      return err(
+        serviceError(
+          ErrorCodes.NETWORK_ERROR,
+          `Network error ensuring public space: ${String(error)}`,
+          "public-space",
+          { cause: error instanceof Error ? error : undefined }
+        )
+      );
+    }
+  }
+
+  /**
+   * Get a KVService scoped to the user's own public space.
+   * Writes require authentication (owner/delegate).
+   *
+   * @throws Error if not signed in or services not initialized
+   */
+  public get publicKV(): IKVService {
+    if (!this._servicesInitialized || !this._serviceContext) {
+      throw new Error(
+        "Services not initialized. Call initializeServices() first, " +
+          "or use TinyCloudWeb/TinyCloudNode which handles this automatically."
+      );
+    }
+
+    const address = this.address();
+    const chainId = this.chainId();
+    if (!address || !chainId) {
+      throw new Error("Must be signed in to access publicKV.");
+    }
+
+    // Return cached instance if available
+    if (this._publicKV) {
+      return this._publicKV;
+    }
+
+    const publicSpaceId = makePublicSpaceId(address, chainId);
+    const session = this._serviceContext.session;
+    if (!session) {
+      throw new Error("No active session. Sign in first.");
+    }
+
+    // Create a KV service with a context that targets the public space
+    const publicKV = new KVService({ prefix: "" });
+    const publicContext = new ServiceContext({
+      invoke: this._serviceContext.invoke,
+      fetch: this._serviceContext.fetch,
+      hosts: this._serviceContext.hosts,
+      retryPolicy: this.config.retryPolicy,
+    });
+    publicContext.setSession({
+      ...session,
+      spaceId: publicSpaceId,
+    });
+    publicKV.initialize(publicContext);
+
+    this._publicKV = publicKV;
+    return this._publicKV;
+  }
+
+  /**
+   * Read from any user's public space (unauthenticated).
+   * Uses the public REST endpoint — no session needed.
+   *
+   * @param host - TinyCloud server URL (e.g., "https://node.tinycloud.xyz")
+   * @param spaceId - Full public space ID
+   * @param key - Key to read
+   * @param fetchFn - Optional custom fetch function
+   * @returns The data at the key
+   */
+  static async readPublicSpace<T = unknown>(
+    host: string,
+    spaceId: string,
+    key: string,
+    fetchFn?: FetchFunction
+  ): Promise<Result<T, ServiceError>> {
+    const doFetch = fetchFn ?? globalThis.fetch.bind(globalThis);
+    const encodedKey = key.split('/').map(encodeURIComponent).join('/');
+    const url = `${host}/public/${encodeURIComponent(spaceId)}/kv/${encodedKey}`;
+
+    try {
+      const response = await doFetch(url, { method: "GET" });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          return err(
+            serviceError(
+              ErrorCodes.NOT_FOUND,
+              `Key not found: ${key} in space ${spaceId}`,
+              "public-space"
+            )
+          );
+        }
+        const errorText = await response.text();
+        return err(
+          serviceError(
+            ErrorCodes.NETWORK_ERROR,
+            `Failed to read public space: ${response.status} - ${errorText}`,
+            "public-space",
+            { meta: { status: response.status } }
+          )
+        );
+      }
+
+      const contentType = response.headers.get("content-type");
+      let data: T;
+      if (contentType?.includes("application/json")) {
+        data = (await response.json()) as T;
+      } else {
+        const text = await response.text();
+        // Try parsing as JSON, fall back to raw text
+        try {
+          data = JSON.parse(text) as T;
+        } catch {
+          data = text as unknown as T;
+        }
+      }
+
+      return ok(data);
+    } catch (error) {
+      return err(
+        serviceError(
+          ErrorCodes.NETWORK_ERROR,
+          `Network error reading public space: ${String(error)}`,
+          "public-space",
+          { cause: error instanceof Error ? error : undefined }
+        )
+      );
+    }
+  }
+
+  /**
+   * Read from any user's public space by address (unauthenticated).
+   * Convenience method that constructs the space ID from address and chain ID.
+   *
+   * @param host - TinyCloud server URL
+   * @param address - Ethereum address (0x-prefixed)
+   * @param chainId - Chain ID (e.g., 1 for mainnet)
+   * @param key - Key to read
+   * @param fetchFn - Optional custom fetch function
+   * @returns The data at the key
+   */
+  static async readPublicKey<T = unknown>(
+    host: string,
+    address: string,
+    chainId: number,
+    key: string,
+    fetchFn?: FetchFunction
+  ): Promise<Result<T, ServiceError>> {
+    const spaceId = makePublicSpaceId(address, chainId);
+    return TinyCloud.readPublicSpace<T>(host, spaceId, key, fetchFn);
   }
 
 }

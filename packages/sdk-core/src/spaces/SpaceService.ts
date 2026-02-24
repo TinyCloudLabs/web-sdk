@@ -164,6 +164,33 @@ export interface ISpaceService {
 }
 
 // =============================================================================
+// Public Space Utilities
+// =============================================================================
+
+/**
+ * Construct the deterministic public space ID for a given address and chain ID.
+ *
+ * Public space IDs follow the format:
+ * `tinycloud:pkh:eip155:{chainId}:{address}:public`
+ *
+ * Given an address and chain ID, any client can construct this ID
+ * to discover and read a user's public data without prior interaction.
+ *
+ * @param address - Ethereum address (0x-prefixed)
+ * @param chainId - Chain ID (e.g., 1 for mainnet)
+ * @returns The full public space ID URI
+ *
+ * @example
+ * ```typescript
+ * const spaceId = makePublicSpaceId('0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045', 1);
+ * // => "tinycloud:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045:public"
+ * ```
+ */
+export function makePublicSpaceId(address: string, chainId: number): string {
+  return `tinycloud:pkh:eip155:${chainId}:${address}:public`;
+}
+
+// =============================================================================
 // Space URI Utilities
 // =============================================================================
 

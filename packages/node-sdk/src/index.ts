@@ -177,6 +177,7 @@ export {
   createSpaceService,
   parseSpaceUri,
   buildSpaceUri,
+  makePublicSpaceId,
   Space,
 } from "@tinycloud/sdk-core";
 
