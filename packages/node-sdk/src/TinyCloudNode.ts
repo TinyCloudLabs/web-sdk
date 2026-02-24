@@ -842,6 +842,33 @@ export class TinyCloudNode {
   }
 
   // ===========================================================================
+  // Public Space Methods
+  // ===========================================================================
+
+  /**
+   * Ensure the user's public space exists.
+   * Creates it via spaces.create('public') if it doesn't.
+   * Requires the user to be signed in.
+   */
+  async ensurePublicSpace() {
+    if (!this.tc) {
+      throw new Error("Not signed in. Call signIn() first.");
+    }
+    return this.tc.ensurePublicSpace();
+  }
+
+  /**
+   * Get a KVService scoped to the user's own public space.
+   * Writes require authentication (owner/delegate).
+   */
+  get publicKV(): IKVService {
+    if (!this.tc) {
+      throw new Error("Not signed in. Call signIn() first.");
+    }
+    return this.tc.publicKV;
+  }
+
+  // ===========================================================================
   // v2 Delegation Convenience Methods
   // ===========================================================================
 
