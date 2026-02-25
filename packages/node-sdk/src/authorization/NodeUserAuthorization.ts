@@ -195,13 +195,13 @@ export class NodeUserAuthorization implements IUserAuthorization {
    * Create the space on the TinyCloud server (host delegation).
    * This registers the user as the owner of the space.
    */
-  private async hostSpace(): Promise<boolean> {
+  private async hostSpace(targetSpaceId?: string): Promise<boolean> {
     if (!this._tinyCloudSession || !this._address || !this._chainId) {
       throw new Error("Must be signed in to host space");
     }
 
     const host = this.tinycloudHosts[0];
-    const spaceId = this._tinyCloudSession.spaceId;
+    const spaceId = targetSpaceId ?? this._tinyCloudSession.spaceId;
 
     // Get peer ID from TinyCloud server
     const peerId = await fetchPeerId(host, spaceId);
@@ -249,6 +249,8 @@ export class NodeUserAuthorization implements IUserAuthorization {
 
     if (result.success) {
       // Space exists and session is activated
+      // Also ensure additional spaces (e.g., public) exist
+      await this.ensureAdditionalSpaces();
       return;
     }
 
@@ -260,7 +262,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
         return;
       }
 
-      // Create the space
+      // Create the primary space
       const created = await this.hostSpace();
       if (!created) {
         throw new Error(
@@ -268,10 +270,14 @@ export class NodeUserAuthorization implements IUserAuthorization {
         );
       }
 
+      // Create additional spaces (e.g., public) BEFORE activation
+      // The delegation covers all spaces, so the server needs them to exist
+      await this.ensureAdditionalSpaces();
+
       // Small delay to allow space creation to propagate
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      // Retry activation after creating space
+      // Retry activation after creating spaces
       const retryResult = await activateSessionWithHost(
         host,
         this._tinyCloudSession.delegationHeader
@@ -288,6 +294,24 @@ export class NodeUserAuthorization implements IUserAuthorization {
 
     // Other error
     throw new Error(`Failed to activate session: ${result.error}`);
+  }
+
+  /**
+   * Ensure additional spaces (e.g., public) exist on the server.
+   * Only creates spaces that are included in the session's spaces map.
+   */
+  private async ensureAdditionalSpaces(): Promise<void> {
+    if (!this._tinyCloudSession?.spaces || !this.autoCreateSpace) {
+      return;
+    }
+
+    for (const [, spaceId] of Object.entries(this._tinyCloudSession.spaces)) {
+      try {
+        await this.hostSpace(spaceId);
+      } catch {
+        // Non-fatal: additional space creation failure shouldn't block signIn
+      }
+    }
   }
 
   /**
