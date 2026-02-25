@@ -947,15 +947,59 @@ export class TinyCloudNode {
   // ===========================================================================
 
   /**
-   * Ensure the user's public space exists.
-   * Creates it via spaces.create('public') if it doesn't.
-   * Requires the user to be signed in.
+   * Ensure the user's public space exists and is accessible.
+   * Creates the space and activates a session delegation for it.
+   * This is the trigger for lazy public space creation — call it
+   * before writing to spaces.get('public').kv.
    */
   async ensurePublicSpace() {
-    if (!this.tc) {
+    if (!this.auth || !this.session) {
       throw new Error("Not signed in. Call signIn() first.");
     }
-    return this.tc.ensurePublicSpace();
+
+    const publicSpaceId = this.session.spaces?.public;
+    if (!publicSpaceId) {
+      throw new Error("Public space not enabled. Set enablePublicSpace: true in config.");
+    }
+
+    // Create the public space on the server (host SIWE)
+    await (this.auth as NodeUserAuthorization).hostPublicSpace(publicSpaceId);
+
+    // Create and activate a session delegation covering the public space
+    const delegation = await this.createDelegation({
+      path: "",
+      actions: [
+        "tinycloud.kv/put",
+        "tinycloud.kv/get",
+        "tinycloud.kv/del",
+        "tinycloud.kv/list",
+        "tinycloud.kv/metadata",
+      ],
+      delegateDID: this.did,
+      spaceIdOverride: publicSpaceId,
+    });
+
+    // Register the delegation in the capability registry so
+    // spaces.get('public').kv operations are authorized
+    if (this._capabilityRegistry && this.session) {
+      const sessionKey = this.session.sessionKey;
+      this._capabilityRegistry.registerKey(sessionKey, [{
+        cid: delegation.cid,
+        delegateDID: this.session.verificationMethod,
+        spaceId: publicSpaceId,
+        path: "",
+        actions: [
+          "tinycloud.kv/put",
+          "tinycloud.kv/get",
+          "tinycloud.kv/del",
+          "tinycloud.kv/list",
+          "tinycloud.kv/metadata",
+        ],
+        expiry: delegation.expiry,
+        isRevoked: false,
+        allowSubDelegation: true,
+      }]);
+    }
   }
 
   /**
@@ -1050,6 +1094,8 @@ export class TinyCloudNode {
     disableSubDelegation?: boolean;
     /** Expiration time in milliseconds from now (default: 1 hour) */
     expiryMs?: number;
+    /** Override space ID (for creating delegations to non-primary spaces like public) */
+    spaceIdOverride?: string;
   }): Promise<PortableDelegation> {
     if (!this.signer) {
       throw new Error("Cannot createDelegation() in session-only mode. Requires wallet mode.");
@@ -1084,7 +1130,7 @@ export class TinyCloudNode {
       domain: new URL(this.config.host!).hostname,
       issuedAt: now.toISOString(),
       expirationTime: expirationTime.toISOString(),
-      spaceId: session.spaceId,
+      spaceId: params.spaceIdOverride ?? session.spaceId,
       delegateUri: params.delegateDID,
       parents: [session.delegationCid],
     });
@@ -1112,7 +1158,7 @@ export class TinyCloudNode {
     return {
       cid: delegationSession.delegationCid,
       delegationHeader: delegationSession.delegationHeader,
-      spaceId: session.spaceId,
+      spaceId: params.spaceIdOverride ?? session.spaceId,
       path: params.path,
       actions: params.actions,
       disableSubDelegation: params.disableSubDelegation ?? false,

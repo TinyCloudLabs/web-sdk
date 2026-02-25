@@ -15,6 +15,10 @@ export interface SpaceHostResult {
   status: number;
   /** Error message if failed */
   error?: string;
+  /** Space IDs that were successfully activated */
+  activated?: string[];
+  /** Space IDs that were skipped (e.g., space doesn't exist yet) */
+  skipped?: string[];
 }
 
 /**
@@ -88,9 +92,29 @@ export async function activateSessionWithHost(
     headers: delegationHeader,
   });
 
+  if (res.ok) {
+    try {
+      const body = await res.json();
+      return {
+        success: true,
+        status: res.status,
+        activated: body.activated ?? [],
+        skipped: body.skipped ?? [],
+      };
+    } catch {
+      // Fallback for older servers that return plain text CID
+      return {
+        success: true,
+        status: res.status,
+        activated: [],
+        skipped: [],
+      };
+    }
+  }
+
   return {
-    success: res.ok,
+    success: false,
     status: res.status,
-    error: res.ok ? undefined : await res.text().catch(() => res.statusText),
+    error: await res.text().catch(() => res.statusText),
   };
 }

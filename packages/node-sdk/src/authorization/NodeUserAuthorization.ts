@@ -227,6 +227,14 @@ export class NodeUserAuthorization implements IUserAuthorization {
   }
 
   /**
+   * Create a specific space on the server via host delegation.
+   * Used for lazy creation of additional spaces (e.g., public).
+   */
+  async hostPublicSpace(spaceId: string): Promise<boolean> {
+    return this.hostSpace(spaceId);
+  }
+
+  /**
    * Ensure the user's space exists on the TinyCloud server.
    * Creates the space if it doesn't exist and autoCreateSpace is enabled.
    * If autoCreateSpace is false and space doesn't exist, silently returns
@@ -240,44 +248,38 @@ export class NodeUserAuthorization implements IUserAuthorization {
     }
 
     const host = this.tinycloudHosts[0];
+    const primarySpaceId = this._tinyCloudSession.spaceId;
 
-    // Try to activate the session (this checks if space exists)
+    // Try to activate the session
     const result = await activateSessionWithHost(
       host,
       this._tinyCloudSession.delegationHeader
     );
 
     if (result.success) {
-      // Space exists and session is activated
-      // Also ensure additional spaces (e.g., public) exist
-      await this.ensureAdditionalSpaces();
-      return;
-    }
+      // Check if primary space was actually activated or just skipped
+      const primarySkipped = result.skipped?.includes(primarySpaceId);
 
-    if (result.status === 404) {
-      // Space doesn't exist
+      if (!primarySkipped) {
+        // Primary space exists and session is activated
+        return;
+      }
+
+      // Primary space was skipped (doesn't exist yet)
       if (!this.autoCreateSpace) {
-        // User didn't request space creation - silently return.
-        // They may be using delegations to access other spaces.
         return;
       }
 
       // Create the primary space
       const created = await this.hostSpace();
       if (!created) {
-        throw new Error(
-          `Failed to create space: ${this._tinyCloudSession.spaceId}`
-        );
+        throw new Error(`Failed to create space: ${primarySpaceId}`);
       }
-
-      // Create additional spaces (e.g., public) BEFORE activation
-      // The delegation covers all spaces, so the server needs them to exist
-      await this.ensureAdditionalSpaces();
 
       // Small delay to allow space creation to propagate
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      // Retry activation after creating spaces
+      // Retry activation
       const retryResult = await activateSessionWithHost(
         host,
         this._tinyCloudSession.delegationHeader
@@ -292,26 +294,34 @@ export class NodeUserAuthorization implements IUserAuthorization {
       return;
     }
 
-    // Other error
-    throw new Error(`Failed to activate session: ${result.error}`);
-  }
+    // Handle 404 (backwards compat with older servers)
+    if (result.status === 404) {
+      if (!this.autoCreateSpace) {
+        return;
+      }
 
-  /**
-   * Ensure additional spaces (e.g., public) exist on the server.
-   * Only creates spaces that are included in the session's spaces map.
-   */
-  private async ensureAdditionalSpaces(): Promise<void> {
-    if (!this._tinyCloudSession?.spaces || !this.autoCreateSpace) {
+      const created = await this.hostSpace();
+      if (!created) {
+        throw new Error(`Failed to create space: ${primarySpaceId}`);
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      const retryResult = await activateSessionWithHost(
+        host,
+        this._tinyCloudSession.delegationHeader
+      );
+
+      if (!retryResult.success) {
+        throw new Error(
+          `Failed to activate session after creating space: ${retryResult.error}`
+        );
+      }
+
       return;
     }
 
-    for (const [, spaceId] of Object.entries(this._tinyCloudSession.spaces)) {
-      try {
-        await this.hostSpace(spaceId);
-      } catch {
-        // Non-fatal: additional space creation failure shouldn't block signIn
-      }
-    }
+    throw new Error(`Failed to activate session: ${result.error}`);
   }
 
   /**
@@ -345,12 +355,6 @@ export class NodeUserAuthorization implements IUserAuthorization {
     // Create space ID
     const spaceId = makeSpaceId(address, chainId, this.spacePrefix);
 
-    // Build additional spaces for multi-space session
-    const additionalSpaces: Record<string, string> | undefined =
-        this.enablePublicSpace
-            ? { public: makeSpaceId(address, chainId, "public") }
-            : undefined;
-
     const now = new Date();
     const expirationTime = new Date(now.getTime() + this.sessionExpirationMs);
 
@@ -363,7 +367,6 @@ export class NodeUserAuthorization implements IUserAuthorization {
       issuedAt: now.toISOString(),
       expirationTime: expirationTime.toISOString(),
       spaceId,
-      additionalSpaces,
       jwk,
     });
 
@@ -391,6 +394,14 @@ export class NodeUserAuthorization implements IUserAuthorization {
       signature,
     };
 
+    // Compute additional spaces as metadata (not in the delegation itself).
+    // The public space delegation is created lazily via ensurePublicSpace(),
+    // not at signIn time, to avoid creating spaces the user may never use.
+    const spacesMetadata: Record<string, string> | undefined =
+        this.enablePublicSpace
+            ? { public: makeSpaceId(address, chainId, "public") }
+            : undefined;
+
     // Create TinyCloud session with full delegation data
     // Use sessionManager.getDID(keyId) for verificationMethod to get properly formatted DID URL
     // The prepared.verificationMethod from Rust WASM has a bug that doubles the DID fragment
@@ -399,7 +410,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
       chainId,
       sessionKey: keyId,
       spaceId,
-      spaces: additionalSpaces,
+      spaces: spacesMetadata,
       delegationCid: session.delegationCid,
       delegationHeader: session.delegationHeader,
       verificationMethod: this.sessionManager.getDID(keyId),
@@ -419,7 +430,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
         delegationHeader: session.delegationHeader,
         delegationCid: session.delegationCid,
         spaceId,
-        spaces: additionalSpaces,
+        spaces: spacesMetadata,
         verificationMethod: this.sessionManager.getDID(keyId),
       },
       expiresAt: expirationTime.toISOString(),
@@ -519,7 +530,6 @@ export class NodeUserAuthorization implements IUserAuthorization {
     jwk: Record<string, unknown>;
     address: string;
     chainId: number;
-    additionalSpaces?: Record<string, string>;
   }> {
     const address = ensureEip55(await this.signer.getAddress());
     const chainId = await this.signer.getChainId();
@@ -538,12 +548,6 @@ export class NodeUserAuthorization implements IUserAuthorization {
     // Create space ID
     const spaceId = makeSpaceId(address, chainId, this.spacePrefix);
 
-    // Build additional spaces for multi-space session
-    const additionalSpaces: Record<string, string> | undefined =
-        this.enablePublicSpace
-            ? { public: makeSpaceId(address, chainId, "public") }
-            : undefined;
-
     const now = new Date();
     const expirationTime = new Date(now.getTime() + this.sessionExpirationMs);
 
@@ -556,7 +560,6 @@ export class NodeUserAuthorization implements IUserAuthorization {
       issuedAt: now.toISOString(),
       expirationTime: expirationTime.toISOString(),
       spaceId,
-      additionalSpaces,
       jwk,
     });
 
@@ -566,7 +569,6 @@ export class NodeUserAuthorization implements IUserAuthorization {
       jwk,
       address,
       chainId,
-      additionalSpaces,
     };
   }
 
@@ -591,7 +593,6 @@ export class NodeUserAuthorization implements IUserAuthorization {
     signature: string,
     keyId: string,
     jwk: Record<string, unknown>,
-    additionalSpaces?: Record<string, string>
   ): Promise<ClientSession> {
     // Complete session setup with the prepared session + signature
     const session = completeSessionSetup({
@@ -615,6 +616,12 @@ export class NodeUserAuthorization implements IUserAuthorization {
       signature,
     };
 
+    // Compute additional spaces as metadata (not in the delegation itself).
+    const spacesMetadata: Record<string, string> | undefined =
+        this.enablePublicSpace
+            ? { public: makeSpaceId(address, chainId, "public") }
+            : undefined;
+
     // Create TinyCloud session with full delegation data
     // Use sessionManager.getDID(keyId) for properly formatted DID URL
     const tinyCloudSession: TinyCloudSession = {
@@ -622,7 +629,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
       chainId,
       sessionKey: keyId,
       spaceId: prepared.spaceId,
-      spaces: additionalSpaces,
+      spaces: spacesMetadata,
       delegationCid: session.delegationCid,
       delegationHeader: session.delegationHeader,
       verificationMethod: this.sessionManager.getDID(keyId),
@@ -650,7 +657,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
         delegationHeader: session.delegationHeader,
         delegationCid: session.delegationCid,
         spaceId: prepared.spaceId,
-        spaces: additionalSpaces,
+        spaces: spacesMetadata,
         verificationMethod: this.sessionManager.getDID(keyId),
       },
       expiresAt,
