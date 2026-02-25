@@ -89,14 +89,14 @@ async function runDemo() {
   const alice = new TinyCloudNode({
     privateKey: aliceKey,
     host: TINYCLOUD_URL,
-    prefix: "public",
+    prefix: "applications",
     autoCreateSpace: true,
   });
 
   const bob = new TinyCloudNode({
     privateKey: bobKey,
     host: TINYCLOUD_URL,
-    prefix: "public",
+    prefix: "applications",
     autoCreateSpace: true,
   });
 

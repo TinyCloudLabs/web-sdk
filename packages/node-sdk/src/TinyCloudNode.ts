@@ -110,6 +110,10 @@ export interface TinyCloudNodeConfig {
   autoCreateSpace?: boolean;
   /** Custom session storage implementation (default: MemorySessionStorage) */
   sessionStorage?: ISessionStorage;
+  /** Whether to include public space capabilities in the session (default: true).
+   * When true, signIn() automatically includes capabilities for the user's public space,
+   * accessible via spaces.get('public').kv */
+  enablePublicSpace?: boolean;
 }
 
 /**
@@ -256,6 +260,7 @@ export class TinyCloudNode {
         sessionExpirationMs: config.sessionExpirationMs ?? 60 * 60 * 1000,
         tinycloudHosts: [host],
         autoCreateSpace: config.autoCreateSpace,
+        enablePublicSpace: config.enablePublicSpace ?? true,
       });
 
       this.tc = new TinyCloud(this.auth);
@@ -393,6 +398,7 @@ export class TinyCloudNode {
       sessionExpirationMs: this.config.sessionExpirationMs ?? 60 * 60 * 1000,
       tinycloudHosts: [host],
       autoCreateSpace: this.config.autoCreateSpace,
+      enablePublicSpace: this.config.enablePublicSpace ?? true,
     });
 
     // Create TinyCloud instance
@@ -519,7 +525,36 @@ export class TinyCloudNode {
         allowSubDelegation: true,
       };
 
-      this._capabilityRegistry.registerKey(sessionKey, [rootDelegation]);
+      // Register root delegations
+      const delegations = [rootDelegation];
+
+      // If session includes additional spaces (e.g., public), register delegations for those too
+      if (tcSession.spaces) {
+        for (const [spaceName, spaceId] of Object.entries(tcSession.spaces)) {
+          delegations.push({
+            cid: tcSession.delegationCid,
+            delegateDID: tcSession.verificationMethod,
+            spaceId,
+            path: "",
+            actions: [
+              "tinycloud.kv/put",
+              "tinycloud.kv/get",
+              "tinycloud.kv/del",
+              "tinycloud.kv/list",
+              "tinycloud.kv/metadata",
+              "tinycloud.sql/read",
+              "tinycloud.sql/write",
+              "tinycloud.sql/admin",
+              "tinycloud.sql/*",
+            ],
+            expiry: this.getSessionExpiry(),
+            isRevoked: false,
+            allowSubDelegation: true,
+          });
+        }
+      }
+
+      this._capabilityRegistry.registerKey(sessionKey, delegations);
     }
 
     // Initialize DelegationManager
@@ -542,7 +577,16 @@ export class TinyCloudNode {
         // Create a new KV service scoped to the specified space
         const kvService = new KVService({});
         if (this._serviceContext) {
-          kvService.initialize(this._serviceContext);
+          const spaceScopedContext = new ServiceContext({
+            invoke: this._serviceContext.invoke,
+            fetch: this._serviceContext.fetch,
+            hosts: this._serviceContext.hosts,
+          });
+          const session = this._serviceContext.session;
+          if (session) {
+            spaceScopedContext.setSession({ ...session, spaceId });
+          }
+          kvService.initialize(spaceScopedContext);
         }
         return kvService;
       },

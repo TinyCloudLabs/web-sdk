@@ -57,6 +57,8 @@ export interface NodeUserAuthorizationConfig {
   autoCreateSpace?: boolean;
   /** TinyCloud server endpoints (default: ["https://node.tinycloud.xyz"]) */
   tinycloudHosts?: string[];
+  /** Whether to include public space capabilities in the session (default: true) */
+  enablePublicSpace?: boolean;
 }
 
 /**
@@ -106,6 +108,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
   private readonly sessionExpirationMs: number;
   private readonly autoCreateSpace: boolean;
   private readonly tinycloudHosts: string[];
+  private readonly enablePublicSpace: boolean;
 
   private sessionManager: SessionManager;
   private extensions: Extension[] = [];
@@ -153,6 +156,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
     this.sessionExpirationMs = config.sessionExpirationMs ?? 60 * 60 * 1000;
     this.autoCreateSpace = config.autoCreateSpace ?? false;
     this.tinycloudHosts = config.tinycloudHosts ?? ["https://node.tinycloud.xyz"];
+    this.enablePublicSpace = config.enablePublicSpace ?? true;
 
     // Initialize session manager
     this.sessionManager = new SessionManager();
@@ -317,6 +321,12 @@ export class NodeUserAuthorization implements IUserAuthorization {
     // Create space ID
     const spaceId = makeSpaceId(address, chainId, this.spacePrefix);
 
+    // Build additional spaces for multi-space session
+    const additionalSpaces: Record<string, string> | undefined =
+        this.enablePublicSpace
+            ? { public: makeSpaceId(address, chainId, "public") }
+            : undefined;
+
     const now = new Date();
     const expirationTime = new Date(now.getTime() + this.sessionExpirationMs);
 
@@ -329,6 +339,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
       issuedAt: now.toISOString(),
       expirationTime: expirationTime.toISOString(),
       spaceId,
+      additionalSpaces,
       jwk,
     });
 
@@ -364,6 +375,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
       chainId,
       sessionKey: keyId,
       spaceId,
+      spaces: additionalSpaces,
       delegationCid: session.delegationCid,
       delegationHeader: session.delegationHeader,
       verificationMethod: this.sessionManager.getDID(keyId),
@@ -383,6 +395,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
         delegationHeader: session.delegationHeader,
         delegationCid: session.delegationCid,
         spaceId,
+        spaces: additionalSpaces,
         verificationMethod: this.sessionManager.getDID(keyId),
       },
       expiresAt: expirationTime.toISOString(),
@@ -482,6 +495,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
     jwk: Record<string, unknown>;
     address: string;
     chainId: number;
+    additionalSpaces?: Record<string, string>;
   }> {
     const address = ensureEip55(await this.signer.getAddress());
     const chainId = await this.signer.getChainId();
@@ -500,6 +514,12 @@ export class NodeUserAuthorization implements IUserAuthorization {
     // Create space ID
     const spaceId = makeSpaceId(address, chainId, this.spacePrefix);
 
+    // Build additional spaces for multi-space session
+    const additionalSpaces: Record<string, string> | undefined =
+        this.enablePublicSpace
+            ? { public: makeSpaceId(address, chainId, "public") }
+            : undefined;
+
     const now = new Date();
     const expirationTime = new Date(now.getTime() + this.sessionExpirationMs);
 
@@ -512,6 +532,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
       issuedAt: now.toISOString(),
       expirationTime: expirationTime.toISOString(),
       spaceId,
+      additionalSpaces,
       jwk,
     });
 
@@ -521,6 +542,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
       jwk,
       address,
       chainId,
+      additionalSpaces,
     };
   }
 
@@ -544,7 +566,8 @@ export class NodeUserAuthorization implements IUserAuthorization {
     },
     signature: string,
     keyId: string,
-    jwk: Record<string, unknown>
+    jwk: Record<string, unknown>,
+    additionalSpaces?: Record<string, string>
   ): Promise<ClientSession> {
     // Complete session setup with the prepared session + signature
     const session = completeSessionSetup({
@@ -575,6 +598,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
       chainId,
       sessionKey: keyId,
       spaceId: prepared.spaceId,
+      spaces: additionalSpaces,
       delegationCid: session.delegationCid,
       delegationHeader: session.delegationHeader,
       verificationMethod: this.sessionManager.getDID(keyId),
@@ -602,6 +626,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
         delegationHeader: session.delegationHeader,
         delegationCid: session.delegationCid,
         spaceId: prepared.spaceId,
+        spaces: additionalSpaces,
         verificationMethod: this.sessionManager.getDID(keyId),
       },
       expiresAt,
