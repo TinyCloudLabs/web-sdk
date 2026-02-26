@@ -1,17 +1,19 @@
 #!/usr/bin/env bun
 /**
- * TinyCloud Node.js SDK Demo - Public Spaces
+ * TinyCloud Node.js SDK Demo - Public Spaces (Multi-Space Approach)
  *
- * Demonstrates the public spaces feature:
+ * Demonstrates the public spaces feature using multi-space sessions:
  *
- * 1. Alice creates her public space and publishes data
- * 2. Bob reads Alice's public data via the SDK (unauthenticated, no delegation)
- * 3. A raw fetch request reads Alice's public data (no SDK, no auth)
+ * 1. Alice signs in normally (default space), then ensures her public space exists
+ * 2. Alice writes to both her private default space and her public space
+ * 3. Bob reads Alice's public data via the SDK (unauthenticated, no delegation)
+ * 4. A raw fetch request reads Alice's public data (no SDK, no auth)
  *
  * Key concepts demonstrated:
- * - Public spaces use the reserved name "public" (prefix: "public")
+ * - Sign in once (default space), then call ensurePublicSpace() to lazily create public space
+ * - alice.publicKV for writes to the public space (convenience getter)
+ * - alice.kv for writes to the private default space
  * - Anyone can read from public spaces without authentication
- * - Writes require authentication (owner session scoped to the public space)
  * - `TinyCloud.readPublicKey()` is a static, unauthenticated read
  * - `GET /public/{spaceId}/kv/{key}` works with a plain HTTP request
  *
@@ -87,10 +89,10 @@ async function runDemo() {
   console.log();
 
   // =========================================================================
-  // PART 1: Alice creates her public space and publishes data
+  // PART 1: Alice signs in, ensures public space, and publishes data
   // =========================================================================
   console.log("=".repeat(70));
-  console.log("PART 1: Alice publishes to her public space");
+  console.log("PART 1: Alice signs in (default space) and publishes to public space");
   console.log("=".repeat(70));
   console.log();
 
@@ -99,22 +101,44 @@ async function runDemo() {
   console.log(`[Alice] Public space ID: ${alicePublicSpaceId}`);
   console.log();
 
-  // Alice signs in with prefix "public" — this creates the public space
-  // and gives her an authenticated session scoped to it
+  // Alice signs in normally — this creates her default (private) space.
+  // enablePublicSpace defaults to true, so the session capabilities
+  // already cover the public space.
   const alice = new TinyCloudNode({
     privateKey: aliceKey,
     host: TINYCLOUD_URL,
-    prefix: "public",
     autoCreateSpace: true,
   });
 
-  console.log("[Alice] Signing in to public space...");
+  console.log("[Alice] Signing in (default space)...");
   await alice.signIn();
-  console.log(`[Alice] Space: ${alice.spaceId}`);
+  console.log(`[Alice] Primary space: ${alice.spaceId}`);
   console.log();
 
-  // Write a profile to the public space
-  console.log("[Alice] Publishing profile to well-known/profile...");
+  // Lazily create the public space on the server and register the delegation.
+  // This only needs to be called once — subsequent calls are no-ops if the
+  // public space already exists.
+  console.log("[Alice] Ensuring public space exists...");
+  await alice.ensurePublicSpace();
+  console.log("[Alice] Public space ready.");
+  console.log();
+
+  // Write private data to the default space using alice.kv
+  console.log("[Alice] Storing private note in default space...");
+  const privateData = {
+    note: "This is Alice's private data — only she can read it",
+    createdAt: new Date().toISOString(),
+  };
+  const privatePutResult = await alice.kv.put("private/note", privateData);
+  if (!privatePutResult.ok) {
+    console.error(`[Alice] Failed to store private note: ${privatePutResult.error.message}`);
+  } else {
+    console.log(`[Alice] Private note stored in default space.`);
+  }
+  console.log();
+
+  // Write a profile to the PUBLIC space using alice.publicKV
+  console.log("[Alice] Publishing profile to public space (well-known/profile)...");
   const profileData = {
     name: "Alice",
     bio: "Decentralized storage enthusiast",
@@ -122,21 +146,21 @@ async function runDemo() {
     updatedAt: new Date().toISOString(),
   };
 
-  const putResult = await alice.kv.put("well-known/profile", profileData);
+  const putResult = await alice.publicKV.put("well-known/profile", profileData);
   if (!putResult.ok) {
     console.error(`[Alice] Failed to publish profile: ${putResult.error.message}`);
     process.exit(1);
   }
-  console.log(`[Alice] Profile published: ${JSON.stringify(profileData)}`);
+  console.log(`[Alice] Profile published to public space: ${JSON.stringify(profileData)}`);
   console.log();
 
-  // Write a status message
-  console.log("[Alice] Publishing status...");
+  // Write a status message to the PUBLIC space
+  console.log("[Alice] Publishing status to public space...");
   const statusData = {
     message: "Hello from my public space!",
     timestamp: new Date().toISOString(),
   };
-  const statusResult = await alice.kv.put("status", statusData);
+  const statusResult = await alice.publicKV.put("status", statusData);
   if (!statusResult.ok) {
     console.error(`[Alice] Failed to publish status: ${statusResult.error.message}`);
   } else {
@@ -240,9 +264,11 @@ async function runDemo() {
   console.log();
   console.log("What was demonstrated:");
   console.log();
-  console.log("PART 1 - Publishing to Public Space:");
-  console.log("  - TinyCloudNode with prefix: 'public' creates the public space");
-  console.log("  - alice.kv.put() writes to the public space (authenticated)");
+  console.log("PART 1 - Multi-Space Session with Public Space:");
+  console.log("  - Sign in once (default space), session covers both spaces");
+  console.log("  - alice.ensurePublicSpace() lazily creates the public space");
+  console.log("  - alice.kv.put() writes to the private default space");
+  console.log("  - alice.publicKV.put() writes to the public space");
   console.log("  - makePublicSpaceId(address, chainId) constructs deterministic ID");
   console.log();
   console.log("PART 2 - SDK Unauthenticated Read:");

@@ -101,6 +101,23 @@ export {
   type SQLActionType,
 } from "@tinycloud/sdk-services";
 
+// Vault service types (re-exported from sdk-services)
+export {
+  DataVaultService,
+  VaultAction,
+  VaultHeaders,
+  type IDataVaultService,
+  type VaultCrypto,
+  type DataVaultConfig,
+  type VaultPutOptions,
+  type VaultGetOptions,
+  type VaultListOptions,
+  type VaultGrantOptions,
+  type VaultEntry,
+  type VaultError,
+  type VaultActionType,
+} from "@tinycloud/sdk-services";
+
 // Space utilities
 export {
   SpaceHostResult,

@@ -3,6 +3,10 @@ const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
 
 // You can modify the webpack config in here, for instance to add polyfills.
 module.exports = function override(config, env) {
+  // Remove ModuleScopePlugin to allow imports from monorepo root node_modules
+  config.resolve.plugins = config.resolve.plugins.filter(
+    plugin => plugin.constructor.name !== 'ModuleScopePlugin'
+  );
   // Add bundle analyzer in analyze mode
   if (process.env.ANALYZE) {
     config.plugins.push(
@@ -31,6 +35,20 @@ module.exports = function override(config, env) {
       }
     }
   }
+
+  // Force all react imports to resolve to the app's local React 18
+  // (prevents dual-React when hoisted root has React 19)
+  const path = require('path');
+  const localReact = path.resolve(__dirname, 'node_modules/react');
+  const localReactDom = path.resolve(__dirname, 'node_modules/react-dom');
+  config.resolve.alias = {
+    ...config.resolve.alias,
+    'react': localReact,
+    'react/jsx-runtime': path.resolve(localReact, 'jsx-runtime.js'),
+    'react/jsx-dev-runtime': path.resolve(localReact, 'jsx-dev-runtime.js'),
+    'react-dom': localReactDom,
+    'react-dom/client': path.resolve(localReactDom, 'client.js'),
+  };
 
   // Handle webpack fallbacks - only include essential ones
   config.resolve.fallback = {

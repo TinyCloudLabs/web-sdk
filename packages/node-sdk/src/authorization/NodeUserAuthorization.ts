@@ -57,6 +57,8 @@ export interface NodeUserAuthorizationConfig {
   autoCreateSpace?: boolean;
   /** TinyCloud server endpoints (default: ["https://node.tinycloud.xyz"]) */
   tinycloudHosts?: string[];
+  /** Whether to include public space capabilities in the session (default: true) */
+  enablePublicSpace?: boolean;
 }
 
 /**
@@ -106,6 +108,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
   private readonly sessionExpirationMs: number;
   private readonly autoCreateSpace: boolean;
   private readonly tinycloudHosts: string[];
+  private readonly enablePublicSpace: boolean;
 
   private sessionManager: SessionManager;
   private extensions: Extension[] = [];
@@ -153,6 +156,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
     this.sessionExpirationMs = config.sessionExpirationMs ?? 60 * 60 * 1000;
     this.autoCreateSpace = config.autoCreateSpace ?? false;
     this.tinycloudHosts = config.tinycloudHosts ?? ["https://node.tinycloud.xyz"];
+    this.enablePublicSpace = config.enablePublicSpace ?? true;
 
     // Initialize session manager
     this.sessionManager = new SessionManager();
@@ -191,13 +195,13 @@ export class NodeUserAuthorization implements IUserAuthorization {
    * Create the space on the TinyCloud server (host delegation).
    * This registers the user as the owner of the space.
    */
-  private async hostSpace(): Promise<boolean> {
+  private async hostSpace(targetSpaceId?: string): Promise<boolean> {
     if (!this._tinyCloudSession || !this._address || !this._chainId) {
       throw new Error("Must be signed in to host space");
     }
 
     const host = this.tinycloudHosts[0];
-    const spaceId = this._tinyCloudSession.spaceId;
+    const spaceId = targetSpaceId ?? this._tinyCloudSession.spaceId;
 
     // Get peer ID from TinyCloud server
     const peerId = await fetchPeerId(host, spaceId);
@@ -223,6 +227,14 @@ export class NodeUserAuthorization implements IUserAuthorization {
   }
 
   /**
+   * Create a specific space on the server via host delegation.
+   * Used for lazy creation of additional spaces (e.g., public).
+   */
+  async hostPublicSpace(spaceId: string): Promise<boolean> {
+    return this.hostSpace(spaceId);
+  }
+
+  /**
    * Ensure the user's space exists on the TinyCloud server.
    * Creates the space if it doesn't exist and autoCreateSpace is enabled.
    * If autoCreateSpace is false and space doesn't exist, silently returns
@@ -236,38 +248,38 @@ export class NodeUserAuthorization implements IUserAuthorization {
     }
 
     const host = this.tinycloudHosts[0];
+    const primarySpaceId = this._tinyCloudSession.spaceId;
 
-    // Try to activate the session (this checks if space exists)
+    // Try to activate the session
     const result = await activateSessionWithHost(
       host,
       this._tinyCloudSession.delegationHeader
     );
 
     if (result.success) {
-      // Space exists and session is activated
-      return;
-    }
+      // Check if primary space was actually activated or just skipped
+      const primarySkipped = result.skipped?.includes(primarySpaceId);
 
-    if (result.status === 404) {
-      // Space doesn't exist
-      if (!this.autoCreateSpace) {
-        // User didn't request space creation - silently return.
-        // They may be using delegations to access other spaces.
+      if (!primarySkipped) {
+        // Primary space exists and session is activated
         return;
       }
 
-      // Create the space
+      // Primary space was skipped (doesn't exist yet)
+      if (!this.autoCreateSpace) {
+        return;
+      }
+
+      // Create the primary space
       const created = await this.hostSpace();
       if (!created) {
-        throw new Error(
-          `Failed to create space: ${this._tinyCloudSession.spaceId}`
-        );
+        throw new Error(`Failed to create space: ${primarySpaceId}`);
       }
 
       // Small delay to allow space creation to propagate
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      // Retry activation after creating space
+      // Retry activation
       const retryResult = await activateSessionWithHost(
         host,
         this._tinyCloudSession.delegationHeader
@@ -282,7 +294,33 @@ export class NodeUserAuthorization implements IUserAuthorization {
       return;
     }
 
-    // Other error
+    // Handle 404 (backwards compat with older servers)
+    if (result.status === 404) {
+      if (!this.autoCreateSpace) {
+        return;
+      }
+
+      const created = await this.hostSpace();
+      if (!created) {
+        throw new Error(`Failed to create space: ${primarySpaceId}`);
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      const retryResult = await activateSessionWithHost(
+        host,
+        this._tinyCloudSession.delegationHeader
+      );
+
+      if (!retryResult.success) {
+        throw new Error(
+          `Failed to activate session after creating space: ${retryResult.error}`
+        );
+      }
+
+      return;
+    }
+
     throw new Error(`Failed to activate session: ${result.error}`);
   }
 
@@ -317,6 +355,12 @@ export class NodeUserAuthorization implements IUserAuthorization {
     // Create space ID
     const spaceId = makeSpaceId(address, chainId, this.spacePrefix);
 
+    // Build additional spaces for multi-space session
+    const additionalSpaces: Record<string, string> | undefined =
+        this.enablePublicSpace
+            ? { public: makeSpaceId(address, chainId, "public") }
+            : undefined;
+
     const now = new Date();
     const expirationTime = new Date(now.getTime() + this.sessionExpirationMs);
 
@@ -329,6 +373,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
       issuedAt: now.toISOString(),
       expirationTime: expirationTime.toISOString(),
       spaceId,
+      additionalSpaces,
       jwk,
     });
 
@@ -364,6 +409,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
       chainId,
       sessionKey: keyId,
       spaceId,
+      spaces: additionalSpaces,
       delegationCid: session.delegationCid,
       delegationHeader: session.delegationHeader,
       verificationMethod: this.sessionManager.getDID(keyId),
@@ -383,6 +429,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
         delegationHeader: session.delegationHeader,
         delegationCid: session.delegationCid,
         spaceId,
+        spaces: additionalSpaces,
         verificationMethod: this.sessionManager.getDID(keyId),
       },
       expiresAt: expirationTime.toISOString(),
@@ -544,7 +591,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
     },
     signature: string,
     keyId: string,
-    jwk: Record<string, unknown>
+    jwk: Record<string, unknown>,
   ): Promise<ClientSession> {
     // Complete session setup with the prepared session + signature
     const session = completeSessionSetup({
@@ -568,6 +615,12 @@ export class NodeUserAuthorization implements IUserAuthorization {
       signature,
     };
 
+    // Compute additional spaces as metadata (not in the delegation itself).
+    const spacesMetadata: Record<string, string> | undefined =
+        this.enablePublicSpace
+            ? { public: makeSpaceId(address, chainId, "public") }
+            : undefined;
+
     // Create TinyCloud session with full delegation data
     // Use sessionManager.getDID(keyId) for properly formatted DID URL
     const tinyCloudSession: TinyCloudSession = {
@@ -575,6 +628,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
       chainId,
       sessionKey: keyId,
       spaceId: prepared.spaceId,
+      spaces: spacesMetadata,
       delegationCid: session.delegationCid,
       delegationHeader: session.delegationHeader,
       verificationMethod: this.sessionManager.getDID(keyId),
@@ -602,6 +656,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
         delegationHeader: session.delegationHeader,
         delegationCid: session.delegationCid,
         spaceId: prepared.spaceId,
+        spaces: spacesMetadata,
         verificationMethod: this.sessionManager.getDID(keyId),
       },
       expiresAt,

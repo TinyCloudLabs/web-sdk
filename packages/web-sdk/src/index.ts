@@ -136,6 +136,23 @@ export {
   checkNodeVersion,
 } from '@tinycloud/sdk-core';
 
+// Re-export Vault service types from sdk-core
+export {
+  DataVaultService,
+  VaultAction,
+  VaultHeaders,
+  type IDataVaultService,
+  type VaultCrypto,
+  type DataVaultConfig,
+  type VaultPutOptions,
+  type VaultGetOptions,
+  type VaultListOptions,
+  type VaultGrantOptions,
+  type VaultEntry,
+  type VaultError,
+  type VaultActionType,
+} from '@tinycloud/sdk-core';
+
 // Adapter for web-sdk
 export { createKVService } from './modules/Storage/tinycloud/KVServiceAdapter';
 
