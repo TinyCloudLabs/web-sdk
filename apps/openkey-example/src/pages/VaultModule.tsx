@@ -20,6 +20,16 @@ interface IVaultModule {
  * - Delete: remove encrypted data
  * - Head: view metadata without decrypting
  */
+function formatError(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === 'string') return err;
+  if (err && typeof err === 'object' && 'message' in err) {
+    const msg = (err as { message: unknown }).message;
+    return typeof msg === 'string' ? msg : JSON.stringify(err);
+  }
+  return JSON.stringify(err);
+}
+
 function VaultModule({ tcw, web3Provider }: IVaultModule) {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [unlocking, setUnlocking] = useState(false);
@@ -59,10 +69,12 @@ function VaultModule({ tcw, web3Provider }: IVaultModule) {
         setIsUnlocked(true);
         setSuccess('Vault unlocked. Encryption keys derived from wallet signature.');
       } else {
-        setError(`Unlock failed: ${result.error.message}`);
+        console.error('[Vault] Unlock failed:', result.error);
+        setError(`Unlock failed: ${formatError(result.error)}`);
       }
     } catch (err) {
-      setError(`Unlock error: ${err instanceof Error ? err.message : String(err)}`);
+      console.error('[Vault] Unlock error:', err);
+      setError(`Unlock error: ${formatError(err)}`);
     }
 
     setUnlocking(false);
@@ -77,7 +89,8 @@ function VaultModule({ tcw, web3Provider }: IVaultModule) {
     if (result.ok) {
       setKeys(result.data);
     } else {
-      setError(`List failed: ${result.error.message}`);
+      console.error('[Vault] List failed:', result.error);
+      setError(`List failed: ${formatError(result.error)}`);
     }
 
     setListLoading(false);
@@ -108,7 +121,8 @@ function VaultModule({ tcw, web3Provider }: IVaultModule) {
       setPutValue('');
       handleList();
     } else {
-      setError(`Put failed: ${result.error.message}`);
+      console.error('[Vault] Put failed:', result.error);
+      setError(`Put failed: ${formatError(result.error)}`);
     }
 
     setPutLoading(false);
@@ -128,7 +142,8 @@ function VaultModule({ tcw, web3Provider }: IVaultModule) {
         : JSON.stringify(result.data.value, null, 2);
       setGetResult(`Key: ${key}\nKey ID: ${result.data.keyId}\nValue: ${valueStr}`);
     } else {
-      setError(`Get failed: ${result.error.message}`);
+      console.error('[Vault] Get failed:', result.error);
+      setError(`Get failed: ${formatError(result.error)}`);
     }
 
     setGetLoading(false);
@@ -145,7 +160,8 @@ function VaultModule({ tcw, web3Provider }: IVaultModule) {
       setGetResult(null);
       setHeadResult(null);
     } else {
-      setError(`Delete failed: ${result.error.message}`);
+      console.error('[Vault] Delete failed:', result.error);
+      setError(`Delete failed: ${formatError(result.error)}`);
     }
   }, [tcw]);
 
@@ -159,7 +175,8 @@ function VaultModule({ tcw, web3Provider }: IVaultModule) {
     if (result.ok) {
       setHeadResult(JSON.stringify(result.data, null, 2));
     } else {
-      setError(`Head failed: ${result.error.message}`);
+      console.error('[Vault] Head failed:', result.error);
+      setError(`Head failed: ${formatError(result.error)}`);
     }
   }, [tcw]);
 
