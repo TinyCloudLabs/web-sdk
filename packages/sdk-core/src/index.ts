@@ -105,15 +105,16 @@ export {
 export {
   DataVaultService,
   VaultAction,
-  VaultHeaders,
   type IDataVaultService,
   type VaultCrypto,
   type DataVaultConfig,
+  type DataVaultTinyCloudConfig,
   type VaultPutOptions,
   type VaultGetOptions,
   type VaultListOptions,
   type VaultGrantOptions,
   type VaultEntry,
+  type VaultHeaders,
   type VaultError,
   type VaultActionType,
 } from "@tinycloud/sdk-services";
