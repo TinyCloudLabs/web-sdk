@@ -6,9 +6,8 @@
 
 import { BaseService } from "../base/BaseService";
 import type { Result } from "../types";
-import type { KVResponse, KVListResponse } from "../kv";
 import { IDataVaultService } from "./IDataVaultService";
-import { DataVaultConfig, VaultGetOptions, VaultPutOptions, VaultListOptions, VaultGrantOptions } from "./types";
+import { DataVaultConfig, VaultEntry, VaultHeaders, VaultGetOptions, VaultPutOptions, VaultListOptions, VaultGrantOptions } from "./types";
 
 export class DataVaultService extends BaseService implements IDataVaultService {
   static readonly serviceName = "vault";
@@ -28,15 +27,15 @@ export class DataVaultService extends BaseService implements IDataVaultService {
     throw new Error("DataVaultService: not yet implemented");
   }
 
-  async put(_key: string, _value: unknown, _options?: VaultPutOptions): Promise<Result<KVResponse<void>>> {
+  async put(_key: string, _value: unknown, _options?: VaultPutOptions): Promise<Result<void>> {
     throw new Error("DataVaultService: not yet implemented");
   }
 
-  async get<T = unknown>(_key: string, _options?: VaultGetOptions): Promise<Result<KVResponse<T>>> {
+  async get<T = unknown>(_key: string, _options?: VaultGetOptions): Promise<Result<VaultEntry<T>>> {
     throw new Error("DataVaultService: not yet implemented");
   }
 
-  async list(_options?: VaultListOptions): Promise<Result<KVListResponse>> {
+  async list(_options?: VaultListOptions): Promise<Result<string[]>> {
     throw new Error("DataVaultService: not yet implemented");
   }
 
@@ -44,7 +43,7 @@ export class DataVaultService extends BaseService implements IDataVaultService {
     throw new Error("DataVaultService: not yet implemented");
   }
 
-  async head(_key: string): Promise<Result<KVResponse<void>>> {
+  async head(_key: string): Promise<Result<VaultHeaders>> {
     throw new Error("DataVaultService: not yet implemented");
   }
 }

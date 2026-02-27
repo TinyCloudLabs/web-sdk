@@ -83,6 +83,7 @@ export interface VaultGrantOptions {
  */
 export interface VaultEntry<T = unknown> {
   key: string;
+  keyId: string;
   value: T;
   metadata?: Record<string, string>;
 }
