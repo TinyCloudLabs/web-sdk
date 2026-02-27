@@ -2,11 +2,11 @@
 
 Demonstrates the full TinyCloud delegation chain using the Node.js SDK:
 
-1. **Alice** creates a namespace and stores data
+1. **Alice** creates a space and stores data
 2. **Alice** delegates access to **Bob** (with sub-delegation enabled)
 3. **Bob** reads Alice's data and writes a response
 4. **Bob** sub-delegates write access to **Charlie**
-5. **Charlie** writes to Alice's namespace via the delegation chain
+5. **Charlie** writes to Alice's space via the delegation chain
 6. **Alice** reads messages from both Bob and Charlie
 
 ## Quick Start
@@ -53,7 +53,7 @@ bun run demo
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │   ┌───────────┐                                                 │
-│   │   Alice   │  Ethereum Wallet (namespace owner)             │
+│   │   Alice   │  Ethereum Wallet (space owner)             │
 │   │  (Owner)  │  Full KV access: put, get, del, list           │
 │   └─────┬─────┘                                                 │
 │         │                                                       │
@@ -91,12 +91,12 @@ const tc = new TinyCloudNode({
   privateKey: "your-ethereum-private-key-hex",
   host: "http://localhost:8000",
   prefix: "my-app",
-  autoCreateNamespace: true,
+  autoCreateSpace: true,
 });
 
-// Sign in (creates namespace if autoCreateNamespace is true)
+// Sign in (creates space if autoCreateSpace is true)
 await tc.signIn();
-console.log("Namespace:", tc.namespaceId);
+console.log("Space:", tc.spaceId);
 console.log("PKH DID:", tc.pkhDid);
 ```
 
@@ -148,7 +148,7 @@ import { deserializeDelegation } from "@tinycloud/node-sdk";
 // Bob receives serialized delegation from Alice
 const delegation = deserializeDelegation(serialized);
 
-// Use the delegation to access Alice's namespace
+// Use the delegation to access Alice's space
 const accessToAlice = await bobClient.useDelegation(delegation);
 
 // Read and write with delegation
@@ -173,9 +173,9 @@ await charlieAccess.kv.put("charlie-was-here", { from: "Charlie" });
 
 ## Key Concepts
 
-- **Namespace**: A user-owned data container identified by `tinycloud:pkh:eip155:{chainId}:{address}:{name}`
-- **Namespace Owner**: The Ethereum address that controls a namespace
-- **Delegation**: Authorization to access another user's namespace with specific permissions
+- **Space**: A user-owned data container identified by `tinycloud:pkh:eip155:{chainId}:{address}:{name}`
+- **Space Owner**: The Ethereum address that controls a space
+- **Delegation**: Authorization to access another user's space with specific permissions
 - **Sub-Delegation**: A delegation created from an existing delegation (with attenuated permissions)
 - **Attenuation**: Reducing permissions when creating a sub-delegation (e.g., read/write → write-only)
 - **PKH DID**: Public Key Hash DID (`did:pkh:eip155:1:0x...`) identifying an Ethereum address

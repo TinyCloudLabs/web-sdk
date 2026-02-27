@@ -42,13 +42,17 @@ module.exports = function override(config, env) {
     }
   }
 
-  // Force single React instance — in a monorepo, multiple resolution paths
-  // can cause libs like next-themes to get a different React than the app,
-  // breaking useContext(). require.resolve finds the actual installed copy.
+  // Force all react imports to resolve to the app's local React 18
+  // (prevents dual-React when hoisted root has React 19)
+  const localReact = path.resolve(__dirname, 'node_modules/react');
+  const localReactDom = path.resolve(__dirname, 'node_modules/react-dom');
   config.resolve.alias = {
     ...config.resolve.alias,
-    react: path.dirname(require.resolve('react/package.json')),
-    'react-dom': path.dirname(require.resolve('react-dom/package.json')),
+    'react': localReact,
+    'react/jsx-runtime': path.resolve(localReact, 'jsx-runtime.js'),
+    'react/jsx-dev-runtime': path.resolve(localReact, 'jsx-dev-runtime.js'),
+    'react-dom': localReactDom,
+    'react-dom/client': path.resolve(localReactDom, 'client.js'),
   };
 
   // Handle webpack fallbacks - only include essential ones

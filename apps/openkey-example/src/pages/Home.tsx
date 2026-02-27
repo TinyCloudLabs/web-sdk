@@ -21,6 +21,7 @@ import Header from "../components/Header";
 const StorageModule = lazy(() => import("../pages/StorageModule"));
 const SpaceModule = lazy(() => import("../pages/SpaceModule"));
 const DelegationModule = lazy(() => import("../pages/DelegationModule"));
+const VaultModule = lazy(() => import("../pages/VaultModule"));
 
 declare global {
   interface Window {
@@ -34,11 +35,13 @@ function Home() {
   const [loading, setLoading] = useState(false);
   const [tcw, setTinyCloudWeb] = useState<TinyCloudWeb | null>(null);
   const [openKeyAddress, setOpenKeyAddress] = useState<string | null>(null);
+  const [web3Provider, setWeb3Provider] = useState<providers.Web3Provider | null>(null);
 
   // Configuration
   const [storageEnabled, setStorageEnabled] = useState<string>("On");
   const [spaceManagementEnabled, setSpaceManagementEnabled] = useState<string>("Off");
   const [delegationEnabled, setDelegationEnabled] = useState<string>("Off");
+  const [vaultEnabled, setVaultEnabled] = useState<string>("Off");
   const [prefix, setPrefix] = useState<string>("demo-app");
   const [tinyCloudHost, setTinyCloudHost] = useState<string>(
     window.__DEV_MODE__ ? "http://localhost:8000" : ""
@@ -99,13 +102,13 @@ function Home() {
       const eip1193Provider = new OpenKeyEIP1193Provider(openkey, authResult);
 
       // 3. Wrap in ethers Web3Provider for TinyCloudWeb compatibility
-      const web3Provider = new providers.Web3Provider(eip1193Provider as any);
+      const ethersProvider = new providers.Web3Provider(eip1193Provider as any);
 
       // 4. Configure and create TinyCloudWeb
       const tcwConfig = getTinyCloudWebConfig({
         providers: {
           web3: {
-            driver: web3Provider,
+            driver: ethersProvider,
           },
         },
         // WebUserAuthorization handles space creation modal
@@ -116,6 +119,7 @@ function Home() {
       // 5. Sign in - SIWE signing routed through OpenKey popup
       await tcwProvider.signIn();
       setTinyCloudWeb(tcwProvider);
+      setWeb3Provider(ethersProvider);
     } catch (err) {
       console.error("Sign-in failed:", err);
     }
@@ -126,6 +130,7 @@ function Home() {
     tcw?.signOut?.();
     setTinyCloudWeb(null);
     setOpenKeyAddress(null);
+    setWeb3Provider(null);
   };
 
   const displayAdvancedOptions = () => {
@@ -221,7 +226,7 @@ function Home() {
               </div>
 
               {/* Delegation Management toggle */}
-              <div className="space-y-4">
+              <div className="space-y-4 border-b border-border/20 pb-4">
                 <h4 className="text-md font-heading text-text">
                   Delegation Management
                 </h4>
@@ -235,6 +240,25 @@ function Home() {
                   value={delegationEnabled}
                   onChange={setDelegationEnabled}
                   label="Enable delegation management"
+                />
+              </div>
+
+              {/* Data Vault toggle */}
+              <div className="space-y-4">
+                <h4 className="text-md font-heading text-text">
+                  Data Vault
+                </h4>
+                <p className="text-sm text-text/70">
+                  Enable the Data Vault demo for client-side encrypted KV storage.
+                  Data is encrypted before leaving the device using keys derived
+                  from wallet signatures.
+                </p>
+                <RadioGroup
+                  name="vaultEnabled"
+                  options={["On", "Off"]}
+                  value={vaultEnabled}
+                  onChange={setVaultEnabled}
+                  label="Enable data vault demo"
                 />
               </div>
             </div>
@@ -335,6 +359,13 @@ function Home() {
           {delegationEnabled === "On" && tcw && tcw.session() && (
             <div className="mt-8 rounded-base border-2 border-border bg-bw p-6 shadow-shadow">
               <DelegationModule tcw={tcw} />
+            </div>
+          )}
+
+          {/* Vault module - only show when signed in */}
+          {vaultEnabled === "On" && tcw && tcw.session() && web3Provider && (
+            <div className="mt-8 rounded-base border-2 border-border bg-bw p-6 shadow-shadow">
+              <VaultModule tcw={tcw} web3Provider={web3Provider} />
             </div>
           )}
         </div>

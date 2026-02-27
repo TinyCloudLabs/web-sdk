@@ -50,6 +50,13 @@ import {
   // Space delegation types
   SpaceDelegationParams,
   activateSessionWithHost,
+  // Vault service
+  DataVaultService,
+  type IDataVaultService,
+  type VaultCrypto,
+  // Public space utilities
+  TinyCloud,
+  makePublicSpaceId,
 } from '@tinycloud/sdk-core';
 import { WasmKeyProvider } from './keys';
 import { WasmInitializer } from './WasmInitializer';
@@ -451,6 +458,12 @@ export class TinyCloudWeb {
   /** SharingService for generating/receiving share links */
   private _sharingService?: SharingService;
 
+  /** Data Vault service instance */
+  private _vault?: DataVaultService;
+
+  /** Public KV service instance (lazily initialized, scoped to public space) */
+  private _publicKV?: KVService;
+
   constructor(private config: Config = DEFAULT_CONFIG) {
     // Initialize user authorization
     this.userAuthorization = this.createWebUserAuthorization(config);
@@ -694,6 +707,31 @@ export class TinyCloudWeb {
   }
 
   /**
+   * Get the Data Vault service for encrypted KV storage.
+   *
+   * Must be signed in for the service to be available.
+   * Call `vault.unlock(signer)` after sign-in to derive encryption keys.
+   *
+   * @throws Error if not signed in
+   *
+   * @example
+   * ```typescript
+   * await tcw.vault.unlock(signer);
+   * await tcw.vault.put('secrets/api-key', { key: 'sk-...' });
+   * const result = await tcw.vault.get<{ key: string }>('secrets/api-key');
+   * if (result.ok) console.log(result.data.value.key);
+   * ```
+   */
+  public get vault(): IDataVaultService {
+    if (!this._vault) {
+      throw new Error(
+        'Vault service is not available. Make sure you are signed in first.'
+      );
+    }
+    return this._vault;
+  }
+
+  /**
    * Initialize the sdk-services KVService and other services.
    * Called internally after sign-in when the session is established.
    *
@@ -726,6 +764,9 @@ export class TinyCloudWeb {
 
     // Initialize the new delegation system services
     this.initializeDelegationServices(hosts, serviceSession);
+
+    // Initialize the Data Vault service
+    this.initializeVaultService(serviceSession);
   }
 
   /**
@@ -882,6 +923,198 @@ export class TinyCloudWeb {
         return this.createRootDelegationForSharing(params, hosts);
       },
     });
+  }
+
+  /**
+   * Initialize the Data Vault service after sign-in.
+   * @internal
+   */
+  private initializeVaultService(serviceSession: ServiceSession | null): void {
+    if (!serviceSession || !this._serviceContext || !this._kvService) {
+      return;
+    }
+
+    const address = this.userAuthorization.address();
+    const chainId = this.userAuthorization.chainId();
+    if (!address || !chainId) {
+      return;
+    }
+
+    const hosts = this.userAuthorization.getTinycloudHosts();
+    const pkhDid = `did:pkh:eip155:${chainId}:${address}`;
+
+    // Build VaultCrypto from WASM bindings
+    const vaultCrypto: VaultCrypto = {
+      encrypt: tinycloud.vault_encrypt,
+      decrypt: tinycloud.vault_decrypt,
+      deriveKey: tinycloud.vault_derive_key,
+      x25519FromSeed: tinycloud.vault_x25519_from_seed,
+      x25519Dh: tinycloud.vault_x25519_dh,
+      randomBytes: tinycloud.vault_random_bytes,
+      sha256: tinycloud.vault_sha256,
+    };
+
+    // Build the tc config object with lazy publicKV getter
+    const self = this;
+    const tcConfig = {
+      kv: this._kvService as IKVService,
+      ensurePublicSpace: () => self.ensurePublicSpace(),
+      get publicKV(): IKVService { return self.getPublicKV(); },
+      readPublicSpace: <T>(host: string, spaceId: string, key: string) =>
+        TinyCloud.readPublicSpace<T>(host, spaceId, key),
+      makePublicSpaceId,
+      did: pkhDid,
+      address,
+      chainId,
+      hosts,
+    };
+
+    this._vault = new DataVaultService({
+      spaceId: serviceSession.spaceId,
+      crypto: vaultCrypto,
+      tc: tcConfig,
+    });
+    this._vault.initialize(this._serviceContext);
+    this._serviceContext.registerService('vault', this._vault);
+  }
+
+  /**
+   * Ensure the user's public space exists. Creates it if needed.
+   * Used by the Data Vault service to publish encryption keys.
+   * @internal
+   */
+  private async ensurePublicSpace(): Promise<Result<void, ServiceError>> {
+    const address = this.userAuthorization.address();
+    const chainId = this.userAuthorization.chainId();
+    if (!address || !chainId || !this._serviceContext) {
+      return {
+        ok: false as const,
+        error: {
+          code: 'AUTH_REQUIRED',
+          message: 'Must be signed in to ensure public space',
+          service: 'public-space' as const,
+        },
+      };
+    }
+
+    const session = this._serviceContext.session;
+    if (!session) {
+      return {
+        ok: false as const,
+        error: {
+          code: 'AUTH_REQUIRED',
+          message: 'No active session',
+          service: 'public-space' as const,
+        },
+      };
+    }
+
+    const spaceId = makePublicSpaceId(address, chainId);
+    const host = this._serviceContext.hosts[0];
+
+    try {
+      // Check if space exists
+      const headers = this._serviceContext.invoke(
+        session,
+        'space',
+        spaceId,
+        'tinycloud.space/info'
+      );
+      const response = await this._serviceContext.fetch(
+        `${host}/invoke`,
+        { method: 'POST', headers, body: JSON.stringify({ spaceId }) }
+      );
+
+      if (response.ok) {
+        return { ok: true as const, data: undefined };
+      }
+
+      if (response.status === 404) {
+        // Space doesn't exist — create it
+        const createHeaders = this._serviceContext.invoke(
+          session,
+          'space',
+          'public',
+          'tinycloud.space/create'
+        );
+        const createResponse = await this._serviceContext.fetch(
+          `${host}/invoke`,
+          { method: 'POST', headers: createHeaders, body: JSON.stringify({ name: 'public' }) }
+        );
+
+        if (!createResponse.ok && createResponse.status !== 409) {
+          const errorText = await createResponse.text();
+          return {
+            ok: false as const,
+            error: {
+              code: 'NETWORK_ERROR',
+              message: `Failed to create public space: ${createResponse.status} - ${errorText}`,
+              service: 'public-space' as const,
+            },
+          };
+        }
+        return { ok: true as const, data: undefined };
+      }
+
+      const errorText = await response.text();
+      return {
+        ok: false as const,
+        error: {
+          code: 'NETWORK_ERROR',
+          message: `Failed to check public space: ${response.status} - ${errorText}`,
+          service: 'public-space' as const,
+        },
+      };
+    } catch (error) {
+      return {
+        ok: false as const,
+        error: {
+          code: 'NETWORK_ERROR',
+          message: `Network error ensuring public space: ${error instanceof Error ? error.message : String(error)}`,
+          service: 'public-space' as const,
+        },
+      };
+    }
+  }
+
+  /**
+   * Get or create a KV service scoped to the user's public space.
+   * Used by the Data Vault service for publishing grants and public keys.
+   * @internal
+   */
+  private getPublicKV(): IKVService {
+    if (this._publicKV) {
+      return this._publicKV;
+    }
+
+    const address = this.userAuthorization.address();
+    const chainId = this.userAuthorization.chainId();
+    if (!address || !chainId || !this._serviceContext) {
+      throw new Error('Must be signed in to access publicKV.');
+    }
+
+    const session = this._serviceContext.session;
+    if (!session) {
+      throw new Error('No active session. Sign in first.');
+    }
+
+    const publicSpaceId = makePublicSpaceId(address, chainId);
+    const hosts = this.userAuthorization.getTinycloudHosts();
+
+    const publicKV = new KVService({ prefix: '' });
+    const publicContext = new ServiceContext({
+      invoke: invoke as any,
+      fetch: globalThis.fetch.bind(globalThis),
+      hosts,
+    });
+    publicContext.setSession({
+      ...session,
+      spaceId: publicSpaceId,
+    });
+    publicKV.initialize(publicContext);
+
+    this._publicKV = publicKV;
+    return this._publicKV;
   }
 
   /**
@@ -1246,6 +1479,9 @@ export class TinyCloudWeb {
     this._spaceService = undefined;
     this._keyProvider = undefined;
     this._sharingService = undefined;
+    // Clear vault service
+    this._vault = undefined;
+    this._publicKV = undefined;
     return this.userAuthorization.signOut();
   };
 

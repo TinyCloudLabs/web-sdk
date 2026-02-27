@@ -22,6 +22,8 @@ import Header from "../components/Header";
 const StorageModule = lazy(() => import("../pages/StorageModule"));
 const SpaceModule = lazy(() => import("../pages/SpaceModule"));
 const DelegationModule = lazy(() => import("../pages/DelegationModule"));
+const PublicSpaceModule = lazy(() => import("../pages/PublicSpaceModule"));
+const VaultModule = lazy(() => import("../pages/VaultModule"));
 declare global {
   interface Window {
     tcw: TinyCloudWeb;
@@ -71,6 +73,8 @@ function Home() {
   const [storageEnabled, setStorageEnabled] = useState<string>("On");
   const [spaceManagementEnabled, setSpaceManagementEnabled] = useState<string>("Off");
   const [delegationEnabled, setDelegationEnabled] = useState<string>("Off");
+  const [publicSpaceEnabled, setPublicSpaceEnabled] = useState<string>("Off");
+  const [vaultEnabled, setVaultEnabled] = useState<string>("Off");
   const [prefix, setPrefix] = useState<string>("demo-app");
   const [tinyCloudHost, setTinyCloudHost] = useState<string>(
     window.__DEV_MODE__ ? "http://localhost:8000" : ""
@@ -520,6 +524,44 @@ function Home() {
                 />
               </div>
 
+              {/* Public Space toggle */}
+              <div className="space-y-4 border-b border-border/20 pb-4">
+                <h4 className="text-md font-heading text-text">
+                  Public Space
+                </h4>
+                <p className="text-sm text-text/70">
+                  Enable the public space demo. Read anyone's public data
+                  without authentication, or write to your own public space
+                  after signing in.
+                </p>
+                <RadioGroup
+                  name="publicSpaceEnabled"
+                  options={["On", "Off"]}
+                  value={publicSpaceEnabled}
+                  onChange={setPublicSpaceEnabled}
+                  label="Enable public space demo"
+                />
+              </div>
+
+              {/* Data Vault toggle */}
+              <div className="space-y-4 border-b border-border/20 pb-4">
+                <h4 className="text-md font-heading text-text">
+                  Data Vault
+                </h4>
+                <p className="text-sm text-text/70">
+                  Enable the Data Vault demo for client-side encrypted KV storage.
+                  Data is encrypted before leaving the device using keys derived
+                  from wallet signatures.
+                </p>
+                <RadioGroup
+                  name="vaultEnabled"
+                  options={["On", "Off"]}
+                  value={vaultEnabled}
+                  onChange={setVaultEnabled}
+                  label="Enable data vault demo"
+                />
+              </div>
+
               {/* ENS Resolution toggle */}
               <div className="space-y-4 border-b border-border/20 pb-4">
                 <h4 className="text-md font-heading text-text">Resolve ENS</h4>
@@ -773,6 +815,20 @@ function Home() {
           {delegationEnabled === "On" && tcw && tcw.session() && (
             <div className="mt-8 rounded-base border-2 border-border bg-bw p-6 shadow-shadow">
               <DelegationModule tcw={tcw} />
+            </div>
+          )}
+
+          {/* Public Space module - show when toggle is on (read works without auth) */}
+          {publicSpaceEnabled === "On" && (
+            <div className="mt-8 rounded-base border-2 border-border bg-bw p-6 shadow-shadow">
+              <PublicSpaceModule tcw={tcw} tinyCloudHost={tinyCloudHost} />
+            </div>
+          )}
+
+          {/* Vault module - only show when signed in */}
+          {vaultEnabled === "On" && tcw && tcw.session() && (
+            <div className="mt-8 rounded-base border-2 border-border bg-bw p-6 shadow-shadow">
+              <VaultModule tcw={tcw} />
             </div>
           )}
 
