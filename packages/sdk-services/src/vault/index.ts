@@ -23,3 +23,5 @@ export {
   type VaultError,
   type VaultActionType,
 } from "./types";
+
+export { createVaultCrypto, type WasmVaultFunctions } from "./createVaultCrypto";

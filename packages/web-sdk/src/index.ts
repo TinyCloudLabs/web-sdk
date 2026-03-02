@@ -140,6 +140,8 @@ export {
 export {
   DataVaultService,
   VaultAction,
+  createVaultCrypto,
+  type WasmVaultFunctions,
   type VaultHeaders,
   type IDataVaultService,
   type VaultCrypto,

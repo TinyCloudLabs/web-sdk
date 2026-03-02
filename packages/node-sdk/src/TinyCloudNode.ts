@@ -41,7 +41,7 @@ import {
   ISQLService,
   DataVaultService,
   IDataVaultService,
-  VaultCrypto,
+  createVaultCrypto,
   ServiceSession,
   ServiceContext,
   ISessionStorage,
@@ -450,15 +450,10 @@ export class TinyCloudNode {
     (this.tc!.serviceContext as ServiceContext).setSession(serviceSession);
 
     // Create and register Vault service
-    const vaultCrypto: VaultCrypto = {
-      encrypt: vault_encrypt,
-      decrypt: vault_decrypt,
-      deriveKey: vault_derive_key,
-      x25519FromSeed: vault_x25519_from_seed,
-      x25519Dh: vault_x25519_dh,
-      randomBytes: vault_random_bytes,
-      sha256: vault_sha256,
-    };
+    const vaultCrypto = createVaultCrypto({
+      vault_encrypt, vault_decrypt, vault_derive_key,
+      vault_x25519_from_seed, vault_x25519_dh, vault_random_bytes, vault_sha256,
+    });
     const tcInstance = this.tc!;
     this._vault = new DataVaultService({
       spaceId: session.spaceId,

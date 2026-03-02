@@ -8,7 +8,10 @@ import { ExitCode } from "../config/constants.js";
  * Create a TinyCloudNode instance from the current CLI context.
  * Uses the profile's persisted session and key.
  */
-export async function createSDKInstance(ctx: CLIContext): Promise<TinyCloudNode> {
+export async function createSDKInstance(
+  ctx: CLIContext,
+  options?: { privateKey?: string }
+): Promise<TinyCloudNode> {
   const profile = await ProfileManager.getProfile(ctx.profile);
   const session = await ProfileManager.getSession(ctx.profile);
   const key = await ProfileManager.getKey(ctx.profile);
@@ -23,7 +26,13 @@ export async function createSDKInstance(ctx: CLIContext): Promise<TinyCloudNode>
 
   const node = new TinyCloudNode({
     host: ctx.host,
+    privateKey: options?.privateKey,
   });
+
+  // Sign in to establish session (required for service access)
+  if (options?.privateKey) {
+    await node.signIn();
+  }
 
   return node;
 }
@@ -32,7 +41,10 @@ export async function createSDKInstance(ctx: CLIContext): Promise<TinyCloudNode>
  * Ensure the user is authenticated.
  * Throws AUTH_REQUIRED if no session exists.
  */
-export async function ensureAuthenticated(ctx: CLIContext): Promise<TinyCloudNode> {
+export async function ensureAuthenticated(
+  ctx: CLIContext,
+  options?: { privateKey?: string }
+): Promise<TinyCloudNode> {
   const session = await ProfileManager.getSession(ctx.profile);
 
   if (!session) {
@@ -43,7 +55,5 @@ export async function ensureAuthenticated(ctx: CLIContext): Promise<TinyCloudNod
     );
   }
 
-  // TODO: Check session expiry and prompt for re-auth if interactive
-
-  return createSDKInstance(ctx);
+  return createSDKInstance(ctx, options);
 }

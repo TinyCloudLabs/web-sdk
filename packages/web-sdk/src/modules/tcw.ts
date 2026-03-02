@@ -53,7 +53,7 @@ import {
   // Vault service
   DataVaultService,
   type IDataVaultService,
-  type VaultCrypto,
+  createVaultCrypto,
   // Public space utilities
   TinyCloud,
   makePublicSpaceId,
@@ -944,15 +944,15 @@ export class TinyCloudWeb {
     const pkhDid = `did:pkh:eip155:${chainId}:${address}`;
 
     // Build VaultCrypto from WASM bindings
-    const vaultCrypto: VaultCrypto = {
-      encrypt: (key, plaintext) => tinycloud.vault_encrypt(key, plaintext),
-      decrypt: (key, blob) => tinycloud.vault_decrypt(key, blob),
-      deriveKey: (signature, salt, info) => tinycloud.vault_derive_key(salt, signature, info),
-      x25519FromSeed: (seed) => tinycloud.vault_x25519_from_seed(seed),
-      x25519Dh: (privateKey, publicKey) => tinycloud.vault_x25519_dh(privateKey, publicKey),
-      randomBytes: (length) => tinycloud.vault_random_bytes(length),
-      sha256: (data) => tinycloud.vault_sha256(data),
-    };
+    const vaultCrypto = createVaultCrypto({
+      vault_encrypt: (key, plaintext) => tinycloud.vault_encrypt(key, plaintext),
+      vault_decrypt: (key, blob) => tinycloud.vault_decrypt(key, blob),
+      vault_derive_key: (salt, signature, info) => tinycloud.vault_derive_key(salt, signature, info),
+      vault_x25519_from_seed: (seed) => tinycloud.vault_x25519_from_seed(seed),
+      vault_x25519_dh: (privateKey, publicKey) => tinycloud.vault_x25519_dh(privateKey, publicKey),
+      vault_random_bytes: (length) => tinycloud.vault_random_bytes(length),
+      vault_sha256: (data) => tinycloud.vault_sha256(data),
+    });
 
     // Build the tc config object with lazy publicKV getter
     const self = this;
