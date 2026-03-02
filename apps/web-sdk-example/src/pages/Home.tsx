@@ -18,12 +18,12 @@ import {
 } from "../components/ui/accordian";
 import Footer from "../components/Footer";
 import Header from "../components/Header";
+import VaultModule from "../pages/VaultModule";
 
 const StorageModule = lazy(() => import("../pages/StorageModule"));
 const SpaceModule = lazy(() => import("../pages/SpaceModule"));
 const DelegationModule = lazy(() => import("../pages/DelegationModule"));
 const PublicSpaceModule = lazy(() => import("../pages/PublicSpaceModule"));
-const VaultModule = lazy(() => import("../pages/VaultModule"));
 declare global {
   interface Window {
     tcw: TinyCloudWeb;
@@ -74,7 +74,7 @@ function Home() {
   const [spaceManagementEnabled, setSpaceManagementEnabled] = useState<string>("Off");
   const [delegationEnabled, setDelegationEnabled] = useState<string>("Off");
   const [publicSpaceEnabled, setPublicSpaceEnabled] = useState<string>("Off");
-  const [vaultEnabled, setVaultEnabled] = useState<string>("Off");
+  const [vaultEnabled, setVaultEnabled] = useState<string>("On");
   const [prefix, setPrefix] = useState<string>("demo-app");
   const [tinyCloudHost, setTinyCloudHost] = useState<string>(
     window.__DEV_MODE__ ? "http://localhost:8000" : ""

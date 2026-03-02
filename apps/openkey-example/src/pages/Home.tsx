@@ -17,11 +17,11 @@ import {
 } from "../components/ui/accordian";
 import Footer from "../components/Footer";
 import Header from "../components/Header";
+import VaultModule from "../pages/VaultModule";
 
 const StorageModule = lazy(() => import("../pages/StorageModule"));
 const SpaceModule = lazy(() => import("../pages/SpaceModule"));
 const DelegationModule = lazy(() => import("../pages/DelegationModule"));
-const VaultModule = lazy(() => import("../pages/VaultModule"));
 
 declare global {
   interface Window {
@@ -41,7 +41,7 @@ function Home() {
   const [storageEnabled, setStorageEnabled] = useState<string>("On");
   const [spaceManagementEnabled, setSpaceManagementEnabled] = useState<string>("Off");
   const [delegationEnabled, setDelegationEnabled] = useState<string>("Off");
-  const [vaultEnabled, setVaultEnabled] = useState<string>("Off");
+  const [vaultEnabled, setVaultEnabled] = useState<string>("On");
   const [prefix, setPrefix] = useState<string>("demo-app");
   const [tinyCloudHost, setTinyCloudHost] = useState<string>(
     window.__DEV_MODE__ ? "http://localhost:8000" : ""

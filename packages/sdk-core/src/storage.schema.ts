@@ -51,6 +51,8 @@ export const PersistedTinyCloudSessionSchema = z.object({
   delegationCid: z.string(),
   /** The space ID for this session */
   spaceId: z.string(),
+  /** Additional named spaces (e.g., { public: "space-id" }) for multi-space sessions */
+  spaces: z.record(z.string()).optional(),
   /** The verification method DID */
   verificationMethod: z.string(),
 });
@@ -113,6 +115,8 @@ export const TinyCloudSessionSchema = z.object({
   sessionKey: z.string(),
   /** The space ID for this session */
   spaceId: z.string(),
+  /** Additional named spaces (e.g., { public: "space-id" }) for multi-space sessions */
+  spaces: z.record(z.string()).optional(),
   /** The delegation CID */
   delegationCid: z.string(),
   /** The delegation header for API calls */

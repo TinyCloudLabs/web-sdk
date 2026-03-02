@@ -943,15 +943,21 @@ export class TinyCloudWeb {
     const hosts = this.userAuthorization.getTinycloudHosts();
     const pkhDid = `did:pkh:eip155:${chainId}:${address}`;
 
-    // Build VaultCrypto from WASM bindings
+    // Build VaultCrypto from WASM bindings (if available)
+    const tc = tinycloud as any;
+    const hasWasmVault = typeof tc.vault_encrypt === 'function';
+    if (!hasWasmVault) {
+      console.warn('[TinyCloudWeb] Vault WASM bindings not available, vault crypto operations will fail');
+    }
+
     const vaultCrypto: VaultCrypto = {
-      encrypt: tinycloud.vault_encrypt,
-      decrypt: tinycloud.vault_decrypt,
-      deriveKey: tinycloud.vault_derive_key,
-      x25519FromSeed: tinycloud.vault_x25519_from_seed,
-      x25519Dh: tinycloud.vault_x25519_dh,
-      randomBytes: tinycloud.vault_random_bytes,
-      sha256: tinycloud.vault_sha256,
+      encrypt: hasWasmVault ? tc.vault_encrypt : () => { throw new Error('Vault WASM bindings not available'); },
+      decrypt: hasWasmVault ? tc.vault_decrypt : () => { throw new Error('Vault WASM bindings not available'); },
+      deriveKey: hasWasmVault ? tc.vault_derive_key : () => { throw new Error('Vault WASM bindings not available'); },
+      x25519FromSeed: hasWasmVault ? tc.vault_x25519_from_seed : () => { throw new Error('Vault WASM bindings not available'); },
+      x25519Dh: hasWasmVault ? tc.vault_x25519_dh : () => { throw new Error('Vault WASM bindings not available'); },
+      randomBytes: hasWasmVault ? tc.vault_random_bytes : () => { throw new Error('Vault WASM bindings not available'); },
+      sha256: hasWasmVault ? tc.vault_sha256 : () => { throw new Error('Vault WASM bindings not available'); },
     };
 
     // Build the tc config object with lazy publicKV getter
