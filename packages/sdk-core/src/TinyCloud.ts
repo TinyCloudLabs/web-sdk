@@ -11,6 +11,7 @@ import {
   KVService,
   ISQLService,
   SQLService,
+  IDataVaultService,
   ServiceSession,
   InvokeFunction,
   FetchFunction,
@@ -278,6 +279,24 @@ export class TinyCloud {
     const service = this._services.get("sql") as ISQLService | undefined;
     if (!service) {
       throw new Error("SQL service is not registered.");
+    }
+    return service;
+  }
+
+  /**
+   * Get the Data Vault service.
+   * @throws Error if services are not initialized or vault service is not registered
+   */
+  public get vault(): IDataVaultService {
+    if (!this._servicesInitialized) {
+      throw new Error(
+        "Services not initialized. Call initializeServices() first, " +
+          "or use TinyCloudWeb/TinyCloudNode which handles this automatically."
+      );
+    }
+    const service = this._services.get("vault") as IDataVaultService | undefined;
+    if (!service) {
+      throw new Error("Vault service is not registered.");
     }
     return service;
   }

@@ -29,6 +29,14 @@ export namespace tinycloud {
   export import createDelegation = lib.createDelegation;
   // Protocol version
   export import protocolVersion = lib.protocolVersion;
+  // Vault crypto
+  export import vault_encrypt = lib.vault_encrypt;
+  export import vault_decrypt = lib.vault_decrypt;
+  export import vault_derive_key = lib.vault_derive_key;
+  export import vault_x25519_from_seed = lib.vault_x25519_from_seed;
+  export import vault_x25519_dh = lib.vault_x25519_dh;
+  export import vault_random_bytes = lib.vault_random_bytes;
+  export import vault_sha256 = lib.vault_sha256;
 }
 
 // Note: CreateDelegationWasmParams and CreateDelegationWasmResult types are available

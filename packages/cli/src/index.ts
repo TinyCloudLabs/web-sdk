@@ -9,6 +9,7 @@ import { registerShareCommand } from "./commands/share.js";
 import { registerNodeCommand } from "./commands/node.js";
 import { registerProfileCommand } from "./commands/profile.js";
 import { registerCompletionCommand } from "./commands/completion.js";
+import { registerVaultCommand } from "./commands/vault.js";
 
 const program = new Command();
 
@@ -31,6 +32,7 @@ registerShareCommand(program);
 registerNodeCommand(program);
 registerProfileCommand(program);
 registerCompletionCommand(program);
+registerVaultCommand(program);
 
 try {
   await program.parseAsync(process.argv);

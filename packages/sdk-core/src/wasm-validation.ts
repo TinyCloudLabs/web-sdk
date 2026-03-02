@@ -238,6 +238,8 @@ export const SessionWasmResultSchema = z.object({
   }).passthrough(),
   /** Space ID */
   spaceId: z.string(),
+  /** Additional spaces included in session capabilities */
+  additionalSpaces: z.record(z.string(), z.string()).optional(),
   /** Verification method */
   verificationMethod: z.string(),
 });

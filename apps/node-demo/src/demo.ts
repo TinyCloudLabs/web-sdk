@@ -28,6 +28,7 @@
 
 import {
   TinyCloudNode,
+  TinyCloud,
   serializeDelegation,
   deserializeDelegation,
 } from "@tinycloud/node-sdk";
@@ -539,6 +540,69 @@ async function runDemo() {
   console.log();
 
   // =========================================================================
+  // PART 6: Multi-Space Session (Single Signature)
+  // =========================================================================
+  console.log();
+  console.log("=".repeat(70));
+  console.log("PART 6: MULTI-SPACE SESSION (SINGLE SIGNATURE)");
+  console.log("=".repeat(70));
+  console.log();
+
+  // Alice's session already covers both primary and public spaces
+  // (enablePublicSpace defaults to true in TinyCloudNode)
+  console.log("[Alice] Single signIn() covered multiple spaces:");
+  console.log(`  Primary space: ${alice.spaceId}`);
+  console.log(`  Public space:  ${alice.session?.spaces?.public ?? "(not included)"}`);
+  console.log();
+
+  // Ensure public space exists (lazy creation)
+  console.log("[Alice] Ensuring public space exists...");
+  await alice.ensurePublicSpace();
+  console.log("[Alice] Public space ready.");
+  console.log();
+
+  // Write to public space
+  console.log("[Alice] Writing profile to public space...");
+  const publicSpace = alice.spaces.get("public");
+  const publicPutResult = await publicSpace.kv.put("profile", {
+    name: "Alice",
+    bio: "Multi-space session demo",
+    updatedAt: new Date().toISOString(),
+  });
+  if (publicPutResult.ok) {
+    console.log("[Alice] Profile written to public space");
+  } else {
+    console.log(`[Alice] Failed to write: ${publicPutResult.error.message}`);
+  }
+
+  // Read back from public space
+  const publicGetResult = await publicSpace.kv.get<{name: string; bio: string; updatedAt: string}>("profile");
+  if (publicGetResult.ok && publicGetResult.data?.data) {
+    console.log(`[Alice] Read back from public: ${JSON.stringify(publicGetResult.data.data)}`);
+  } else {
+    console.log(`[Alice] Failed to read: ${publicGetResult.error?.message}`);
+  }
+  console.log();
+
+  // Bob reads Alice's public profile unauthenticated
+  console.log("[Bob] Reading Alice's public profile (unauthenticated)...");
+  const bobPublicRead = await TinyCloud.readPublicKey<{name: string; bio: string}>(
+    TINYCLOUD_URL,
+    alice.address!,
+    1,
+    "profile"
+  );
+  if (bobPublicRead.ok) {
+    console.log(`[Bob] Read Alice's public profile: ${JSON.stringify(bobPublicRead.data)}`);
+  } else {
+    console.log(`[Bob] Failed to read: ${bobPublicRead.error?.message}`);
+  }
+  console.log();
+
+  console.log("[Summary] Single wallet signature covered both primary and public spaces!");
+  console.log();
+
+  // =========================================================================
   // Summary
   // =========================================================================
   console.log();
@@ -582,6 +646,12 @@ async function runDemo() {
   console.log("  ✓ SQL delegation with read-only enforcement");
   console.log("  ✓ Bob queried via delegation, write correctly denied");
   console.log();
+  console.log("PART 6 - Multi-Space Session:");
+  console.log("  ✓ Single signIn() covered primary + public space");
+  console.log("  ✓ alice.ensurePublicSpace() for lazy creation");
+  console.log("  ✓ alice.spaces.get('public').kv for public space writes");
+  console.log("  ✓ TinyCloud.readPublicKey() for unauthenticated reads");
+  console.log();
   console.log("PART 4 - Space Management:");
   console.log("  ⏳ Skipped (server-side tinycloud.space/* not yet implemented)");
   console.log();
@@ -595,6 +665,8 @@ async function runDemo() {
   console.log("  • TinyCloudNode.useDelegation() - Use received delegation");
   console.log("  • node.sharing.generate() - Create V2 sharing link");
   console.log("  • node.sharing.receive() - Use V2 sharing link");
+  console.log("  • node.ensurePublicSpace() - Lazy-create public space");
+  console.log("  • TinyCloud.readPublicKey() - Unauthenticated public read");
   console.log();
   console.log("Not Yet Implemented on Server:");
   console.log("  • space.delegations.revoke() - Revoke delegation");

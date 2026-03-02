@@ -1,5 +1,6 @@
 {
   "lockfileVersion": 1,
+  "configVersion": 0,
   "workspaces": {
     "": {
       "name": "tinycloud-web-sdk",
@@ -32,9 +33,9 @@
     },
     "apps/openkey-example": {
       "name": "tinycloud-openkey-example-app",
-      "version": "0.0.2",
+      "version": "0.0.3",
       "dependencies": {
-        "@openkey/sdk": "^0.4.0",
+        "@openkey/sdk": "^0.7.2",
         "@radix-ui/react-accordion": "^1.2.3",
         "@radix-ui/react-alert-dialog": "^1.1.6",
         "@radix-ui/react-toast": "^1.2.6",
@@ -80,9 +81,9 @@
     },
     "apps/openkey-vite": {
       "name": "openkey-vite",
-      "version": "0.0.0",
+      "version": "0.0.1",
       "dependencies": {
-        "@openkey/sdk": "^0.2.1",
+        "@openkey/sdk": "0.7.2",
         "@radix-ui/react-accordion": "^1.2.3",
         "@radix-ui/react-alert-dialog": "^1.1.14",
         "@radix-ui/react-slot": "^1.2.3",
@@ -163,9 +164,9 @@
     },
     "packages/cli": {
       "name": "@tinycloud/cli",
-      "version": "0.0.0",
+      "version": "0.0.1",
       "bin": {
-        "tc": "./bin/tc"
+        "tc": "./bin/tc",
       },
       "dependencies": {
         "@tinycloud/node-sdk": "workspace:*",
@@ -182,7 +183,7 @@
     },
     "packages/node-sdk": {
       "name": "@tinycloud/node-sdk",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "dependencies": {
         "@tinycloud/node-sdk-wasm": "workspace:*",
         "@tinycloud/sdk-core": "workspace:*",
@@ -197,7 +198,7 @@
     },
     "packages/sdk-core": {
       "name": "@tinycloud/sdk-core",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "dependencies": {
         "@tinycloud/sdk-services": "workspace:*",
         "@tinycloud/web-core": "workspace:*",
@@ -240,7 +241,7 @@
     },
     "packages/sdk-services": {
       "name": "@tinycloud/sdk-services",
-      "version": "1.0.0",
+      "version": "1.2.0",
       "dependencies": {
         "zod": "^3.23.0",
       },
@@ -275,7 +276,7 @@
     },
     "packages/web-sdk": {
       "name": "@tinycloud/web-sdk",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "dependencies": {
         "@metamask/detect-provider": "^1.2.0",
         "@multiformats/multiaddr": "^13.0.1",
@@ -333,7 +334,7 @@
     },
     "tests/sdk-services": {
       "name": "@tinycloud/sdk-services-test",
-      "version": "1.0.0",
+      "version": "2.0.0",
       "devDependencies": {
         "@tinycloud/sdk-services": "workspace:*",
         "@types/node": "^20",
@@ -350,9 +351,9 @@
     "core-js-pure",
   ],
   "overrides": {
-    "typescript": "5.7.3",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
+    "typescript": "5.7.3",
   },
   "packages": {
     "@adobe/css-tools": ["@adobe/css-tools@4.4.4", "", {}, "sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg=="],
@@ -1235,7 +1236,9 @@
 
     "@octokit/types": ["@octokit/types@6.41.0", "", { "dependencies": { "@octokit/openapi-types": "^12.11.0" } }, "sha512-eJ2jbzjdijiL3B4PrSQaSjuF2sPEQPVCPzBvTHJD9Nz+9dw2SGH4K4xeQJ77YfTq5bRQ+bD8wT11JbeDPmxmGg=="],
 
-    "@openkey/sdk": ["@openkey/sdk@0.2.1", "", {}, "sha512-FihSe3s9Ni1g4uGAuURwSfkaYJXcFFVDIUNhIVgCqIfVKMjBYvmmOzwAyX1G8zBHPZYaMrXee12yTIB0YPvRqw=="],
+    "@openkey/core": ["@openkey/core@0.7.1", "", {}, "sha512-vihYss7T0zDPLQb4UTruQ/6x62sLml9+zzO1ClnOtmjB9AIQ39RnXmUGUyMi/DY8GoW1Lh4SAUdxzHq9eVXtYw=="],
+
+    "@openkey/sdk": ["@openkey/sdk@0.7.2", "", { "dependencies": { "@openkey/core": "^0.7.1" } }, "sha512-+YzJN370hLmiF6ihmVJiaWQcbb146sngFWmqZ4y4l2Y+++KX+5d17Q8IYzZGV9FA+Nf1vGzp8ugiGUYNEPNzzA=="],
 
     "@paulmillr/qr": ["@paulmillr/qr@0.2.1", "", {}, "sha512-IHnV6A+zxU7XwmKFinmYjUcwlyK9+xkG3/s9KcQhI9BjQKycrJ1JRO+FbNYPwZiPKW3je/DR0k7w8/gLa5eaxQ=="],
 
@@ -6300,8 +6303,6 @@
     "terser/commander": ["commander@2.20.3", "", {}, "sha512-GpVkmM8vF2vQUkj2LvZmD35JxeJOLCwJ9cUkugyk2nuhbv3+mJvpLYYt+0+USMxE+oj+ey/lJEnhZw75x/OMcQ=="],
 
     "test-exclude/minimatch": ["minimatch@3.1.2", "", { "dependencies": { "brace-expansion": "^1.1.7" } }, "sha512-J7p63hRiAjw1NDEww1W7i37+ByIrOWO5XQQAzZ3VOcL0PNybwpfmV/N05zFAzwQ9USyEcX6t3UO+K5aqBQOIHw=="],
-
-    "tinycloud-openkey-example-app/@openkey/sdk": ["@openkey/sdk@0.4.0", "", {}, "sha512-qMmbpHzNT/lZHwZOZz19k12tts2ZA22w+8ZtjUChLWfNLsUEmozTPeYzPgGg+G2CpXB7uS76Y0oT1Fq3wEcKAg=="],
 
     "tinycloud-openkey-example-app/@types/node": ["@types/node@18.19.130", "", { "dependencies": { "undici-types": "~5.26.4" } }, "sha512-GRaXQx6jGfL8sKfaIDD6OupbIHBr9jv7Jnaml9tB7l4v068PAOXqfcujMMo5PhbIs6ggR1XODELqahT2R8v0fg=="],
 

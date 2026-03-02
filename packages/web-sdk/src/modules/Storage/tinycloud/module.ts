@@ -1,4 +1,5 @@
 import { tinycloud } from '@tinycloud/web-sdk-wasm';
+import type { InvokeFunction } from '@tinycloud/sdk-services';
 
 type TinyCloudModule = typeof tinycloud;
 const msg =
@@ -38,9 +39,9 @@ export const completeSessionSetup: TinyCloudModule['completeSessionSetup'] = (
   }
 };
 
-export const invoke: TinyCloudModule['invoke'] = (...args) => {
+export const invoke: InvokeFunction = (...args) => {
   try {
-    return getModule().invoke(...args);
+    return getModule().invoke(...args) as any;
   } catch (e) {
     throw `${msg}: ${e}`;
   }

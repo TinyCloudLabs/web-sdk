@@ -117,6 +117,23 @@ export type {
   SQLActionType,
 } from "@tinycloud/sdk-core";
 
+// Re-export Vault service values
+export { DataVaultService, VaultAction, VaultHeaders, createVaultCrypto } from "@tinycloud/sdk-core";
+
+// Re-export Vault service types
+export type {
+  IDataVaultService,
+  VaultCrypto,
+  WasmVaultFunctions,
+  DataVaultConfig,
+  VaultPutOptions,
+  VaultGetOptions,
+  VaultListOptions,
+  VaultGrantOptions,
+  VaultEntry,
+  VaultError,
+} from "@tinycloud/sdk-core";
+
 // Re-export v2 Delegation service values
 export {
   DelegationManager,
