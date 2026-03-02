@@ -908,37 +908,22 @@ export class DataVaultService extends BaseService implements IDataVaultService {
 
       try {
         const myDID = this.tc.did;
+        const grantorKV = options?.kv;
 
-        // Step 1: Parse grantor DID to resolve their space
-        const grantorParts = this.parseDID(grantorDID);
-        if (!grantorParts) {
+        if (!grantorKV) {
           return vaultError({
-            code: "PUBLIC_KEY_NOT_FOUND",
-            did: grantorDID,
+            code: "STORAGE_ERROR",
+            cause: new Error(
+              "getShared requires a delegated KV service via options.kv. " +
+              "Use useDelegation() to get delegated access, then pass { kv: access.kv }."
+            ),
           });
         }
 
-        const grantorPublicSpaceId = this.tc.makePublicSpaceId(
-          grantorParts.address,
-          grantorParts.chainId
-        );
-
-        // Step 2: Resolve grantor's vault space ID from their public space
-        const vaultSpaceResult = await this.tc.readPublicSpace<string>(
-          this.host,
-          grantorPublicSpaceId,
-          ".well-known/vault-space"
-        );
-        const grantorVaultSpaceId = vaultSpaceResult.ok
-          ? (vaultSpaceResult.data as string)
-          : grantorPublicSpaceId;
-
-        // Step 3: Fetch grant from grantor's vault space
-        const grantResult = await this.tc.readPublicSpace<string>(
-          this.host,
-          grantorVaultSpaceId,
-          `grants/${myDID}/${key}`
-        );
+        // Step 1: Fetch grant from grantor's space via delegated KV
+        const grantResult = await grantorKV.get<string>(`grants/${myDID}/${key}`, {
+          raw: true,
+        });
         if (!grantResult.ok) {
           return vaultError({
             code: "GRANT_NOT_FOUND",
@@ -947,37 +932,35 @@ export class DataVaultService extends BaseService implements IDataVaultService {
           });
         }
 
-        const grantEnvelope = typeof grantResult.data === "string"
-          ? JSON.parse(grantResult.data)
-          : grantResult.data;
+        const grantEnvelope = typeof grantResult.data?.data === "string"
+          ? JSON.parse(grantResult.data.data as string)
+          : grantResult.data?.data;
         const grantBlobBytes = base64Decode((grantEnvelope as any).grant);
 
-        // Step 4: Extract ephemeral public key and encrypted grant
+        // Step 2: Extract ephemeral public key and encrypted grant
         const ephemeralPubKey = grantBlobBytes.slice(0, 32);
         const encryptedGrant = grantBlobBytes.slice(32);
 
-        // Step 5: Compute shared secret using our private key
+        // Step 3: Compute shared secret using our private key
         const sharedSecret = this.crypto.x25519Dh(
           this.encryptionIdentity.privateKey,
           ephemeralPubKey
         );
 
-        // Step 6: Derive decryption key
+        // Step 4: Derive decryption key
         const encryptionKey = this.crypto.deriveKey(
           sharedSecret,
           toBytes("tinycloud-x25519"),
           toBytes("vault-grant")
         );
 
-        // Step 7: Decrypt entry key
+        // Step 5: Decrypt entry key
         const entryKey = this.crypto.decrypt(encryptionKey, encryptedGrant);
 
-        // Step 8: Fetch encrypted value from grantor's vault space
-        const valueResult = await this.tc.readPublicSpace<string>(
-          this.host,
-          grantorVaultSpaceId,
-          `vault/${key}`
-        );
+        // Step 6: Fetch encrypted value from grantor's space via delegated KV
+        const valueResult = await grantorKV.get<string>(`vault/${key}`, {
+          raw: true,
+        });
         if (!valueResult.ok) {
           return vaultError({
             code: "KEY_NOT_FOUND",
@@ -985,9 +968,9 @@ export class DataVaultService extends BaseService implements IDataVaultService {
           });
         }
 
-        const valueEnvelope = typeof valueResult.data === "string"
-          ? JSON.parse(valueResult.data)
-          : valueResult.data;
+        const valueEnvelope = typeof valueResult.data?.data === "string"
+          ? JSON.parse(valueResult.data.data as string)
+          : valueResult.data?.data;
         const encryptedBytes = base64Decode((valueEnvelope as any).data);
         const plaintext = this.crypto.decrypt(entryKey, encryptedBytes);
 

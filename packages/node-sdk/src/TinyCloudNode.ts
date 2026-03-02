@@ -137,6 +137,8 @@ export class TinyCloudNode {
   private _kv?: KVService;
   private _sql?: SQLService;
   private _vault?: DataVaultService;
+  /** Cached public KV with proper delegation (set by ensurePublicSpace) */
+  private _publicKV?: KVService;
 
   /** Session key ID - always available */
   private sessionKeyId: string;
@@ -454,14 +456,21 @@ export class TinyCloudNode {
       vault_encrypt, vault_decrypt, vault_derive_key,
       vault_x25519_from_seed, vault_x25519_dh, vault_random_bytes, vault_sha256,
     });
-    const tcInstance = this.tc!;
+    const self = this;
     this._vault = new DataVaultService({
       spaceId: session.spaceId,
       crypto: vaultCrypto,
       tc: {
         kv: this._kv!,
-        ensurePublicSpace: () => tcInstance.ensurePublicSpace(),
-        get publicKV() { return tcInstance.publicKV; },
+        ensurePublicSpace: async () => {
+          try {
+            await self.ensurePublicSpace();
+            return { ok: true as const, data: undefined };
+          } catch (error) {
+            return { ok: false as const, error: { code: "STORAGE_ERROR", message: error instanceof Error ? error.message : String(error), service: "vault" } };
+          }
+        },
+        get publicKV() { return self._publicKV ?? self.tc!.publicKV; },
         readPublicSpace: <T>(host: string, spaceId: string, key: string) =>
           TinyCloud.readPublicSpace<T>(host, spaceId, key),
         makePublicSpaceId: TinyCloud.makePublicSpaceId,
@@ -948,7 +957,7 @@ export class TinyCloudNode {
    * before writing to spaces.get('public').kv.
    */
   async ensurePublicSpace() {
-    if (!this.auth || !this.session) {
+    if (!this.auth || !this.session || !this.signer) {
       throw new Error("Not signed in. Call signIn() first.");
     }
 
@@ -960,19 +969,49 @@ export class TinyCloudNode {
     // Create the public space on the server (host SIWE)
     await (this.auth as NodeUserAuthorization).hostPublicSpace(publicSpaceId);
 
-    // Create and activate a session delegation covering the public space
-    const delegation = await this.createDelegation({
-      path: "",
-      actions: [
-        "tinycloud.kv/put",
-        "tinycloud.kv/get",
-        "tinycloud.kv/del",
-        "tinycloud.kv/list",
-        "tinycloud.kv/metadata",
-      ],
-      delegateDID: this.did,
-      spaceIdOverride: publicSpaceId,
+    // Create a session delegation for the public space using the session key JWK.
+    // This mirrors the primary session flow (prepareSession with jwk), ensuring
+    // the delegation targets the session key — not the PKH DID — so that
+    // invoke() requests signed by the session key are properly authorized.
+    const kvActions = [
+      "tinycloud.kv/put",
+      "tinycloud.kv/get",
+      "tinycloud.kv/del",
+      "tinycloud.kv/list",
+      "tinycloud.kv/metadata",
+    ];
+    const abilities = { kv: { "": kvActions } };
+    const now = new Date();
+    const expiryMs = 60 * 60 * 1000;
+    const expirationTime = new Date(now.getTime() + expiryMs);
+
+    const prepared = prepareSession({
+      abilities,
+      address: ensureEip55(this.session.address),
+      chainId: this.session.chainId,
+      domain: new URL(this.config.host!).hostname,
+      issuedAt: now.toISOString(),
+      expirationTime: expirationTime.toISOString(),
+      spaceId: publicSpaceId,
+      jwk: this.session.jwk,
+      parents: [this.session.delegationCid],
     });
+
+    const signature = await this.signer.signMessage(prepared.siwe);
+
+    const delegationSession = completeSessionSetup({
+      ...prepared,
+      signature,
+    });
+
+    const activateResult = await activateSessionWithHost(
+      this.config.host!,
+      delegationSession.delegationHeader
+    );
+
+    if (!activateResult.success) {
+      throw new Error(`Failed to activate public space delegation: ${activateResult.error}`);
+    }
 
     // Register the delegation in the capability registry so
     // spaces.get('public').kv operations are authorized
@@ -985,21 +1024,34 @@ export class TinyCloudNode {
         priority: 0,
       };
       this._capabilityRegistry.registerKey(sessionKey, [{
-        cid: delegation.cid,
+        cid: delegationSession.delegationCid,
         delegateDID: this.session.verificationMethod,
         spaceId: publicSpaceId,
         path: "",
-        actions: [
-          "tinycloud.kv/put",
-          "tinycloud.kv/get",
-          "tinycloud.kv/del",
-          "tinycloud.kv/list",
-          "tinycloud.kv/metadata",
-        ],
-        expiry: delegation.expiry,
+        actions: kvActions,
+        expiry: expirationTime,
         isRevoked: false,
         allowSubDelegation: true,
       }]);
+    }
+
+    // Cache a properly authorized public KV service using the new delegation
+    if (this._serviceContext) {
+      const publicKV = new KVService({ prefix: "" });
+      const publicContext = new ServiceContext({
+        invoke,
+        fetch: this._serviceContext.fetch,
+        hosts: this._serviceContext.hosts,
+      });
+      publicContext.setSession({
+        delegationHeader: delegationSession.delegationHeader,
+        delegationCid: delegationSession.delegationCid,
+        spaceId: publicSpaceId,
+        verificationMethod: this.session.verificationMethod,
+        jwk: this.session.jwk,
+      });
+      publicKV.initialize(publicContext);
+      this._publicKV = publicKV;
     }
   }
 
@@ -1008,6 +1060,9 @@ export class TinyCloudNode {
    * Writes require authentication (owner/delegate).
    */
   get publicKV(): IKVService {
+    if (this._publicKV) {
+      return this._publicKV;
+    }
     if (!this.tc) {
       throw new Error("Not signed in. Call signIn() first.");
     }

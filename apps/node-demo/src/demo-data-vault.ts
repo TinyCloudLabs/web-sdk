@@ -251,12 +251,13 @@ async function runDemo() {
   console.log("[Bob] Receiving Alice's delegation...");
   const serialized = serializeDelegation(delegation);
   const received = deserializeDelegation(serialized);
-  await bob.useDelegation(received);
+  const access = await bob.useDelegation(received);
 
   console.log("[Bob] Decrypting shared data via vault.getShared()...");
   const sharedResult = await bob.vault.getShared<typeof medicalRecord>(
     alice.did,
-    "medical/records/2026"
+    "medical/records/2026",
+    { kv: access.kv }
   );
   if (!sharedResult.ok) {
     throw new Error(`vault.getShared failed: ${(sharedResult as any).error?.code} - ${(sharedResult as any).error?.message}`);

@@ -34,6 +34,8 @@ export interface VaultGetOptions<T = unknown> {
   deserialize?: (data: Uint8Array) => T;
   /** Return raw decrypted bytes without deserialization */
   raw?: boolean;
+  /** Delegated KV service for reading from the grantor's space (used by getShared) */
+  kv?: { get<V>(key: string, options?: { raw?: boolean }): Promise<{ ok: boolean; data?: { data: V }; error?: { message: string } }> };
 }
 
 /**
