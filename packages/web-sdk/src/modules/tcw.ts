@@ -373,7 +373,7 @@ export class TinyCloudWeb {
 
       // Create context and KV service for fetching
       const context = new ServiceContext({
-        invoke: invoke as any,
+        invoke,
         fetch: globalThis.fetch.bind(globalThis),
         hosts: [shareData.host],
       });
@@ -746,7 +746,7 @@ export class TinyCloudWeb {
 
     // Create service context
     this._serviceContext = new ServiceContext({
-      invoke: invoke as any,
+      invoke,
       fetch: globalThis.fetch.bind(globalThis),
       hosts,
     });
@@ -831,7 +831,7 @@ export class TinyCloudWeb {
     this._delegationManager = new DelegationManager({
       hosts,
       session: serviceSession,
-      invoke: invoke as any,
+      invoke,
       fetch: globalThis.fetch.bind(globalThis),
     });
 
@@ -844,7 +844,7 @@ export class TinyCloudWeb {
     this._spaceService = new SpaceService({
       hosts,
       session: serviceSession,
-      invoke: invoke as any,
+      invoke,
       fetch: globalThis.fetch.bind(globalThis),
       capabilityRegistry: this._capabilityRegistry,
       // Create space-scoped KV service factory
@@ -852,7 +852,7 @@ export class TinyCloudWeb {
         const spaceScopedKV = new KVService({ prefix: '' });
         // Create a new context for the space-scoped session
         const spaceContext = new ServiceContext({
-          invoke: invoke as any,
+          invoke,
           fetch: globalThis.fetch.bind(globalThis),
           hosts,
         });
@@ -886,7 +886,7 @@ export class TinyCloudWeb {
       hosts,
       session: serviceSession,
       sessionExpiry: this.getSessionExpiry(),
-      invoke: invoke as any,
+      invoke,
       fetch: globalThis.fetch.bind(globalThis),
       keyProvider: this._keyProvider,
       registry: this._capabilityRegistry,
@@ -897,7 +897,7 @@ export class TinyCloudWeb {
         const prefix = config.pathPrefix?.replace(/\/$/, '') ?? '';
         const kvService = new KVService({ prefix });
         const kvContext = new ServiceContext({
-          invoke: invoke as any,
+          invoke,
           fetch: globalThis.fetch.bind(globalThis),
           hosts: config.hosts,
         });
@@ -943,21 +943,21 @@ export class TinyCloudWeb {
     const hosts = this.userAuthorization.getTinycloudHosts();
     const pkhDid = `did:pkh:eip155:${chainId}:${address}`;
 
-    // Build VaultCrypto from WASM bindings (if available)
-    const tc = tinycloud as any;
-    const hasWasmVault = typeof tc.vault_encrypt === 'function';
-    if (!hasWasmVault) {
-      console.warn('[TinyCloudWeb] Vault WASM bindings not available, vault crypto operations will fail');
-    }
-
+    // Build VaultCrypto from WASM bindings
     const vaultCrypto: VaultCrypto = {
-      encrypt: hasWasmVault ? tc.vault_encrypt : () => { throw new Error('Vault WASM bindings not available'); },
-      decrypt: hasWasmVault ? tc.vault_decrypt : () => { throw new Error('Vault WASM bindings not available'); },
-      deriveKey: hasWasmVault ? tc.vault_derive_key : () => { throw new Error('Vault WASM bindings not available'); },
-      x25519FromSeed: hasWasmVault ? tc.vault_x25519_from_seed : () => { throw new Error('Vault WASM bindings not available'); },
-      x25519Dh: hasWasmVault ? tc.vault_x25519_dh : () => { throw new Error('Vault WASM bindings not available'); },
-      randomBytes: hasWasmVault ? tc.vault_random_bytes : () => { throw new Error('Vault WASM bindings not available'); },
-      sha256: hasWasmVault ? tc.vault_sha256 : () => { throw new Error('Vault WASM bindings not available'); },
+      encrypt: (plaintext, key) => tinycloud.vault_encrypt(key, plaintext),
+      decrypt: (ciphertext, key) => tinycloud.vault_decrypt(key, ciphertext),
+      deriveKey: (seed, info) => {
+        const infoBytes = new TextEncoder().encode(info);
+        return tinycloud.vault_derive_key(new Uint8Array(0), seed, infoBytes);
+      },
+      x25519FromSeed: (seed) => {
+        const result = tinycloud.vault_x25519_from_seed(seed);
+        return { publicKey: result.publicKey, secretKey: result.privateKey };
+      },
+      x25519Dh: (secretKey, publicKey) => tinycloud.vault_x25519_dh(secretKey, publicKey),
+      randomBytes: (length) => tinycloud.vault_random_bytes(length),
+      sha256: (data) => tinycloud.vault_sha256(data),
     };
 
     // Build the tc config object with lazy publicKV getter
@@ -1109,7 +1109,7 @@ export class TinyCloudWeb {
 
     const publicKV = new KVService({ prefix: '' });
     const publicContext = new ServiceContext({
-      invoke: invoke as any,
+      invoke,
       fetch: globalThis.fetch.bind(globalThis),
       hosts,
     });
