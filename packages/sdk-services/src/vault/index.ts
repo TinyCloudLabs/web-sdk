@@ -4,24 +4,22 @@
  * Encrypted key-value storage service for TinyCloud SDK.
  */
 
-// Service implementation
-export { DataVaultService } from "./DataVaultService";
-
 // Interface
-export { IDataVaultService } from "./IDataVaultService";
+export type { IDataVaultService } from "./IDataVaultService";
+
+// Implementation
+export { DataVaultService, type VaultCrypto } from "./DataVaultService";
 
 // Types
 export {
-  VaultCrypto,
-  DataVaultConfig,
-  DataVaultTinyCloudConfig,
-  VaultPutOptions,
-  VaultGetOptions,
-  VaultListOptions,
-  VaultGrantOptions,
-  VaultEntry,
-  VaultHeaders,
-  VaultError,
   VaultAction,
-  VaultActionType,
+  VaultHeaders,
+  type DataVaultConfig,
+  type VaultPutOptions,
+  type VaultGetOptions,
+  type VaultListOptions,
+  type VaultGrantOptions,
+  type VaultEntry,
+  type VaultError,
+  type VaultActionType,
 } from "./types";

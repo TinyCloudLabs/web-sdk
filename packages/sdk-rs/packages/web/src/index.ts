@@ -29,7 +29,7 @@ export namespace tinycloud {
   export import createDelegation = lib.createDelegation;
   // Protocol version
   export import protocolVersion = lib.protocolVersion;
-  // Vault crypto functions
+  // Vault crypto
   export import vault_encrypt = lib.vault_encrypt;
   export import vault_decrypt = lib.vault_decrypt;
   export import vault_derive_key = lib.vault_derive_key;

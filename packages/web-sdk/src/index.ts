@@ -144,7 +144,6 @@ export {
   type IDataVaultService,
   type VaultCrypto,
   type DataVaultConfig,
-  type DataVaultTinyCloudConfig,
   type VaultPutOptions,
   type VaultGetOptions,
   type VaultListOptions,

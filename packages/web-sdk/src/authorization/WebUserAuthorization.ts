@@ -773,28 +773,28 @@ export class WebUserAuthorization implements IUserAuthorization {
     }
 
     const host = this.tinycloudHosts[0];
+    const primarySpaceId = this._tinyCloudSession.spaceId;
 
-    // Try to activate the session
     const result = await activateSessionWithHost(
       host,
       this._tinyCloudSession.delegationHeader
     );
 
     if (result.success) {
-      return;
-    }
+      const primarySkipped = result.skipped?.includes(primarySpaceId);
 
-    if (result.status === 404) {
-      // Space doesn't exist
-      if (!this.autoCreateSpace) {
-        // In web mode with autoCreateSpace disabled, silently return
-        // (user may be accessing via delegations)
+      if (!primarySkipped) {
         return;
       }
 
-      // Confirm with space creation handler
+      // Primary space doesn't exist yet
+      if (!this.autoCreateSpace) {
+        return;
+      }
+
+      // Use the space creation handler (modal confirmation in web)
       const context: SpaceCreationContext = {
-        spaceId: this._tinyCloudSession.spaceId,
+        spaceId: primarySpaceId,
         address: this._tinyCloudSession.address,
         chainId: this._tinyCloudSession.chainId,
         host,
@@ -802,12 +802,9 @@ export class WebUserAuthorization implements IUserAuthorization {
 
       const confirmed = await this.spaceCreationHandler.confirmSpaceCreation(context);
       if (!confirmed) {
-        throw new Error(
-          "Space creation was cancelled. Sign-in requires a space."
-        );
+        throw new Error("Space creation was cancelled. Sign-in requires a space.");
       }
 
-      // Create the space
       const created = await this.hostSpace();
       if (!created) {
         const error = new Error("Failed to create space");
@@ -815,13 +812,51 @@ export class WebUserAuthorization implements IUserAuthorization {
         throw error;
       }
 
-      // Notify handler of success
       this.spaceCreationHandler.onSpaceCreated?.(context);
 
-      // Small delay for propagation
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      // Retry activation
+      const retryResult = await activateSessionWithHost(
+        host,
+        this._tinyCloudSession.delegationHeader
+      );
+
+      if (!retryResult.success) {
+        throw new Error(`Failed to activate session after creating space: ${retryResult.error}`);
+      }
+
+      return;
+    }
+
+    // 404 fallback for backwards compat with older servers
+    if (result.status === 404) {
+      if (!this.autoCreateSpace) {
+        return;
+      }
+
+      const context: SpaceCreationContext = {
+        spaceId: primarySpaceId,
+        address: this._tinyCloudSession.address,
+        chainId: this._tinyCloudSession.chainId,
+        host,
+      };
+
+      const confirmed = await this.spaceCreationHandler.confirmSpaceCreation(context);
+      if (!confirmed) {
+        throw new Error("Space creation was cancelled. Sign-in requires a space.");
+      }
+
+      const created = await this.hostSpace();
+      if (!created) {
+        const error = new Error("Failed to create space");
+        this.spaceCreationHandler.onSpaceCreationFailed?.(context, error);
+        throw error;
+      }
+
+      this.spaceCreationHandler.onSpaceCreated?.(context);
+
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
       const retryResult = await activateSessionWithHost(
         host,
         this._tinyCloudSession.delegationHeader

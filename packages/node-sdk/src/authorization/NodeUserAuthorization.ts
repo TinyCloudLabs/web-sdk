@@ -355,12 +355,6 @@ export class NodeUserAuthorization implements IUserAuthorization {
     // Create space ID
     const spaceId = makeSpaceId(address, chainId, this.spacePrefix);
 
-    // Build additional spaces for multi-space session
-    const additionalSpaces: Record<string, string> | undefined =
-        this.enablePublicSpace
-            ? { public: makeSpaceId(address, chainId, "public") }
-            : undefined;
-
     const now = new Date();
     const expirationTime = new Date(now.getTime() + this.sessionExpirationMs);
 
@@ -373,7 +367,6 @@ export class NodeUserAuthorization implements IUserAuthorization {
       issuedAt: now.toISOString(),
       expirationTime: expirationTime.toISOString(),
       spaceId,
-      additionalSpaces,
       jwk,
     });
 
@@ -401,6 +394,14 @@ export class NodeUserAuthorization implements IUserAuthorization {
       signature,
     };
 
+    // Compute additional spaces as metadata (not in the delegation itself).
+    // The public space delegation is created lazily via ensurePublicSpace(),
+    // not at signIn time, to avoid creating spaces the user may never use.
+    const spacesMetadata: Record<string, string> | undefined =
+        this.enablePublicSpace
+            ? { public: makeSpaceId(address, chainId, "public") }
+            : undefined;
+
     // Create TinyCloud session with full delegation data
     // Use sessionManager.getDID(keyId) for verificationMethod to get properly formatted DID URL
     // The prepared.verificationMethod from Rust WASM has a bug that doubles the DID fragment
@@ -409,7 +410,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
       chainId,
       sessionKey: keyId,
       spaceId,
-      spaces: additionalSpaces,
+      spaces: spacesMetadata,
       delegationCid: session.delegationCid,
       delegationHeader: session.delegationHeader,
       verificationMethod: this.sessionManager.getDID(keyId),
@@ -429,7 +430,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
         delegationHeader: session.delegationHeader,
         delegationCid: session.delegationCid,
         spaceId,
-        spaces: additionalSpaces,
+        spaces: spacesMetadata,
         verificationMethod: this.sessionManager.getDID(keyId),
       },
       expiresAt: expirationTime.toISOString(),

@@ -39,6 +39,9 @@ import {
   IKVService,
   SQLService,
   ISQLService,
+  DataVaultService,
+  IDataVaultService,
+  VaultCrypto,
   ServiceSession,
   ServiceContext,
   ISessionStorage,
@@ -72,6 +75,14 @@ import {
   makeSpaceId,
   initPanicHook,
   createDelegation,
+  // Vault crypto
+  vault_encrypt,
+  vault_decrypt,
+  vault_derive_key,
+  vault_x25519_from_seed,
+  vault_x25519_dh,
+  vault_random_bytes,
+  vault_sha256,
 } from "@tinycloud/node-sdk-wasm";
 import { PortableDelegation } from "./delegation";
 import { DelegatedAccess } from "./DelegatedAccess";
@@ -99,6 +110,10 @@ export interface TinyCloudNodeConfig {
   autoCreateSpace?: boolean;
   /** Custom session storage implementation (default: MemorySessionStorage) */
   sessionStorage?: ISessionStorage;
+  /** Whether to include public space capabilities in the session (default: true).
+   * When true, signIn() automatically includes capabilities for the user's public space,
+   * accessible via spaces.get('public').kv */
+  enablePublicSpace?: boolean;
 }
 
 /**
@@ -121,6 +136,7 @@ export class TinyCloudNode {
   private _serviceContext?: ServiceContext;
   private _kv?: KVService;
   private _sql?: SQLService;
+  private _vault?: DataVaultService;
 
   /** Session key ID - always available */
   private sessionKeyId: string;
@@ -244,6 +260,7 @@ export class TinyCloudNode {
         sessionExpirationMs: config.sessionExpirationMs ?? 60 * 60 * 1000,
         tinycloudHosts: [host],
         autoCreateSpace: config.autoCreateSpace,
+        enablePublicSpace: config.enablePublicSpace ?? true,
       });
 
       this.tc = new TinyCloud(this.auth);
@@ -381,6 +398,7 @@ export class TinyCloudNode {
       sessionExpirationMs: this.config.sessionExpirationMs ?? 60 * 60 * 1000,
       tinycloudHosts: [host],
       autoCreateSpace: this.config.autoCreateSpace,
+      enablePublicSpace: this.config.enablePublicSpace ?? true,
     });
 
     // Create TinyCloud instance
@@ -399,6 +417,9 @@ export class TinyCloudNode {
     if (!session) {
       return;
     }
+
+    // Initialize TinyCloud core services (needed for publicKV, ensurePublicSpace)
+    this.tc!.initializeServices(invoke, [this.config.host!]);
 
     // Create service context
     this._serviceContext = new ServiceContext({
@@ -426,6 +447,37 @@ export class TinyCloudNode {
       jwk: session.jwk,
     };
     this._serviceContext.setSession(serviceSession);
+    (this.tc!.serviceContext as ServiceContext).setSession(serviceSession);
+
+    // Create and register Vault service
+    const vaultCrypto: VaultCrypto = {
+      encrypt: vault_encrypt,
+      decrypt: vault_decrypt,
+      deriveKey: vault_derive_key,
+      x25519FromSeed: vault_x25519_from_seed,
+      x25519Dh: vault_x25519_dh,
+      randomBytes: vault_random_bytes,
+      sha256: vault_sha256,
+    };
+    const tcInstance = this.tc!;
+    this._vault = new DataVaultService({
+      spaceId: session.spaceId,
+      crypto: vaultCrypto,
+      tc: {
+        kv: this._kv!,
+        ensurePublicSpace: () => tcInstance.ensurePublicSpace(),
+        get publicKV() { return tcInstance.publicKV; },
+        readPublicSpace: <T>(host: string, spaceId: string, key: string) =>
+          TinyCloud.readPublicSpace<T>(host, spaceId, key),
+        makePublicSpaceId: TinyCloud.makePublicSpaceId,
+        did: this.did,
+        address: this._address!,
+        chainId: this._chainId,
+        hosts: [this.config.host!],
+      },
+    });
+    this._vault.initialize(this._serviceContext);
+    this._serviceContext.registerService('vault', this._vault);
 
     // Initialize v2 services
     this.initializeV2Services(serviceSession);
@@ -473,7 +525,36 @@ export class TinyCloudNode {
         allowSubDelegation: true,
       };
 
-      this._capabilityRegistry.registerKey(sessionKey, [rootDelegation]);
+      // Register root delegations
+      const delegations = [rootDelegation];
+
+      // If session includes additional spaces (e.g., public), register delegations for those too
+      if (tcSession.spaces) {
+        for (const [spaceName, spaceId] of Object.entries(tcSession.spaces)) {
+          delegations.push({
+            cid: tcSession.delegationCid,
+            delegateDID: tcSession.verificationMethod,
+            spaceId,
+            path: "",
+            actions: [
+              "tinycloud.kv/put",
+              "tinycloud.kv/get",
+              "tinycloud.kv/del",
+              "tinycloud.kv/list",
+              "tinycloud.kv/metadata",
+              "tinycloud.sql/read",
+              "tinycloud.sql/write",
+              "tinycloud.sql/admin",
+              "tinycloud.sql/*",
+            ],
+            expiry: this.getSessionExpiry(),
+            isRevoked: false,
+            allowSubDelegation: true,
+          });
+        }
+      }
+
+      this._capabilityRegistry.registerKey(sessionKey, delegations);
     }
 
     // Initialize DelegationManager
@@ -496,7 +577,16 @@ export class TinyCloudNode {
         // Create a new KV service scoped to the specified space
         const kvService = new KVService({});
         if (this._serviceContext) {
-          kvService.initialize(this._serviceContext);
+          const spaceScopedContext = new ServiceContext({
+            invoke: this._serviceContext.invoke,
+            fetch: this._serviceContext.fetch,
+            hosts: this._serviceContext.hosts,
+          });
+          const session = this._serviceContext.session;
+          if (session) {
+            spaceScopedContext.setSession({ ...session, spaceId });
+          }
+          kvService.initialize(spaceScopedContext);
         }
         return kvService;
       },
@@ -654,6 +744,17 @@ export class TinyCloudNode {
       throw new Error("Not signed in. Call signIn() first.");
     }
     return this._sql;
+  }
+
+  /**
+   * Data Vault operations - client-side encrypted KV storage.
+   * Call `vault.unlock(signer)` after signIn() to derive encryption keys.
+   */
+  get vault(): IDataVaultService {
+    if (!this._vault) {
+      throw new Error("Not signed in. Call signIn() first.");
+    }
+    return this._vault;
   }
 
   // ===========================================================================
@@ -846,15 +947,65 @@ export class TinyCloudNode {
   // ===========================================================================
 
   /**
-   * Ensure the user's public space exists.
-   * Creates it via spaces.create('public') if it doesn't.
-   * Requires the user to be signed in.
+   * Ensure the user's public space exists and is accessible.
+   * Creates the space and activates a session delegation for it.
+   * This is the trigger for lazy public space creation — call it
+   * before writing to spaces.get('public').kv.
    */
   async ensurePublicSpace() {
-    if (!this.tc) {
+    if (!this.auth || !this.session) {
       throw new Error("Not signed in. Call signIn() first.");
     }
-    return this.tc.ensurePublicSpace();
+
+    const publicSpaceId = this.session.spaces?.public;
+    if (!publicSpaceId) {
+      throw new Error("Public space not enabled. Set enablePublicSpace: true in config.");
+    }
+
+    // Create the public space on the server (host SIWE)
+    await (this.auth as NodeUserAuthorization).hostPublicSpace(publicSpaceId);
+
+    // Create and activate a session delegation covering the public space
+    const delegation = await this.createDelegation({
+      path: "",
+      actions: [
+        "tinycloud.kv/put",
+        "tinycloud.kv/get",
+        "tinycloud.kv/del",
+        "tinycloud.kv/list",
+        "tinycloud.kv/metadata",
+      ],
+      delegateDID: this.did,
+      spaceIdOverride: publicSpaceId,
+    });
+
+    // Register the delegation in the capability registry so
+    // spaces.get('public').kv operations are authorized
+    if (this._capabilityRegistry && this.session) {
+      const sessionKey: KeyInfo = {
+        id: this.session.sessionKey,
+        did: this.session.verificationMethod,
+        type: "session",
+        jwk: this.session.jwk as JWK,
+        priority: 0,
+      };
+      this._capabilityRegistry.registerKey(sessionKey, [{
+        cid: delegation.cid,
+        delegateDID: this.session.verificationMethod,
+        spaceId: publicSpaceId,
+        path: "",
+        actions: [
+          "tinycloud.kv/put",
+          "tinycloud.kv/get",
+          "tinycloud.kv/del",
+          "tinycloud.kv/list",
+          "tinycloud.kv/metadata",
+        ],
+        expiry: delegation.expiry,
+        isRevoked: false,
+        allowSubDelegation: true,
+      }]);
+    }
   }
 
   /**
@@ -949,6 +1100,8 @@ export class TinyCloudNode {
     disableSubDelegation?: boolean;
     /** Expiration time in milliseconds from now (default: 1 hour) */
     expiryMs?: number;
+    /** Override space ID (for creating delegations to non-primary spaces like public) */
+    spaceIdOverride?: string;
   }): Promise<PortableDelegation> {
     if (!this.signer) {
       throw new Error("Cannot createDelegation() in session-only mode. Requires wallet mode.");
@@ -983,7 +1136,7 @@ export class TinyCloudNode {
       domain: new URL(this.config.host!).hostname,
       issuedAt: now.toISOString(),
       expirationTime: expirationTime.toISOString(),
-      spaceId: session.spaceId,
+      spaceId: params.spaceIdOverride ?? session.spaceId,
       delegateUri: params.delegateDID,
       parents: [session.delegationCid],
     });
@@ -1011,7 +1164,7 @@ export class TinyCloudNode {
     return {
       cid: delegationSession.delegationCid,
       delegationHeader: delegationSession.delegationHeader,
-      spaceId: session.spaceId,
+      spaceId: params.spaceIdOverride ?? session.spaceId,
       path: params.path,
       actions: params.actions,
       disableSubDelegation: params.disableSubDelegation ?? false,

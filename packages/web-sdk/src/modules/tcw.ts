@@ -945,17 +945,11 @@ export class TinyCloudWeb {
 
     // Build VaultCrypto from WASM bindings
     const vaultCrypto: VaultCrypto = {
-      encrypt: (plaintext, key) => tinycloud.vault_encrypt(key, plaintext),
-      decrypt: (ciphertext, key) => tinycloud.vault_decrypt(key, ciphertext),
-      deriveKey: (seed, info) => {
-        const infoBytes = new TextEncoder().encode(info);
-        return tinycloud.vault_derive_key(new Uint8Array(0), seed, infoBytes);
-      },
-      x25519FromSeed: (seed) => {
-        const result = tinycloud.vault_x25519_from_seed(seed);
-        return { publicKey: result.publicKey, secretKey: result.privateKey };
-      },
-      x25519Dh: (secretKey, publicKey) => tinycloud.vault_x25519_dh(secretKey, publicKey),
+      encrypt: (key, plaintext) => tinycloud.vault_encrypt(key, plaintext),
+      decrypt: (key, blob) => tinycloud.vault_decrypt(key, blob),
+      deriveKey: (signature, salt, info) => tinycloud.vault_derive_key(salt, signature, info),
+      x25519FromSeed: (seed) => tinycloud.vault_x25519_from_seed(seed),
+      x25519Dh: (privateKey, publicKey) => tinycloud.vault_x25519_dh(privateKey, publicKey),
       randomBytes: (length) => tinycloud.vault_random_bytes(length),
       sha256: (data) => tinycloud.vault_sha256(data),
     };

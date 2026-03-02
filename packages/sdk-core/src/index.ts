@@ -99,22 +99,18 @@ export {
   type ExecuteResponse,
   type BatchResponse,
   type SQLActionType,
-} from "@tinycloud/sdk-services";
-
-// Vault service types (re-exported from sdk-services)
-export {
+  // Vault Service
   DataVaultService,
   VaultAction,
+  VaultHeaders,
   type IDataVaultService,
   type VaultCrypto,
   type DataVaultConfig,
-  type DataVaultTinyCloudConfig,
   type VaultPutOptions,
   type VaultGetOptions,
   type VaultListOptions,
   type VaultGrantOptions,
   type VaultEntry,
-  type VaultHeaders,
   type VaultError,
   type VaultActionType,
 } from "@tinycloud/sdk-services";

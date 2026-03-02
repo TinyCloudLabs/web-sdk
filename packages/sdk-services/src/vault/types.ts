@@ -4,111 +4,92 @@
  * Type definitions for the Data Vault (encrypted KV) service operations.
  */
 
-import type { IKVService } from "../kv";
-import type { Result, ServiceError } from "../types";
-
 /**
- * Cryptographic operations required by the vault.
- * Typically backed by WASM bindings.
- */
-export interface VaultCrypto {
-  encrypt: (plaintext: Uint8Array, key: Uint8Array) => Uint8Array;
-  decrypt: (ciphertext: Uint8Array, key: Uint8Array) => Uint8Array;
-  deriveKey: (seed: Uint8Array, info: string) => Uint8Array;
-  x25519FromSeed: (seed: Uint8Array) => { publicKey: Uint8Array; secretKey: Uint8Array };
-  x25519Dh: (secretKey: Uint8Array, publicKey: Uint8Array) => Uint8Array;
-  randomBytes: (length: number) => Uint8Array;
-  sha256: (data: Uint8Array) => Uint8Array;
-}
-
-/**
- * TinyCloud integration config for vault operations.
- */
-export interface DataVaultTinyCloudConfig {
-  kv: IKVService;
-  ensurePublicSpace: () => Promise<Result<void, ServiceError>>;
-  publicKV: IKVService;
-  readPublicSpace: <T>(host: string, spaceId: string, key: string) => Promise<Result<T, ServiceError>>;
-  makePublicSpaceId: (address: string, chainId: number) => string;
-  did: string;
-  address: string;
-  chainId: number;
-  hosts: string[];
-}
-
-/**
- * Configuration for DataVaultService constructor.
+ * Configuration for DataVaultService.
  */
 export interface DataVaultConfig {
+  /** Space ID for encrypted data storage */
   spaceId: string;
-  crypto: VaultCrypto;
-  tc: DataVaultTinyCloudConfig;
+  /** Key rotation policy */
+  keyRotation?: "per-write" | "per-key"; // default: "per-write"
 }
 
 /**
  * Options for vault put operations.
  */
 export interface VaultPutOptions {
-  timeout?: number;
-  signal?: AbortSignal;
+  /** Custom metadata tags appended to the envelope */
+  metadata?: Record<string, string>;
+  /** Content type hint for deserialization (default: auto-detect) */
+  contentType?: string;
+  /** Custom serializer (default: JSON.stringify for objects) */
+  serialize?: (value: unknown) => Uint8Array;
 }
 
 /**
  * Options for vault get operations.
  */
-export interface VaultGetOptions {
-  timeout?: number;
-  signal?: AbortSignal;
+export interface VaultGetOptions<T = unknown> {
+  /** Custom deserializer (default: JSON.parse if content-type is JSON) */
+  deserialize?: (data: Uint8Array) => T;
+  /** Return raw decrypted bytes without deserialization */
+  raw?: boolean;
 }
 
 /**
  * Options for vault list operations.
  */
 export interface VaultListOptions {
+  /** Prefix filter for key names */
   prefix?: string;
-  timeout?: number;
-  signal?: AbortSignal;
+  /** Remove prefix from returned keys */
+  removePrefix?: boolean;
 }
 
 /**
- * Options for vault grant (share access) operations.
+ * Options for vault grant (sharing) operations.
  */
 export interface VaultGrantOptions {
-  timeout?: number;
-  signal?: AbortSignal;
-}
-
-/**
- * A vault entry returned from get operations.
- */
-export interface VaultEntry<T = unknown> {
-  key: string;
-  keyId: string;
-  value: T;
+  /** Additional metadata on the grant */
   metadata?: Record<string, string>;
 }
 
 /**
- * Response headers from vault operations.
+ * A decrypted vault entry returned by get operations.
+ *
+ * @template T - Type of the decrypted value
  */
-export interface VaultHeaders {
-  etag?: string;
-  contentType?: string;
-  lastModified?: string;
-  contentLength?: number;
+export interface VaultEntry<T> {
+  /** Decrypted value */
+  value: T;
+  /** Envelope metadata */
+  metadata: Record<string, string>;
+  /** Key ID used for encryption */
+  keyId: string;
 }
 
 /**
- * Vault-specific error.
+ * Structured error codes for vault operations.
  */
-export interface VaultError {
-  code: string;
-  message: string;
-  details?: unknown;
-}
+/**
+ * Input types for creating vault errors (service field added automatically).
+ */
+export type VaultErrorInput =
+  | { code: "DECRYPTION_FAILED"; message?: string; cause?: Error }
+  | { code: "KEY_NOT_FOUND"; key: string; message?: string }
+  | { code: "INTEGRITY_ERROR"; message?: string; cause?: Error }
+  | { code: "GRANT_NOT_FOUND"; grantor: string; key: string; message?: string }
+  | { code: "VAULT_LOCKED"; message?: string }
+  | { code: "PUBLIC_KEY_NOT_FOUND"; did: string; message?: string }
+  | { code: "STORAGE_ERROR"; cause: Error; message?: string };
 
 /**
- * Vault action types (ability strings).
+ * Vault error with service field (compatible with ServiceError).
+ */
+export type VaultError = VaultErrorInput & { service: "vault"; message: string };
+
+/**
+ * Vault action types for UCAN invocations.
  */
 export const VaultAction = {
   PUT: "tinycloud.vault/put",
@@ -117,6 +98,19 @@ export const VaultAction = {
   DELETE: "tinycloud.vault/del",
   HEAD: "tinycloud.vault/metadata",
   GRANT: "tinycloud.vault/grant",
+  REVOKE: "tinycloud.vault/revoke",
 } as const;
 
 export type VaultActionType = (typeof VaultAction)[keyof typeof VaultAction];
+
+/** Metadata header keys used in vault envelopes */
+export const VaultHeaders = {
+  VERSION: "x-vault-version",
+  CIPHER: "x-vault-cipher",
+  KEY_ID: "x-vault-key-id",
+  CONTENT_TYPE: "x-vault-content-type",
+  KDF: "x-vault-kdf",
+  KEY_ROTATION: "x-vault-key-rotation",
+  GRANT_VERSION: "x-vault-grant-version",
+  GRANTOR: "x-vault-grantor",
+} as const;

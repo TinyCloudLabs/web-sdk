@@ -1,235 +1,1314 @@
 /**
- * DataVaultService - Encrypted key-value storage service.
+ * DataVaultService - Encrypted key-value storage service implementation.
  *
- * Provides client-side encrypted KV storage. Data is encrypted before
- * being stored via the underlying KV service, and decrypted on retrieval.
- * Encryption keys are derived from a user signature (unlock step).
+ * Platform-agnostic encrypted KV service that wraps KVService internally.
+ * Uses dependency injection via VaultCrypto for WASM crypto operations
+ * and DataVaultServiceConfig for platform dependencies.
+ *
+ * Architecture:
+ * - Extends BaseService (not KVService)
+ * - Wraps two KV instances: dataKV (prefix "vault/") and keyKV (prefix "keys/")
+ * - Master key and encryption identity live in memory only (cleared on lock)
  */
 
 import { BaseService } from "../base/BaseService";
-import type { Result } from "../types";
-import { ok, err, serviceError } from "../types";
-import { IDataVaultService } from "./IDataVaultService";
-import { DataVaultConfig, VaultCrypto, VaultEntry, VaultHeaders, VaultGetOptions, VaultPutOptions, VaultListOptions } from "./types";
+import {
+  Result,
+  ok,
+  err,
+  serviceError,
+  IServiceContext,
+  ServiceSession,
+} from "../types";
+import { wrapError } from "../errors";
+import type { IKVService } from "../kv/IKVService";
+import type { KVService } from "../kv/KVService";
+import type { IDataVaultService } from "./IDataVaultService";
+import {
+  DataVaultConfig,
+  VaultPutOptions,
+  VaultGetOptions,
+  VaultListOptions,
+  VaultGrantOptions,
+  VaultEntry,
+  VaultError,
+  VaultErrorInput,
+  VaultHeaders,
+} from "./types";
 
-const VAULT_PREFIX = "vault/";
-const UNLOCK_CHALLENGE = "TinyCloud Vault Unlock";
-const MASTER_KEY_INFO = "vault-master-key";
-const ITEM_KEY_INFO_PREFIX = "vault-item-";
+// =============================================================================
+// Crypto Interface
+// =============================================================================
 
+/**
+ * Crypto operations interface - implementations provided by WASM bindings.
+ * Passed via DataVaultServiceConfig to keep the service platform-agnostic.
+ */
+export interface VaultCrypto {
+  encrypt(key: Uint8Array, plaintext: Uint8Array): Uint8Array;
+  decrypt(key: Uint8Array, blob: Uint8Array): Uint8Array;
+  deriveKey(
+    signature: Uint8Array,
+    salt: Uint8Array,
+    info: Uint8Array
+  ): Uint8Array;
+  x25519FromSeed(
+    seed: Uint8Array
+  ): { publicKey: Uint8Array; privateKey: Uint8Array };
+  x25519Dh(privateKey: Uint8Array, publicKey: Uint8Array): Uint8Array;
+  randomBytes(length: number): Uint8Array;
+  sha256(data: Uint8Array): Uint8Array;
+}
+
+// =============================================================================
+// Extended Config
+// =============================================================================
+
+/**
+ * Extended config used internally by DataVaultService.
+ * Includes crypto operations and TinyCloud instance references.
+ */
+interface DataVaultServiceConfig extends DataVaultConfig {
+  [key: string]: unknown;
+  /** Crypto operations (WASM bindings) */
+  crypto: VaultCrypto;
+  /** TinyCloud instance for space/kv/delegation operations */
+  tc: {
+    kv: IKVService;
+    ensurePublicSpace(): Promise<Result<void>>;
+    publicKV: IKVService;
+    readPublicSpace<T>(
+      host: string,
+      spaceId: string,
+      key: string
+    ): Promise<Result<T>>;
+    makePublicSpaceId(address: string, chainId: number): string;
+    did: string;
+    address: string;
+    chainId: number;
+    hosts: string[];
+  };
+}
+
+// =============================================================================
+// Helper Functions
+// =============================================================================
+
+function toBytes(str: string): Uint8Array {
+  return new TextEncoder().encode(str);
+}
+
+function fromBytes(bytes: Uint8Array): string {
+  return new TextDecoder().decode(bytes);
+}
+
+function hexEncode(bytes: Uint8Array): string {
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function concatBytes(...arrays: Uint8Array[]): Uint8Array {
+  const total = arrays.reduce((acc, arr) => acc + arr.length, 0);
+  const result = new Uint8Array(total);
+  let offset = 0;
+  for (const arr of arrays) {
+    result.set(arr, offset);
+    offset += arr.length;
+  }
+  return result;
+}
+
+function base64Encode(bytes: Uint8Array): string {
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+function base64Decode(str: string): Uint8Array {
+  const binary = atob(str);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+function defaultVaultMessage(input: VaultErrorInput): string {
+  switch (input.code) {
+    case "DECRYPTION_FAILED": return input.message ?? "Decryption failed";
+    case "KEY_NOT_FOUND": return input.message ?? `Key not found: ${input.key}`;
+    case "INTEGRITY_ERROR": return input.message ?? "Integrity check failed";
+    case "GRANT_NOT_FOUND": return input.message ?? `Grant not found: ${input.grantor} / ${input.key}`;
+    case "VAULT_LOCKED": return input.message ?? "Vault is locked";
+    case "PUBLIC_KEY_NOT_FOUND": return input.message ?? `Public key not found for ${input.did}`;
+    case "STORAGE_ERROR": return input.message ?? input.cause.message;
+  }
+}
+
+function vaultError(input: VaultErrorInput): Result<never, VaultError> {
+  const error: VaultError = {
+    ...input,
+    service: "vault",
+    message: defaultVaultMessage(input),
+  };
+  return { ok: false, error };
+}
+
+// =============================================================================
+// DataVaultService
+// =============================================================================
+
+/**
+ * Data Vault service implementation.
+ *
+ * Provides encrypted key-value storage with client-side encryption,
+ * key management, and sharing via X25519 grants.
+ *
+ * @example
+ * ```typescript
+ * // Unlock the vault
+ * await vault.unlock(signer);
+ *
+ * // Store encrypted data
+ * await vault.put('secret/notes', { content: 'Hello' });
+ *
+ * // Retrieve and decrypt
+ * const entry = await vault.get<{ content: string }>('secret/notes');
+ * if (entry.ok) {
+ *   console.log(entry.data.value.content); // 'Hello'
+ * }
+ *
+ * // Share with another user
+ * await vault.grant('secret/notes', recipientDID);
+ * ```
+ */
 export class DataVaultService extends BaseService implements IDataVaultService {
+  /**
+   * Service identifier for registration.
+   */
   static readonly serviceName = "vault";
 
-  private _vaultConfig: DataVaultConfig;
-  private _masterKey: Uint8Array | null = null;
+  /**
+   * Service configuration.
+   */
+  declare protected _config: DataVaultServiceConfig;
 
-  constructor(config: DataVaultConfig) {
+  private masterKey: Uint8Array | null = null;
+  private encryptionIdentity: {
+    publicKey: Uint8Array;
+    privateKey: Uint8Array;
+  } | null = null;
+  private _isUnlocked = false;
+  private vaultConfig: DataVaultServiceConfig;
+
+  /**
+   * Create a new DataVaultService instance.
+   *
+   * @param config - Service configuration including crypto and tc references
+   */
+  constructor(config: DataVaultServiceConfig) {
     super();
-    this._vaultConfig = config;
+    this.vaultConfig = config;
+    this._config = config;
   }
 
-  get vaultConfig(): DataVaultConfig {
-    return this._vaultConfig;
+  /**
+   * Get the service configuration.
+   */
+  get config(): DataVaultServiceConfig {
+    return this._config;
   }
 
+  /**
+   * Whether the vault is currently unlocked.
+   */
+  get isUnlocked(): boolean {
+    return this._isUnlocked;
+  }
+
+  /**
+   * The vault's public encryption key (X25519).
+   * Throws if vault is locked.
+   */
+  get publicKey(): Uint8Array {
+    if (!this.encryptionIdentity) {
+      throw new Error("Vault is locked");
+    }
+    return this.encryptionIdentity.publicKey;
+  }
+
+  /**
+   * Convenience accessor for crypto operations.
+   */
   private get crypto(): VaultCrypto {
-    return this._vaultConfig.crypto;
+    return this.vaultConfig.crypto;
   }
 
-  private get isUnlocked(): boolean {
-    return this._masterKey !== null;
+  /**
+   * Convenience accessor for TinyCloud instance.
+   */
+  private get tc() {
+    return this.vaultConfig.tc;
   }
 
-  private requireUnlocked(): Result<void> {
-    if (!this._masterKey) {
-      return { ok: false, error: serviceError("VAULT_LOCKED", "Vault is locked. Call unlock() first.", "vault") };
-    }
-    return { ok: true, data: undefined };
+  /**
+   * Get the host URL.
+   */
+  private get host(): string {
+    return this.tc.hosts[0];
   }
 
-  private deriveItemKey(key: string): Uint8Array {
-    return this.crypto.deriveKey(this._masterKey!, ITEM_KEY_INFO_PREFIX + key);
+  // =========================================================================
+  // Phase 1: Core Operations
+  // =========================================================================
+
+  /**
+   * Unlock the vault. Triggers wallet signatures to derive keys.
+   *
+   * 1. Signs a deterministic message to derive the master key
+   * 2. Signs a second message to derive the X25519 encryption identity
+   * 3. Ensures public space exists and publishes the public key
+   *
+   * @param signer - Object with signMessage method (wallet/key signer)
+   */
+  async unlock(
+    signer: { signMessage(message: string): Promise<string> } | unknown
+  ): Promise<Result<void, VaultError>> {
+    return this.withTelemetry("unlock", undefined, async () => {
+      const s = signer as { signMessage(message: string): Promise<string> };
+      const spaceId = this.vaultConfig.spaceId;
+
+      try {
+        // Step 1: Derive master key from deterministic signature
+        const masterSig = await s.signMessage(
+          `tinycloud-vault-master-v1:${spaceId}`
+        );
+        const masterSigBytes = toBytes(masterSig);
+        this.masterKey = this.crypto.deriveKey(
+          masterSigBytes,
+          this.crypto.sha256(toBytes(spaceId)),
+          toBytes("vault-master")
+        );
+
+        // Step 2: Derive encryption identity from second signature
+        const identitySig = await s.signMessage(
+          "tinycloud-encryption-identity-v1"
+        );
+        const identitySigBytes = toBytes(identitySig);
+        const seed = this.crypto.deriveKey(
+          identitySigBytes,
+          toBytes("tinycloud-x25519"),
+          toBytes("encryption-identity")
+        );
+        this.encryptionIdentity = this.crypto.x25519FromSeed(seed);
+
+        // Step 3: Publish vault metadata to public space (best-effort)
+        // This enables other users to discover our public key and vault location.
+        // Non-fatal: key derivation succeeded, publishing is optional.
+        try {
+          // Try to ensure public space exists (may fail if delegation lacks space/info action)
+          await this.tc.ensurePublicSpace();
+
+          // Publish regardless — the space may already exist even if ensurePublicSpace failed
+          const pubKeyB64 = base64Encode(this.encryptionIdentity.publicKey);
+          await this.tc.publicKV.put(
+            ".well-known/vault-pubkey",
+            pubKeyB64
+          );
+          await this.tc.publicKV.put(
+            ".well-known/vault-version",
+            "1"
+          );
+          // Publish vault space ID so getShared() can find grants and data
+          await this.tc.publicKV.put(
+            ".well-known/vault-space",
+            this.vaultConfig.spaceId
+          );
+        } catch {
+          // Public key publishing failed — vault still usable
+        }
+
+        this._isUnlocked = true;
+        return ok(undefined);
+      } catch (error) {
+        // Clear key material on failure
+        this.masterKey = null;
+        this.encryptionIdentity = null;
+        return vaultError({
+          code: "STORAGE_ERROR",
+          cause:
+            error instanceof Error ? error : new Error(String(error)),
+        });
+      }
+    }) as Promise<Result<void, VaultError>>;
   }
 
-  async unlock(signer: unknown): Promise<Result<void>> {
+  /**
+   * Lock the vault, clearing all key material from memory.
+   */
+  lock(): void {
+    this.masterKey = null;
+    this.encryptionIdentity = null;
+    this._isUnlocked = false;
+  }
+
+  /**
+   * Called when SDK signs out. Locks the vault and aborts operations.
+   */
+  onSignOut(): void {
+    this.lock();
+    super.onSignOut();
+  }
+
+  /**
+   * Encrypt and store a value at the given key.
+   *
+   * @param key - The key to store under
+   * @param value - The value to encrypt and store
+   * @param options - Optional put configuration
+   */
+  async put(
+    key: string,
+    value: unknown,
+    options?: VaultPutOptions
+  ): Promise<Result<void, VaultError>> {
+    return this.withTelemetry("put", key, async () => {
+      if (!this._isUnlocked || !this.masterKey) {
+        return vaultError({
+          code: "VAULT_LOCKED",
+          message: "Vault must be unlocked before storing data",
+        });
+      }
+
+      if (!this.requireAuth()) {
+        return vaultError({
+          code: "VAULT_LOCKED",
+          message: "Authentication required",
+        });
+      }
+
+      try {
+        // Serialize value
+        let plaintext: Uint8Array;
+        if (value instanceof Uint8Array) {
+          plaintext = value;
+        } else if (options?.serialize) {
+          plaintext = options.serialize(value);
+        } else if (typeof value === "string") {
+          plaintext = toBytes(value);
+        } else {
+          plaintext = toBytes(JSON.stringify(value));
+        }
+
+        const contentType =
+          options?.contentType ??
+          (value instanceof Uint8Array
+            ? "application/octet-stream"
+            : "application/json");
+
+        // Generate per-entry key
+        const entryKey = this.crypto.randomBytes(32);
+        const keyId = hexEncode(this.crypto.sha256(entryKey)).slice(0, 16);
+
+        // Encrypt value with entry key
+        const encrypted = this.crypto.encrypt(entryKey, plaintext);
+
+        // Encrypt entry key with master key
+        const keyBlob = this.crypto.encrypt(this.masterKey, entryKey);
+
+        // Build metadata
+        const metadata: Record<string, string> = {
+          [VaultHeaders.VERSION]: "1",
+          [VaultHeaders.CIPHER]: "aes-256-gcm",
+          [VaultHeaders.KEY_ID]: keyId,
+          [VaultHeaders.CONTENT_TYPE]: contentType,
+          [VaultHeaders.KDF]: "hkdf-sha256",
+          [VaultHeaders.KEY_ROTATION]:
+            this.vaultConfig.keyRotation ?? "per-write",
+          ...(options?.metadata ?? {}),
+        };
+
+        // Store encrypted entry key in key space
+        const keyMetadata = JSON.stringify({
+          keyId,
+          contentType,
+          ...metadata,
+        });
+        const keyPayload = JSON.stringify({
+          key: base64Encode(keyBlob),
+          metadata: keyMetadata,
+        });
+        const keyPutResult = await this.tc.kv.put(
+          `keys/${key}`,
+          keyPayload
+        );
+        if (!keyPutResult.ok) {
+          return vaultError({
+            code: "STORAGE_ERROR",
+            cause: new Error(
+              `Failed to store key blob: ${keyPutResult.error.message}`
+            ),
+          });
+        }
+
+        // Store encrypted value in data space
+        const valuePayload = JSON.stringify({
+          data: base64Encode(encrypted),
+          metadata,
+        });
+        const valuePutResult = await this.tc.kv.put(
+          `vault/${key}`,
+          valuePayload
+        );
+        if (!valuePutResult.ok) {
+          return vaultError({
+            code: "STORAGE_ERROR",
+            cause: new Error(
+              `Failed to store encrypted value: ${valuePutResult.error.message}`
+            ),
+          });
+        }
+
+        return ok(undefined);
+      } catch (error) {
+        return vaultError({
+          code: "STORAGE_ERROR",
+          cause:
+            error instanceof Error ? error : new Error(String(error)),
+        });
+      }
+    }) as Promise<Result<void, VaultError>>;
+  }
+
+  /**
+   * Retrieve and decrypt a value by key.
+   *
+   * @param key - The key to retrieve
+   * @param options - Optional get configuration
+   * @returns Result with the decrypted entry
+   */
+  async get<T = unknown>(
+    key: string,
+    options?: VaultGetOptions<T>
+  ): Promise<Result<VaultEntry<T>, VaultError>> {
+    return this.withTelemetry("get", key, async () => {
+      if (!this._isUnlocked || !this.masterKey) {
+        return vaultError({
+          code: "VAULT_LOCKED",
+          message: "Vault must be unlocked before reading data",
+        });
+      }
+
+      if (!this.requireAuth()) {
+        return vaultError({
+          code: "VAULT_LOCKED",
+          message: "Authentication required",
+        });
+      }
+
+      try {
+        // Fetch encrypted entry key from key space
+        const keyResult = await this.tc.kv.get<string>(`keys/${key}`, {
+          raw: true,
+        });
+        if (!keyResult.ok) {
+          return vaultError({ code: "KEY_NOT_FOUND", key });
+        }
+
+        const keyEnvelope = JSON.parse(keyResult.data.data as string);
+        const keyBlobBytes = base64Decode(keyEnvelope.key);
+        const entryKey = this.crypto.decrypt(this.masterKey, keyBlobBytes);
+
+        // Fetch encrypted value from data space
+        const valueResult = await this.tc.kv.get<string>(`vault/${key}`, {
+          raw: true,
+        });
+        if (!valueResult.ok) {
+          return vaultError({ code: "KEY_NOT_FOUND", key });
+        }
+
+        const valueEnvelope = JSON.parse(valueResult.data.data as string);
+        const encryptedBytes = base64Decode(valueEnvelope.data);
+        const plaintext = this.crypto.decrypt(entryKey, encryptedBytes);
+
+        // Read metadata
+        const metadata: Record<string, string> = valueEnvelope.metadata ?? {};
+        const contentType =
+          metadata[VaultHeaders.CONTENT_TYPE] ?? "application/json";
+        const keyId = metadata[VaultHeaders.KEY_ID] ?? "";
+
+        // Deserialize
+        let value: T;
+        if (options?.raw) {
+          value = plaintext as unknown as T;
+        } else if (options?.deserialize) {
+          value = options.deserialize(plaintext);
+        } else if (contentType === "application/json") {
+          value = JSON.parse(fromBytes(plaintext)) as T;
+        } else {
+          value = plaintext as unknown as T;
+        }
+
+        return ok({ value, metadata, keyId });
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          error.message.includes("decryption")
+        ) {
+          return vaultError({
+            code: "DECRYPTION_FAILED",
+            message: error.message,
+          });
+        }
+        return vaultError({
+          code: "STORAGE_ERROR",
+          cause:
+            error instanceof Error ? error : new Error(String(error)),
+        });
+      }
+    }) as Promise<Result<VaultEntry<T>, VaultError>>;
+  }
+
+  /**
+   * Delete an encrypted key.
+   * Removes both the encrypted value and the key blob.
+   *
+   * @param key - The key to delete
+   */
+  async delete(key: string): Promise<Result<void, VaultError>> {
+    return this.withTelemetry("delete", key, async () => {
+      if (!this._isUnlocked) {
+        return vaultError({
+          code: "VAULT_LOCKED",
+          message: "Vault must be unlocked before deleting data",
+        });
+      }
+
+      if (!this.requireAuth()) {
+        return vaultError({
+          code: "VAULT_LOCKED",
+          message: "Authentication required",
+        });
+      }
+
+      try {
+        // Delete from both key space and data space
+        const [keyDelResult, valueDelResult] = await Promise.all([
+          this.tc.kv.delete(`keys/${key}`),
+          this.tc.kv.delete(`vault/${key}`),
+        ]);
+
+        if (!keyDelResult.ok && !valueDelResult.ok) {
+          return vaultError({ code: "KEY_NOT_FOUND", key });
+        }
+
+        return ok(undefined);
+      } catch (error) {
+        return vaultError({
+          code: "STORAGE_ERROR",
+          cause:
+            error instanceof Error ? error : new Error(String(error)),
+        });
+      }
+    }) as Promise<Result<void, VaultError>>;
+  }
+
+  /**
+   * List vault keys with optional prefix filtering.
+   *
+   * @param options - Optional list configuration
+   * @returns Result with array of key names (vault/ prefix stripped)
+   */
+  async list(
+    options?: VaultListOptions
+  ): Promise<Result<string[], VaultError>> {
+    return this.withTelemetry("list", options?.prefix, async () => {
+      if (!this._isUnlocked) {
+        return vaultError({
+          code: "VAULT_LOCKED",
+          message: "Vault must be unlocked before listing data",
+        });
+      }
+
+      if (!this.requireAuth()) {
+        return vaultError({
+          code: "VAULT_LOCKED",
+          message: "Authentication required",
+        });
+      }
+
+      try {
+        const listPrefix = options?.prefix
+          ? `vault/${options.prefix}`
+          : "vault/";
+
+        const listResult = await this.tc.kv.list({
+          prefix: listPrefix,
+          removePrefix: true,
+        });
+
+        if (!listResult.ok) {
+          return vaultError({
+            code: "STORAGE_ERROR",
+            cause: new Error(
+              `Failed to list vault keys: ${listResult.error.message}`
+            ),
+          });
+        }
+
+        // Keys are already stripped of the "vault/" prefix by removePrefix
+        let keys = listResult.data.keys;
+
+        // If a user prefix was provided, strip it too if requested
+        if (options?.removePrefix && options.prefix) {
+          const userPrefix = options.prefix.endsWith("/")
+            ? options.prefix
+            : `${options.prefix}/`;
+          keys = keys.map((k) =>
+            k.startsWith(userPrefix) ? k.slice(userPrefix.length) : k
+          );
+        }
+
+        return ok(keys);
+      } catch (error) {
+        return vaultError({
+          code: "STORAGE_ERROR",
+          cause:
+            error instanceof Error ? error : new Error(String(error)),
+        });
+      }
+    }) as Promise<Result<string[], VaultError>>;
+  }
+
+  /**
+   * Get envelope metadata for a key without decrypting the value.
+   *
+   * @param key - The key to inspect
+   * @returns Result with metadata headers
+   */
+  async head(
+    key: string
+  ): Promise<Result<Record<string, string>, VaultError>> {
+    return this.withTelemetry("head", key, async () => {
+      if (!this._isUnlocked) {
+        return vaultError({
+          code: "VAULT_LOCKED",
+          message: "Vault must be unlocked before reading metadata",
+        });
+      }
+
+      if (!this.requireAuth()) {
+        return vaultError({
+          code: "VAULT_LOCKED",
+          message: "Authentication required",
+        });
+      }
+
+      try {
+        // Fetch envelope without decrypting
+        const valueResult = await this.tc.kv.get<string>(`vault/${key}`, {
+          raw: true,
+        });
+        if (!valueResult.ok) {
+          return vaultError({ code: "KEY_NOT_FOUND", key });
+        }
+
+        const valueEnvelope = JSON.parse(valueResult.data.data as string);
+        const metadata: Record<string, string> = valueEnvelope.metadata ?? {};
+        return ok(metadata);
+      } catch (error) {
+        return vaultError({
+          code: "STORAGE_ERROR",
+          cause:
+            error instanceof Error ? error : new Error(String(error)),
+        });
+      }
+    }) as Promise<Result<Record<string, string>, VaultError>>;
+  }
+
+  // =========================================================================
+  // Batch Operations
+  // =========================================================================
+
+  /**
+   * Encrypt and store multiple entries.
+   *
+   * @param entries - Array of key/value pairs with optional per-entry options
+   * @returns Array of results, one per entry
+   */
+  async putMany(
+    entries: Array<{ key: string; value: unknown; options?: VaultPutOptions }>
+  ): Promise<Result<void, VaultError>[]> {
+    return Promise.all(
+      entries.map((entry) => this.put(entry.key, entry.value, entry.options))
+    );
+  }
+
+  /**
+   * Retrieve and decrypt multiple keys.
+   *
+   * @param keys - Array of keys to retrieve
+   * @param options - Optional get configuration applied to all entries
+   * @returns Array of results, one per key
+   */
+  async getMany<T = unknown>(
+    keys: string[],
+    options?: VaultGetOptions<T>
+  ): Promise<Result<VaultEntry<T>, VaultError>[]> {
+    return Promise.all(keys.map((key) => this.get<T>(key, options)));
+  }
+
+  // =========================================================================
+  // Phase 2: Sharing
+  // =========================================================================
+
+  /**
+   * Grant access to a vault key for another user.
+   * Re-encrypts the data key to the recipient's public key via X25519 DH.
+   *
+   * @param key - The key to share
+   * @param recipientDID - The recipient's primary DID (did:pkh:...)
+   * @param options - Optional grant configuration
+   */
+  async grant(
+    key: string,
+    recipientDID: string,
+    options?: VaultGrantOptions
+  ): Promise<Result<void, VaultError>> {
+    return this.withTelemetry("grant", key, async () => {
+      if (!this._isUnlocked || !this.masterKey) {
+        return vaultError({
+          code: "VAULT_LOCKED",
+          message: "Vault must be unlocked before granting access",
+        });
+      }
+
+      if (!this.requireAuth()) {
+        return vaultError({
+          code: "VAULT_LOCKED",
+          message: "Authentication required",
+        });
+      }
+
+      try {
+        // Step 1: Resolve recipient's public key
+        const pubKeyResult = await this.resolvePublicKey(recipientDID);
+        if (!pubKeyResult.ok) {
+          return pubKeyResult;
+        }
+        const bobPubKey = pubKeyResult.data;
+
+        // Step 2: Fetch and decrypt entry key from key space
+        const keyResult = await this.tc.kv.get<string>(`keys/${key}`, {
+          raw: true,
+        });
+        if (!keyResult.ok) {
+          return vaultError({ code: "KEY_NOT_FOUND", key });
+        }
+
+        const keyEnvelope = JSON.parse(keyResult.data.data as string);
+        const keyBlobBytes = base64Decode(keyEnvelope.key);
+        const entryKey = this.crypto.decrypt(this.masterKey, keyBlobBytes);
+
+        // Step 3: Create ephemeral X25519 key pair
+        const ephemeralSeed = this.crypto.randomBytes(32);
+        const ephemeralKeyPair = this.crypto.x25519FromSeed(ephemeralSeed);
+
+        // Step 4: Compute shared secret via DH
+        const sharedSecret = this.crypto.x25519Dh(
+          ephemeralKeyPair.privateKey,
+          bobPubKey
+        );
+
+        // Step 5: Derive encryption key from shared secret
+        const encryptionKey = this.crypto.deriveKey(
+          sharedSecret,
+          toBytes("tinycloud-x25519"),
+          toBytes("vault-grant")
+        );
+
+        // Step 6: Encrypt entry key with derived key
+        const encryptedGrant = this.crypto.encrypt(encryptionKey, entryKey);
+
+        // Step 7: Concatenate ephemeral public key + encrypted grant
+        const grantBlob = concatBytes(
+          ephemeralKeyPair.publicKey,
+          encryptedGrant
+        );
+
+        // Step 8: Store grant in key space
+        const grantPayload = JSON.stringify({
+          grant: base64Encode(grantBlob),
+          spaceId: this.vaultConfig.spaceId,
+          metadata: {
+            [VaultHeaders.GRANT_VERSION]: "1",
+            [VaultHeaders.GRANTOR]: this.tc.did,
+            ...(options?.metadata ?? {}),
+          },
+        });
+        // Store grant in the vault's space (main space)
+        const grantPutResult = await this.tc.kv.put(
+          `grants/${recipientDID}/${key}`,
+          grantPayload
+        );
+        if (!grantPutResult.ok) {
+          return vaultError({
+            code: "STORAGE_ERROR",
+            cause: new Error(
+              `Failed to store grant: ${grantPutResult.error.message}`
+            ),
+          });
+        }
+
+        return ok(undefined);
+      } catch (error) {
+        return vaultError({
+          code: "STORAGE_ERROR",
+          cause:
+            error instanceof Error ? error : new Error(String(error)),
+        });
+      }
+    }) as Promise<Result<void, VaultError>>;
+  }
+
+  /**
+   * Retrieve and decrypt a value shared by another user.
+   *
+   * @param grantorDID - The DID of the user who shared the data
+   * @param key - The key that was shared
+   * @param options - Optional get configuration
+   * @returns Result with the decrypted entry
+   */
+  async getShared<T = unknown>(
+    grantorDID: string,
+    key: string,
+    options?: VaultGetOptions<T>
+  ): Promise<Result<VaultEntry<T>, VaultError>> {
+    return this.withTelemetry("getShared", key, async () => {
+      if (
+        !this._isUnlocked ||
+        !this.masterKey ||
+        !this.encryptionIdentity
+      ) {
+        return vaultError({
+          code: "VAULT_LOCKED",
+          message: "Vault must be unlocked before reading shared data",
+        });
+      }
+
+      if (!this.requireAuth()) {
+        return vaultError({
+          code: "VAULT_LOCKED",
+          message: "Authentication required",
+        });
+      }
+
+      try {
+        const myDID = this.tc.did;
+
+        // Step 1: Parse grantor DID to resolve their space
+        const grantorParts = this.parseDID(grantorDID);
+        if (!grantorParts) {
+          return vaultError({
+            code: "PUBLIC_KEY_NOT_FOUND",
+            did: grantorDID,
+          });
+        }
+
+        const grantorPublicSpaceId = this.tc.makePublicSpaceId(
+          grantorParts.address,
+          grantorParts.chainId
+        );
+
+        // Step 2: Resolve grantor's vault space ID from their public space
+        const vaultSpaceResult = await this.tc.readPublicSpace<string>(
+          this.host,
+          grantorPublicSpaceId,
+          ".well-known/vault-space"
+        );
+        const grantorVaultSpaceId = vaultSpaceResult.ok
+          ? (vaultSpaceResult.data as string)
+          : grantorPublicSpaceId;
+
+        // Step 3: Fetch grant from grantor's vault space
+        const grantResult = await this.tc.readPublicSpace<string>(
+          this.host,
+          grantorVaultSpaceId,
+          `grants/${myDID}/${key}`
+        );
+        if (!grantResult.ok) {
+          return vaultError({
+            code: "GRANT_NOT_FOUND",
+            grantor: grantorDID,
+            key,
+          });
+        }
+
+        const grantEnvelope = typeof grantResult.data === "string"
+          ? JSON.parse(grantResult.data)
+          : grantResult.data;
+        const grantBlobBytes = base64Decode((grantEnvelope as any).grant);
+
+        // Step 4: Extract ephemeral public key and encrypted grant
+        const ephemeralPubKey = grantBlobBytes.slice(0, 32);
+        const encryptedGrant = grantBlobBytes.slice(32);
+
+        // Step 5: Compute shared secret using our private key
+        const sharedSecret = this.crypto.x25519Dh(
+          this.encryptionIdentity.privateKey,
+          ephemeralPubKey
+        );
+
+        // Step 6: Derive decryption key
+        const encryptionKey = this.crypto.deriveKey(
+          sharedSecret,
+          toBytes("tinycloud-x25519"),
+          toBytes("vault-grant")
+        );
+
+        // Step 7: Decrypt entry key
+        const entryKey = this.crypto.decrypt(encryptionKey, encryptedGrant);
+
+        // Step 8: Fetch encrypted value from grantor's vault space
+        const valueResult = await this.tc.readPublicSpace<string>(
+          this.host,
+          grantorVaultSpaceId,
+          `vault/${key}`
+        );
+        if (!valueResult.ok) {
+          return vaultError({
+            code: "KEY_NOT_FOUND",
+            key,
+          });
+        }
+
+        const valueEnvelope = typeof valueResult.data === "string"
+          ? JSON.parse(valueResult.data)
+          : valueResult.data;
+        const encryptedBytes = base64Decode((valueEnvelope as any).data);
+        const plaintext = this.crypto.decrypt(entryKey, encryptedBytes);
+
+        // Read metadata
+        const metadata: Record<string, string> = (valueEnvelope as any).metadata ?? {};
+        const contentType =
+          metadata[VaultHeaders.CONTENT_TYPE] ?? "application/json";
+        const keyId = metadata[VaultHeaders.KEY_ID] ?? "";
+
+        // Deserialize
+        let value: T;
+        if (options?.raw) {
+          value = plaintext as unknown as T;
+        } else if (options?.deserialize) {
+          value = options.deserialize(plaintext);
+        } else if (contentType === "application/json") {
+          value = JSON.parse(fromBytes(plaintext)) as T;
+        } else {
+          value = plaintext as unknown as T;
+        }
+
+        return ok({ value, metadata, keyId });
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          error.message.includes("decryption")
+        ) {
+          return vaultError({
+            code: "DECRYPTION_FAILED",
+            message: error.message,
+          });
+        }
+        return vaultError({
+          code: "STORAGE_ERROR",
+          cause:
+            error instanceof Error ? error : new Error(String(error)),
+        });
+      }
+    }) as Promise<Result<VaultEntry<T>, VaultError>>;
+  }
+
+  /**
+   * Resolve another user's public encryption key from their DID.
+   *
+   * @param did - The DID to resolve (did:pkh:eip155:{chainId}:{address})
+   * @returns Result with the public key bytes
+   */
+  async resolvePublicKey(
+    did: string
+  ): Promise<Result<Uint8Array, VaultError>> {
     try {
-      // signer is expected to have a signMessage method (e.g., ethers Signer)
-      const signerObj = signer as { signMessage: (message: string) => Promise<string> };
-      if (!signerObj || typeof signerObj.signMessage !== 'function') {
-        return err(serviceError("INVALID_INPUT", "Signer must have a signMessage() method", "vault"));
+      const parts = this.parseDID(did);
+      if (!parts) {
+        return vaultError({ code: "PUBLIC_KEY_NOT_FOUND", did });
       }
 
-      const signature = await signerObj.signMessage(UNLOCK_CHALLENGE);
-      const signatureBytes = new TextEncoder().encode(signature);
-      this._masterKey = this.crypto.deriveKey(signatureBytes, MASTER_KEY_INFO);
-      return ok(undefined);
-    } catch (error) {
-      return err(serviceError(
-        "VAULT_UNLOCK_FAILED",
-        `Failed to unlock vault: ${error instanceof Error ? error.message : String(error)}`,
-        "vault",
-        { cause: error instanceof Error ? error : undefined }
-      ));
-    }
-  }
-
-  async put(key: string, value: unknown, _options?: VaultPutOptions): Promise<Result<void>> {
-    const unlockCheck = this.requireUnlocked();
-    if (!unlockCheck.ok) return unlockCheck;
-
-    try {
-      const encKey = this.deriveItemKey(key);
-      const serialized = new TextEncoder().encode(JSON.stringify(value));
-      const encrypted = this.crypto.encrypt(serialized, encKey);
-
-      const kvResult = await this._vaultConfig.tc.kv.put(VAULT_PREFIX + key, encrypted);
-      if (!kvResult.ok) {
-        return err(serviceError(
-          "VAULT_WRITE_FAILED",
-          `Failed to store vault entry "${key}": ${kvResult.error.message}`,
-          "vault"
-        ));
-      }
-      return ok(undefined);
-    } catch (error) {
-      return err(serviceError(
-        "VAULT_WRITE_FAILED",
-        `Failed to store vault entry "${key}": ${error instanceof Error ? error.message : String(error)}`,
-        "vault",
-        { cause: error instanceof Error ? error : undefined }
-      ));
-    }
-  }
-
-  async get<T = unknown>(key: string, _options?: VaultGetOptions): Promise<Result<VaultEntry<T>>> {
-    const unlockCheck = this.requireUnlocked();
-    if (!unlockCheck.ok) return unlockCheck as Result<VaultEntry<T>>;
-
-    try {
-      const kvResult = await this._vaultConfig.tc.kv.get<Uint8Array>(VAULT_PREFIX + key, { raw: true });
-      if (!kvResult.ok) {
-        return err(serviceError(
-          "VAULT_READ_FAILED",
-          `Failed to read vault entry "${key}": ${kvResult.error.message}`,
-          "vault"
-        ));
-      }
-
-      const encKey = this.deriveItemKey(key);
-      const encrypted = kvResult.data.data;
-
-      // Handle the case where data comes as a string (base64 or raw) from the KV service
-      let encryptedBytes: Uint8Array;
-      if (encrypted instanceof Uint8Array) {
-        encryptedBytes = encrypted;
-      } else if (typeof encrypted === 'string') {
-        // KV service may return base64 encoded data
-        encryptedBytes = Uint8Array.from(atob(encrypted as string), c => c.charCodeAt(0));
-      } else {
-        return err(serviceError("VAULT_READ_FAILED", `Unexpected data type for vault entry "${key}"`, "vault"));
-      }
-
-      const decrypted = this.crypto.decrypt(encryptedBytes, encKey);
-      const jsonStr = new TextDecoder().decode(decrypted);
-      const value = JSON.parse(jsonStr) as T;
-
-      return ok({
-        key,
-        keyId: VAULT_PREFIX + key,
-        value,
-      });
-    } catch (error) {
-      return err(serviceError(
-        "VAULT_READ_FAILED",
-        `Failed to read vault entry "${key}": ${error instanceof Error ? error.message : String(error)}`,
-        "vault",
-        { cause: error instanceof Error ? error : undefined }
-      ));
-    }
-  }
-
-  async list(options?: VaultListOptions): Promise<Result<string[]>> {
-    const unlockCheck = this.requireUnlocked();
-    if (!unlockCheck.ok) return unlockCheck as Result<string[]>;
-
-    try {
-      const listPrefix = VAULT_PREFIX + (options?.prefix ?? "");
-      const kvResult = await this._vaultConfig.tc.kv.list({ prefix: listPrefix });
-      if (!kvResult.ok) {
-        return err(serviceError(
-          "VAULT_LIST_FAILED",
-          `Failed to list vault entries: ${kvResult.error.message}`,
-          "vault"
-        ));
-      }
-
-      // Strip the vault/ prefix from returned keys
-      const keys = kvResult.data.keys.map((k: string) =>
-        k.startsWith(VAULT_PREFIX) ? k.slice(VAULT_PREFIX.length) : k
+      const spaceId = this.tc.makePublicSpaceId(
+        parts.address,
+        parts.chainId
       );
-      return ok(keys);
+
+      const result = await this.tc.readPublicSpace<string>(
+        this.host,
+        spaceId,
+        ".well-known/vault-pubkey"
+      );
+
+      if (!result.ok) {
+        return vaultError({ code: "PUBLIC_KEY_NOT_FOUND", did });
+      }
+
+      const pubKeyBytes = base64Decode(result.data as string);
+      return { ok: true, data: pubKeyBytes } as Result<Uint8Array, VaultError>;
     } catch (error) {
-      return err(serviceError(
-        "VAULT_LIST_FAILED",
-        `Failed to list vault entries: ${error instanceof Error ? error.message : String(error)}`,
-        "vault",
-        { cause: error instanceof Error ? error : undefined }
-      ));
+      return vaultError({ code: "PUBLIC_KEY_NOT_FOUND", did });
     }
   }
 
-  async delete(key: string): Promise<Result<void>> {
-    const unlockCheck = this.requireUnlocked();
-    if (!unlockCheck.ok) return unlockCheck;
-
-    try {
-      const kvResult = await this._vaultConfig.tc.kv.delete(VAULT_PREFIX + key);
-      if (!kvResult.ok) {
-        return err(serviceError(
-          "VAULT_DELETE_FAILED",
-          `Failed to delete vault entry "${key}": ${kvResult.error.message}`,
-          "vault"
-        ));
+  /**
+   * List DIDs that have been granted access to a key.
+   *
+   * @param key - The key to list grants for
+   * @returns Result with array of recipient DIDs
+   */
+  async listGrants(
+    key: string
+  ): Promise<Result<string[], VaultError>> {
+    return this.withTelemetry("listGrants", key, async () => {
+      if (!this._isUnlocked) {
+        return vaultError({
+          code: "VAULT_LOCKED",
+          message: "Vault must be unlocked before listing grants",
+        });
       }
-      return ok(undefined);
-    } catch (error) {
-      return err(serviceError(
-        "VAULT_DELETE_FAILED",
-        `Failed to delete vault entry "${key}": ${error instanceof Error ? error.message : String(error)}`,
-        "vault",
-        { cause: error instanceof Error ? error : undefined }
-      ));
-    }
+
+      if (!this.requireAuth()) {
+        return vaultError({
+          code: "VAULT_LOCKED",
+          message: "Authentication required",
+        });
+      }
+
+      try {
+        const listResult = await this.tc.kv.list({
+          prefix: "grants/",
+          removePrefix: true,
+        });
+
+        if (!listResult.ok) {
+          return vaultError({
+            code: "STORAGE_ERROR",
+            cause: new Error(
+              `Failed to list grants: ${listResult.error.message}`
+            ),
+          });
+        }
+
+        // Grant paths are: {recipientDID}/{key}
+        // Filter for the specific key and extract DIDs
+        const dids: string[] = [];
+        for (const grantPath of listResult.data.keys) {
+          // Path format: {recipientDID}/{key}
+          // The key may contain slashes, so we need to match the suffix
+          if (grantPath.endsWith(`/${key}`)) {
+            const did = grantPath.slice(
+              0,
+              grantPath.length - key.length - 1
+            );
+            if (did) {
+              dids.push(did);
+            }
+          }
+        }
+
+        return ok(dids);
+      } catch (error) {
+        return vaultError({
+          code: "STORAGE_ERROR",
+          cause:
+            error instanceof Error ? error : new Error(String(error)),
+        });
+      }
+    }) as Promise<Result<string[], VaultError>>;
   }
 
-  async head(key: string): Promise<Result<VaultHeaders>> {
-    const unlockCheck = this.requireUnlocked();
-    if (!unlockCheck.ok) return unlockCheck as Result<VaultHeaders>;
+  // =========================================================================
+  // Phase 3: Key Rotation / Revocation
+  // =========================================================================
 
-    try {
-      const kvResult = await this._vaultConfig.tc.kv.head(VAULT_PREFIX + key);
-      if (!kvResult.ok) {
-        return err(serviceError(
-          "VAULT_HEAD_FAILED",
-          `Failed to get vault entry metadata "${key}": ${kvResult.error.message}`,
-          "vault"
-        ));
+  /**
+   * Revoke a previously issued grant.
+   *
+   * This performs a full key rotation:
+   * 1. Lists current grantees
+   * 2. Removes the revoked recipient
+   * 3. Re-encrypts the value with a new entry key
+   * 4. Re-issues grants to remaining recipients
+   *
+   * @param key - The key to revoke access to
+   * @param recipientDID - The recipient whose access to revoke
+   */
+  async revoke(
+    key: string,
+    recipientDID: string
+  ): Promise<Result<void, VaultError>> {
+    return this.withTelemetry("revoke", key, async () => {
+      if (!this._isUnlocked || !this.masterKey) {
+        return vaultError({
+          code: "VAULT_LOCKED",
+          message: "Vault must be unlocked before revoking access",
+        });
       }
 
-      const headers = kvResult.data.headers;
-      return ok({
-        etag: headers?.etag,
-        contentType: headers?.contentType,
-        lastModified: headers?.lastModified,
-        contentLength: headers?.contentLength,
-      });
-    } catch (error) {
-      return err(serviceError(
-        "VAULT_HEAD_FAILED",
-        `Failed to get vault entry metadata "${key}": ${error instanceof Error ? error.message : String(error)}`,
-        "vault",
-        { cause: error instanceof Error ? error : undefined }
-      ));
+      if (!this.requireAuth()) {
+        return vaultError({
+          code: "VAULT_LOCKED",
+          message: "Authentication required",
+        });
+      }
+
+      try {
+        // Step 1: List all current grantees
+        const granteesResult = await this.listGrants(key);
+        if (!granteesResult.ok) {
+          return granteesResult;
+        }
+
+        const remainingGrantees = granteesResult.data.filter(
+          (did) => did !== recipientDID
+        );
+
+        // Step 2: Delete the grant for the revoked recipient
+        const deleteGrantResult = await this.tc.kv.delete(
+          `grants/${recipientDID}/${key}`
+        );
+        // Grant may already be deleted, that's fine
+
+        // Step 3: Fetch and decrypt current value
+        const getResult = await this.get(key);
+        if (!getResult.ok) {
+          return getResult as Result<never, VaultError>;
+        }
+
+        const currentEntry = getResult.data;
+
+        // Step 4: Generate new entry key
+        const newEntryKey = this.crypto.randomBytes(32);
+        const newKeyId = hexEncode(this.crypto.sha256(newEntryKey)).slice(
+          0,
+          16
+        );
+
+        // Step 5: Re-serialize and re-encrypt value with new key
+        let plaintext: Uint8Array;
+        if (currentEntry.value instanceof Uint8Array) {
+          plaintext = currentEntry.value;
+        } else {
+          plaintext = toBytes(JSON.stringify(currentEntry.value));
+        }
+
+        const encrypted = this.crypto.encrypt(newEntryKey, plaintext);
+
+        // Step 6: Encrypt new entry key with master key
+        const newKeyBlob = this.crypto.encrypt(this.masterKey, newEntryKey);
+
+        // Step 7: Update metadata with new key ID
+        const metadata: Record<string, string> = {
+          ...currentEntry.metadata,
+          [VaultHeaders.KEY_ID]: newKeyId,
+        };
+
+        // Step 8: Store updated key blob
+        const keyPayload = JSON.stringify({
+          key: base64Encode(newKeyBlob),
+          metadata: JSON.stringify({
+            keyId: newKeyId,
+            ...metadata,
+          }),
+        });
+        const keyPutResult = await this.tc.kv.put(
+          `keys/${key}`,
+          keyPayload
+        );
+        if (!keyPutResult.ok) {
+          return vaultError({
+            code: "STORAGE_ERROR",
+            cause: new Error(
+              `Failed to store rotated key blob: ${keyPutResult.error.message}`
+            ),
+          });
+        }
+
+        // Step 9: Store re-encrypted value
+        const valuePayload = JSON.stringify({
+          data: base64Encode(encrypted),
+          metadata,
+        });
+        const valuePutResult = await this.tc.kv.put(
+          `vault/${key}`,
+          valuePayload
+        );
+        if (!valuePutResult.ok) {
+          return vaultError({
+            code: "STORAGE_ERROR",
+            cause: new Error(
+              `Failed to store re-encrypted value: ${valuePutResult.error.message}`
+            ),
+          });
+        }
+
+        // Step 10: Re-issue grants to remaining recipients
+        for (const did of remainingGrantees) {
+          const grantResult = await this.grant(key, did);
+          if (!grantResult.ok) {
+            // Continue re-issuing to other recipients even if one fails
+            // The failed grant can be re-issued manually
+          }
+        }
+
+        return ok(undefined);
+      } catch (error) {
+        return vaultError({
+          code: "STORAGE_ERROR",
+          cause:
+            error instanceof Error ? error : new Error(String(error)),
+        });
+      }
+    }) as Promise<Result<void, VaultError>>;
+  }
+
+  // =========================================================================
+  // Internal Helpers
+  // =========================================================================
+
+  /**
+   * Parse a DID string to extract address and chainId.
+   * Expected format: did:pkh:eip155:{chainId}:{address}
+   *
+   * @param did - The DID to parse
+   * @returns Parsed address and chainId, or null if invalid
+   */
+  private parseDID(
+    did: string
+  ): { address: string; chainId: number } | null {
+    // did:pkh:eip155:{chainId}:{address}
+    const parts = did.split(":");
+    if (
+      parts.length !== 5 ||
+      parts[0] !== "did" ||
+      parts[1] !== "pkh" ||
+      parts[2] !== "eip155"
+    ) {
+      return null;
     }
+
+    const chainId = parseInt(parts[3], 10);
+    const address = parts[4];
+    if (isNaN(chainId) || !address) {
+      return null;
+    }
+
+    return { address, chainId };
   }
 }

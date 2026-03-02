@@ -168,18 +168,15 @@ export type {
 } from "./sql";
 
 // Vault service
-export { DataVaultService, VaultAction } from "./vault";
+export { DataVaultService, VaultAction, VaultHeaders } from "./vault";
+export type { IDataVaultService, VaultCrypto } from "./vault";
 export type {
-  IDataVaultService,
-  VaultCrypto,
   DataVaultConfig,
-  DataVaultTinyCloudConfig,
   VaultPutOptions,
   VaultGetOptions,
   VaultListOptions,
   VaultGrantOptions,
   VaultEntry,
-  VaultHeaders,
   VaultError,
   VaultActionType,
 } from "./vault";
