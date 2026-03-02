@@ -18,3 +18,4 @@ packages/sdk-rs/.profile
 packages/sdk-rs/.zshenv
 packages/sdk-services/dist/
 tests/sdk-services/dist
+packages/cli/dist
