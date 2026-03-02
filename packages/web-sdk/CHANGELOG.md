@@ -1,5 +1,28 @@
 # @tinycloudlabs/web-sdk
 
+## 1.3.0
+
+### Minor Changes
+
+- 94ad509: Add Data Vault (encrypted KV) support with WASM crypto bindings, vault service initialization in TinyCloudWeb, public space helpers, and NodeUserAuthorization improvements
+- 94ad509: Add Data Vault service for client-side encrypted KV storage with X25519 key exchange and AES-256-GCM encryption
+- 94ad509: Add public space support for discoverable, unauthenticated data publishing
+
+  - `makePublicSpaceId(address, chainId)` utility for deterministic public space ID construction
+  - `TinyCloud.ensurePublicSpace()` creates the user's public space on first need
+  - `TinyCloud.publicKV` getter returns IKVService scoped to the user's public space
+  - `TinyCloud.readPublicSpace(host, spaceId, key)` static method for unauthenticated reads
+  - `TinyCloud.readPublicKey(host, address, chainId, key)` static convenience method
+
+### Patch Changes
+
+- Updated dependencies [94ad509]
+- Updated dependencies [94ad509]
+- Updated dependencies [94ad509]
+- Updated dependencies [94ad509]
+- Updated dependencies [94ad509]
+  - @tinycloud/sdk-core@1.3.0
+
 ## 1.2.0
 
 ### Minor Changes

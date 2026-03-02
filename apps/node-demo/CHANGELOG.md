@@ -4,6 +4,18 @@
 
 ### Patch Changes
 
+- Updated dependencies [94ad509]
+- Updated dependencies [94ad509]
+- Updated dependencies [94ad509]
+- Updated dependencies [94ad509]
+- Updated dependencies [94ad509]
+  - @tinycloud/sdk-core@1.3.0
+  - @tinycloud/node-sdk@1.3.0
+
+## 0.0.6
+
+### Patch Changes
+
 - Updated dependencies [2014a20]
 - Updated dependencies [bcbebbe]
 - Updated dependencies [ca9b2c6]

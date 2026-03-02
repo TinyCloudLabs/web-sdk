@@ -1,5 +1,11 @@
 # @tinycloudlabs/sdk-services
 
+## 1.3.0
+
+### Minor Changes
+
+- 94ad509: Add Data Vault service for client-side encrypted KV storage with X25519 key exchange and AES-256-GCM encryption
+
 ## 1.2.0
 
 ### Minor Changes
