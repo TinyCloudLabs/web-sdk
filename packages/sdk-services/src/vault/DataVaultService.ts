@@ -94,6 +94,15 @@ interface DataVaultServiceConfig extends DataVaultConfig {
 // Helper Functions
 // =============================================================================
 
+/** Convert a caught value to an Error. WASM throws plain objects, not Error instances. */
+function toError(error: unknown): Error {
+  if (error instanceof Error) return error;
+  if (typeof error === "object" && error !== null) {
+    return new Error(JSON.stringify(error));
+  }
+  return new Error(String(error));
+}
+
 function toBytes(str: string): Uint8Array {
   return new TextEncoder().encode(str);
 }
@@ -340,7 +349,7 @@ export class DataVaultService extends BaseService implements IDataVaultService {
         return vaultError({
           code: "STORAGE_ERROR",
           cause:
-            error instanceof Error ? error : new Error(String(error)),
+            toError(error),
         });
       }
     }) as Promise<Result<void, VaultError>>;
@@ -477,7 +486,7 @@ export class DataVaultService extends BaseService implements IDataVaultService {
         return vaultError({
           code: "STORAGE_ERROR",
           cause:
-            error instanceof Error ? error : new Error(String(error)),
+            toError(error),
         });
       }
     }) as Promise<Result<void, VaultError>>;
@@ -566,7 +575,7 @@ export class DataVaultService extends BaseService implements IDataVaultService {
         return vaultError({
           code: "STORAGE_ERROR",
           cause:
-            error instanceof Error ? error : new Error(String(error)),
+            toError(error),
         });
       }
     }) as Promise<Result<VaultEntry<T>, VaultError>>;
@@ -610,7 +619,7 @@ export class DataVaultService extends BaseService implements IDataVaultService {
         return vaultError({
           code: "STORAGE_ERROR",
           cause:
-            error instanceof Error ? error : new Error(String(error)),
+            toError(error),
         });
       }
     }) as Promise<Result<void, VaultError>>;
@@ -677,7 +686,7 @@ export class DataVaultService extends BaseService implements IDataVaultService {
         return vaultError({
           code: "STORAGE_ERROR",
           cause:
-            error instanceof Error ? error : new Error(String(error)),
+            toError(error),
         });
       }
     }) as Promise<Result<string[], VaultError>>;
@@ -723,7 +732,7 @@ export class DataVaultService extends BaseService implements IDataVaultService {
         return vaultError({
           code: "STORAGE_ERROR",
           cause:
-            error instanceof Error ? error : new Error(String(error)),
+            toError(error),
         });
       }
     }) as Promise<Result<Record<string, string>, VaultError>>;
@@ -868,7 +877,7 @@ export class DataVaultService extends BaseService implements IDataVaultService {
         return vaultError({
           code: "STORAGE_ERROR",
           cause:
-            error instanceof Error ? error : new Error(String(error)),
+            toError(error),
         });
       }
     }) as Promise<Result<void, VaultError>>;
@@ -1006,7 +1015,7 @@ export class DataVaultService extends BaseService implements IDataVaultService {
         return vaultError({
           code: "STORAGE_ERROR",
           cause:
-            error instanceof Error ? error : new Error(String(error)),
+            toError(error),
         });
       }
     }) as Promise<Result<VaultEntry<T>, VaultError>>;
@@ -1110,7 +1119,7 @@ export class DataVaultService extends BaseService implements IDataVaultService {
         return vaultError({
           code: "STORAGE_ERROR",
           cause:
-            error instanceof Error ? error : new Error(String(error)),
+            toError(error),
         });
       }
     }) as Promise<Result<string[], VaultError>>;
@@ -1255,7 +1264,7 @@ export class DataVaultService extends BaseService implements IDataVaultService {
         return vaultError({
           code: "STORAGE_ERROR",
           cause:
-            error instanceof Error ? error : new Error(String(error)),
+            toError(error),
         });
       }
     }) as Promise<Result<void, VaultError>>;
