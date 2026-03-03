@@ -15,13 +15,13 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          'bg-main text-mtext border-2 border-border shadow-shadow hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none',
-        noShadow: 'bg-main text-mtext border-2 border-border',
+          'bg-main text-mtext border border-border shadow-card hover:shadow-card-hover',
+        noShadow: 'bg-main text-mtext border border-border',
         link: 'underline-offset-4 text-text hover:underline',
         neutral:
-          'bg-bw text-text border-2 border-border shadow-shadow hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none',
+          'bg-bw text-text border border-border shadow-card hover:shadow-card-hover',
         reverse:
-          'bg-main text-mtext border-2 border-border hover:translate-x-reverseBoxShadowX hover:translate-y-reverseBoxShadowY hover:shadow-shadow',
+          'bg-main text-mtext border border-border shadow-card hover:shadow-card-hover',
       },
       size: {
         default: 'h-10 px-4 py-2',

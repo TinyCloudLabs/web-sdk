@@ -2,44 +2,56 @@
 @config "../tailwind.config.js";
 
 :root {
-  --main: #88aaee;
-  --overlay: rgba(0, 0, 0, 0.8); /* background color overlay for alert dialogs, modals, etc. */
+  --main: #4473B9;
+  --main-hover: #3A63A3;
+  --main-soft: #EDF2F9;
+  --overlay: rgba(0, 0, 0, 0.5);
 
-  --bg: #dfe5f2;
-  --bw: #fff; /* white and secondary black e.g. utility class variant would be: bg-[#fff] dark:bg-[#212121] */
-  --blank: #000; /* blank black and white */
-  --border: #000;
-  --text: #000;
-  --mtext: #000; /* text that is placed on background with main color e.g. text color of default button */
-  --ring: #000;
+  --bg: #F4F6F8;
+  --bg-surface: #EDEFF2;
+  --bw: #FFFFFF;
+  --blank: #0F172A;
+  --border: #D9DEE3;
+  --text: #0F172A;
+  --text-muted: #475569;
+  --text-subtle: #64748B;
+  --mtext: #FFFFFF;
+  --ring: #4473B9;
   --ring-offset: #fff;
 
-  --border-radius: 8px;
-  --box-shadow-x: 3px;
-  --box-shadow-y: 3px;
-  --reverse-box-shadow-x: -3px;
-  --reverse-box-shadow-y: -3px;
+  --border-radius: 12px;
+  --box-shadow-x: 0px;
+  --box-shadow-y: 1px;
+  --reverse-box-shadow-x: 0px;
+  --reverse-box-shadow-y: -1px;
   --base-font-weight: 500;
   --heading-font-weight: 700;
 
-  --shadow: var(--box-shadow-x) var(--box-shadow-y) 0px 0px var(--border);
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-elevated: 0 10px 30px rgba(0, 0, 0, 0.1);
 }
 
 .dark {
-  --bg: #272933;
-  --bw: #212121;
-  --blank: #fff;
-  --border: #000;
-  --text: #e6e6e6;
-  --mtext: #000;
-  --ring: #fff;
-  --ring-offset: #000;
+  --bg: #0F172A;
+  --bg-surface: #1E293B;
+  --bw: #1E293B;
+  --blank: #F1F5F9;
+  --border: #334155;
+  --text: #F1F5F9;
+  --text-muted: #94A3B8;
+  --text-subtle: #64748B;
+  --mtext: #FFFFFF;
+  --ring: #5B8AD0;
+  --ring-offset: #0F172A;
 
-  --shadow: var(--box-shadow-x) var(--box-shadow-y) 0px 0px var(--border);
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  --shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-elevated: 0 10px 30px rgba(0, 0, 0, 0.4);
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -48,25 +60,298 @@ body {
   color: var(--text);
 }
 
+/* Scrollbar */
 body::-webkit-scrollbar {
-  width: 16px;
+  width: 8px;
 }
 
 body::-webkit-scrollbar-track {
-  background: var(--bw);
+  background: var(--bg);
 }
 
 body::-webkit-scrollbar-thumb {
-  background: var(--blank);
+  background: var(--border);
+  border-radius: 4px;
+}
+
+body::-webkit-scrollbar-thumb:hover {
+  background: var(--text-subtle);
 }
 
 @supports not selector(::-webkit-scrollbar) {
   body {
-    scrollbar-color: var(--blank) var(--bw);
+    scrollbar-color: var(--border) var(--bg);
+    scrollbar-width: thin;
   }
 }
 
 code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+  font-family: 'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono', 'Menlo', 'Monaco', 'Consolas', 'Courier New',
     monospace;
+}
+
+/* Noise texture overlay - from Landing */
+.with-noise::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  opacity: 0.4;
+  mix-blend-mode: overlay;
+  z-index: 0;
+}
+
+/* Grid pattern background */
+.with-grid::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(217, 222, 227, 0.4) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(217, 222, 227, 0.4) 1px, transparent 1px);
+  background-size: 48px 48px;
+  z-index: 0;
+}
+
+/* Hero glow effect */
+.hero-glow {
+  position: absolute;
+  top: -10%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 600px;
+  height: 300px;
+  background: radial-gradient(
+    ellipse,
+    rgba(37, 99, 235, 0.12),
+    transparent 70%
+  );
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Card enhanced hover effect */
+.card-enhanced {
+  position: relative;
+  overflow: hidden;
+}
+
+.card-enhanced::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(37, 99, 235, 0.6),
+    transparent
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 1;
+}
+
+.card-enhanced:hover::before {
+  opacity: 1;
+}
+
+.card-enhanced::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 120px;
+  background: linear-gradient(
+    to bottom,
+    rgba(37, 99, 235, 0.03),
+    transparent
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.card-enhanced:hover::after {
+  opacity: 1;
+}
+
+/* Scroll reveal animation */
+.scroll-reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+}
+
+.scroll-reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Status pulse */
+@keyframes statusPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.status-pulse {
+  animation: statusPulse 2s ease-in-out infinite;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .scroll-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* Markdown prose styles */
+.prose-editor {
+  color: var(--text);
+  line-height: 1.7;
+  font-size: 15px;
+}
+
+.prose-editor h1 {
+  font-family: 'Oswald', sans-serif;
+  font-size: 2em;
+  font-weight: 700;
+  margin: 1em 0 0.5em;
+  letter-spacing: -0.04em;
+  color: var(--text);
+}
+
+.prose-editor h2 {
+  font-family: 'Oswald', sans-serif;
+  font-size: 1.5em;
+  font-weight: 700;
+  margin: 0.8em 0 0.4em;
+  letter-spacing: -0.04em;
+  color: var(--text);
+}
+
+.prose-editor h3 {
+  font-family: 'Oswald', sans-serif;
+  font-size: 1.25em;
+  font-weight: 700;
+  margin: 0.6em 0 0.3em;
+  letter-spacing: -0.04em;
+  color: var(--text);
+}
+
+.prose-editor p {
+  margin: 0.5em 0;
+}
+
+.prose-editor ul, .prose-editor ol {
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+}
+
+.prose-editor ul {
+  list-style-type: disc;
+}
+
+.prose-editor ol {
+  list-style-type: decimal;
+}
+
+.prose-editor li {
+  margin: 0.25em 0;
+}
+
+.prose-editor blockquote {
+  border-left: 3px solid var(--main);
+  padding-left: 1em;
+  margin: 0.5em 0;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.prose-editor code {
+  background: var(--bg-surface);
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  font-size: 0.9em;
+  font-family: 'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono', monospace;
+}
+
+.prose-editor pre {
+  background: var(--bg-surface);
+  padding: 1em;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 0.5em 0;
+}
+
+.prose-editor pre code {
+  background: none;
+  padding: 0;
+  font-size: 0.85em;
+}
+
+.prose-editor table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.5em 0;
+}
+
+.prose-editor th, .prose-editor td {
+  border: 1px solid var(--border);
+  padding: 0.5em 0.75em;
+  text-align: left;
+}
+
+.prose-editor th {
+  background: var(--bg-surface);
+  font-weight: 600;
+}
+
+.prose-editor a {
+  color: var(--main);
+  text-decoration: underline;
+}
+
+.prose-editor hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1.5em 0;
+}
+
+.prose-editor img {
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+/* Editor textarea */
+.editor-textarea {
+  font-family: 'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono', 'Menlo', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  tab-size: 2;
+  resize: none;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  width: 100%;
+  height: 100%;
+  padding: 1rem;
+}
+
+.editor-textarea::placeholder {
+  color: var(--text-subtle);
+}
+
+/* Navigation shadow */
+.shadow-nav {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }

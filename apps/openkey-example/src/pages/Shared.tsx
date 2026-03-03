@@ -1,211 +1,345 @@
-// @ts-nocheck - Pre-existing type issues with web-sdk version mismatch
-import React, { useState, useEffect, useCallback } from 'react';
-import { useLocation } from 'react-router-dom';
+// @ts-nocheck
+import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
+import { useLocation, Link as RouterLink } from 'react-router-dom';
 import { TinyCloudWeb } from '@tinycloud/web-sdk';
-import Button from '../components/Button';
-import Title from '../components/Title';
-import Input from '../components/Input';
-import Footer from '../components/Footer';
+import { OpenKey, OpenKeyEIP1193Provider } from '@openkey/sdk';
+import { providers } from 'ethers';
+import { Eye, Edit3, Save, Check, Columns, Code, LogIn } from 'lucide-react';
 
-interface ParsedShare {
-  key: {
-    kid?: string;
-    kty: string;
-    crv: string;
-    x: string;
-    d?: string; // private key component
-  };
-  keyDid: string;
-  delegation: {
-    cid: string;
-    delegateDID: string;
-    spaceId: string;
-    path: string;
-    actions: string[];
-    expiry: string;
-    isRevoked: boolean;
-    authHeader?: string;
-    allowSubDelegation?: boolean;
-    createdAt?: string;
-  };
-  path: string;
-  host: string;
-  spaceId: string;
-  version: number;
+const MarkdownPreview = lazy(() => import('../components/editor/MarkdownPreview').then(m => ({ default: m.MarkdownPreview })));
+const MarkdownEditor = lazy(() => import('../components/editor/MarkdownEditor').then(m => ({ default: m.MarkdownEditor })));
+
+interface DocumentEnvelope {
+  title: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+  encrypted?: boolean;
+}
+
+function tryParseDocumentEnvelope(data: any): DocumentEnvelope | null {
+  let obj = data;
+  if (typeof data === 'string') {
+    try { obj = JSON.parse(data); } catch { return null; }
+  }
+  if (obj && typeof obj === 'object' && obj.title && obj.content !== undefined && obj.createdAt) {
+    return obj as DocumentEnvelope;
+  }
+  return null;
+}
+
+function parseShareMeta(token: string): { actions: string[] } | null {
+  try {
+    let encoded = token;
+    if (encoded.startsWith('tc1:')) encoded = encoded.slice(4);
+    encoded = decodeURIComponent(encoded);
+    const decoded = atob(encoded);
+    const parsed = JSON.parse(decoded);
+    return { actions: parsed.delegation?.actions || [] };
+  } catch {
+    return null;
+  }
 }
 
 const Shared = () => {
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
+  const shareToken = queryParams.get('share') || queryParams.get('data') || '';
 
-  // Support both 'share' (v2 format) and 'data' (legacy format) query params
-  const [shareData, setShareData] = useState(queryParams.get('share') || queryParams.get('data') || "");
-  const [fetchedData, setFetchedData]: [any, any] = useState(null);
+  const [content, setContent] = useState<string>('');
+  const [title, setTitle] = useState<string>('');
+  const [envelope, setEnvelope] = useState<DocumentEnvelope | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [inspectedData, setInspectedData] = useState<ParsedShare | null>(null);
-  const [inspectError, setInspectError] = useState<string | null>(null);
+  const [mode, setMode] = useState<'read' | 'edit' | 'split'>('read');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
-  const inspectShareData = useCallback(() => {
-    setInspectError(null);
-    setInspectedData(null);
-    try {
-      // Parse the share link - format is "tc1:<base64json>" or just base64
-      let encoded = shareData;
-      if (encoded.startsWith('tc1:')) {
-        encoded = encoded.slice(4);
-      }
-      // Handle URL encoding
-      encoded = decodeURIComponent(encoded);
-      // Decode base64
-      const decoded = atob(encoded);
-      const parsed = JSON.parse(decoded) as ParsedShare;
-      setInspectedData(parsed);
-    } catch (err) {
-      setInspectError(`Failed to parse share link: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  }, [shareData]);
+  // Auth state for write access
+  const [tcw, setTcw] = useState<TinyCloudWeb | null>(null);
+  const [signingIn, setSigningIn] = useState(false);
 
-  // Auto-inspect in dev mode when share data is present
+  const kvRef = useRef<any>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // Parse permissions client-side (no network)
+  const meta = shareToken ? parseShareMeta(shareToken) : null;
+  const canWrite = meta?.actions?.includes('tinycloud.kv/put') ?? false;
+  const isSignedIn = !!tcw;
+
+  // Fetch content using static receiveShare (works without auth, single /delegate call)
   useEffect(() => {
-    if (window.__DEV_MODE__ && shareData) {
-      inspectShareData();
-    }
-  }, [shareData, inspectShareData]);
+    if (!shareToken) return;
+    let cancelled = false;
 
-  const fetchShareData = async () => {
-    setIsLoading(true);
-    setError(null);
-    // Use static method to receive v2 share links (no auth required)
-    const result = await TinyCloudWeb.receiveShare(shareData);
-    if (result.ok) {
-      setFetchedData(result.data);
-    } else {
-      console.error('Failed to retrieve shared content:', result.error.code, result.error.message);
-      setError(`Failed to retrieve shared content: ${result.error.message}`);
+    const fetchContent = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const result = await TinyCloudWeb.receiveShare(shareToken);
+        if (cancelled) return;
+
+        if (result.ok) {
+          const raw = result.data.data;
+          const env = tryParseDocumentEnvelope(raw);
+          if (env) {
+            setEnvelope(env);
+            setTitle(env.title);
+            setContent(env.content);
+          } else {
+            setContent(typeof raw === 'string' ? raw : JSON.stringify(raw, null, 2));
+          }
+        } else {
+          setError(result.error?.message || 'Failed to load content');
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : String(e));
+        }
+      }
+
+      if (!cancelled) setIsLoading(false);
+    };
+
+    fetchContent();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // After sign-in, set up writable KV via sharing.receive()
+  useEffect(() => {
+    if (!tcw || !shareToken) return;
+    let cancelled = false;
+
+    const setupWrite = async () => {
+      try {
+        const result = await tcw.sharing.receive(shareToken);
+        if (cancelled) return;
+        if (result.ok) {
+          kvRef.current = result.data.kv;
+        }
+      } catch (e) {
+        console.error('Failed to set up write access:', e);
+      }
+    };
+
+    setupWrite();
+    return () => { cancelled = true; };
+  }, [tcw, shareToken]);
+
+  const handleSignIn = async () => {
+    setSigningIn(true);
+    try {
+      const openkey = new OpenKey({ host: 'https://openkey.so' });
+      const authResult = await openkey.connect();
+      const eip1193Provider = new OpenKeyEIP1193Provider(openkey, authResult);
+      const ethersProvider = new providers.Web3Provider(eip1193Provider as any);
+
+      const tcwInstance = new TinyCloudWeb({
+        providers: { web3: { driver: ethersProvider } },
+      });
+      await tcwInstance.signIn();
+      setTcw(tcwInstance);
+    } catch (err) {
+      console.error('Sign-in failed:', err);
     }
-    setIsLoading(false);
+    setSigningIn(false);
   };
 
-  return (
-    <div className="flex min-h-screen flex-col items-center bg-bg pt-20">
-      <div className="w-full max-w-4xl px-4">
-        <Title />
-        
-        <div className="mx-auto max-w-2xl rounded-base border-2 border-border bg-bw p-6 shadow-shadow">
-          <div className="space-y-6">
-            <h2 className="text-xl font-heading text-text">Shared Content</h2>
-            
-            <Input
-              label="Share Data"
-              value={shareData}
-              onChange={(value) => setShareData(value)}
-              className="w-full"
-            />
-            
-            <div className="flex gap-2">
-              <Button
-                id="fetchShareData"
-                onClick={fetchShareData}
-                loading={isLoading}
-                variant="default"
-                className="flex-1"
-              >
-                Fetch Shared Content
-              </Button>
-              <Button
-                id="inspectShareData"
-                onClick={inspectShareData}
-                variant="neutral"
-                className="flex-1"
-              >
-                Inspect
-              </Button>
-            </div>
+  const handleSave = useCallback(async () => {
+    if (!kvRef.current || !envelope) return;
+    setSaving(true);
+    const updated: DocumentEnvelope = {
+      ...envelope,
+      content,
+      updatedAt: new Date().toISOString(),
+    };
+    const result = await kvRef.current.put('', JSON.stringify(updated));
+    if (result.ok) {
+      setEnvelope(updated);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    }
+    setSaving(false);
+  }, [content, envelope]);
 
-            {inspectError && (
-              <div className="rounded-base border-2 border-yellow-300 bg-yellow-50 p-3">
-                <p className="text-sm text-yellow-800">{inspectError}</p>
-              </div>
-            )}
+  const handleContentChange = useCallback((newContent: string) => {
+    setContent(newContent);
+    setSaved(false);
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      if (kvRef.current && envelope) {
+        handleSave();
+      }
+    }, 2000);
+  }, [envelope, handleSave]);
 
-            {inspectedData && (
-              <div className="mt-4 rounded-base border-2 border-border/30 bg-bw/50 p-4 space-y-4">
-                <h3 className="text-lg font-heading text-text">Share Link Components:</h3>
+  // No token
+  if (!shareToken) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-bg">
+        <div className="text-center max-w-md px-4">
+          <h1 className="text-2xl font-heading text-text mb-3">No Share Link</h1>
+          <p className="text-sm text-text/60 mb-4">You need a share link to view content here.</p>
+          <RouterLink to="/" className="text-sm text-main hover:underline">Go to editor</RouterLink>
+        </div>
+      </div>
+    );
+  }
 
-                <div className="space-y-3">
-                  <div>
-                    <h4 className="font-semibold text-text">Host</h4>
-                    <p className="text-sm text-text/70 font-mono">{inspectedData.host}</p>
-                  </div>
+  // Loading
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-bg">
+        <div className="text-center">
+          <div className="h-6 w-6 border-2 border-main border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-sm text-text/50">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
-                  <div>
-                    <h4 className="font-semibold text-text">Space ID</h4>
-                    <p className="text-sm text-text/70 font-mono break-all">{inspectedData.spaceId}</p>
-                  </div>
-
-                  <div>
-                    <h4 className="font-semibold text-text">Path</h4>
-                    <p className="text-sm text-text/70 font-mono">{inspectedData.path}</p>
-                  </div>
-
-                  <div>
-                    <h4 className="font-semibold text-text">Key DID</h4>
-                    <p className="text-sm text-text/70 font-mono break-all">{inspectedData.keyDid}</p>
-                  </div>
-
-                  <div>
-                    <h4 className="font-semibold text-text">Key (JWK)</h4>
-                    <pre className="text-xs text-text/70 font-mono bg-main/10 p-2 rounded overflow-x-auto">
-                      {JSON.stringify({ ...inspectedData.key, d: inspectedData.key.d ? '[REDACTED]' : undefined }, null, 2)}
-                    </pre>
-                  </div>
-
-                  <div>
-                    <h4 className="font-semibold text-text">Delegation</h4>
-                    <div className="text-sm text-text/70 space-y-1 ml-2">
-                      <p><span className="font-medium">CID:</span> <span className="font-mono break-all">{inspectedData.delegation.cid}</span></p>
-                      <p><span className="font-medium">Delegate DID:</span> <span className="font-mono break-all">{inspectedData.delegation.delegateDID}</span></p>
-                      <p><span className="font-medium">Actions:</span> {inspectedData.delegation.actions.join(', ')}</p>
-                      <p><span className="font-medium">Expiry:</span> {inspectedData.delegation.expiry}</p>
-                      <p><span className="font-medium">Revoked:</span> {inspectedData.delegation.isRevoked ? 'Yes' : 'No'}</p>
-                      <p><span className="font-medium">Sub-delegation:</span> {inspectedData.delegation.allowSubDelegation ? 'Allowed' : 'Not allowed'}</p>
-                      {inspectedData.delegation.authHeader && (
-                        <div>
-                          <p className="font-medium">Auth Header (UCAN JWT):</p>
-                          <pre className="text-xs font-mono bg-main/10 p-2 rounded overflow-x-auto max-h-32">
-                            {inspectedData.delegation.authHeader}
-                          </pre>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {error && (
-              <div className="rounded-base border-2 border-red-300 bg-red-50 p-3">
-                <p className="text-sm text-red-800">{error}</p>
-              </div>
-            )}
-
-            {fetchedData && (
-              <div className="mt-6 rounded-base border-2 border-border/30 bg-bw/50 p-4">
-                <h3 className="mb-2 text-lg font-heading text-text">Retrieved Content:</h3>
-                <pre className="overflow-x-auto whitespace-pre-wrap rounded bg-main/10 p-4 font-mono text-sm text-text">
-                  {JSON.stringify(fetchedData, null, 2)}
-                </pre>
-              </div>
-            )}
+  // Error
+  if (error) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-bg">
+        <div className="w-full max-w-lg px-4">
+          <div className="rounded-base border border-red-300 bg-red-50 dark:bg-red-950/30 dark:border-red-800 p-6 text-center">
+            <h2 className="text-lg font-heading text-red-800 dark:text-red-300 mb-2">Unable to load content</h2>
+            <p className="text-sm text-red-700 dark:text-red-400 mb-4">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 rounded-base bg-main text-mtext text-sm font-medium"
+            >
+              Retry
+            </button>
           </div>
         </div>
       </div>
-      <div className="mt-auto w-full">
-        <Footer />
+    );
+  }
+
+  // Content loaded
+  if (content !== null) {
+    const isEditing = mode === 'edit' || mode === 'split';
+
+    return (
+      <div className="min-h-screen bg-bg flex flex-col">
+        {/* Toolbar */}
+        <div className="sticky top-0 z-10 bg-bw/80 backdrop-blur-sm border-b border-border">
+          <div className="w-full max-w-5xl mx-auto px-6 h-12 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {title && (
+                <span className="text-sm font-heading text-text truncate max-w-[200px] sm:max-w-[400px]">{title}</span>
+              )}
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-bg-surface text-text/50">
+                {canWrite ? (
+                  <><Edit3 className="h-3 w-3" /> Read & Write</>
+                ) : (
+                  <><Eye className="h-3 w-3" /> Read only</>
+                )}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1">
+              {/* Write mode: signed in with write permissions */}
+              {canWrite && isSignedIn && (
+                <>
+                  <button
+                    onClick={() => setMode('read')}
+                    className={`p-1.5 rounded-base transition-colors ${mode === 'read' ? 'bg-main/10 text-main' : 'text-text/40 hover:text-text/60'}`}
+                    title="Read"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => setMode('split')}
+                    className={`p-1.5 rounded-base transition-colors hidden md:block ${mode === 'split' ? 'bg-main/10 text-main' : 'text-text/40 hover:text-text/60'}`}
+                    title="Split view"
+                  >
+                    <Columns className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => setMode('edit')}
+                    className={`p-1.5 rounded-base transition-colors ${mode === 'edit' ? 'bg-main/10 text-main' : 'text-text/40 hover:text-text/60'}`}
+                    title="Edit"
+                  >
+                    <Code className="h-4 w-4" />
+                  </button>
+                  {isEditing && (
+                    <button
+                      onClick={handleSave}
+                      disabled={saving}
+                      className="ml-2 inline-flex items-center gap-1 px-2.5 py-1 rounded-base text-xs font-medium transition-colors bg-main/10 text-main hover:bg-main/20 disabled:opacity-50"
+                    >
+                      {saved ? <Check className="h-3 w-3" /> : <Save className="h-3 w-3" />}
+                      {saving ? 'Saving...' : saved ? 'Saved' : 'Save'}
+                    </button>
+                  )}
+                </>
+              )}
+
+              {/* Write permissions but not signed in: show sign-in prompt */}
+              {/* TODO: re-enable once sharing.receive() write-back is wired up
+              {canWrite && !isSignedIn && (
+                <button
+                  onClick={handleSignIn}
+                  disabled={signingIn}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-base text-xs font-medium bg-main text-mtext border border-border shadow-card hover:shadow-card-hover transition-all disabled:opacity-50"
+                >
+                  <LogIn className="h-3 w-3" />
+                  {signingIn ? 'Signing in...' : 'Sign in to edit'}
+                </button>
+              )}
+              */}
+            </div>
+          </div>
+        </div>
+
+        {/* Content area */}
+        <div className="flex-1 flex min-h-0">
+          {mode === 'read' && (
+            <div className="w-full max-w-3xl mx-auto px-6 py-8 overflow-auto">
+              {title && (
+                <h1 className="text-3xl font-heading tracking-tight text-text mb-6">{title}</h1>
+              )}
+              <Suspense fallback={<div className="text-text/50">Loading...</div>}>
+                <MarkdownPreview content={content} />
+              </Suspense>
+            </div>
+          )}
+
+          {mode === 'edit' && (
+            <div className="flex-1 overflow-auto">
+              <Suspense fallback={<div className="p-4 text-text/50">Loading editor...</div>}>
+                <MarkdownEditor content={content} onChange={handleContentChange} />
+              </Suspense>
+            </div>
+          )}
+
+          {mode === 'split' && (
+            <>
+              <div className="w-1/2 border-r border-border overflow-auto">
+                <Suspense fallback={<div className="p-4 text-text/50">Loading editor...</div>}>
+                  <MarkdownEditor content={content} onChange={handleContentChange} />
+                </Suspense>
+              </div>
+              <div className="w-1/2 overflow-auto">
+                <div className="max-w-none px-6 py-8">
+                  <Suspense fallback={<div className="text-text/50">Loading...</div>}>
+                    <MarkdownPreview content={content} />
+                  </Suspense>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  return null;
 };
 
 export default Shared;

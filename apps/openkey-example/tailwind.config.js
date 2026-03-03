@@ -20,23 +20,31 @@ module.exports = {
         border: 'var(--border)',
         ring: 'var(--ring)',
         ringOffset: 'var(--ring-offset)',
-        secondaryBlack: '#212121', 
+        secondaryBlack: '#212121',
       },
       borderRadius: {
-        base: '8px'
+        base: '12px'
       },
       boxShadow: {
-        shadow: 'var(--shadow)'
+        shadow: 'var(--shadow)',
+        'card': '0 1px 3px rgba(0, 0, 0, 0.05)',
+        'card-hover': '0 4px 12px rgba(0, 0, 0, 0.08)',
+        'elevated': '0 10px 30px rgba(0, 0, 0, 0.1)',
+        'nav': '0 1px 3px rgba(0, 0, 0, 0.05)',
       },
       translate: {
-        boxShadowX: '3px',
-        boxShadowY: '3px',
-        reverseBoxShadowX: '-3px',
-        reverseBoxShadowY: '-3px',
+        boxShadowX: '0px',
+        boxShadowY: '0px',
+        reverseBoxShadowX: '0px',
+        reverseBoxShadowY: '0px',
       },
       fontWeight: {
         base: '500',
         heading: '700',
+      },
+      fontFamily: {
+        display: ['Oswald', 'sans-serif'],
+        body: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
       },
       keyframes: {
         'accordion-down': {

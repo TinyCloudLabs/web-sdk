@@ -1,6 +1,12 @@
 import React from 'react';
 
-const Footer: React.FC = () => {
+interface FooterProps {
+  minimal?: boolean;
+}
+
+const Footer: React.FC<FooterProps> = ({ minimal }) => {
+  if (minimal) return null;
+
   return (
     <footer className="bg-bw py-6 border-t border-border">
       <div className="container mx-auto px-4">
@@ -12,34 +18,34 @@ const Footer: React.FC = () => {
             <p className="text-sm text-text/60">&copy; {new Date().getFullYear()} TinyCloud. All rights reserved.</p>
           </div>
           <div className="flex space-x-6">
-            <a 
-              href="https://www.npmjs.com/package/@tinycloud/web-sdk" 
-              target="_blank" 
-              rel="noopener noreferrer" 
+            <a
+              href="https://www.npmjs.com/package/@tinycloud/web-sdk"
+              target="_blank"
+              rel="noopener noreferrer"
               className="text-sm text-text/60 hover:text-main transition-colors"
             >
               NPM
             </a>
-            <a 
-              href="https://github.com/tinycloudlabs/web-sdk" 
-              target="_blank" 
-              rel="noopener noreferrer" 
+            <a
+              href="https://github.com/tinycloudlabs/web-sdk"
+              target="_blank"
+              rel="noopener noreferrer"
               className="text-sm text-text/60 hover:text-main transition-colors"
             >
               GitHub
             </a>
-            <a 
-              href="https://docs.tinycloud.xyz" 
-              target="_blank" 
-              rel="noopener noreferrer" 
+            <a
+              href="https://docs.tinycloud.xyz"
+              target="_blank"
+              rel="noopener noreferrer"
               className="text-sm text-text/60 hover:text-main transition-colors"
             >
               Documentation
             </a>
-            <a 
-              href="https://tinycloud.xyz/protocol" 
-              target="_blank" 
-              rel="noopener noreferrer" 
+            <a
+              href="https://tinycloud.xyz/protocol"
+              target="_blank"
+              rel="noopener noreferrer"
               className="text-sm text-text/60 hover:text-main transition-colors"
             >
               Protocol

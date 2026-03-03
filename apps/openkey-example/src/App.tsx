@@ -5,6 +5,7 @@ import { ThemeProvider } from './components/ThemeProvider';
 // Lazy load pages
 const Home = lazy(() => import('./pages/Home'));
 const Shared = lazy(() => import('./pages/Shared'));
+const Inspect = lazy(() => import('./pages/Inspect'));
 const Delegate = lazy(() => import('./pages/Delegate'));
 
 function App() {
@@ -15,7 +16,9 @@ function App() {
           <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading...</div>}>
             <Routes>
               <Route path="/" element={<Home />} />
+              <Route path="/doc/:key" element={<Home />} />
               <Route path="/share" element={<Shared />} />
+              <Route path="/inspect" element={<Inspect />} />
               <Route path="/delegate" element={<Delegate />} />
             </Routes>
           </Suspense>
