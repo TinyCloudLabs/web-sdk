@@ -10,6 +10,8 @@ import { registerNodeCommand } from "./commands/node.js";
 import { registerProfileCommand } from "./commands/profile.js";
 import { registerCompletionCommand } from "./commands/completion.js";
 import { registerVaultCommand } from "./commands/vault.js";
+import { registerSecretsCommand } from "./commands/secrets.js";
+import { registerVarsCommand } from "./commands/vars.js";
 
 const program = new Command();
 
@@ -33,6 +35,8 @@ registerNodeCommand(program);
 registerProfileCommand(program);
 registerCompletionCommand(program);
 registerVaultCommand(program);
+registerSecretsCommand(program);
+registerVarsCommand(program);
 
 try {
   await program.parseAsync(process.argv);
