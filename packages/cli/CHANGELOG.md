@@ -1,5 +1,16 @@
 # @tinycloud/cli
 
+## 0.1.0
+
+### Minor Changes
+
+- fd25623: Add browser-based delegate auth flow for CLI login via OpenKey. The CLI opens a `/delegate` page where users authenticate with a passkey, select a key, and approve a delegation. `TinyCloudNode.restoreSession()` allows injecting stored delegation data without a private key. Also fixes `kv list` result parsing and CLI process hang after auth.
+
+### Patch Changes
+
+- Updated dependencies [fd25623]
+  - @tinycloud/node-sdk@1.4.0
+
 ## 0.0.2
 
 ### Patch Changes
