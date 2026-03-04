@@ -8,7 +8,7 @@
 
 // Re-export everything from the Node.js WASM build
 // Note: The wasm/ directory is created during build from wasm-pack output
-export * from "./wasm/index.js";
+export * from "./wasm/index.cjs";
 
 // Also export common utilities directly for convenience
 export {
@@ -39,7 +39,7 @@ export {
   vault_x25519_dh,
   vault_random_bytes,
   vault_sha256,
-} from "./wasm/index.js";
+} from "./wasm/index.cjs";
 
 // Re-export types for TypeScript consumers
 export type {
@@ -47,7 +47,7 @@ export type {
   Session,
   SessionConfig,
   SiweConfig,
-} from "./wasm/index.js";
+} from "./wasm/index.cjs";
 
 // Note: CreateDelegationWasmParams and CreateDelegationWasmResult types are available
 // from @tinycloud/sdk-core for TypeScript consumers

@@ -11,9 +11,9 @@
     "node": ">=18"
   },
   "scripts": {
-    "prebuild": "mkdir -p src/wasm && cp ../../node-sdk-wasm/tinycloud_web_sdk_rs.js src/wasm/index.js && cp ../../node-sdk-wasm/tinycloud_web_sdk_rs.d.ts src/wasm/index.d.ts && cp ../../node-sdk-wasm/tinycloud_web_sdk_rs_bg.wasm src/wasm/",
+    "prebuild": "mkdir -p src/wasm && cp ../../node-sdk-wasm/tinycloud_web_sdk_rs.js src/wasm/index.cjs && cp ../../node-sdk-wasm/tinycloud_web_sdk_rs.d.ts src/wasm/index.d.cts && cp ../../node-sdk-wasm/tinycloud_web_sdk_rs_bg.wasm src/wasm/",
     "build": "tsc",
-    "postbuild": "mkdir -p dist/wasm && cp src/wasm/tinycloud_web_sdk_rs_bg.wasm dist/wasm/ && cp src/wasm/index.js dist/wasm/ && cp src/wasm/index.d.ts dist/wasm/",
+    "postbuild": "mkdir -p dist/wasm && cp src/wasm/tinycloud_web_sdk_rs_bg.wasm dist/wasm/ && cp src/wasm/index.cjs dist/wasm/ && cp src/wasm/index.d.cts dist/wasm/",
     "clean": "rm -rf dist src/wasm"
   },
   "devDependencies": {
