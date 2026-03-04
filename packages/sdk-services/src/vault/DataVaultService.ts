@@ -775,19 +775,19 @@ export class DataVaultService extends BaseService implements IDataVaultService {
   // =========================================================================
 
   /**
-   * Grant access to a vault key for another user.
+   * Re-encrypt a vault key for another user (renamed from grant).
    * Re-encrypts the data key to the recipient's public key via X25519 DH.
    *
    * @param key - The key to share
    * @param recipientDID - The recipient's primary DID (did:pkh:...)
    * @param options - Optional grant configuration
    */
-  async grant(
+  async reencrypt(
     key: string,
     recipientDID: string,
     options?: VaultGrantOptions
   ): Promise<Result<void, VaultError>> {
-    return this.withTelemetry("grant", key, async () => {
+    return this.withTelemetry("reencrypt", key, async () => {
       if (!this._isUnlocked || !this.masterKey) {
         return vaultError({
           code: "VAULT_LOCKED",
@@ -881,6 +881,17 @@ export class DataVaultService extends BaseService implements IDataVaultService {
         });
       }
     }) as Promise<Result<void, VaultError>>;
+  }
+
+  /**
+   * @deprecated Use reencrypt() instead.
+   */
+  async grant(
+    key: string,
+    recipientDID: string,
+    options?: VaultGrantOptions
+  ): Promise<Result<void, VaultError>> {
+    return this.reencrypt(key, recipientDID, options);
   }
 
   /**
@@ -1252,7 +1263,7 @@ export class DataVaultService extends BaseService implements IDataVaultService {
 
         // Step 10: Re-issue grants to remaining recipients
         for (const did of remainingGrantees) {
-          const grantResult = await this.grant(key, did);
+          const grantResult = await this.reencrypt(key, did);
           if (!grantResult.ok) {
             // Continue re-issuing to other recipients even if one fails
             // The failed grant can be re-issued manually

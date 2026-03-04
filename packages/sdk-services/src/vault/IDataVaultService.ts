@@ -138,11 +138,26 @@ export interface IDataVaultService extends IService {
    * Grant access to a vault key for another user.
    * Re-encrypts the data key to the recipient's public key.
    *
+   * @deprecated Use reencrypt() instead.
    * @param key - The key to share
    * @param recipientDID - The recipient's primary DID (did:pkh:...)
    * @param options - Optional grant configuration
    */
   grant(
+    key: string,
+    recipientDID: string,
+    options?: VaultGrantOptions
+  ): Promise<Result<void, VaultError>>;
+
+  /**
+   * Re-encrypt a vault key for another user (renamed from grant).
+   * Re-encrypts the data key to the recipient's public key.
+   *
+   * @param key - The key to share
+   * @param recipientDID - The recipient's primary DID (did:pkh:...)
+   * @param options - Optional grant configuration
+   */
+  reencrypt(
     key: string,
     recipientDID: string,
     options?: VaultGrantOptions
