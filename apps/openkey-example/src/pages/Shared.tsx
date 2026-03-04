@@ -4,7 +4,7 @@ import { useLocation, Link as RouterLink } from 'react-router-dom';
 import { TinyCloudWeb } from '@tinycloud/web-sdk';
 import { OpenKey, OpenKeyEIP1193Provider } from '@openkey/sdk';
 import { providers } from 'ethers';
-import { Eye, Edit3, Save, Check, Columns, Code, LogIn } from 'lucide-react';
+import { Eye, Edit3, Save, Check, Columns, Code } from 'lucide-react';
 
 const MarkdownPreview = lazy(() => import('../components/editor/MarkdownPreview').then(m => ({ default: m.MarkdownPreview })));
 const MarkdownEditor = lazy(() => import('../components/editor/MarkdownEditor').then(m => ({ default: m.MarkdownEditor })));
@@ -57,6 +57,7 @@ const Shared = () => {
 
   // Auth state for write access
   const [tcw, setTcw] = useState<TinyCloudWeb | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [signingIn, setSigningIn] = useState(false);
 
   const kvRef = useRef<any>(null);
@@ -128,6 +129,7 @@ const Shared = () => {
     return () => { cancelled = true; };
   }, [tcw, shareToken]);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleSignIn = async () => {
     setSigningIn(true);
     try {
