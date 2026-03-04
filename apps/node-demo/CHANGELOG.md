@@ -1,5 +1,13 @@
 # @tinycloudlabs/node-demo
 
+## 0.0.8
+
+### Patch Changes
+
+- Updated dependencies [da5a499]
+  - @tinycloud/node-sdk-wasm@1.4.1
+  - @tinycloud/node-sdk@1.4.1
+
 ## 0.0.7
 
 ### Patch Changes
