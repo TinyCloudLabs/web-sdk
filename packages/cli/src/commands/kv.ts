@@ -159,8 +159,8 @@ export function registerKvCommand(program: Command): void {
           throw new CLIError(result.error.code, result.error.message, ExitCode.ERROR);
         }
 
-        const keys = result.data.data ?? result.data;
-        const keyList = Array.isArray(keys) ? keys : [];
+        const rawData = result.data.data ?? result.data;
+        const keyList = Array.isArray(rawData) ? rawData : (rawData?.keys ?? []);
 
         outputJson({
           keys: keyList,

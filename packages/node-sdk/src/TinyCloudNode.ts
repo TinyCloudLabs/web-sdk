@@ -354,6 +354,67 @@ export class TinyCloudNode {
   }
 
   /**
+   * Restore a previously established session from stored delegation data.
+   *
+   * This is used by the CLI to restore a session that was created via the
+   * browser-based delegation flow (OpenKey `/delegate` page). Instead of
+   * signing in with a private key, it injects the delegation data directly.
+   *
+   * @param sessionData - The stored delegation data from the browser flow
+   */
+  async restoreSession(sessionData: {
+    delegationHeader: { Authorization: string };
+    delegationCid: string;
+    spaceId: string;
+    jwk: object;
+    verificationMethod: string;
+    address?: string;
+    chainId?: number;
+  }): Promise<void> {
+    // Reset services so they get recreated with new session
+    this._kv = undefined;
+    this._sql = undefined;
+    this._serviceContext = undefined;
+
+    if (sessionData.address) {
+      this._address = sessionData.address;
+    }
+    if (sessionData.chainId) {
+      this._chainId = sessionData.chainId;
+    }
+
+    // Create service context
+    this._serviceContext = new ServiceContext({
+      invoke,
+      fetch: globalThis.fetch.bind(globalThis),
+      hosts: [this.config.host!],
+    });
+
+    // Create and register KV service
+    this._kv = new KVService({});
+    this._kv.initialize(this._serviceContext);
+    this._serviceContext.registerService('kv', this._kv);
+
+    // Create and register SQL service
+    this._sql = new SQLService({});
+    this._sql.initialize(this._serviceContext);
+    this._serviceContext.registerService('sql', this._sql);
+
+    // Set session on context
+    const serviceSession: ServiceSession = {
+      delegationHeader: sessionData.delegationHeader,
+      delegationCid: sessionData.delegationCid,
+      spaceId: sessionData.spaceId,
+      verificationMethod: sessionData.verificationMethod,
+      jwk: sessionData.jwk,
+    };
+    this._serviceContext.setSession(serviceSession);
+
+    // Initialize v2 services
+    this.initializeV2Services(serviceSession);
+  }
+
+  /**
    * Connect a wallet to upgrade from session-only mode to wallet mode.
    *
    * This allows a user who started in session-only mode to later connect

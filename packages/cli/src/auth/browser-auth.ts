@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { isInteractive } from "../output/formatter.js";
 import { createInterface } from "node:readline";
 
-const OPENKEY_BASE = "https://openkey.cloud";
+const OPENKEY_BASE = "https://openkey.so";
 
 interface DelegationData {
   delegationHeader: { Authorization: string };
@@ -18,26 +18,45 @@ interface DelegationData {
  */
 export async function startAuthFlow(
   did: string,
-  options: { paste?: boolean } = {}
+  options: { paste?: boolean; jwk?: object; host?: string } = {}
 ): Promise<DelegationData> {
   if (options.paste) {
-    return pasteFlow(did);
+    return pasteFlow(did, options);
   }
 
   try {
-    return await callbackFlow(did);
+    return await callbackFlow(did, options);
   } catch {
     // Fallback to paste if browser can't open
     if (isInteractive()) {
       console.error("Could not open browser. Falling back to manual paste mode.");
-      return pasteFlow(did);
+      return pasteFlow(did, options);
     }
     throw new Error("Cannot open browser in non-interactive mode. Use --paste flag.");
   }
 }
 
-async function callbackFlow(did: string): Promise<DelegationData> {
+function buildAuthUrl(did: string, options: { jwk?: object; host?: string; callback?: string } = {}): string {
+  const params = new URLSearchParams();
+  params.set("did", did);
+  if (options.callback) {
+    params.set("callback", options.callback);
+  }
+  if (options.jwk) {
+    // base64url-encode the JWK
+    const jwkB64 = Buffer.from(JSON.stringify(options.jwk)).toString("base64url");
+    params.set("jwk", jwkB64);
+  }
+  if (options.host) {
+    params.set("host", options.host);
+  }
+  return `${OPENKEY_BASE}/delegate?${params.toString()}`;
+}
+
+async function callbackFlow(did: string, options: { jwk?: object; host?: string } = {}): Promise<DelegationData> {
   return new Promise((resolve, reject) => {
+    let timeout: ReturnType<typeof setTimeout>;
+
     const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       if (req.method === "POST" && req.url === "/callback") {
         let body = "";
@@ -51,6 +70,7 @@ async function callbackFlow(did: string): Promise<DelegationData> {
               "Access-Control-Allow-Origin": "*",
             });
             res.end(JSON.stringify({ success: true }));
+            clearTimeout(timeout);
             server.close();
             resolve(data);
           } catch (err) {
@@ -81,7 +101,7 @@ async function callbackFlow(did: string): Promise<DelegationData> {
       }
       const port = addr.port;
       const callbackUrl = `http://127.0.0.1:${port}/callback`;
-      const authUrl = `${OPENKEY_BASE}/delegate?did=${encodeURIComponent(did)}&callback=${encodeURIComponent(callbackUrl)}`;
+      const authUrl = buildAuthUrl(did, { ...options, callback: callbackUrl });
 
       if (isInteractive()) {
         console.error(`Opening browser for authentication...`);
@@ -98,15 +118,15 @@ async function callbackFlow(did: string): Promise<DelegationData> {
     });
 
     // Timeout after 5 minutes
-    setTimeout(() => {
+    timeout = setTimeout(() => {
       server.close();
       reject(new Error("Authentication timed out after 5 minutes"));
     }, 5 * 60 * 1000);
   });
 }
 
-async function pasteFlow(did: string): Promise<DelegationData> {
-  const authUrl = `${OPENKEY_BASE}/delegate?did=${encodeURIComponent(did)}`;
+async function pasteFlow(did: string, options: { jwk?: object; host?: string } = {}): Promise<DelegationData> {
+  const authUrl = buildAuthUrl(did, options);
 
   console.error(`\nOpen this URL in a browser to authenticate:\n`);
   console.error(`  ${authUrl}\n`);

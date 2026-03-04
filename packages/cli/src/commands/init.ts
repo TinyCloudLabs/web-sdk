@@ -67,7 +67,11 @@ export function registerInitCommand(program: Command): void {
         }
 
         // Auth flow
-        const delegationData = await startAuthFlow(did, { paste: options.paste });
+        const delegationData = await startAuthFlow(did, {
+          paste: options.paste,
+          jwk,
+          host,
+        });
 
         // Store session
         await ProfileManager.setSession(profileName, delegationData);

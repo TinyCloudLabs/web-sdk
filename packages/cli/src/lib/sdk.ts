@@ -13,7 +13,7 @@ export async function createSDKInstance(
   options?: { privateKey?: string }
 ): Promise<TinyCloudNode> {
   const profile = await ProfileManager.getProfile(ctx.profile);
-  const session = await ProfileManager.getSession(ctx.profile);
+  const session = await ProfileManager.getSession(ctx.profile) as Record<string, unknown> | null;
   const key = await ProfileManager.getKey(ctx.profile);
 
   if (!key) {
@@ -29,9 +29,20 @@ export async function createSDKInstance(
     privateKey: options?.privateKey,
   });
 
-  // Sign in to establish session (required for service access)
   if (options?.privateKey) {
+    // Sign in with private key (existing behavior)
     await node.signIn();
+  } else if (session && session.delegationHeader && session.delegationCid && session.spaceId) {
+    // Restore session from stored delegation data (browser auth flow)
+    await node.restoreSession({
+      delegationHeader: session.delegationHeader as { Authorization: string },
+      delegationCid: session.delegationCid as string,
+      spaceId: session.spaceId as string,
+      jwk: (session.jwk as object) ?? key,
+      verificationMethod: (session.verificationMethod as string) ?? profile.did,
+      address: session.address as string | undefined,
+      chainId: session.chainId as number | undefined,
+    });
   }
 
   return node;

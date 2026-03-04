@@ -32,6 +32,8 @@ export function registerAuthCommand(program: Command): void {
         // Start browser auth flow
         const delegationData = await startAuthFlow(profile.did, {
           paste: options.paste,
+          jwk: key,
+          host: ctx.host,
         });
 
         // Store session

@@ -313,23 +313,39 @@ function generateKey() {
 // src/auth/browser-auth.ts
 import { createServer } from "http";
 import { createInterface } from "readline";
-var OPENKEY_BASE = "https://openkey.cloud";
+var OPENKEY_BASE = "https://openkey.so";
 async function startAuthFlow(did, options = {}) {
   if (options.paste) {
-    return pasteFlow(did);
+    return pasteFlow(did, options);
   }
   try {
-    return await callbackFlow(did);
+    return await callbackFlow(did, options);
   } catch {
     if (isInteractive()) {
       console.error("Could not open browser. Falling back to manual paste mode.");
-      return pasteFlow(did);
+      return pasteFlow(did, options);
     }
     throw new Error("Cannot open browser in non-interactive mode. Use --paste flag.");
   }
 }
-async function callbackFlow(did) {
+function buildAuthUrl(did, options = {}) {
+  const params = new URLSearchParams();
+  params.set("did", did);
+  if (options.callback) {
+    params.set("callback", options.callback);
+  }
+  if (options.jwk) {
+    const jwkB64 = Buffer.from(JSON.stringify(options.jwk)).toString("base64url");
+    params.set("jwk", jwkB64);
+  }
+  if (options.host) {
+    params.set("host", options.host);
+  }
+  return `${OPENKEY_BASE}/delegate?${params.toString()}`;
+}
+async function callbackFlow(did, options = {}) {
   return new Promise((resolve, reject) => {
+    let timeout;
     const server = createServer((req, res) => {
       if (req.method === "POST" && req.url === "/callback") {
         let body = "";
@@ -344,6 +360,7 @@ async function callbackFlow(did) {
               "Access-Control-Allow-Origin": "*"
             });
             res.end(JSON.stringify({ success: true }));
+            clearTimeout(timeout);
             server.close();
             resolve(data);
           } catch (err) {
@@ -372,7 +389,7 @@ async function callbackFlow(did) {
       }
       const port = addr.port;
       const callbackUrl = `http://127.0.0.1:${port}/callback`;
-      const authUrl = `${OPENKEY_BASE}/delegate?did=${encodeURIComponent(did)}&callback=${encodeURIComponent(callbackUrl)}`;
+      const authUrl = buildAuthUrl(did, { ...options, callback: callbackUrl });
       if (isInteractive()) {
         console.error(`Opening browser for authentication...`);
         console.error(`If the browser doesn't open, visit: ${authUrl}`);
@@ -385,14 +402,14 @@ async function callbackFlow(did) {
         throw new Error("Failed to open browser");
       }
     });
-    setTimeout(() => {
+    timeout = setTimeout(() => {
       server.close();
       reject(new Error("Authentication timed out after 5 minutes"));
     }, 5 * 60 * 1e3);
   });
 }
-async function pasteFlow(did) {
-  const authUrl = `${OPENKEY_BASE}/delegate?did=${encodeURIComponent(did)}`;
+async function pasteFlow(did, options = {}) {
+  const authUrl = buildAuthUrl(did, options);
   console.error(`
 Open this URL in a browser to authenticate:
 `);
@@ -462,7 +479,11 @@ function registerInitCommand(program2) {
         });
         return;
       }
-      const delegationData = await startAuthFlow(did, { paste: options.paste });
+      const delegationData = await startAuthFlow(did, {
+        paste: options.paste,
+        jwk,
+        host
+      });
       await ProfileManager.setSession(profileName, delegationData);
       await ProfileManager.setProfile(profileName, {
         ...profileConfig,
@@ -499,7 +520,9 @@ function registerAuthCommand(program2) {
       }
       const profile = await ProfileManager.getProfile(ctx.profile);
       const delegationData = await startAuthFlow(profile.did, {
-        paste: options.paste
+        paste: options.paste,
+        jwk: key,
+        host: ctx.host
       });
       await ProfileManager.setSession(ctx.profile, delegationData);
       if (delegationData.spaceId) {
@@ -580,7 +603,7 @@ import { writeFile as writeFile2 } from "fs/promises";
 
 // src/lib/sdk.ts
 import { TinyCloudNode } from "@tinycloud/node-sdk";
-async function createSDKInstance(ctx) {
+async function createSDKInstance(ctx, options) {
   const profile = await ProfileManager.getProfile(ctx.profile);
   const session = await ProfileManager.getSession(ctx.profile);
   const key = await ProfileManager.getKey(ctx.profile);
@@ -592,11 +615,25 @@ async function createSDKInstance(ctx) {
     );
   }
   const node = new TinyCloudNode({
-    host: ctx.host
+    host: ctx.host,
+    privateKey: options?.privateKey
   });
+  if (options?.privateKey) {
+    await node.signIn();
+  } else if (session && session.delegationHeader && session.delegationCid && session.spaceId) {
+    await node.restoreSession({
+      delegationHeader: session.delegationHeader,
+      delegationCid: session.delegationCid,
+      spaceId: session.spaceId,
+      jwk: session.jwk ?? key,
+      verificationMethod: session.verificationMethod ?? profile.did,
+      address: session.address,
+      chainId: session.chainId
+    });
+  }
   return node;
 }
-async function ensureAuthenticated(ctx) {
+async function ensureAuthenticated(ctx, options) {
   const session = await ProfileManager.getSession(ctx.profile);
   if (!session) {
     throw new CLIError(
@@ -605,7 +642,7 @@ async function ensureAuthenticated(ctx) {
       ExitCode.AUTH_REQUIRED
     );
   }
-  return createSDKInstance(ctx);
+  return createSDKInstance(ctx, options);
 }
 
 // src/commands/kv.ts
@@ -709,8 +746,8 @@ function registerKvCommand(program2) {
       if (!result.ok) {
         throw new CLIError(result.error.code, result.error.message, ExitCode.ERROR);
       }
-      const keys = result.data.data ?? result.data;
-      const keyList = Array.isArray(keys) ? keys : [];
+      const rawData = result.data.data ?? result.data;
+      const keyList = Array.isArray(rawData) ? rawData : rawData?.keys ?? [];
       outputJson({
         keys: keyList,
         count: keyList.length,
@@ -1330,6 +1367,179 @@ complete -c tc -l quiet -s q -d "Suppress non-essential output"
 `;
 }
 
+// src/commands/vault.ts
+import { readFile as readFile3 } from "fs/promises";
+import { writeFile as writeFile3 } from "fs/promises";
+import { PrivateKeySigner } from "@tinycloud/node-sdk";
+async function readStdin2() {
+  const chunks = [];
+  for await (const chunk of process.stdin) {
+    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+  }
+  return Buffer.concat(chunks);
+}
+function resolvePrivateKey(options) {
+  const key = options.privateKey || process.env.TC_PRIVATE_KEY;
+  if (!key) {
+    throw new CLIError(
+      "AUTH_REQUIRED",
+      "Private key required. Use --private-key <hex> or set TC_PRIVATE_KEY env var.",
+      ExitCode.AUTH_REQUIRED
+    );
+  }
+  return key;
+}
+async function unlockVault(node, privateKey) {
+  const signer = new PrivateKeySigner(privateKey);
+  const result = await node.vault.unlock(signer);
+  if (result && !result.ok) {
+    throw new CLIError(result.error.code, result.error.message, ExitCode.ERROR);
+  }
+}
+function registerVaultCommand(program2) {
+  const vault = program2.command("vault").description("Encrypted vault operations");
+  vault.command("unlock").description("Verify vault unlock works").option("--private-key <hex>", "Ethereum private key (or set TC_PRIVATE_KEY)").action(async (options, cmd) => {
+    try {
+      const globalOpts = cmd.optsWithGlobals();
+      const ctx = await ProfileManager.resolveContext(globalOpts);
+      const privateKey = resolvePrivateKey(options);
+      const node = await ensureAuthenticated(ctx, { privateKey });
+      await withSpinner("Unlocking vault...", () => unlockVault(node, privateKey));
+      outputJson({ unlocked: true });
+    } catch (error) {
+      handleError(error);
+    }
+  });
+  vault.command("put <key> [value]").description("Encrypt and store a value").option("--file <path>", "Read value from file").option("--stdin", "Read value from stdin").option("--private-key <hex>", "Ethereum private key (or set TC_PRIVATE_KEY)").action(async (key, value, options, cmd) => {
+    try {
+      const globalOpts = cmd.optsWithGlobals();
+      const ctx = await ProfileManager.resolveContext(globalOpts);
+      const privateKey = resolvePrivateKey(options);
+      const node = await ensureAuthenticated(ctx, { privateKey });
+      await withSpinner("Unlocking vault...", () => unlockVault(node, privateKey));
+      let putValue;
+      const sources = [value !== void 0, !!options.file, !!options.stdin].filter(Boolean);
+      if (sources.length === 0) {
+        throw new CLIError("USAGE_ERROR", "Must provide a value, --file, or --stdin", ExitCode.USAGE_ERROR);
+      }
+      if (sources.length > 1) {
+        throw new CLIError("USAGE_ERROR", "Provide only one of: value argument, --file, or --stdin", ExitCode.USAGE_ERROR);
+      }
+      if (options.file) {
+        putValue = new Uint8Array(await readFile3(options.file));
+      } else if (options.stdin) {
+        putValue = new Uint8Array(await readStdin2());
+      } else {
+        putValue = value;
+      }
+      const result = await withSpinner(`Writing ${key}...`, () => node.vault.put(key, putValue));
+      if (!result.ok) {
+        throw new CLIError(result.error.code, result.error.message, ExitCode.ERROR);
+      }
+      outputJson({ key, written: true });
+    } catch (error) {
+      handleError(error);
+    }
+  });
+  vault.command("get <key>").description("Decrypt and retrieve a value").option("--raw", "Output raw value (no JSON wrapping)").option("-o, --output <file>", "Write value to file").option("--private-key <hex>", "Ethereum private key (or set TC_PRIVATE_KEY)").action(async (key, options, cmd) => {
+    try {
+      const globalOpts = cmd.optsWithGlobals();
+      const ctx = await ProfileManager.resolveContext(globalOpts);
+      const privateKey = resolvePrivateKey(options);
+      const node = await ensureAuthenticated(ctx, { privateKey });
+      await withSpinner("Unlocking vault...", () => unlockVault(node, privateKey));
+      const result = await withSpinner(`Getting ${key}...`, () => node.vault.get(key));
+      if (!result.ok) {
+        if (result.error.code === "NOT_FOUND") {
+          throw new CLIError("NOT_FOUND", `Key "${key}" not found`, ExitCode.NOT_FOUND);
+        }
+        throw new CLIError(result.error.code, result.error.message, ExitCode.ERROR);
+      }
+      const data = result.data.data ?? result.data;
+      if (options.output) {
+        const content = data instanceof Uint8Array ? Buffer.from(data) : typeof data === "string" ? data : JSON.stringify(data);
+        await writeFile3(options.output, content);
+        outputJson({ key, written: options.output });
+        return;
+      }
+      if (options.raw) {
+        const content = data instanceof Uint8Array ? Buffer.from(data) : typeof data === "string" ? data : JSON.stringify(data);
+        process.stdout.write(content);
+        return;
+      }
+      outputJson({
+        key,
+        data: data instanceof Uint8Array ? Buffer.from(data).toString("base64") : data
+      });
+    } catch (error) {
+      handleError(error);
+    }
+  });
+  vault.command("delete <key>").description("Delete an encrypted key").option("--private-key <hex>", "Ethereum private key (or set TC_PRIVATE_KEY)").action(async (key, options, cmd) => {
+    try {
+      const globalOpts = cmd.optsWithGlobals();
+      const ctx = await ProfileManager.resolveContext(globalOpts);
+      const privateKey = resolvePrivateKey(options);
+      const node = await ensureAuthenticated(ctx, { privateKey });
+      await withSpinner("Unlocking vault...", () => unlockVault(node, privateKey));
+      const result = await withSpinner(`Deleting ${key}...`, () => node.vault.delete(key));
+      if (!result.ok) {
+        throw new CLIError(result.error.code, result.error.message, ExitCode.ERROR);
+      }
+      outputJson({ key, deleted: true });
+    } catch (error) {
+      handleError(error);
+    }
+  });
+  vault.command("list").description("List vault keys").option("--prefix <prefix>", "Filter by key prefix").option("--private-key <hex>", "Ethereum private key (or set TC_PRIVATE_KEY)").action(async (options, cmd) => {
+    try {
+      const globalOpts = cmd.optsWithGlobals();
+      const ctx = await ProfileManager.resolveContext(globalOpts);
+      const privateKey = resolvePrivateKey(options);
+      const node = await ensureAuthenticated(ctx, { privateKey });
+      await withSpinner("Unlocking vault...", () => unlockVault(node, privateKey));
+      const listOptions = options.prefix ? { prefix: options.prefix } : void 0;
+      const result = await withSpinner("Listing vault keys...", () => node.vault.list(listOptions));
+      if (!result.ok) {
+        throw new CLIError(result.error.code, result.error.message, ExitCode.ERROR);
+      }
+      const keys = result.data.data ?? result.data;
+      const keyList = Array.isArray(keys) ? keys : [];
+      outputJson({
+        keys: keyList,
+        count: keyList.length,
+        prefix: options.prefix ?? null
+      });
+    } catch (error) {
+      handleError(error);
+    }
+  });
+  vault.command("head <key>").description("Get metadata for a vault key").option("--private-key <hex>", "Ethereum private key (or set TC_PRIVATE_KEY)").action(async (key, options, cmd) => {
+    try {
+      const globalOpts = cmd.optsWithGlobals();
+      const ctx = await ProfileManager.resolveContext(globalOpts);
+      const privateKey = resolvePrivateKey(options);
+      const node = await ensureAuthenticated(ctx, { privateKey });
+      await withSpinner("Unlocking vault...", () => unlockVault(node, privateKey));
+      const result = await withSpinner(`Checking ${key}...`, () => node.vault.head(key));
+      if (!result.ok) {
+        if (result.error.code === "NOT_FOUND") {
+          outputJson({ key, exists: false, metadata: {} });
+          return;
+        }
+        throw new CLIError(result.error.code, result.error.message, ExitCode.ERROR);
+      }
+      outputJson({
+        key,
+        exists: true,
+        metadata: result.data.headers ?? result.data
+      });
+    } catch (error) {
+      handleError(error);
+    }
+  });
+}
+
 // src/index.ts
 var program = new Command();
 program.name("tc").description("TinyCloud CLI").version("0.1.0").option("-p, --profile <name>", "Profile to use").option("-H, --host <url>", "TinyCloud node URL").option("-v, --verbose", "Enable verbose output").option("--no-cache", "Disable caching").option("-q, --quiet", "Suppress non-essential output");
@@ -1342,6 +1552,7 @@ registerShareCommand(program);
 registerNodeCommand(program);
 registerProfileCommand(program);
 registerCompletionCommand(program);
+registerVaultCommand(program);
 try {
   await program.parseAsync(process.argv);
 } catch (error) {
