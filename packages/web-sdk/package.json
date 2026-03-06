@@ -4,6 +4,15 @@
   "description": "A set of tools and utilities to help you build your app with TinyCloud.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./*": "./*"
+  },
   "repository": {
     "type": "git",
     "url": "ssh://git@github.com:TinyCloudLabs/web-sdk.git"
