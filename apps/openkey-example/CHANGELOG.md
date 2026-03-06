@@ -1,5 +1,11 @@
 # tinycloud-openkey-example-app
 
+## 0.0.5
+
+### Patch Changes
+
+- @tinycloud/web-sdk@1.5.0
+
 ## 0.0.4
 
 ### Patch Changes
