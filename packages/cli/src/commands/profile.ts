@@ -1,10 +1,11 @@
 import { Command } from "commander";
 import { createInterface } from "node:readline";
 import { ProfileManager } from "../config/profiles.js";
-import { outputJson, isInteractive } from "../output/formatter.js";
+import { outputJson, isInteractive, shouldOutputJson, formatField } from "../output/formatter.js";
 import { handleError, CLIError } from "../output/errors.js";
 import { ExitCode } from "../config/constants.js";
 import { generateKey } from "../auth/local-key.js";
+import { theme } from "../output/theme.js";
 
 export function registerProfileCommand(program: Command): void {
   const profile = program.command("profile").description("Profile management");
@@ -34,10 +35,19 @@ export function registerProfileCommand(program: Command): void {
           })
         );
 
-        outputJson({
-          profiles,
-          defaultProfile: config.defaultProfile,
-        });
+        if (shouldOutputJson()) {
+          outputJson({
+            profiles,
+            defaultProfile: config.defaultProfile,
+          });
+        } else {
+          for (const p of profiles) {
+            const marker = p.active ? theme.success("● ") : "  ";
+            const name = p.active ? theme.brand(p.name) : p.name;
+            const host = theme.muted(p.host || "no host");
+            process.stdout.write(`${marker}${name}  ${host}\n`);
+          }
+        }
       } catch (error) {
         handleError(error);
       }
@@ -87,13 +97,24 @@ export function registerProfileCommand(program: Command): void {
         const hasKey = (await ProfileManager.getKey(profileName)) !== null;
         const hasSession = (await ProfileManager.getSession(profileName)) !== null;
         const config = await ProfileManager.getConfig();
+        const isDefault = profileName === config.defaultProfile;
 
-        outputJson({
-          ...p,
-          hasKey,
-          hasSession,
-          isDefault: profileName === config.defaultProfile,
-        });
+        if (shouldOutputJson()) {
+          outputJson({
+            ...p,
+            hasKey,
+            hasSession,
+            isDefault,
+          });
+        } else {
+          process.stdout.write(`${theme.heading(p.name)}${isDefault ? theme.success(" (default)") : ""}\n`);
+          process.stdout.write(formatField("Host", p.host) + "\n");
+          process.stdout.write(formatField("DID", p.did) + "\n");
+          process.stdout.write(formatField("Space", p.spaceId || null) + "\n");
+          process.stdout.write(formatField("Key", hasKey) + "\n");
+          process.stdout.write(formatField("Session", hasSession) + "\n");
+          process.stdout.write(formatField("Created", p.createdAt) + "\n");
+        }
       } catch (error) {
         handleError(error);
       }
