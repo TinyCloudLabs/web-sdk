@@ -1,5 +1,7 @@
 import { Command } from "commander";
 import { handleError } from "./output/errors.js";
+import { emitBanner } from "./output/banner.js";
+import { theme } from "./output/theme.js";
 import { registerInitCommand } from "./commands/init.js";
 import { registerAuthCommand } from "./commands/auth.js";
 import { registerKvCommand } from "./commands/kv.js";
@@ -17,13 +19,20 @@ const program = new Command();
 
 program
   .name("tc")
-  .description("TinyCloud CLI")
+  .description("TinyCloud CLI — self-sovereign storage from the terminal")
   .version("0.1.0")
   .option("-p, --profile <name>", "Profile to use")
   .option("-H, --host <url>", "TinyCloud node URL")
   .option("-v, --verbose", "Enable verbose output")
   .option("--no-cache", "Disable caching")
   .option("-q, --quiet", "Suppress non-essential output");
+
+program.hook("preAction", (thisCommand) => {
+  const opts = thisCommand.optsWithGlobals();
+  if (!opts.quiet) {
+    emitBanner("0.1.1");
+  }
+});
 
 registerInitCommand(program);
 registerAuthCommand(program);
@@ -37,6 +46,22 @@ registerCompletionCommand(program);
 registerVaultCommand(program);
 registerSecretsCommand(program);
 registerVarsCommand(program);
+
+program.addHelpText("afterAll", () => {
+  if (!process.stdout.isTTY) return "";
+  return `
+${theme.heading("Examples:")}
+  ${theme.command("tc init")}                              ${theme.muted("Set up a profile and generate keys")}
+  ${theme.command("tc auth login")}                        ${theme.muted("Authenticate via browser")}
+  ${theme.command('tc kv put greeting "Hello"')}           ${theme.muted("Store a value")}
+  ${theme.command("tc kv list")}                           ${theme.muted("List all keys")}
+  ${theme.command("tc delegation create --to did:pkh:...")}  ${theme.muted("Grant access to another user")}
+  ${theme.command("tc space list")}                        ${theme.muted("Show your spaces")}
+
+${theme.muted("Docs:")} ${theme.accent("https://docs.tinycloud.xyz/cli")}
+${theme.muted("Repo:")} ${theme.accent("https://github.com/tinycloudlabs/web-sdk")}
+`;
+});
 
 try {
   await program.parseAsync(process.argv);
