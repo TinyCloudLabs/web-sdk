@@ -2,10 +2,11 @@ import { Command } from "commander";
 import { readFile } from "node:fs/promises";
 import { writeFile } from "node:fs/promises";
 import { ProfileManager } from "../config/profiles.js";
-import { outputJson, withSpinner } from "../output/formatter.js";
+import { outputJson, withSpinner, shouldOutputJson, formatTable, formatBytes, formatTimeAgo } from "../output/formatter.js";
 import { handleError, CLIError } from "../output/errors.js";
 import { ExitCode } from "../config/constants.js";
 import { ensureAuthenticated } from "../lib/sdk.js";
+import { theme } from "../output/theme.js";
 
 /**
  * Read all data from stdin.
@@ -60,12 +61,18 @@ export function registerKvCommand(program: Command): void {
           return;
         }
 
-        // Default JSON output
-        outputJson({
-          key,
-          data,
-          metadata,
-        });
+        // Output value
+        if (shouldOutputJson()) {
+          outputJson({
+            key,
+            data,
+            metadata,
+          });
+        } else {
+          // Just output the raw value for get - useful for piping
+          const content = typeof data === "string" ? data : JSON.stringify(data);
+          process.stdout.write(content + "\n");
+        }
       } catch (error) {
         handleError(error);
       }
@@ -162,11 +169,24 @@ export function registerKvCommand(program: Command): void {
         const rawData = result.data.data ?? result.data;
         const keyList = Array.isArray(rawData) ? rawData : (rawData?.keys ?? []);
 
-        outputJson({
-          keys: keyList,
-          count: keyList.length,
-          prefix: options.prefix ?? null,
-        });
+        if (shouldOutputJson()) {
+          outputJson({
+            keys: keyList,
+            count: keyList.length,
+            prefix: options.prefix ?? null,
+          });
+        } else {
+          if (keyList.length === 0) {
+            process.stdout.write(theme.muted("No keys found.") + "\n");
+          } else {
+            const rows = keyList.map((e: any) => [
+              e.key || e,
+              e.contentLength ? formatBytes(e.contentLength) : "—",
+              e.updatedAt ? formatTimeAgo(e.updatedAt) : "—",
+            ]);
+            process.stdout.write(formatTable(["Key", "Size", "Updated"], rows) + "\n");
+          }
+        }
       } catch (error) {
         handleError(error);
       }
