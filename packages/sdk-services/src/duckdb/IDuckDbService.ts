@@ -17,11 +17,6 @@ import type {
   ExecuteResponse,
   BatchResponse,
   SchemaInfo,
-  IngestResponse,
-  ExportResponse,
-  IngestFormat,
-  IngestMode,
-  ExportFormat,
 } from "./types";
 
 /**
@@ -72,34 +67,9 @@ export interface IDuckDbDatabaseHandle {
   describe(options?: DuckDbOptions): Promise<Result<SchemaInfo>>;
 
   /**
-   * Ingest data from a KV path into a table.
+   * Export the database as a Blob.
    */
-  ingest(
-    table: string,
-    kvPath: string,
-    format: IngestFormat,
-    mode?: IngestMode,
-    options?: DuckDbOptions
-  ): Promise<Result<IngestResponse>>;
-
-  /**
-   * Export a query result to a KV path.
-   */
-  exportToKv(
-    sql: string,
-    kvPath: string,
-    format: ExportFormat,
-    options?: DuckDbOptions
-  ): Promise<Result<ExportResponse>>;
-
-  /**
-   * Export a query result as a Blob.
-   */
-  export(
-    sql: string,
-    format: ExportFormat,
-    options?: DuckDbOptions
-  ): Promise<Result<Blob>>;
+  export(options?: DuckDbOptions): Promise<Result<Blob>>;
 
   /**
    * Import a binary DuckDB database file.
@@ -116,7 +86,6 @@ export interface IDuckDbDatabaseHandle {
  * - Configurable timeouts
  * - Abort signal support
  * - Arrow format support
- * - Data ingestion and export
  */
 export interface IDuckDbService extends IService {
   /**

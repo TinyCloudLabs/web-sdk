@@ -14,15 +14,10 @@ import type {
   ExecuteResponse,
   BatchResponse,
   SchemaInfo,
-  IngestResponse,
-  ExportResponse,
   DuckDbQueryOptions,
   DuckDbExecuteOptions,
   DuckDbBatchOptions,
   DuckDbOptions,
-  IngestFormat,
-  IngestMode,
-  ExportFormat,
 } from "./types";
 
 export class DuckDbDatabaseHandle implements IDuckDbDatabaseHandle {
@@ -69,31 +64,8 @@ export class DuckDbDatabaseHandle implements IDuckDbDatabaseHandle {
     return this.service.describeDb(this.name, options);
   }
 
-  async ingest(
-    table: string,
-    kvPath: string,
-    format: IngestFormat,
-    mode?: IngestMode,
-    options?: DuckDbOptions
-  ): Promise<Result<IngestResponse>> {
-    return this.service.ingestOnDb(this.name, table, kvPath, format, mode, options);
-  }
-
-  async exportToKv(
-    sql: string,
-    kvPath: string,
-    format: ExportFormat,
-    options?: DuckDbOptions
-  ): Promise<Result<ExportResponse>> {
-    return this.service.exportToKvOnDb(this.name, sql, kvPath, format, options);
-  }
-
-  async export(
-    sql: string,
-    format: ExportFormat,
-    options?: DuckDbOptions
-  ): Promise<Result<Blob>> {
-    return this.service.exportOnDb(this.name, sql, format, options);
+  async export(options?: DuckDbOptions): Promise<Result<Blob>> {
+    return this.service.exportOnDb(this.name, options);
   }
 
   async import(data: Uint8Array, options?: DuckDbOptions): Promise<Result<void>> {

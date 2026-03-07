@@ -83,7 +83,6 @@ export const ErrorCodes = {
   DUCKDB_INVALID_STATEMENT: "DUCKDB_INVALID_STATEMENT",
   DUCKDB_SCHEMA_ERROR: "DUCKDB_SCHEMA_ERROR",
   DUCKDB_READONLY_VIOLATION: "DUCKDB_READONLY_VIOLATION",
-  DUCKDB_INGEST_FAILED: "DUCKDB_INGEST_FAILED",
   DUCKDB_EXPORT_FAILED: "DUCKDB_EXPORT_FAILED",
   DUCKDB_IMPORT_FAILED: "DUCKDB_IMPORT_FAILED",
 } as const;
@@ -176,6 +175,8 @@ export interface FetchResponse {
   };
   json(): Promise<unknown>;
   text(): Promise<string>;
+  arrayBuffer(): Promise<ArrayBuffer>;
+  blob(): Promise<Blob>;
 }
 
 /**

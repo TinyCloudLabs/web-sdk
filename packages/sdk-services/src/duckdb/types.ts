@@ -121,7 +121,6 @@ export interface QueryResponse<T = Record<string, unknown>> {
  */
 export interface ExecuteResponse {
   changes: number;
-  lastInsertRowId: number;
 }
 
 /**
@@ -145,7 +144,6 @@ export interface SchemaInfo {
 export interface TableInfo {
   name: string;
   columns: ColumnInfo[];
-  rowCount?: number;
 }
 
 /**
@@ -166,36 +164,6 @@ export interface ViewInfo {
 }
 
 /**
- * Response from ingest operations.
- */
-export interface IngestResponse {
-  rowsLoaded: number;
-}
-
-/**
- * Response from export operations.
- */
-export interface ExportResponse {
-  bytesWritten: number;
-  path: string;
-}
-
-/**
- * Supported formats for data ingestion.
- */
-export type IngestFormat = "parquet" | "csv" | "json";
-
-/**
- * Mode for data ingestion.
- */
-export type IngestMode = "replace" | "append";
-
-/**
- * Supported formats for data export.
- */
-export type ExportFormat = "parquet" | "csv" | "json";
-
-/**
  * DuckDB service action types.
  */
 export const DuckDbAction = {
@@ -203,7 +171,6 @@ export const DuckDbAction = {
   WRITE: "tinycloud.duckdb/write",
   ADMIN: "tinycloud.duckdb/admin",
   DESCRIBE: "tinycloud.duckdb/describe",
-  INGEST: "tinycloud.duckdb/ingest",
   EXPORT: "tinycloud.duckdb/export",
   IMPORT: "tinycloud.duckdb/import",
   EXECUTE: "tinycloud.duckdb/execute",

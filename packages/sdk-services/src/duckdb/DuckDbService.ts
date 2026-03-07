@@ -30,11 +30,6 @@ import {
   type ExecuteResponse,
   type BatchResponse,
   type SchemaInfo,
-  type IngestResponse,
-  type ExportResponse,
-  type IngestFormat,
-  type IngestMode,
-  type ExportFormat,
   DuckDbAction,
 } from "./types";
 
@@ -129,10 +124,9 @@ export class DuckDbService extends BaseService implements IDuckDbService {
         }
 
         if (isArrow) {
-          const resp = response as any;
-          if (typeof resp.arrayBuffer === "function") {
-            const buffer = await resp.arrayBuffer();
-            return ok(buffer as ArrayBuffer);
+          if (typeof response.arrayBuffer === "function") {
+            const buffer = await response.arrayBuffer();
+            return ok(buffer);
           }
           // Fallback: read as text and convert
           const text = await response.text();
@@ -241,7 +235,7 @@ export class DuckDbService extends BaseService implements IDuckDbService {
         const response = await this.invokeDuckDb(
           dbName,
           DuckDbAction.EXECUTE,
-          { action: "execute_statement", name, params: params ?? [] },
+          { action: "executeStatement", name, params: params ?? [] },
           options?.signal
         );
 
@@ -288,85 +282,8 @@ export class DuckDbService extends BaseService implements IDuckDbService {
     });
   }
 
-  async ingestOnDb(
-    dbName: string,
-    table: string,
-    kvPath: string,
-    format: IngestFormat,
-    mode?: IngestMode,
-    options?: DuckDbOptions
-  ): Promise<Result<IngestResponse>> {
-    return this.withTelemetry("ingest", dbName, async () => {
-      if (!this.requireAuth()) {
-        return err(authRequiredError("duckdb"));
-      }
-
-      try {
-        const body: Record<string, unknown> = {
-          action: "ingest",
-          table,
-          kvPath,
-          format,
-        };
-        if (mode) {
-          body.mode = mode;
-        }
-
-        const response = await this.invokeDuckDb(
-          dbName,
-          DuckDbAction.INGEST,
-          body,
-          options?.signal
-        );
-
-        if (!response.ok) {
-          return this.handleErrorResponse(response, "ingest");
-        }
-
-        const data = (await response.json()) as IngestResponse;
-        return ok(data);
-      } catch (error) {
-        return err(wrapError("duckdb", error));
-      }
-    });
-  }
-
-  async exportToKvOnDb(
-    dbName: string,
-    sql: string,
-    kvPath: string,
-    format: ExportFormat,
-    options?: DuckDbOptions
-  ): Promise<Result<ExportResponse>> {
-    return this.withTelemetry("exportToKv", dbName, async () => {
-      if (!this.requireAuth()) {
-        return err(authRequiredError("duckdb"));
-      }
-
-      try {
-        const response = await this.invokeDuckDb(
-          dbName,
-          DuckDbAction.EXPORT,
-          { action: "export_to_kv", sql, kvPath, format },
-          options?.signal
-        );
-
-        if (!response.ok) {
-          return this.handleErrorResponse(response, "exportToKv");
-        }
-
-        const data = (await response.json()) as ExportResponse;
-        return ok(data);
-      } catch (error) {
-        return err(wrapError("duckdb", error));
-      }
-    });
-  }
-
   async exportOnDb(
     dbName: string,
-    sql: string,
-    format: ExportFormat,
     options?: DuckDbOptions
   ): Promise<Result<Blob>> {
     return this.withTelemetry("export", dbName, async () => {
@@ -378,7 +295,7 @@ export class DuckDbService extends BaseService implements IDuckDbService {
         const response = await this.invokeDuckDb(
           dbName,
           DuckDbAction.EXPORT,
-          { action: "export", sql, format },
+          { action: "export" },
           options?.signal
         );
 
@@ -386,10 +303,9 @@ export class DuckDbService extends BaseService implements IDuckDbService {
           return this.handleErrorResponse(response, "export");
         }
 
-        const resp = response as any;
-        if (typeof resp.blob === "function") {
-          const blob = await resp.blob();
-          return ok(blob as Blob);
+        if (typeof response.blob === "function") {
+          const blob = await response.blob();
+          return ok(blob);
         }
         const text = await response.text();
         return ok(text as unknown as Blob);
@@ -424,7 +340,7 @@ export class DuckDbService extends BaseService implements IDuckDbService {
             ...(headers as Record<string, string>),
             "Content-Type": "application/x-duckdb",
           },
-          body: new Blob([data]) as any,
+          body: new Blob([data]),
           signal: this.combineSignals(options?.signal),
         });
 
@@ -458,7 +374,7 @@ export class DuckDbService extends BaseService implements IDuckDbService {
         "Content-Type": "application/json",
         ...extraHeaders,
       },
-      body: JSON.stringify(body) as any,
+      body: JSON.stringify(body),
       signal: this.combineSignals(signal),
     });
   }

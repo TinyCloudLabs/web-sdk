@@ -24,9 +24,4 @@ export {
   type TableInfo,
   type ColumnInfo,
   type ViewInfo,
-  type IngestResponse,
-  type ExportResponse,
-  type IngestFormat,
-  type IngestMode,
-  type ExportFormat,
 } from "./types";

@@ -186,11 +186,6 @@ export type {
   TableInfo,
   ColumnInfo,
   ViewInfo,
-  IngestResponse,
-  ExportResponse,
-  IngestFormat,
-  IngestMode,
-  ExportFormat,
 } from "./duckdb";
 
 // Vault service
