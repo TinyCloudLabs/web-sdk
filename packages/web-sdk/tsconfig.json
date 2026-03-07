@@ -8,6 +8,8 @@
     "dist/**/*"
   ],
   "compilerOptions": {
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "module": "ESNext",
+    "moduleResolution": "bundler"
   }
 }
