@@ -167,6 +167,32 @@ export type {
   SQLActionType,
 } from "./sql";
 
+// DuckDB service
+export { DuckDbService, DuckDbDatabaseHandle, DuckDbAction } from "./duckdb";
+export type { IDuckDbService, IDuckDbDatabaseHandle } from "./duckdb";
+export type {
+  DuckDbServiceConfig,
+  DuckDbQueryOptions,
+  DuckDbExecuteOptions,
+  DuckDbBatchOptions,
+  DuckDbOptions,
+  DuckDbValue,
+  DuckDbStatement,
+  DuckDbQueryResponse,
+  DuckDbExecuteResponse,
+  DuckDbBatchResponse,
+  DuckDbActionType,
+  SchemaInfo,
+  TableInfo,
+  ColumnInfo,
+  ViewInfo,
+  IngestResponse,
+  ExportResponse,
+  IngestFormat,
+  IngestMode,
+  ExportFormat,
+} from "./duckdb";
+
 // Vault service
 export { DataVaultService, VaultAction, VaultHeaders, createVaultCrypto } from "./vault";
 export type { IDataVaultService, VaultCrypto, WasmVaultFunctions } from "./vault";
