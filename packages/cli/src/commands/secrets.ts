@@ -57,6 +57,7 @@ export function registerSecretsCommand(program: Command): void {
   secrets
     .command("list")
     .description("List secrets")
+    .option("--space <spaceId>", "Space to list secrets from (for delegated access)")
     .option("--private-key <hex>", "Ethereum private key (or set TC_PRIVATE_KEY)")
     .action(async (options, cmd) => {
       try {
@@ -66,6 +67,20 @@ export function registerSecretsCommand(program: Command): void {
         const node = await ensureAuthenticated(ctx, { privateKey });
 
         await withSpinner("Unlocking vault...", () => unlockVault(node, privateKey));
+
+        // TODO: SDK-level support for targeting a specific space via vault.list().
+        // The vault service currently operates on the space bound to the session.
+        // When --space is provided, we would need the SDK to accept a spaceId
+        // parameter on vault operations or support switching the active space.
+        if (options.space) {
+          throw new CLIError(
+            "NOT_IMPLEMENTED",
+            `Listing secrets from a delegated space (${options.space}) is not yet supported at the SDK level. ` +
+            "The vault service currently operates on the space bound to the active session. " +
+            "SDK support for cross-space vault operations is planned.",
+            ExitCode.ERROR,
+          );
+        }
 
         const result = await withSpinner("Listing secrets...", () => node.vault.list({ prefix: SECRETS_PREFIX })) as any;
 
@@ -84,6 +99,7 @@ export function registerSecretsCommand(program: Command): void {
         outputJson({
           secrets: secretNames,
           count: secretNames.length,
+          ...(options.space ? { space: options.space } : {}),
         });
       } catch (error) {
         handleError(error);
@@ -230,6 +246,20 @@ export function registerSecretsCommand(program: Command): void {
         }
 
         outputJson({ name, deleted: true });
+      } catch (error) {
+        handleError(error);
+      }
+    });
+
+  // tc secrets manage
+  secrets
+    .command("manage")
+    .description("Open the TinyCloud Secrets Manager in your browser")
+    .action(async () => {
+      try {
+        const open = (await import("open")).default;
+        await open("https://secrets.tinycloud.xyz");
+        outputJson({ opened: "https://secrets.tinycloud.xyz" });
       } catch (error) {
         handleError(error);
       }

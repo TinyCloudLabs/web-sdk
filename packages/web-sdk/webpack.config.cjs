@@ -72,12 +72,18 @@ module.exports = {
     },
   },
   output: {
-    filename: "index.js",
+    filename: "index.mjs",
     path: path.resolve(__dirname, "dist"),
-    library: "@tinycloud/web-sdk",
-    libraryTarget: "umd",
-    umdNamedDefine: true,
-    globalObject: "this",
+    library: {
+      type: "module",
+    },
+    module: true,
+    environment: {
+      module: true,
+    },
+  },
+  experiments: {
+    outputModule: true,
   },
   optimization: {
     // Disable HMR and development optimizations in production

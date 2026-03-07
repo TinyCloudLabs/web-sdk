@@ -2,14 +2,14 @@
   "name": "@tinycloud/web-sdk",
   "version": "1.3.0",
   "description": "A set of tools and utilities to help you build your app with TinyCloud.",
-  "main": "dist/index.js",
+  "main": "dist/index.mjs",
+  "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.js",
-      "default": "./dist/index.js"
+      "import": "./dist/index.mjs",
+      "default": "./dist/index.mjs"
     },
     "./*": "./*"
   },
@@ -17,13 +17,13 @@
     "type": "git",
     "url": "ssh://git@github.com:TinyCloudLabs/web-sdk.git"
   },
-  "type": "commonjs",
+  "type": "module",
   "author": "TinyCloud, Inc.",
   "license": "EGPL",
   "scripts": {
-    "build": "webpack --mode production",
-    "dev": "webpack --watch",
-    "watch": "webpack --watch",
+    "build": "webpack --mode production --config webpack.config.cjs",
+    "dev": "webpack --watch --config webpack.config.cjs",
+    "watch": "webpack --watch --config webpack.config.cjs",
     "doc": "bun run doc:extractor && bun run doc:documenter",
     "doc:extractor": "api-extractor run --local --diagnostics",
     "doc:documenter": "api-documenter markdown -i temp -o ../../documentation/docs/web-sdk/api",
