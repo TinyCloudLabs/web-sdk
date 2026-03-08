@@ -39,6 +39,8 @@ import {
   IKVService,
   SQLService,
   ISQLService,
+  DuckDbService,
+  IDuckDbService,
   DataVaultService,
   IDataVaultService,
   createVaultCrypto,
@@ -136,6 +138,7 @@ export class TinyCloudNode {
   private _serviceContext?: ServiceContext;
   private _kv?: KVService;
   private _sql?: SQLService;
+  private _duckdb?: DuckDbService;
   private _vault?: DataVaultService;
   /** Cached public KV with proper delegation (set by ensurePublicSpace) */
   private _publicKV?: KVService;
@@ -345,6 +348,7 @@ export class TinyCloudNode {
     // Reset services so they get recreated with new session
     this._kv = undefined;
     this._sql = undefined;
+    this._duckdb = undefined;
     this._serviceContext = undefined;
 
     await this.tc.signIn();
@@ -374,6 +378,7 @@ export class TinyCloudNode {
     // Reset services so they get recreated with new session
     this._kv = undefined;
     this._sql = undefined;
+    this._duckdb = undefined;
     this._serviceContext = undefined;
 
     if (sessionData.address) {
@@ -399,6 +404,11 @@ export class TinyCloudNode {
     this._sql = new SQLService({});
     this._sql.initialize(this._serviceContext);
     this._serviceContext.registerService('sql', this._sql);
+
+    // Create and register DuckDB service
+    this._duckdb = new DuckDbService({});
+    this._duckdb.initialize(this._serviceContext);
+    this._serviceContext.registerService('duckdb', this._duckdb);
 
     // Set session on context
     const serviceSession: ServiceSession = {
@@ -501,6 +511,11 @@ export class TinyCloudNode {
     this._sql.initialize(this._serviceContext);
     this._serviceContext.registerService('sql', this._sql);
 
+    // Create and register DuckDB service
+    this._duckdb = new DuckDbService({});
+    this._duckdb.initialize(this._serviceContext);
+    this._serviceContext.registerService('duckdb', this._duckdb);
+
     // Set session on context
     const serviceSession: ServiceSession = {
       delegationHeader: session.delegationHeader,
@@ -584,6 +599,13 @@ export class TinyCloudNode {
           "tinycloud.sql/write",
           "tinycloud.sql/admin",
           "tinycloud.sql/*",
+          "tinycloud.duckdb/read",
+          "tinycloud.duckdb/write",
+          "tinycloud.duckdb/admin",
+          "tinycloud.duckdb/describe",
+          "tinycloud.duckdb/export",
+          "tinycloud.duckdb/import",
+          "tinycloud.duckdb/*",
         ],
         expiry: this.getSessionExpiry(),
         isRevoked: false,
@@ -611,6 +633,13 @@ export class TinyCloudNode {
               "tinycloud.sql/write",
               "tinycloud.sql/admin",
               "tinycloud.sql/*",
+              "tinycloud.duckdb/read",
+              "tinycloud.duckdb/write",
+              "tinycloud.duckdb/admin",
+              "tinycloud.duckdb/describe",
+              "tinycloud.duckdb/export",
+              "tinycloud.duckdb/import",
+              "tinycloud.duckdb/*",
             ],
             expiry: this.getSessionExpiry(),
             isRevoked: false,
@@ -809,6 +838,16 @@ export class TinyCloudNode {
       throw new Error("Not signed in. Call signIn() first.");
     }
     return this._sql;
+  }
+
+  /**
+   * DuckDB database operations on this user's space.
+   */
+  get duckdb(): IDuckDbService {
+    if (!this._duckdb) {
+      throw new Error("Not signed in. Call signIn() first.");
+    }
+    return this._duckdb;
   }
 
   /**
@@ -1226,11 +1265,15 @@ export class TinyCloudNode {
     const abilities: Record<string, Record<string, string[]>> = {};
     const kvActions = params.actions.filter(a => a.startsWith("tinycloud.kv/"));
     const sqlActions = params.actions.filter(a => a.startsWith("tinycloud.sql/"));
+    const duckdbActions = params.actions.filter(a => a.startsWith("tinycloud.duckdb/"));
     if (kvActions.length > 0) {
       abilities.kv = { [params.path]: kvActions };
     }
     if (sqlActions.length > 0) {
       abilities.sql = { [params.path]: sqlActions };
+    }
+    if (duckdbActions.length > 0) {
+      abilities.duckdb = { [params.path]: duckdbActions };
     }
 
     const now = new Date();
@@ -1353,11 +1396,15 @@ export class TinyCloudNode {
     const abilities: Record<string, Record<string, string[]>> = {};
     const kvActions = delegation.actions.filter(a => a.startsWith("tinycloud.kv/"));
     const sqlActions = delegation.actions.filter(a => a.startsWith("tinycloud.sql/"));
+    const duckdbActions = delegation.actions.filter(a => a.startsWith("tinycloud.duckdb/"));
     if (kvActions.length > 0) {
       abilities.kv = { [delegation.path]: kvActions };
     }
     if (sqlActions.length > 0) {
       abilities.sql = { [delegation.path]: sqlActions };
+    }
+    if (duckdbActions.length > 0) {
+      abilities.duckdb = { [delegation.path]: duckdbActions };
     }
 
     const now = new Date();
@@ -1487,11 +1534,15 @@ export class TinyCloudNode {
     const abilities: Record<string, Record<string, string[]>> = {};
     const kvActions = params.actions.filter(a => a.startsWith("tinycloud.kv/"));
     const sqlActions = params.actions.filter(a => a.startsWith("tinycloud.sql/"));
+    const duckdbActions = params.actions.filter(a => a.startsWith("tinycloud.duckdb/"));
     if (kvActions.length > 0) {
       abilities.kv = { [params.path]: kvActions };
     }
     if (sqlActions.length > 0) {
       abilities.sql = { [params.path]: sqlActions };
+    }
+    if (duckdbActions.length > 0) {
+      abilities.duckdb = { [params.path]: duckdbActions };
     }
 
     // Use parent's host or fall back to config

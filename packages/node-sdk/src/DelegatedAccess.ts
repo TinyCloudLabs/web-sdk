@@ -4,6 +4,8 @@ import {
   IKVService,
   SQLService,
   ISQLService,
+  DuckDbService,
+  IDuckDbService,
   ServiceSession,
   ServiceContext,
 } from "@tinycloud/sdk-core";
@@ -23,6 +25,7 @@ export class DelegatedAccess {
   private _serviceContext: ServiceContext;
   private _kv: KVService;
   private _sql: SQLService;
+  private _duckdb: DuckDbService;
 
   constructor(
     session: TinyCloudSession,
@@ -51,6 +54,11 @@ export class DelegatedAccess {
     this._sql = new SQLService({});
     this._sql.initialize(this._serviceContext);
     this._serviceContext.registerService('sql', this._sql);
+
+    // Create and initialize DuckDB service with same delegation context
+    this._duckdb = new DuckDbService({});
+    this._duckdb.initialize(this._serviceContext);
+    this._serviceContext.registerService('duckdb', this._duckdb);
 
     // Set session on context
     const serviceSession: ServiceSession = {
@@ -96,5 +104,12 @@ export class DelegatedAccess {
    */
   get sql(): ISQLService {
     return this._sql;
+  }
+
+  /**
+   * DuckDB operations on the delegated space.
+   */
+  get duckdb(): IDuckDbService {
+    return this._duckdb;
   }
 }
