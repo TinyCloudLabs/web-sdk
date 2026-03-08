@@ -6,9 +6,15 @@ export function outputJson(data: unknown): void {
 }
 
 export function outputError(code: string, message: string): void {
-  process.stderr.write(
-    JSON.stringify({ error: { code, message } }, null, 2) + "\n"
-  );
+  if (isInteractive()) {
+    process.stderr.write(
+      `${theme.error("✗")} ${theme.label(code)}: ${message}\n`
+    );
+  } else {
+    process.stderr.write(
+      JSON.stringify({ error: { code, message } }, null, 2) + "\n"
+    );
+  }
 }
 
 export function isInteractive(): boolean {
@@ -22,10 +28,10 @@ export async function withSpinner<T>(label: string, fn: () => Promise<T>): Promi
   const spinner = ora(label).start();
   try {
     const result = await fn();
-    spinner.succeed();
+    spinner.succeed(label);
     return result;
   } catch (error) {
-    spinner.fail();
+    spinner.fail(label);
     throw error;
   }
 }
@@ -70,8 +76,8 @@ export function output(data: unknown, humanFormatter?: () => string): void {
 }
 
 /** Format a status check line (for doctor command etc.) */
-export function formatCheck(ok: boolean, label: string, detail?: string): string {
-  const icon = ok ? theme.success("✓") : theme.error("✗");
+export function formatCheck(ok: boolean | "warn", label: string, detail?: string): string {
+  const icon = ok === "warn" ? theme.warn("⚠") : ok ? theme.success("✓") : theme.error("✗");
   const detailStr = detail ? ` ${theme.muted(`(${detail})`)}` : "";
   return `${icon} ${label}${detailStr}`;
 }

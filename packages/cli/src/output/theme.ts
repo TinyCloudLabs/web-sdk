@@ -23,4 +23,5 @@ export const theme = {
   brand: chalk.bold.hex(TC_PALETTE.primary),
   label: chalk.bold,
   value: chalk.white,
+  hint: chalk.italic.hex(TC_PALETTE.muted),
 };
