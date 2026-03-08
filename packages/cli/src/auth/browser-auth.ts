@@ -56,6 +56,35 @@ function buildAuthUrl(did: string, options: { jwk?: object; host?: string; callb
 async function callbackFlow(did: string, options: { jwk?: object; host?: string } = {}): Promise<DelegationData> {
   return new Promise((resolve, reject) => {
     let timeout: ReturnType<typeof setTimeout>;
+    let settled = false;
+    let rl: ReturnType<typeof createInterface> | undefined;
+
+    function settle(result: { data?: DelegationData; error?: Error }) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      server.close();
+      if (rl) {
+        rl.close();
+      }
+      if (result.data) {
+        resolve(result.data);
+      } else {
+        reject(result.error);
+      }
+    }
+
+    function parsePasteInput(input: string): DelegationData {
+      const trimmed = input.trim();
+      // Try parsing as JSON directly
+      try {
+        return JSON.parse(trimmed) as DelegationData;
+      } catch {
+        // Try base64 decoding first
+        const decoded = Buffer.from(trimmed, "base64").toString("utf-8");
+        return JSON.parse(decoded) as DelegationData;
+      }
+    }
 
     const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       if (req.method === "POST" && req.url === "/callback") {
@@ -70,13 +99,11 @@ async function callbackFlow(did: string, options: { jwk?: object; host?: string 
               "Access-Control-Allow-Origin": "*",
             });
             res.end(JSON.stringify({ success: true }));
-            clearTimeout(timeout);
-            server.close();
-            resolve(data);
+            settle({ data });
           } catch (err) {
             res.writeHead(400, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ error: "Invalid JSON" }));
-            reject(new Error("Invalid delegation data received"));
+            settle({ error: new Error("Invalid delegation data received") });
           }
         });
       } else if (req.method === "OPTIONS") {
@@ -96,7 +123,7 @@ async function callbackFlow(did: string, options: { jwk?: object; host?: string 
     server.listen(0, "127.0.0.1", async () => {
       const addr = server.address();
       if (!addr || typeof addr === "string") {
-        reject(new Error("Failed to start callback server"));
+        settle({ error: new Error("Failed to start callback server") });
         return;
       }
       const port = addr.port;
@@ -115,12 +142,29 @@ async function callbackFlow(did: string, options: { jwk?: object; host?: string 
         server.close();
         throw new Error("Failed to open browser");
       }
+
+      // In interactive mode, also accept paste input while waiting for callback
+      if (isInteractive()) {
+        console.error(`\nIf the browser can't connect back, paste the delegation code here:`);
+        rl = createInterface({
+          input: process.stdin,
+          output: process.stderr,
+        });
+        rl.on("line", (input) => {
+          if (settled) return;
+          try {
+            const data = parsePasteInput(input);
+            settle({ data });
+          } catch {
+            console.error("Invalid delegation code. Expected JSON or base64-encoded JSON. Try again:");
+          }
+        });
+      }
     });
 
     // Timeout after 5 minutes
     timeout = setTimeout(() => {
-      server.close();
-      reject(new Error("Authentication timed out after 5 minutes"));
+      settle({ error: new Error("Authentication timed out after 5 minutes") });
     }, 5 * 60 * 1000);
   });
 }
