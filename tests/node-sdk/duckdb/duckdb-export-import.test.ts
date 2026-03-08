@@ -39,13 +39,13 @@ describe("DuckDB Export/Import", () => {
       console.log("[Part 1] Small db created with 3 rows");
     });
 
-    test("export of small (in-memory) db returns NOT_FOUND error", async () => {
+    test("export of small (in-memory) db succeeds", async () => {
       const result = await alice.duckdb.db(SMALL_DB).export();
-      // In-memory databases haven't been promoted to file storage,
-      // so export correctly returns an error.
-      expect(result.ok).toBe(false);
-      if (!result.ok) {
-        console.log("[Part 1] Expected error for in-memory db:", result.error.message);
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.data).toBeInstanceOf(Blob);
+        expect(result.data.size).toBeGreaterThan(0);
+        console.log("[Part 1] Small db export succeeded, blob size:", result.data.size);
       }
     });
   });
