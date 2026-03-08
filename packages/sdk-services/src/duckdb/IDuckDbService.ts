@@ -27,13 +27,22 @@ export interface IDuckDbDatabaseHandle {
   readonly name: string;
 
   /**
-   * Execute a DuckDB query and return rows.
+   * Execute a DuckDB query and return rows as JSON.
    */
   query<T = Record<string, unknown>>(
     sql: string,
     params?: DuckDbValue[],
     options?: DuckDbQueryOptions
-  ): Promise<Result<QueryResponse<T> | ArrayBuffer>>;
+  ): Promise<Result<QueryResponse<T>>>;
+
+  /**
+   * Execute a DuckDB query and return results as Arrow IPC stream.
+   */
+  queryArrow(
+    sql: string,
+    params?: DuckDbValue[],
+    options?: DuckDbQueryOptions
+  ): Promise<Result<ArrayBuffer>>;
 
   /**
    * Execute a DuckDB statement and return change count.
@@ -85,7 +94,7 @@ export interface IDuckDbDatabaseHandle {
  * - Named database handles
  * - Configurable timeouts
  * - Abort signal support
- * - Arrow format support
+ * - Arrow format support via queryArrow()
  */
 export interface IDuckDbService extends IService {
   /**
@@ -95,13 +104,22 @@ export interface IDuckDbService extends IService {
   db(name?: string): IDuckDbDatabaseHandle;
 
   /**
-   * Shortcut: query the default database.
+   * Shortcut: query the default database (JSON format).
    */
   query<T = Record<string, unknown>>(
     sql: string,
     params?: DuckDbValue[],
     options?: DuckDbQueryOptions
-  ): Promise<Result<QueryResponse<T> | ArrayBuffer>>;
+  ): Promise<Result<QueryResponse<T>>>;
+
+  /**
+   * Shortcut: query the default database (Arrow IPC format).
+   */
+  queryArrow(
+    sql: string,
+    params?: DuckDbValue[],
+    options?: DuckDbQueryOptions
+  ): Promise<Result<ArrayBuffer>>;
 
   /**
    * Shortcut: execute on the default database.

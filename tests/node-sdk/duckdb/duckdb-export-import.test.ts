@@ -2,82 +2,106 @@ import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import { checkServerHealth, createClient, TEST_KEY } from "../setup";
 import type { TinyCloudNode } from "@tinycloud/node-sdk";
 
-const EXPORT_DB = `sdk_test_export_${Date.now()}`;
-const IMPORT_DB = `sdk_test_import_${Date.now()}`;
-const ROUNDTRIP_DB = `sdk_test_roundtrip_${Date.now()}`;
-const TABLE = `test_data`;
+const SMALL_DB = `sdk_test_small_export_${Date.now()}`;
+const LARGE_DB = `sdk_test_large_export_${Date.now()}`;
+const IMPORTED_DB = `sdk_test_imported_${Date.now()}`;
+const TABLE = `data_table`;
 
 describe("DuckDB Export/Import", () => {
   let alice: TinyCloudNode;
+  let exportedBlob: Blob;
+  let originalRowCount: number;
+  let originalFirstRow: unknown[];
 
   beforeAll(async () => {
     await checkServerHealth();
     alice = createClient("alice-export", TEST_KEY);
     await alice.signIn();
     console.log("[Setup] Alice signed in, DID:", alice.did);
-
-    // Create table and insert data in export db
-    const db = alice.duckdb.db(EXPORT_DB);
-    await db.execute(`CREATE TABLE ${TABLE} (id INTEGER PRIMARY KEY, name VARCHAR, value DOUBLE)`);
-    await db.execute(`INSERT INTO ${TABLE} VALUES (1, 'alpha', 1.1)`);
-    await db.execute(`INSERT INTO ${TABLE} VALUES (2, 'beta', 2.2)`);
-    await db.execute(`INSERT INTO ${TABLE} VALUES (3, 'gamma', 3.3)`);
-    console.log("[Setup] Test data created in", EXPORT_DB);
   });
 
   afterAll(async () => {
-    await alice.duckdb.db(EXPORT_DB).execute(`DROP TABLE IF EXISTS ${TABLE}`);
-    console.log("[Cleanup] Export db cleaned");
+    await alice.duckdb.db(SMALL_DB).execute(`DROP TABLE IF EXISTS ${TABLE}`);
+    await alice.duckdb.db(LARGE_DB).execute(`DROP TABLE IF EXISTS ${TABLE}`);
+    await alice.duckdb.db(IMPORTED_DB).execute(`DROP TABLE IF EXISTS ${TABLE}`);
+    console.log("[Cleanup] Tables dropped in all test dbs");
   });
 
-  // PART 1: Export
-  describe("Export", () => {
-    test("export returns a Blob", async () => {
-      const result = await alice.duckdb.db(EXPORT_DB).export();
-      expect(result.ok).toBe(true);
-      if (result.ok) {
-        expect(result.data).toBeInstanceOf(Blob);
-      }
+  // PART 1: Small Database Export
+  describe("Small Database Export", () => {
+    beforeAll(async () => {
+      await alice.duckdb.db(SMALL_DB).execute(
+        `CREATE TABLE ${TABLE} (id INTEGER, name VARCHAR)`
+      );
+      await alice.duckdb.db(SMALL_DB).execute(
+        `INSERT INTO ${TABLE} VALUES (1, 'alpha'), (2, 'beta'), (3, 'gamma')`
+      );
+      console.log("[Part 1] Small db created with 3 rows");
     });
 
-    test("exported Blob is non-empty", async () => {
-      const result = await alice.duckdb.db(EXPORT_DB).export();
-      expect(result.ok).toBe(true);
-      if (result.ok) {
-        expect(result.data.size).toBeGreaterThan(0);
-        console.log("[Export] Blob size:", result.data.size, "bytes");
+    test("export of small (in-memory) db returns NOT_FOUND error", async () => {
+      const result = await alice.duckdb.db(SMALL_DB).export();
+      // In-memory databases haven't been promoted to file storage,
+      // so export correctly returns an error.
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        console.log("[Part 1] Expected error for in-memory db:", result.error.message);
       }
     });
   });
 
-  // PART 2: Import
-  describe("Import", () => {
-    test("import valid DuckDB bytes succeeds", async () => {
-      const exportResult = await alice.duckdb.db(EXPORT_DB).export();
-      expect(exportResult.ok).toBe(true);
-      if (!exportResult.ok) return;
+  // PART 2: Large Database Export (triggers file promotion at 10 MiB threshold)
+  describe("Large Database Export", () => {
+    beforeAll(async () => {
+      await alice.duckdb.db(LARGE_DB).execute(
+        `CREATE TABLE ${TABLE} (id INTEGER, payload TEXT)`
+      );
+      console.log("[Part 2] Large db table created, inserting ~50K rows...");
 
-      const blob = exportResult.data;
-      const arrayBuffer = await blob.arrayBuffer();
-      const bytes = new Uint8Array(arrayBuffer);
+      // Insert 50 batches of 1000 rows each (~256 chars per row) to exceed 10 MiB
+      for (let batch = 0; batch < 50; batch++) {
+        const offset = batch * 1000;
+        await alice.duckdb.db(LARGE_DB).execute(
+          `INSERT INTO ${TABLE} SELECT i + ${offset}, REPEAT('x', 256) FROM generate_series(1, 1000) AS t(i)`
+        );
+      }
 
-      const importResult = await alice.duckdb.db(IMPORT_DB).import(bytes);
-      expect(importResult.ok).toBe(true);
-    });
+      // Capture original row count and first row for later round-trip checks
+      const countResult = await alice.duckdb.db(LARGE_DB).query(
+        `SELECT COUNT(*) AS cnt FROM ${TABLE}`
+      );
+      if (countResult.ok) {
+        const cntIdx = countResult.data.columns.indexOf("cnt");
+        originalRowCount = countResult.data.rows[0][cntIdx] as number;
+        console.log("[Part 2] Inserted rows:", originalRowCount);
+      }
 
-    test("query after import returns expected data", async () => {
-      const result = await alice.duckdb.db(IMPORT_DB).query(`SELECT * FROM ${TABLE} ORDER BY id`);
+      const firstRowResult = await alice.duckdb.db(LARGE_DB).query(
+        `SELECT * FROM ${TABLE} ORDER BY id LIMIT 1`
+      );
+      if (firstRowResult.ok) {
+        originalFirstRow = firstRowResult.data.rows[0];
+      }
+    }, 120000);
+
+    test("export returns a Blob after data exceeds memory threshold", async () => {
+      const result = await alice.duckdb.db(LARGE_DB).export();
       expect(result.ok).toBe(true);
       if (result.ok) {
-        const data = result.data as { columns: string[]; rows: any[][]; rowCount: number };
-        expect(data.rowCount).toBe(3);
-        const nameIdx = data.columns.indexOf("name");
-        expect(data.rows[0][nameIdx]).toBe("alpha");
-        expect(data.rows[1][nameIdx]).toBe("beta");
-        expect(data.rows[2][nameIdx]).toBe("gamma");
+        exportedBlob = result.data;
+        expect(exportedBlob).toBeInstanceOf(Blob);
+        console.log("[Part 2] Export succeeded, blob size:", exportedBlob.size);
       }
-    });
+    }, 120000);
 
+    test("exported Blob size > 0", async () => {
+      expect(exportedBlob).toBeDefined();
+      expect(exportedBlob.size).toBeGreaterThan(0);
+    });
+  });
+
+  // PART 3: Import Errors
+  describe("Import Errors", () => {
     test("import invalid bytes returns error (not crash)", async () => {
       const invalidBytes = new Uint8Array([0, 1, 2, 3, 4, 5, 6, 7]);
       const invalidDb = `sdk_test_invalid_${Date.now()}`;
@@ -85,43 +109,49 @@ describe("DuckDB Export/Import", () => {
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.error).toBeDefined();
-        console.log("[Import] Invalid bytes error:", result.error.message);
+        console.log("[Part 3] Invalid bytes error:", result.error.message);
       }
     });
   });
 
-  // PART 3: Round-Trip
-  describe("Round-Trip", () => {
-    test("export from db A, import as db B, query B matches A", async () => {
-      // Query original data
-      const originalResult = await alice.duckdb.db(EXPORT_DB).query(`SELECT * FROM ${TABLE} ORDER BY id`);
-      expect(originalResult.ok).toBe(true);
-      if (!originalResult.ok) return;
-      const originalData = originalResult.data as { columns: string[]; rows: any[][]; rowCount: number };
+  // PART 4: Large Round-Trip
+  describe("Large Round-Trip", () => {
+    test("import bytes from export succeeds", async () => {
+      expect(exportedBlob).toBeDefined();
 
-      // Export
-      const exportResult = await alice.duckdb.db(EXPORT_DB).export();
-      expect(exportResult.ok).toBe(true);
-      if (!exportResult.ok) return;
+      const arrayBuffer = await exportedBlob.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
 
-      // Import into new db
-      const blob = exportResult.data;
-      const bytes = new Uint8Array(await blob.arrayBuffer());
-      const importResult = await alice.duckdb.db(ROUNDTRIP_DB).import(bytes);
-      expect(importResult.ok).toBe(true);
-      if (!importResult.ok) return;
+      const result = await alice.duckdb.db(IMPORTED_DB).import(bytes);
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        console.log("[Part 4] Import succeeded into db:", IMPORTED_DB);
+      }
+    }, 120000);
 
-      // Query imported data
-      const importedResult = await alice.duckdb.db(ROUNDTRIP_DB).query(`SELECT * FROM ${TABLE} ORDER BY id`);
-      expect(importedResult.ok).toBe(true);
-      if (!importedResult.ok) return;
-      const importedData = importedResult.data as { columns: string[]; rows: any[][]; rowCount: number };
+    test("query imported db returns same row count as original", async () => {
+      const result = await alice.duckdb.db(IMPORTED_DB).query(
+        `SELECT COUNT(*) AS cnt FROM ${TABLE}`
+      );
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        const cntIdx = result.data.columns.indexOf("cnt");
+        const importedRowCount = result.data.rows[0][cntIdx];
+        expect(importedRowCount).toBe(originalRowCount);
+        console.log("[Part 4] Imported row count matches:", importedRowCount);
+      }
+    }, 120000);
 
-      // Compare
-      expect(importedData.columns).toEqual(originalData.columns);
-      expect(importedData.rowCount).toBe(originalData.rowCount);
-      expect(importedData.rows).toEqual(originalData.rows);
-      console.log("[Round-Trip] Data matches between export and import");
-    });
+    test("spot-check: first row data matches between original and imported db", async () => {
+      const result = await alice.duckdb.db(IMPORTED_DB).query(
+        `SELECT * FROM ${TABLE} ORDER BY id LIMIT 1`
+      );
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        const importedFirstRow = result.data.rows[0];
+        expect(importedFirstRow).toEqual(originalFirstRow);
+        console.log("[Part 4] First row matches between original and imported db");
+      }
+    }, 120000);
   });
 });

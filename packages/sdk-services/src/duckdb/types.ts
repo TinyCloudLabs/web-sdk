@@ -31,11 +31,6 @@ export interface DuckDbQueryOptions {
    * Custom abort signal for this operation.
    */
   signal?: AbortSignal;
-
-  /**
-   * Response format. "json" returns parsed objects, "arrow" returns ArrayBuffer.
-   */
-  format?: "json" | "arrow";
 }
 
 /**

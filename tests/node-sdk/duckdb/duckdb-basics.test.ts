@@ -94,11 +94,24 @@ describe("DuckDB Basics", () => {
 
   // PART 2: Queries
   describe("Queries", () => {
+    beforeAll(async () => {
+      // Ensure table and baseline data exist even if PART 1 tests failed
+      await alice.duckdb.execute(
+        `CREATE TABLE IF NOT EXISTS ${TABLE} (id INTEGER PRIMARY KEY, name VARCHAR NOT NULL, email VARCHAR, price DOUBLE, active BOOLEAN DEFAULT true)`
+      );
+      await alice.duckdb.execute(
+        `INSERT INTO ${TABLE} (id, name, email, price, active) VALUES (1, 'Widget', 'sales@example.com', 29.99, true) ON CONFLICT DO NOTHING`
+      );
+      await alice.duckdb.execute(
+        `INSERT INTO ${TABLE} (id, name, email, price) VALUES (2, 'Gadget', 'info@example.com', 49.99) ON CONFLICT DO NOTHING`
+      );
+    });
+
     test("SELECT * returns columns, rows, rowCount", async () => {
       const result = await alice.duckdb.query(`SELECT * FROM ${TABLE} ORDER BY id`);
       expect(result.ok).toBe(true);
       if (result.ok) {
-        const data = result.data as { columns: string[]; rows: any[][]; rowCount: number };
+        const data = result.data;
         expect(data.columns).toContain("id");
         expect(data.columns).toContain("name");
         expect(data.rowCount).toBeGreaterThanOrEqual(2);
@@ -110,7 +123,7 @@ describe("DuckDB Basics", () => {
       const result = await alice.duckdb.query(`SELECT * FROM ${TABLE} WHERE name = 'Widget'`);
       expect(result.ok).toBe(true);
       if (result.ok) {
-        const data = result.data as { columns: string[]; rows: any[][]; rowCount: number };
+        const data = result.data;
         expect(data.rowCount).toBe(1);
       }
     });
@@ -119,7 +132,7 @@ describe("DuckDB Basics", () => {
       const result = await alice.duckdb.query(`SELECT * FROM ${TABLE} WHERE id = $1`, [2]);
       expect(result.ok).toBe(true);
       if (result.ok) {
-        const data = result.data as { columns: string[]; rows: any[][]; rowCount: number };
+        const data = result.data;
         expect(data.rowCount).toBe(1);
         const nameIdx = data.columns.indexOf("name");
         expect(data.rows[0][nameIdx]).toBe("Gadget");
@@ -130,7 +143,7 @@ describe("DuckDB Basics", () => {
       const result = await alice.duckdb.query(`SELECT COUNT(*) as cnt, SUM(price) as total, AVG(price) as avg_price FROM ${TABLE}`);
       expect(result.ok).toBe(true);
       if (result.ok) {
-        const data = result.data as { columns: string[]; rows: any[][]; rowCount: number };
+        const data = result.data;
         expect(data.rowCount).toBe(1);
         const cntIdx = data.columns.indexOf("cnt");
         expect(data.rows[0][cntIdx]).toBeGreaterThanOrEqual(2);
@@ -145,7 +158,7 @@ describe("DuckDB Basics", () => {
       const result = await alice.duckdb.query(`SELECT * FROM ${TABLE} ORDER BY price ASC LIMIT 2 OFFSET 1`);
       expect(result.ok).toBe(true);
       if (result.ok) {
-        const data = result.data as { columns: string[]; rows: any[][]; rowCount: number };
+        const data = result.data;
         expect(data.rowCount).toBe(2);
       }
     });
@@ -156,7 +169,7 @@ describe("DuckDB Basics", () => {
       );
       expect(result.ok).toBe(true);
       if (result.ok) {
-        const data = result.data as { columns: string[]; rows: any[][]; rowCount: number };
+        const data = result.data;
         expect(data.rowCount).toBe(1);
       }
     });
@@ -181,7 +194,7 @@ describe("DuckDB Basics", () => {
       const result = await alice.duckdb.query(`SELECT int_col, bigint_col, double_col FROM ${TYPES_TABLE}`);
       expect(result.ok).toBe(true);
       if (result.ok) {
-        const data = result.data as { columns: string[]; rows: any[][]; rowCount: number };
+        const data = result.data;
         const row = data.rows[0];
         expect(row[0]).toBe(42);
         expect(typeof row[1]).toBe("number");
@@ -193,7 +206,7 @@ describe("DuckDB Basics", () => {
       const result = await alice.duckdb.query(`SELECT varchar_col, bool_col FROM ${TYPES_TABLE}`);
       expect(result.ok).toBe(true);
       if (result.ok) {
-        const data = result.data as { columns: string[]; rows: any[][]; rowCount: number };
+        const data = result.data;
         const row = data.rows[0];
         expect(row[0]).toBe("hello world");
         expect(row[1]).toBe(true);
@@ -204,11 +217,14 @@ describe("DuckDB Basics", () => {
       const result = await alice.duckdb.query(`SELECT ts_col FROM ${TYPES_TABLE}`);
       expect(result.ok).toBe(true);
       if (result.ok) {
-        const data = result.data as { columns: string[]; rows: any[][]; rowCount: number };
+        const data = result.data;
         const tsValue = data.rows[0][0];
         expect(tsValue).toBeTruthy();
-        // Timestamp should come back as a string or number representation
-        expect(String(tsValue)).toContain("2025");
+        // Timestamp comes back as epoch seconds.microseconds string (e.g. "1736937000.000000")
+        expect(typeof tsValue).toBe("string");
+        // Verify it represents a valid date (2025-01-15 epoch ~1736937000)
+        const epochSecs = parseFloat(String(tsValue));
+        expect(epochSecs).toBeGreaterThan(1_700_000_000);
       }
     });
 
@@ -216,7 +232,7 @@ describe("DuckDB Basics", () => {
       const result = await alice.duckdb.query(`SELECT null_col FROM ${TYPES_TABLE}`);
       expect(result.ok).toBe(true);
       if (result.ok) {
-        const data = result.data as { columns: string[]; rows: any[][]; rowCount: number };
+        const data = result.data;
         expect(data.rows[0][0]).toBeNull();
       }
     });

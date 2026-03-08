@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeAll } from "bun:test";
+import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import { checkServerHealth, createClient, TEST_KEY } from "../setup";
 import type { TinyCloudNode } from "@tinycloud/node-sdk";
 
@@ -16,6 +16,11 @@ describe("DuckDB Security", () => {
     // Create a table for sanity checks
     await alice.duckdb.execute(`CREATE TABLE IF NOT EXISTS ${TABLE} (id INTEGER, val VARCHAR)`);
     await alice.duckdb.execute(`INSERT INTO ${TABLE} VALUES (1, 'test')`);
+  });
+
+  afterAll(async () => {
+    await alice.duckdb.execute(`DROP TABLE IF EXISTS ${TABLE}`);
+    console.log("[Cleanup] Security test table dropped");
   });
 
   // PART 1: Blocked Statements
@@ -102,12 +107,9 @@ describe("DuckDB Security", () => {
 
     test("BEGIN / COMMIT work", async () => {
       const beginResult = await alice.duckdb.execute(`BEGIN`);
-      // DuckDB might handle transactions differently through the service
-      // Accept either success or a specific error about transactions
-      if (beginResult.ok) {
-        const commitResult = await alice.duckdb.execute(`COMMIT`);
-        expect(commitResult.ok).toBe(true);
-      }
+      expect(beginResult.ok).toBe(true);
+      const commitResult = await alice.duckdb.execute(`COMMIT`);
+      expect(commitResult.ok).toBe(true);
     });
   });
 });

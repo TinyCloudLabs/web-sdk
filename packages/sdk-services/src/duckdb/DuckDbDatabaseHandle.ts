@@ -33,8 +33,16 @@ export class DuckDbDatabaseHandle implements IDuckDbDatabaseHandle {
     sql: string,
     params?: DuckDbValue[],
     options?: DuckDbQueryOptions
-  ): Promise<Result<QueryResponse<T> | ArrayBuffer>> {
+  ): Promise<Result<QueryResponse<T>>> {
     return this.service.queryOnDb<T>(this.name, sql, params, options);
+  }
+
+  async queryArrow(
+    sql: string,
+    params?: DuckDbValue[],
+    options?: DuckDbQueryOptions
+  ): Promise<Result<ArrayBuffer>> {
+    return this.service.queryArrowOnDb(this.name, sql, params, options);
   }
 
   async execute(

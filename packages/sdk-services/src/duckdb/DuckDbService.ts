@@ -63,14 +63,25 @@ export class DuckDbService extends BaseService implements IDuckDbService {
   }
 
   /**
-   * Shortcut: query the default database.
+   * Shortcut: query the default database (JSON format).
    */
   async query<T = Record<string, unknown>>(
     sql: string,
     params?: DuckDbValue[],
     options?: DuckDbQueryOptions
-  ): Promise<Result<QueryResponse<T> | ArrayBuffer>> {
+  ): Promise<Result<QueryResponse<T>>> {
     return this.queryOnDb<T>(this.defaultDbName, sql, params, options);
+  }
+
+  /**
+   * Shortcut: query the default database (Arrow IPC format).
+   */
+  async queryArrow(
+    sql: string,
+    params?: DuckDbValue[],
+    options?: DuckDbQueryOptions
+  ): Promise<Result<ArrayBuffer>> {
+    return this.queryArrowOnDb(this.defaultDbName, sql, params, options);
   }
 
   /**
@@ -101,41 +112,64 @@ export class DuckDbService extends BaseService implements IDuckDbService {
     sql: string,
     params?: DuckDbValue[],
     options?: DuckDbQueryOptions
-  ): Promise<Result<QueryResponse<T> | ArrayBuffer>> {
-    return this.withTelemetry<QueryResponse<T> | ArrayBuffer>("query", dbName, async () => {
+  ): Promise<Result<QueryResponse<T>>> {
+    return this.withTelemetry<QueryResponse<T>>("query", dbName, async () => {
       if (!this.requireAuth()) {
         return err(authRequiredError("duckdb"));
       }
 
       try {
-        const isArrow = options?.format === "arrow";
         const response = await this.invokeDuckDb(
           dbName,
           DuckDbAction.READ,
           { action: "query", sql, params: params ?? [] },
-          options?.signal,
-          isArrow
-            ? { Accept: "application/vnd.apache.arrow.stream" }
-            : undefined
+          options?.signal
         );
 
         if (!response.ok) {
           return this.handleErrorResponse(response, "query");
         }
 
-        if (isArrow) {
-          if (typeof response.arrayBuffer === "function") {
-            const buffer = await response.arrayBuffer();
-            return ok(buffer);
-          }
-          // Fallback: read as text and convert
-          const text = await response.text();
-          const encoder = new TextEncoder();
-          return ok(encoder.encode(text).buffer as ArrayBuffer);
-        }
-
         const data = (await response.json()) as QueryResponse<T>;
         return ok(data);
+      } catch (error) {
+        return err(wrapError("duckdb", error));
+      }
+    });
+  }
+
+  async queryArrowOnDb(
+    dbName: string,
+    sql: string,
+    params?: DuckDbValue[],
+    options?: DuckDbQueryOptions
+  ): Promise<Result<ArrayBuffer>> {
+    return this.withTelemetry<ArrayBuffer>("queryArrow", dbName, async () => {
+      if (!this.requireAuth()) {
+        return err(authRequiredError("duckdb"));
+      }
+
+      try {
+        const response = await this.invokeDuckDb(
+          dbName,
+          DuckDbAction.READ,
+          { action: "query", sql, params: params ?? [] },
+          options?.signal,
+          { Accept: "application/vnd.apache.arrow.stream" }
+        );
+
+        if (!response.ok) {
+          return this.handleErrorResponse(response, "queryArrow");
+        }
+
+        if (typeof response.arrayBuffer === "function") {
+          const buffer = await response.arrayBuffer();
+          return ok(buffer);
+        }
+        // Fallback: read as text and convert
+        const text = await response.text();
+        const encoder = new TextEncoder();
+        return ok(encoder.encode(text).buffer as ArrayBuffer);
       } catch (error) {
         return err(wrapError("duckdb", error));
       }

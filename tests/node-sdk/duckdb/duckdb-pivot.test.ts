@@ -4,7 +4,7 @@ import type { TinyCloudNode } from "@tinycloud/node-sdk";
 
 const DB = `sdk_test_pivot_${Date.now()}`;
 
-describe("DuckDB PIVOT (DenchClaw Patterns)", () => {
+describe("DuckDB PIVOT", () => {
   let alice: TinyCloudNode;
 
   beforeAll(async () => {
@@ -92,7 +92,7 @@ describe("DuckDB PIVOT (DenchClaw Patterns)", () => {
       const result = await alice.duckdb.db(DB).query(PIVOT_SQL);
       expect(result.ok).toBe(true);
       if (result.ok) {
-        const data = result.data as { columns: string[]; rows: any[][]; rowCount: number };
+        const data = result.data;
         expect(data.rowCount).toBeGreaterThan(0);
       }
     });
@@ -101,7 +101,7 @@ describe("DuckDB PIVOT (DenchClaw Patterns)", () => {
       const result = await alice.duckdb.db(DB).query(PIVOT_SQL);
       expect(result.ok).toBe(true);
       if (result.ok) {
-        const data = result.data as { columns: string[]; rows: any[][]; rowCount: number };
+        const data = result.data;
         // Columns should include the pivoted field names
         expect(data.columns).toContain("entry_id");
         // DuckDB PIVOT columns use the IN values as column names
@@ -115,7 +115,7 @@ describe("DuckDB PIVOT (DenchClaw Patterns)", () => {
       const result = await alice.duckdb.db(DB).query(PIVOT_SQL);
       expect(result.ok).toBe(true);
       if (result.ok) {
-        const data = result.data as { columns: string[]; rows: any[][]; rowCount: number };
+        const data = result.data;
         expect(data.rowCount).toBe(10);
       }
     });
@@ -125,7 +125,7 @@ describe("DuckDB PIVOT (DenchClaw Patterns)", () => {
       const result = await alice.duckdb.db(DB).query(PIVOT_SQL);
       expect(result.ok).toBe(true);
       if (result.ok) {
-        const data = result.data as { columns: string[]; rows: any[][]; rowCount: number };
+        const data = result.data;
         // Find Eve's row (entry_id = 5)
         const entryIdIdx = data.columns.indexOf("entry_id");
         const eveRow = data.rows.find(r => r[entryIdIdx] === 5);
@@ -166,7 +166,7 @@ describe("DuckDB PIVOT (DenchClaw Patterns)", () => {
       const result = await alice.duckdb.db(DB).query(`SELECT * FROM v_people ORDER BY entry_id`);
       expect(result.ok).toBe(true);
       if (result.ok) {
-        const data = result.data as { columns: string[]; rows: any[][]; rowCount: number };
+        const data = result.data;
         expect(data.rowCount).toBe(10);
       }
     });
@@ -177,7 +177,7 @@ describe("DuckDB PIVOT (DenchClaw Patterns)", () => {
       );
       expect(result.ok).toBe(true);
       if (result.ok) {
-        const data = result.data as { columns: string[]; rows: any[][]; rowCount: number };
+        const data = result.data;
         // We seeded 7 Active people
         expect(data.rowCount).toBe(7);
       }
@@ -189,7 +189,7 @@ describe("DuckDB PIVOT (DenchClaw Patterns)", () => {
       );
       expect(result.ok).toBe(true);
       if (result.ok) {
-        const data = result.data as { columns: string[]; rows: any[][]; rowCount: number };
+        const data = result.data;
         expect(data.rowCount).toBe(10);
         // First row alphabetically should be Alice Johnson
         const nameIdx = data.columns.findIndex(c => c.toLowerCase().includes("full name"));
@@ -199,14 +199,14 @@ describe("DuckDB PIVOT (DenchClaw Patterns)", () => {
   });
 
   // PART 3: Analytics on Pivoted Data
-  describe("Analytics on Pivoted Data (DenchClaw Patterns)", () => {
+  describe("Analytics on Pivoted Data", () => {
     test("COUNT(*) GROUP BY Status", async () => {
       const result = await alice.duckdb.db(DB).query(
         `SELECT "Status", COUNT(*) as cnt FROM v_people GROUP BY "Status" ORDER BY cnt DESC`
       );
       expect(result.ok).toBe(true);
       if (result.ok) {
-        const data = result.data as { columns: string[]; rows: any[][]; rowCount: number };
+        const data = result.data;
         expect(data.rowCount).toBeGreaterThanOrEqual(2); // Active + Inactive
         const statusIdx = data.columns.findIndex(c => c === "Status");
         const cntIdx = data.columns.indexOf("cnt");
@@ -221,7 +221,7 @@ describe("DuckDB PIVOT (DenchClaw Patterns)", () => {
       );
       expect(result.ok).toBe(true);
       if (result.ok) {
-        const data = result.data as { columns: string[]; rows: any[][]; rowCount: number };
+        const data = result.data;
         expect(data.rowCount).toBe(10); // All have @acme.com
       }
     });
@@ -233,7 +233,7 @@ describe("DuckDB PIVOT (DenchClaw Patterns)", () => {
       `);
       expect(result.ok).toBe(true);
       if (result.ok) {
-        const data = result.data as { columns: string[]; rows: any[][]; rowCount: number };
+        const data = result.data;
         expect(data.rowCount).toBe(7);
       }
     });
@@ -245,7 +245,7 @@ describe("DuckDB PIVOT (DenchClaw Patterns)", () => {
       `);
       expect(result.ok).toBe(true);
       if (result.ok) {
-        const data = result.data as { columns: string[]; rows: any[][]; rowCount: number };
+        const data = result.data;
         expect(data.columns).toContain("rn");
         expect(data.rowCount).toBe(10);
       }
@@ -265,7 +265,7 @@ describe("DuckDB PIVOT (DenchClaw Patterns)", () => {
       `);
       expect(result.ok).toBe(true);
       if (result.ok) {
-        const data = result.data as { columns: string[]; rows: any[][]; rowCount: number };
+        const data = result.data;
         expect(data.columns).toContain("field_name");
         expect(data.columns).toContain("field_value");
         // Each of 10 entries has up to 4 fields (some NULL Phone values may be excluded by UNPIVOT)
