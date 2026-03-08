@@ -225,6 +225,18 @@ export class MockServiceContext implements IServiceContext {
           typeof mockResponse.body === "string"
             ? mockResponse.body
             : JSON.stringify(mockResponse.body),
+        arrayBuffer: async () => {
+          const text = typeof mockResponse.body === "string"
+            ? mockResponse.body
+            : JSON.stringify(mockResponse.body);
+          return new TextEncoder().encode(text).buffer;
+        },
+        blob: async () => {
+          const text = typeof mockResponse.body === "string"
+            ? mockResponse.body
+            : JSON.stringify(mockResponse.body);
+          return new Blob([text]);
+        },
       };
     };
   }

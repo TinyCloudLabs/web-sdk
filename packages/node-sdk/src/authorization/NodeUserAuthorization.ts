@@ -149,6 +149,17 @@ export class NodeUserAuthorization implements IUserAuthorization {
           "tinycloud.sql/export",
         ],
       },
+      duckdb: {
+        "": [
+          "tinycloud.duckdb/read",
+          "tinycloud.duckdb/write",
+          "tinycloud.duckdb/admin",
+          "tinycloud.duckdb/describe",
+          "tinycloud.duckdb/export",
+          "tinycloud.duckdb/import",
+          "tinycloud.duckdb/execute",
+        ],
+      },
       capabilities: {
         "": ["tinycloud.capabilities/read"],
       },
