@@ -1,9 +1,10 @@
 import { Command } from "commander";
 import { ProfileManager } from "../config/profiles.js";
-import { outputJson } from "../output/formatter.js";
+import { outputJson, shouldOutputJson, formatField } from "../output/formatter.js";
 import { handleError, CLIError } from "../output/errors.js";
 import { ExitCode } from "../config/constants.js";
 import { startAuthFlow } from "../auth/browser-auth.js";
+import { theme } from "../output/theme.js";
 
 export function registerAuthCommand(program: Command): void {
   const auth = program.command("auth").description("Authentication management");
@@ -90,15 +91,28 @@ export function registerAuthCommand(program: Command): void {
           profile = null;
         }
 
-        outputJson({
-          authenticated: session !== null,
-          did: profile?.did ?? null,
-          primaryDid: profile?.primaryDid ?? null,
-          spaceId: profile?.spaceId ?? null,
-          host: ctx.host,
-          profile: ctx.profile,
-          hasKey: hasKey !== null,
-        });
+        const authenticated = session !== null;
+
+        if (shouldOutputJson()) {
+          outputJson({
+            authenticated,
+            did: profile?.did ?? null,
+            primaryDid: profile?.primaryDid ?? null,
+            spaceId: profile?.spaceId ?? null,
+            host: ctx.host,
+            profile: ctx.profile,
+            hasKey: hasKey !== null,
+          });
+        } else {
+          process.stdout.write(theme.heading("Authentication Status") + "\n");
+          process.stdout.write(formatField("Profile", ctx.profile) + "\n");
+          process.stdout.write(formatField("Authenticated", authenticated) + "\n");
+          process.stdout.write(formatField("Host", ctx.host) + "\n");
+          process.stdout.write(formatField("DID", profile?.did ?? null) + "\n");
+          process.stdout.write(formatField("Primary DID", profile?.primaryDid ?? null) + "\n");
+          process.stdout.write(formatField("Space ID", profile?.spaceId ?? null) + "\n");
+          process.stdout.write(formatField("Has Key", hasKey !== null) + "\n");
+        }
       } catch (error) {
         handleError(error);
       }
@@ -114,15 +128,26 @@ export function registerAuthCommand(program: Command): void {
 
         const profile = await ProfileManager.getProfile(ctx.profile);
         const session = await ProfileManager.getSession(ctx.profile);
+        const authenticated = session !== null;
 
-        outputJson({
-          profile: ctx.profile,
-          did: profile.did,
-          primaryDid: profile.primaryDid ?? null,
-          spaceId: profile.spaceId ?? null,
-          host: profile.host,
-          authenticated: session !== null,
-        });
+        if (shouldOutputJson()) {
+          outputJson({
+            profile: ctx.profile,
+            did: profile.did,
+            primaryDid: profile.primaryDid ?? null,
+            spaceId: profile.spaceId ?? null,
+            host: profile.host,
+            authenticated,
+          });
+        } else {
+          process.stdout.write(theme.heading("Identity") + "\n");
+          process.stdout.write(formatField("Profile", ctx.profile) + "\n");
+          process.stdout.write(formatField("DID", profile.did) + "\n");
+          process.stdout.write(formatField("Primary DID", profile.primaryDid ?? null) + "\n");
+          process.stdout.write(formatField("Space ID", profile.spaceId ?? null) + "\n");
+          process.stdout.write(formatField("Host", profile.host) + "\n");
+          process.stdout.write(formatField("Authenticated", authenticated) + "\n");
+        }
       } catch (error) {
         handleError(error);
       }
