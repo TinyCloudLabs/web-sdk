@@ -135,7 +135,7 @@ describe("DuckDB Concurrency", () => {
     let alice2: TinyCloudNode;
 
     beforeAll(async () => {
-      alice2 = createClient("alice-concurrent2", TEST_KEY);
+      alice2 = createClient("alice-concurrent", TEST_KEY);
       await alice2.signIn();
       console.log("[Setup] Alice2 signed in, DID:", alice2.did);
     });
