@@ -15,8 +15,7 @@ import {
   type FetchResponse,
 } from "../types";
 import { authRequiredError, wrapError } from "../errors";
-import type { IDuckDbService } from "./IDuckDbService";
-import type { IDuckDbDatabaseHandle } from "./IDuckDbService";
+import type { IDuckDbService, IDuckDbDatabaseHandle } from "./IDuckDbService";
 import { DuckDbDatabaseHandle } from "./DuckDbDatabaseHandle";
 import {
   type DuckDbServiceConfig,
@@ -162,14 +161,8 @@ export class DuckDbService extends BaseService implements IDuckDbService {
           return this.handleErrorResponse(response, "queryArrow");
         }
 
-        if (typeof response.arrayBuffer === "function") {
-          const buffer = await response.arrayBuffer();
-          return ok(buffer);
-        }
-        // Fallback: read as text and convert
-        const text = await response.text();
-        const encoder = new TextEncoder();
-        return ok(encoder.encode(text).buffer as ArrayBuffer);
+        const buffer = await response.arrayBuffer();
+        return ok(buffer);
       } catch (error) {
         return err(wrapError("duckdb", error));
       }
@@ -337,12 +330,8 @@ export class DuckDbService extends BaseService implements IDuckDbService {
           return this.handleErrorResponse(response, "export");
         }
 
-        if (typeof response.blob === "function") {
-          const blob = await response.blob();
-          return ok(blob);
-        }
-        const text = await response.text();
-        return ok(text as unknown as Blob);
+        const blob = await response.blob();
+        return ok(blob);
       } catch (error) {
         return err(wrapError("duckdb", error));
       }
