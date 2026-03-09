@@ -33,6 +33,20 @@ export class VersionCheckError extends Error {
   }
 }
 
+export class UnsupportedFeatureError extends Error {
+  name = "UnsupportedFeatureError" as const;
+  constructor(
+    public readonly feature: string,
+    public readonly host: string,
+    public readonly availableFeatures: string[]
+  ) {
+    super(
+      `Feature "${feature}" is not supported by the node at ${host}. ` +
+        `Available features: ${availableFeatures.join(", ") || "none"}.`
+    );
+  }
+}
+
 /**
  * Check that the SDK protocol version matches the node's protocol version.
  *
@@ -46,7 +60,7 @@ export async function checkNodeVersion(
   host: string,
   sdkProtocol: number,
   fetchFn: typeof globalThis.fetch = globalThis.fetch.bind(globalThis)
-): Promise<void> {
+): Promise<string[]> {
   let response: Response;
   try {
     response = await fetchFn(`${host}/version`, {
@@ -74,4 +88,6 @@ export async function checkNodeVersion(
       host
     );
   }
+
+  return data.features ?? [];
 }

@@ -63,6 +63,7 @@ import {
   DelegationResult,
   CreateDelegationWasmParams,
   CreateDelegationWasmResult,
+  UnsupportedFeatureError,
 } from "@tinycloud/sdk-core";
 import { NodeUserAuthorization } from "./authorization/NodeUserAuthorization";
 import { PrivateKeySigner } from "./signers/PrivateKeySigner";
@@ -155,6 +156,10 @@ export class TinyCloudNode {
   // These are initialized after signIn()
   private _delegationManager?: DelegationManager;
   private _spaceService?: SpaceService;
+
+  private get nodeFeatures(): string[] {
+    return this.auth?.nodeFeatures ?? [];
+  }
 
   /**
    * Create a new TinyCloudNode instance.
@@ -506,15 +511,20 @@ export class TinyCloudNode {
     this._kv.initialize(this._serviceContext);
     this._serviceContext.registerService('kv', this._kv);
 
-    // Create and register SQL service
-    this._sql = new SQLService({});
-    this._sql.initialize(this._serviceContext);
-    this._serviceContext.registerService('sql', this._sql);
+    // Create and register SQL service (if supported)
+    const features = this.nodeFeatures;
+    if (features.length === 0 || features.includes("sql")) {
+      this._sql = new SQLService({});
+      this._sql.initialize(this._serviceContext);
+      this._serviceContext.registerService('sql', this._sql);
+    }
 
-    // Create and register DuckDB service
-    this._duckdb = new DuckDbService({});
-    this._duckdb.initialize(this._serviceContext);
-    this._serviceContext.registerService('duckdb', this._duckdb);
+    // Create and register DuckDB service (if supported)
+    if (features.length === 0 || features.includes("duckdb")) {
+      this._duckdb = new DuckDbService({});
+      this._duckdb.initialize(this._serviceContext);
+      this._serviceContext.registerService('duckdb', this._duckdb);
+    }
 
     // Set session on context
     const serviceSession: ServiceSession = {
@@ -835,6 +845,10 @@ export class TinyCloudNode {
    */
   get sql(): ISQLService {
     if (!this._sql) {
+      const features = this.nodeFeatures;
+      if (features.length > 0 && !features.includes("sql")) {
+        throw new UnsupportedFeatureError("sql", this.config.host!, features);
+      }
       throw new Error("Not signed in. Call signIn() first.");
     }
     return this._sql;
@@ -845,6 +859,10 @@ export class TinyCloudNode {
    */
   get duckdb(): IDuckDbService {
     if (!this._duckdb) {
+      const features = this.nodeFeatures;
+      if (features.length > 0 && !features.includes("duckdb")) {
+        throw new UnsupportedFeatureError("duckdb", this.config.host!, features);
+      }
       throw new Error("Not signed in. Call signIn() first.");
     }
     return this._duckdb;

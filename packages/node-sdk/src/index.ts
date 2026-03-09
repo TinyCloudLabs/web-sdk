@@ -237,6 +237,7 @@ export type {
 export {
   ProtocolMismatchError,
   VersionCheckError,
+  UnsupportedFeatureError,
   checkNodeVersion,
 } from "@tinycloud/sdk-core";
 

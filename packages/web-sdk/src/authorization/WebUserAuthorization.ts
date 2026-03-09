@@ -185,6 +185,7 @@ export class WebUserAuthorization implements IUserAuthorization {
   private _tinyCloudSession?: TinyCloudSession;
   private _address?: string;
   private _chainId?: number;
+  private _nodeFeatures: string[] = [];
 
   constructor(config: WebUserAuthorizationConfig = {}) {
     // Set up configuration with defaults
@@ -363,6 +364,10 @@ export class WebUserAuthorization implements IUserAuthorization {
     return this._tinyCloudSession;
   }
 
+  get nodeFeatures(): string[] {
+    return this._nodeFeatures;
+  }
+
   /**
    * Add an extension to the authorization flow.
    */
@@ -514,8 +519,8 @@ export class WebUserAuthorization implements IUserAuthorization {
     this._session = clientSession;
     this._tinyCloudSession = tinycloudSession;
 
-    // Verify SDK-node protocol compatibility
-    await checkNodeVersion(this.tinycloudHosts[0], tinycloud.protocolVersion());
+    // Verify SDK-node protocol compatibility and discover supported features
+    this._nodeFeatures = await checkNodeVersion(this.tinycloudHosts[0], tinycloud.protocolVersion());
 
     // Ensure space exists (creates if needed when autoCreateSpace is true)
     await this.ensureSpaceExists();
@@ -744,8 +749,8 @@ export class WebUserAuthorization implements IUserAuthorization {
     this._address = address;
     this._chainId = chainId;
 
-    // Verify SDK-node protocol compatibility
-    await checkNodeVersion(this.tinycloudHosts[0], tinycloud.protocolVersion());
+    // Verify SDK-node protocol compatibility and discover supported features
+    this._nodeFeatures = await checkNodeVersion(this.tinycloudHosts[0], tinycloud.protocolVersion());
 
     // Ensure space exists
     await this.ensureSpaceExists();

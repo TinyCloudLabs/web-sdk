@@ -250,6 +250,7 @@ export {
 export {
   ProtocolMismatchError,
   VersionCheckError,
+  UnsupportedFeatureError,
   checkNodeVersion,
 } from "./version";
 
