@@ -2,8 +2,10 @@
 const path = require("path");
 const webpack = require("webpack");
 
+const modeIdx = process.argv.indexOf('--mode');
 const isProduction = process.env.NODE_ENV === "production" ||
-  process.argv.some(arg => arg.includes('--mode') && arg.includes('production'));
+  (modeIdx >= 0 && process.argv[modeIdx + 1] === 'production') ||
+  process.argv.includes('--mode=production');
 
 const rules = [
   {
@@ -99,24 +101,6 @@ const baseConfig = {
   plugins,
 };
 
-const esmConfig = {
-  ...baseConfig,
-  output: {
-    filename: "index.mjs",
-    path: path.resolve(__dirname, "dist"),
-    library: {
-      type: "module",
-    },
-    module: true,
-    environment: {
-      module: true,
-    },
-  },
-  experiments: {
-    outputModule: true,
-  },
-};
-
 const cjsConfig = {
   ...baseConfig,
   output: {
@@ -128,4 +112,4 @@ const cjsConfig = {
   },
 };
 
-module.exports = [esmConfig, cjsConfig];
+module.exports = cjsConfig;

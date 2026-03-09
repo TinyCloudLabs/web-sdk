@@ -1,4 +1,5 @@
 import { OpenKey, OpenKeyEIP1193Provider } from '@openkey/sdk';
+import { TinyCloudWeb } from '@tinycloud/web-sdk';
 import { OpenKeyVaultSigner } from './openkey-signer';
 
 const TINYCLOUD_HOST = 'https://node.tinycloud.xyz';
@@ -28,12 +29,11 @@ export async function connect(): Promise<ConnectResult> {
   };
 }
 
-export async function initAndUnlock(keyId: string): Promise<any> {
-  const { TinyCloudWeb } = await import('@tinycloud/web-sdk');
+export async function initAndUnlock(keyId: string, authResult: ConnectResult): Promise<any> {
   const ok = getOpenKey();
 
   // Create EIP-1193 provider from OpenKey
-  const provider = new OpenKeyEIP1193Provider(ok);
+  const provider = new OpenKeyEIP1193Provider(ok, authResult);
 
   // Initialize TinyCloudWeb
   tc = new TinyCloudWeb({
