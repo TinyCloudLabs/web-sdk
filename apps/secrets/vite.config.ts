@@ -3,8 +3,5 @@ import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  plugins: [tailwindcss(), sveltekit()],
-  ssr: {
-    external: ['@tinycloud/web-sdk', '@openkey/sdk']
-  }
+  plugins: [tailwindcss(), sveltekit()]
 });
