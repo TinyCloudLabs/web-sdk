@@ -1,5 +1,15 @@
 # @tinycloudlabs/web-sdk
 
+## 1.5.0
+
+### Minor Changes
+
+- ae6b69f: Ship dual ESM + CJS bundles for broad bundler compatibility. ESM consumers (Vite, SvelteKit) use `import`, CJS consumers (CRA, webpack, Node.js require()) use `require()`.
+
+### Patch Changes
+
+- @tinycloud/sdk-core@1.5.0
+
 ## 1.3.0
 
 ### Minor Changes
