@@ -20,7 +20,19 @@
   "scripts": {
     "build": "tsup",
     "clean": "rm -rf dist",
-    "dev": "tsup --watch"
+    "dev": "tsup --watch",
+    "test:e2e": "bun test test/e2e/",
+    "test:e2e:vars": "bun test test/e2e/vars.test.ts",
+    "test:e2e:secrets": "bun test test/e2e/secrets.test.ts",
+    "test:e2e:vault": "bun test test/e2e/vault.test.ts",
+    "test:e2e:node": "bun test test/e2e/node.test.ts",
+    "test:e2e:profile": "bun test test/e2e/profile.test.ts",
+    "test:e2e:doctor": "bun test test/e2e/doctor.test.ts",
+    "test:e2e:init": "bun test test/e2e/init.test.ts",
+    "test:e2e:delegation": "bun test test/e2e/delegation.test.ts",
+    "test:e2e:kv": "bun test test/e2e/kv.test.ts",
+    "test:e2e:errors": "bun test test/e2e/errors.test.ts",
+    "test:e2e:agent-secrets": "bun test test/e2e/agent-secrets.test.ts"
   },
   "dependencies": {
     "@tinycloud/node-sdk": "workspace:*",

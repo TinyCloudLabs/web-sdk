@@ -27,6 +27,7 @@ export async function createSDKInstance(
   const node = new TinyCloudNode({
     host: ctx.host,
     privateKey: options?.privateKey,
+    autoCreateSpace: true,
   });
 
   if (options?.privateKey) {

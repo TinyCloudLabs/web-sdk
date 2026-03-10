@@ -16,11 +16,13 @@ export function registerShareCommand(program: Command): void {
     .option("--actions <actions>", "Comma-separated actions", "kv/get")
     .option("--expiry <duration>", "Expiry duration", "7d")
     .option("--web-link", "Generate a web UI link for non-technical recipients")
+    .option("--private-key <hex>", "Ethereum private key (or set TC_PRIVATE_KEY)")
     .action(async (options, cmd) => {
       try {
         const globalOpts = cmd.optsWithGlobals();
         const ctx = await ProfileManager.resolveContext(globalOpts);
-        const node = await ensureAuthenticated(ctx);
+        const privateKey = options.privateKey || process.env.TC_PRIVATE_KEY;
+        const node = await ensureAuthenticated(ctx, { privateKey });
 
         const actions = options.actions.split(",").map((a: string) => {
           const trimmed = a.trim();
@@ -62,11 +64,13 @@ export function registerShareCommand(program: Command): void {
     .command("receive [data]")
     .description("Receive a share")
     .option("--stdin", "Read share data from stdin")
+    .option("--private-key <hex>", "Ethereum private key (or set TC_PRIVATE_KEY)")
     .action(async (data: string | undefined, options, cmd) => {
       try {
         const globalOpts = cmd.optsWithGlobals();
         const ctx = await ProfileManager.resolveContext(globalOpts);
-        const node = await ensureAuthenticated(ctx);
+        const privateKey = options.privateKey || process.env.TC_PRIVATE_KEY;
+        const node = await ensureAuthenticated(ctx, { privateKey });
 
         let shareData: string;
         if (options.stdin) {
@@ -100,11 +104,13 @@ export function registerShareCommand(program: Command): void {
   share
     .command("list")
     .description("List active shares")
-    .action(async (_options, cmd) => {
+    .option("--private-key <hex>", "Ethereum private key (or set TC_PRIVATE_KEY)")
+    .action(async (options, cmd) => {
       try {
         const globalOpts = cmd.optsWithGlobals();
         const ctx = await ProfileManager.resolveContext(globalOpts);
-        const node = await ensureAuthenticated(ctx);
+        const privateKey = options.privateKey || process.env.TC_PRIVATE_KEY;
+        const node = await ensureAuthenticated(ctx, { privateKey });
 
         const result = await node.sharing.list();
         if (!result.ok) {
@@ -120,11 +126,13 @@ export function registerShareCommand(program: Command): void {
   share
     .command("revoke <token>")
     .description("Revoke a share")
-    .action(async (token: string, _options, cmd) => {
+    .option("--private-key <hex>", "Ethereum private key (or set TC_PRIVATE_KEY)")
+    .action(async (token: string, options, cmd) => {
       try {
         const globalOpts = cmd.optsWithGlobals();
         const ctx = await ProfileManager.resolveContext(globalOpts);
-        const node = await ensureAuthenticated(ctx);
+        const privateKey = options.privateKey || process.env.TC_PRIVATE_KEY;
+        const node = await ensureAuthenticated(ctx, { privateKey });
 
         const result = await node.sharing.revoke(token);
         if (!result.ok) {

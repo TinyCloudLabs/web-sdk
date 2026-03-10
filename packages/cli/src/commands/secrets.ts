@@ -22,15 +22,24 @@ async function readStdin(): Promise<Buffer> {
 }
 
 /**
- * Resolve private key from CLI options or environment variable.
+ * Resolve and validate private key from CLI options or environment variable.
  */
 function resolvePrivateKey(options: { privateKey?: string }): string {
   const key = options.privateKey || process.env.TC_PRIVATE_KEY;
   if (!key) {
     throw new CLIError(
       "AUTH_REQUIRED",
-      "Private key required. Use --private-key <hex> or set TC_PRIVATE_KEY env var.",
+      "Private key required.",
       ExitCode.AUTH_REQUIRED,
+      "Use --private-key <hex> or set the TC_PRIVATE_KEY environment variable.",
+    );
+  }
+  if (!/^[0-9a-fA-F]{64}$/.test(key)) {
+    throw new CLIError(
+      "INVALID_INPUT",
+      "Invalid private key format.",
+      ExitCode.INVALID_INPUT,
+      "Private key must be a 64-character hex string (without 0x prefix).",
     );
   }
   return key;
@@ -46,7 +55,12 @@ async function unlockVault(
   const signer = new PrivateKeySigner(privateKey);
   const result = await node.vault.unlock(signer);
   if (result && !result.ok) {
-    throw new CLIError(result.error.code, result.error.message, ExitCode.ERROR);
+    const code = result.error.code;
+    if (code === "VAULT_LOCKED" || code === "UNLOCK_FAILED") {
+      throw new CLIError("VAULT_LOCKED", "Failed to unlock vault.", ExitCode.VAULT_LOCKED,
+        "Check that your private key is correct (--private-key or TC_PRIVATE_KEY).");
+    }
+    throw new CLIError(code, result.error.message, ExitCode.ERROR);
   }
 }
 

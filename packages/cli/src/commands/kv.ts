@@ -28,11 +28,13 @@ export function registerKvCommand(program: Command): void {
     .description("Get a value by key")
     .option("--raw", "Output raw value (no JSON wrapping)")
     .option("-o, --output <file>", "Write value to file")
+    .option("--private-key <hex>", "Ethereum private key (or set TC_PRIVATE_KEY)")
     .action(async (key: string, options, cmd) => {
       try {
         const globalOpts = cmd.optsWithGlobals();
         const ctx = await ProfileManager.resolveContext(globalOpts);
-        const node = await ensureAuthenticated(ctx);
+        const privateKey = options.privateKey || process.env.TC_PRIVATE_KEY;
+        const node = await ensureAuthenticated(ctx, { privateKey });
 
         const result = await withSpinner(`Getting ${key}...`, () => node.kv.get(key)) as any;
 
@@ -84,11 +86,13 @@ export function registerKvCommand(program: Command): void {
     .description("Set a value")
     .option("--file <path>", "Read value from file")
     .option("--stdin", "Read value from stdin")
+    .option("--private-key <hex>", "Ethereum private key (or set TC_PRIVATE_KEY)")
     .action(async (key: string, value: string | undefined, options, cmd) => {
       try {
         const globalOpts = cmd.optsWithGlobals();
         const ctx = await ProfileManager.resolveContext(globalOpts);
-        const node = await ensureAuthenticated(ctx);
+        const privateKey = options.privateKey || process.env.TC_PRIVATE_KEY;
+        const node = await ensureAuthenticated(ctx, { privateKey });
 
         // Determine value source
         let putValue: string | Buffer;
@@ -130,11 +134,13 @@ export function registerKvCommand(program: Command): void {
   kv
     .command("delete <key>")
     .description("Delete a key")
-    .action(async (key: string, _options, cmd) => {
+    .option("--private-key <hex>", "Ethereum private key (or set TC_PRIVATE_KEY)")
+    .action(async (key: string, options, cmd) => {
       try {
         const globalOpts = cmd.optsWithGlobals();
         const ctx = await ProfileManager.resolveContext(globalOpts);
-        const node = await ensureAuthenticated(ctx);
+        const privateKey = options.privateKey || process.env.TC_PRIVATE_KEY;
+        const node = await ensureAuthenticated(ctx, { privateKey });
 
         const result = await withSpinner(`Deleting ${key}...`, () => node.kv.delete(key)) as any;
 
@@ -153,11 +159,13 @@ export function registerKvCommand(program: Command): void {
     .command("list")
     .description("List keys")
     .option("--prefix <prefix>", "Filter by key prefix")
+    .option("--private-key <hex>", "Ethereum private key (or set TC_PRIVATE_KEY)")
     .action(async (options, cmd) => {
       try {
         const globalOpts = cmd.optsWithGlobals();
         const ctx = await ProfileManager.resolveContext(globalOpts);
-        const node = await ensureAuthenticated(ctx);
+        const privateKey = options.privateKey || process.env.TC_PRIVATE_KEY;
+        const node = await ensureAuthenticated(ctx, { privateKey });
 
         const listOptions = options.prefix ? { prefix: options.prefix } : undefined;
         const result = await withSpinner("Listing keys...", () => node.kv.list(listOptions)) as any;
@@ -196,11 +204,13 @@ export function registerKvCommand(program: Command): void {
   kv
     .command("head <key>")
     .description("Get metadata for a key (no body)")
-    .action(async (key: string, _options, cmd) => {
+    .option("--private-key <hex>", "Ethereum private key (or set TC_PRIVATE_KEY)")
+    .action(async (key: string, options, cmd) => {
       try {
         const globalOpts = cmd.optsWithGlobals();
         const ctx = await ProfileManager.resolveContext(globalOpts);
-        const node = await ensureAuthenticated(ctx);
+        const privateKey = options.privateKey || process.env.TC_PRIVATE_KEY;
+        const node = await ensureAuthenticated(ctx, { privateKey });
 
         const result = await withSpinner(`Checking ${key}...`, () => node.kv.head(key)) as any;
 

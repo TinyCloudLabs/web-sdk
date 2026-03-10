@@ -1,6 +1,7 @@
 import { Command } from "commander";
+import { serializeDelegation } from "@tinycloud/node-sdk";
 import { ProfileManager } from "../config/profiles.js";
-import { outputJson } from "../output/formatter.js";
+import { outputJson, withSpinner } from "../output/formatter.js";
 import { handleError, CLIError } from "../output/errors.js";
 import { ExitCode } from "../config/constants.js";
 import { ensureAuthenticated } from "../lib/sdk.js";
@@ -16,11 +17,13 @@ export function registerDelegationCommand(program: Command): void {
     .requiredOption("--path <path>", "KV path scope")
     .requiredOption("--actions <actions>", "Comma-separated actions (e.g., kv/get,kv/list)")
     .option("--expiry <duration>", "Expiry duration (e.g., 1h, 7d, ISO date)", "1h")
+    .option("--private-key <hex>", "Ethereum private key (or set TC_PRIVATE_KEY)")
     .action(async (options, cmd) => {
       try {
         const globalOpts = cmd.optsWithGlobals();
         const ctx = await ProfileManager.resolveContext(globalOpts);
-        const node = await ensureAuthenticated(ctx);
+        const privateKey = options.privateKey || process.env.TC_PRIVATE_KEY;
+        const node = await ensureAuthenticated(ctx, { privateKey });
 
         const actions = options.actions.split(",").map((a: string) => {
           const trimmed = a.trim();
@@ -28,24 +31,24 @@ export function registerDelegationCommand(program: Command): void {
         });
 
         const expiry = parseExpiry(options.expiry);
+        const expiryMs = expiry.getTime() - Date.now();
 
-        const result = await node.delegationManager.create({
+        const delegation = await withSpinner("Creating delegation...", () => node.createDelegation({
           delegateDID: options.to,
           path: options.path,
           actions,
-          expiry,
-        });
+          expiryMs,
+        }));
 
-        if (!result.ok) {
-          throw new CLIError(result.error.code, result.error.message, ExitCode.ERROR);
-        }
+        const serialized = serializeDelegation(delegation);
 
         outputJson({
-          cid: result.data.cid,
+          cid: delegation.cid,
           delegateDid: options.to,
           path: options.path,
           actions,
-          expiry: expiry.toISOString(),
+          expiry: delegation.expiry instanceof Date ? delegation.expiry.toISOString() : delegation.expiry,
+          serialized,
         });
       } catch (error) {
         handleError(error);
@@ -57,13 +60,15 @@ export function registerDelegationCommand(program: Command): void {
     .description("List delegations")
     .option("--granted", "Show only delegations I've granted")
     .option("--received", "Show only delegations I've received")
+    .option("--private-key <hex>", "Ethereum private key (or set TC_PRIVATE_KEY)")
     .action(async (options, cmd) => {
       try {
         const globalOpts = cmd.optsWithGlobals();
         const ctx = await ProfileManager.resolveContext(globalOpts);
-        const node = await ensureAuthenticated(ctx);
+        const privateKey = options.privateKey || process.env.TC_PRIVATE_KEY;
+        const node = await ensureAuthenticated(ctx, { privateKey });
 
-        const result = await node.delegationManager.list();
+        const result = await withSpinner("Listing delegations...", () => node.delegationManager.list());
         if (!result.ok) {
           throw new CLIError(result.error.code, result.error.message, ExitCode.ERROR);
         }
@@ -76,7 +81,7 @@ export function registerDelegationCommand(program: Command): void {
           delegations = delegations.filter((d: any) => d.delegatorDID === myDid);
         } else if (options.received) {
           const myDid = node.did;
-          delegations = delegations.filter((d: any) => d.delegateDID === myDid || d.delegateDID?.includes(myDid));
+          delegations = delegations.filter((d: any) => d.delegateDID === myDid);
         }
 
         outputJson({
@@ -98,13 +103,15 @@ export function registerDelegationCommand(program: Command): void {
   delegation
     .command("info <cid>")
     .description("Get delegation details")
-    .action(async (cid: string, _options, cmd) => {
+    .option("--private-key <hex>", "Ethereum private key (or set TC_PRIVATE_KEY)")
+    .action(async (cid: string, options, cmd) => {
       try {
         const globalOpts = cmd.optsWithGlobals();
         const ctx = await ProfileManager.resolveContext(globalOpts);
-        const node = await ensureAuthenticated(ctx);
+        const privateKey = options.privateKey || process.env.TC_PRIVATE_KEY;
+        const node = await ensureAuthenticated(ctx, { privateKey });
 
-        const result = await node.delegationManager.get(cid);
+        const result = await withSpinner("Fetching delegation...", () => node.delegationManager.get(cid));
         if (!result.ok) {
           throw new CLIError("NOT_FOUND", `Delegation "${cid}" not found`, ExitCode.NOT_FOUND);
         }
@@ -118,13 +125,15 @@ export function registerDelegationCommand(program: Command): void {
   delegation
     .command("revoke <cid>")
     .description("Revoke a delegation")
-    .action(async (cid: string, _options, cmd) => {
+    .option("--private-key <hex>", "Ethereum private key (or set TC_PRIVATE_KEY)")
+    .action(async (cid: string, options, cmd) => {
       try {
         const globalOpts = cmd.optsWithGlobals();
         const ctx = await ProfileManager.resolveContext(globalOpts);
-        const node = await ensureAuthenticated(ctx);
+        const privateKey = options.privateKey || process.env.TC_PRIVATE_KEY;
+        const node = await ensureAuthenticated(ctx, { privateKey });
 
-        const result = await node.delegationManager.revoke(cid);
+        const result = await withSpinner("Revoking delegation...", () => node.delegationManager.revoke(cid));
         if (!result.ok) {
           throw new CLIError(result.error.code, result.error.message, ExitCode.ERROR);
         }

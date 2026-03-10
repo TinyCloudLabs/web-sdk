@@ -18,4 +18,8 @@ export const ExitCode = {
   PERMISSION_DENIED: 5,
   NETWORK_ERROR: 6,
   NODE_ERROR: 7,
+  VAULT_LOCKED: 8,
+  TIMEOUT: 9,
+  INVALID_INPUT: 10,
+  CONFIG_ERROR: 11,
 } as const;

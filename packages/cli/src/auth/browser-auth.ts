@@ -1,5 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { isInteractive } from "../output/formatter.js";
+import { CLIError } from "../output/errors.js";
+import { ExitCode } from "../config/constants.js";
 import { createInterface } from "node:readline";
 
 const OPENKEY_BASE = "https://openkey.so";
@@ -26,13 +28,20 @@ export async function startAuthFlow(
 
   try {
     return await callbackFlow(did, options);
-  } catch {
+  } catch (err) {
+    // Don't swallow typed errors (e.g. TIMEOUT)
+    if (err instanceof CLIError) throw err;
     // Fallback to paste if browser can't open
     if (isInteractive()) {
       console.error("Could not open browser. Falling back to manual paste mode.");
       return pasteFlow(did, options);
     }
-    throw new Error("Cannot open browser in non-interactive mode. Use --paste flag.");
+    throw new CLIError(
+      "AUTH_REQUIRED",
+      "Cannot open browser in non-interactive mode.",
+      ExitCode.AUTH_REQUIRED,
+      "Use `tc auth login --paste` to authenticate manually.",
+    );
   }
 }
 
@@ -164,7 +173,14 @@ async function callbackFlow(did: string, options: { jwk?: object; host?: string 
 
     // Timeout after 5 minutes
     timeout = setTimeout(() => {
-      settle({ error: new Error("Authentication timed out after 5 minutes") });
+      settle({
+        error: new CLIError(
+          "TIMEOUT",
+          "Authentication timed out after 5 minutes.",
+          ExitCode.TIMEOUT,
+          "Try again, or use `tc auth login --paste` for manual mode.",
+        ),
+      });
     }, 5 * 60 * 1000);
   });
 }

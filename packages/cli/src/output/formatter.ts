@@ -5,14 +5,20 @@ export function outputJson(data: unknown): void {
   process.stdout.write(JSON.stringify(data, null, 2) + "\n");
 }
 
-export function outputError(code: string, message: string): void {
+export function outputError(code: string, message: string, exitCode?: number, suggestion?: string): void {
   if (isInteractive()) {
     process.stderr.write(
       `${theme.error("✗")} ${theme.label(code)}: ${message}\n`
     );
+    if (suggestion) {
+      process.stderr.write(`  ${theme.hint(suggestion)}\n`);
+    }
   } else {
+    const error: Record<string, unknown> = { code, message };
+    if (exitCode !== undefined) error.exitCode = exitCode;
+    if (suggestion) error.suggestion = suggestion;
     process.stderr.write(
-      JSON.stringify({ error: { code, message } }, null, 2) + "\n"
+      JSON.stringify({ error }, null, 2) + "\n"
     );
   }
 }

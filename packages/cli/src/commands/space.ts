@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import { ProfileManager } from "../config/profiles.js";
-import { outputJson, shouldOutputJson, formatTable } from "../output/formatter.js";
+import { outputJson, shouldOutputJson, formatTable, withSpinner } from "../output/formatter.js";
 import { handleError, CLIError } from "../output/errors.js";
 import { ExitCode } from "../config/constants.js";
 import { ensureAuthenticated } from "../lib/sdk.js";
@@ -12,13 +12,15 @@ export function registerSpaceCommand(program: Command): void {
   space
     .command("list")
     .description("List spaces")
-    .action(async (_options, cmd) => {
+    .option("--private-key <hex>", "Ethereum private key (or set TC_PRIVATE_KEY)")
+    .action(async (options, cmd) => {
       try {
         const globalOpts = cmd.optsWithGlobals();
         const ctx = await ProfileManager.resolveContext(globalOpts);
-        const node = await ensureAuthenticated(ctx);
+        const privateKey = options.privateKey || process.env.TC_PRIVATE_KEY;
+        const node = await ensureAuthenticated(ctx, { privateKey });
 
-        const result = await node.spaces.list();
+        const result = await withSpinner("Listing spaces...", () => node.spaces.list()) as any;
         if (!result.ok) {
           throw new CLIError(result.error.code, result.error.message, ExitCode.ERROR);
         }
@@ -45,13 +47,15 @@ export function registerSpaceCommand(program: Command): void {
   space
     .command("create <name>")
     .description("Create a new space")
-    .action(async (name: string, _options, cmd) => {
+    .option("--private-key <hex>", "Ethereum private key (or set TC_PRIVATE_KEY)")
+    .action(async (name: string, options, cmd) => {
       try {
         const globalOpts = cmd.optsWithGlobals();
         const ctx = await ProfileManager.resolveContext(globalOpts);
-        const node = await ensureAuthenticated(ctx);
+        const privateKey = options.privateKey || process.env.TC_PRIVATE_KEY;
+        const node = await ensureAuthenticated(ctx, { privateKey });
 
-        const result = await node.spaces.create(name);
+        const result = await withSpinner(`Creating space "${name}"...`, () => node.spaces.create(name)) as any;
         if (!result.ok) {
           throw new CLIError(result.error.code, result.error.message, ExitCode.ERROR);
         }
@@ -64,11 +68,13 @@ export function registerSpaceCommand(program: Command): void {
   space
     .command("info [space-id]")
     .description("Get space info")
-    .action(async (spaceId: string | undefined, _options, cmd) => {
+    .option("--private-key <hex>", "Ethereum private key (or set TC_PRIVATE_KEY)")
+    .action(async (spaceId: string | undefined, options, cmd) => {
       try {
         const globalOpts = cmd.optsWithGlobals();
         const ctx = await ProfileManager.resolveContext(globalOpts);
-        const node = await ensureAuthenticated(ctx);
+        const privateKey = options.privateKey || process.env.TC_PRIVATE_KEY;
+        const node = await ensureAuthenticated(ctx, { privateKey });
 
         const targetId = spaceId ?? node.spaceId;
         if (!targetId) {

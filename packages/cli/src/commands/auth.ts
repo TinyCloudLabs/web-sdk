@@ -21,7 +21,7 @@ export function registerAuthCommand(program: Command): void {
         const key = await ProfileManager.getKey(ctx.profile);
         if (!key) {
           throw new CLIError(
-            "NO_KEY",
+            "AUTH_REQUIRED",
             `No key found for profile "${ctx.profile}". Run \`tc init\` first.`,
             ExitCode.AUTH_REQUIRED,
           );

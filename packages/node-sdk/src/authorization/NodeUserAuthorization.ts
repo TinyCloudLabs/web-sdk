@@ -152,6 +152,22 @@ export class NodeUserAuthorization implements IUserAuthorization {
       capabilities: {
         "": ["tinycloud.capabilities/read"],
       },
+      delegation: {
+        "": [
+          "tinycloud.delegation/create",
+          "tinycloud.delegation/revoke",
+          "tinycloud.delegation/list",
+          "tinycloud.delegation/get",
+          "tinycloud.delegation/check",
+        ],
+      },
+      space: {
+        "": [
+          "tinycloud.space/list",
+          "tinycloud.space/create",
+          "tinycloud.space/info",
+        ],
+      },
     };
     this.sessionExpirationMs = config.sessionExpirationMs ?? 60 * 60 * 1000;
     this.autoCreateSpace = config.autoCreateSpace ?? false;
