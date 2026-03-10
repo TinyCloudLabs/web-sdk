@@ -113,7 +113,7 @@ impl TCWSessionManager {
     #[cfg(feature = "nodejs")]
     pub fn import_session_key_internal(
         &mut self,
-        key: tinycloud_sdk_rs::tinycloud_lib::ssi::jwk::JWK,
+        key: tinycloud_sdk_rs::tinycloud_auth::ssi::jwk::JWK,
         key_id: Option<String>,
         override_existing: bool,
     ) -> Result<String, String> {
@@ -126,7 +126,7 @@ impl TCWSessionManager {
     pub fn get_jwk(
         &self,
         key_id: Option<String>,
-    ) -> Result<tinycloud_sdk_rs::tinycloud_lib::ssi::jwk::JWK, String> {
+    ) -> Result<tinycloud_sdk_rs::tinycloud_auth::ssi::jwk::JWK, String> {
         let jwk_str = self.manager.jwk(key_id).ok_or("Key not found")?;
         serde_json::from_str(&jwk_str).map_err(|e| format!("Failed to parse JWK: {}", e))
     }

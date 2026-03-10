@@ -3,7 +3,7 @@ use std::{collections::HashMap, str::FromStr};
 use iri_string::types::UriString;
 use js_sys::JsString;
 use serde_json::Value;
-use tinycloud_sdk_rs::tinycloud_lib::{
+use tinycloud_sdk_rs::tinycloud_auth::{
     cacaos::siwe::{generate_nonce, Message, Version as SiweVersion},
     siwe_recap::{Ability, Capability},
     ssi::{dids::DIDKey, jwk::JWK},
