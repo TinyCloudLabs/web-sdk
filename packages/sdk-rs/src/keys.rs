@@ -8,7 +8,7 @@
 use wasm_bindgen::prelude::*;
 
 use crate::session::TCWSessionManager;
-use tinycloud_sdk_rs::tinycloud_lib::ssi::jwk::JWK;
+use tinycloud_sdk_rs::tinycloud_auth::ssi::jwk::JWK;
 
 /// Import a private key from a JWK JSON string.
 ///
