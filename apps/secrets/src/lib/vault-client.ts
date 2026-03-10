@@ -18,6 +18,7 @@ export function getOpenKey(): OpenKey {
 export interface ConnectResult {
   address: string;
   keyId: string;
+  keyType: 'MANAGED' | 'EXTERNAL';
 }
 
 export async function connect(): Promise<ConnectResult> {
@@ -26,6 +27,7 @@ export async function connect(): Promise<ConnectResult> {
   return {
     address: result.address,
     keyId: result.keyId,
+    keyType: result.keyType,
   };
 }
 
@@ -37,9 +39,9 @@ export async function initAndUnlock(keyId: string, authResult: ConnectResult): P
 
   // Initialize TinyCloudWeb
   tc = new TinyCloudWeb({
-    host: TINYCLOUD_HOST,
-    provider,
-    prefix: 'secrets',
+    providers: { web3: { driver: provider } },
+    tinycloudHosts: [TINYCLOUD_HOST],
+    spacePrefix: 'secrets',
     autoCreateSpace: true,
   });
 
