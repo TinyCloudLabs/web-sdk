@@ -36,16 +36,16 @@
     try {
       const result = await connect();
       auth = { status: 'connected', address: result.address, keyId: result.keyId };
-      await handleUnlock(result.keyId);
+      await handleUnlock(result.keyId, result);
     } catch (e: any) {
       auth = { status: 'error', error: e.message || 'Connection failed' };
     }
   }
 
-  async function handleUnlock(keyId: string) {
+  async function handleUnlock(keyId: string, authResult: { address: string; keyId: string }) {
     auth = { ...auth, status: 'unlocking' };
     try {
-      await initAndUnlock(keyId);
+      await initAndUnlock(keyId, authResult);
       auth = { ...auth, status: 'ready' };
       await Promise.all([loadSecrets(), loadVariables()]);
     } catch (e: any) {

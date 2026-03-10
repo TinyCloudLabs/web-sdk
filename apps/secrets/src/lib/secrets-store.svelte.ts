@@ -30,16 +30,19 @@ export async function loadSecrets(): Promise<void> {
       return;
     }
 
-    const items: Secret[] = [];
-    for (const key of result.data) {
-      const name = key.replace(/^secrets\//, '');
-      let createdAt = '';
-      const getResult = await tc.vault.get<{ value: string; createdAt: string }>(key);
-      if (getResult.ok && getResult.data?.value?.createdAt) {
-        createdAt = getResult.data.value.createdAt;
-      }
-      items.push({ name, createdAt });
-    }
+    const items = await Promise.all(
+      result.data.map(async (key) => {
+        // vault.list({ prefix }) strips the full prefix from returned keys,
+        // so key is already just the name (e.g. "api-key" not "secrets/api-key").
+        // vault.get() needs the full vault key including the prefix.
+        let createdAt = '';
+        const getResult = await tc.vault.get<{ value: string; createdAt: string }>(`secrets/${key}`);
+        if (getResult.ok && getResult.data?.value?.createdAt) {
+          createdAt = getResult.data.value.createdAt;
+        }
+        return { name: key, createdAt } satisfies Secret;
+      })
+    );
     secrets = items;
   } catch (e: any) {
     error = e.message || 'Failed to load secrets';
@@ -105,14 +108,16 @@ export async function loadVariables(): Promise<void> {
       return;
     }
 
-    const items: Variable[] = [];
-    for (const key of result.data.keys) {
-      const getResult = await kv.get<{ value: string; createdAt: string }>(key);
-      if (getResult.ok && getResult.data?.data) {
-        const data = getResult.data.data as { value: string; createdAt: string };
-        items.push({ name: key, value: data.value, createdAt: data.createdAt });
-      }
-    }
+    const items = (await Promise.all(
+      result.data.keys.map(async (key) => {
+        const getResult = await kv.get<{ value: string; createdAt: string }>(key);
+        if (getResult.ok && getResult.data?.data) {
+          const data = getResult.data.data as { value: string; createdAt: string };
+          return { name: key, value: data.value, createdAt: data.createdAt } satisfies Variable;
+        }
+        return null;
+      })
+    )).filter((v): v is Variable => v !== null);
     variables = items;
   } catch (e: any) {
     error = e.message || 'Failed to load variables';
