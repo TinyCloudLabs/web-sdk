@@ -73,6 +73,7 @@ jobs:
 
           REPOS=(
             "tinycloudlabs/OpenCredentials"
+            "tinycloudlabs/secret-manager"
           )
 
           for repo in "${REPOS[@]}"; do

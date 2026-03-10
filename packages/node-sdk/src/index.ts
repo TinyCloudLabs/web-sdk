@@ -117,6 +117,30 @@ export type {
   SQLActionType,
 } from "@tinycloud/sdk-core";
 
+// Re-export DuckDB service values
+export { DuckDbService, DuckDbDatabaseHandle, DuckDbAction } from "@tinycloud/sdk-core";
+
+// Re-export DuckDB service types
+export type {
+  IDuckDbService,
+  IDuckDbDatabaseHandle,
+  DuckDbServiceConfig,
+  DuckDbQueryOptions,
+  DuckDbExecuteOptions,
+  DuckDbBatchOptions,
+  DuckDbOptions,
+  DuckDbValue,
+  DuckDbStatement,
+  DuckDbQueryResponse,
+  DuckDbExecuteResponse,
+  DuckDbBatchResponse,
+  DuckDbActionType,
+  SchemaInfo,
+  TableInfo,
+  ColumnInfo,
+  ViewInfo,
+} from "@tinycloud/sdk-core";
+
 // Re-export Vault service values
 export { DataVaultService, VaultAction, VaultHeaders, createVaultCrypto } from "@tinycloud/sdk-core";
 
@@ -213,6 +237,7 @@ export type {
 export {
   ProtocolMismatchError,
   VersionCheckError,
+  UnsupportedFeatureError,
   checkNodeVersion,
 } from "@tinycloud/sdk-core";
 

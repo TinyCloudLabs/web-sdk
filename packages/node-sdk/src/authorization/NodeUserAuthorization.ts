@@ -116,6 +116,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
   private _tinyCloudSession?: TinyCloudSession;
   private _address?: string;
   private _chainId?: number;
+  private _nodeFeatures: string[] = [];
 
   constructor(config: NodeUserAuthorizationConfig) {
     // Initialize WASM panic hook once (improves error messages from WASM)
@@ -149,6 +150,17 @@ export class NodeUserAuthorization implements IUserAuthorization {
           "tinycloud.sql/export",
         ],
       },
+      duckdb: {
+        "": [
+          "tinycloud.duckdb/read",
+          "tinycloud.duckdb/write",
+          "tinycloud.duckdb/admin",
+          "tinycloud.duckdb/describe",
+          "tinycloud.duckdb/export",
+          "tinycloud.duckdb/import",
+          "tinycloud.duckdb/execute",
+        ],
+      },
       capabilities: {
         "": ["tinycloud.capabilities/read"],
       },
@@ -175,6 +187,10 @@ export class NodeUserAuthorization implements IUserAuthorization {
    */
   get tinyCloudSession(): TinyCloudSession | undefined {
     return this._tinyCloudSession;
+  }
+
+  get nodeFeatures(): string[] {
+    return this._nodeFeatures;
   }
 
   /**
@@ -445,8 +461,8 @@ export class NodeUserAuthorization implements IUserAuthorization {
     this._address = address;
     this._chainId = chainId;
 
-    // Verify SDK-node protocol compatibility
-    await checkNodeVersion(this.tinycloudHosts[0], protocolVersion());
+    // Verify SDK-node protocol compatibility and discover supported features
+    this._nodeFeatures = await checkNodeVersion(this.tinycloudHosts[0], protocolVersion());
 
     // Call extension hooks
     for (const ext of this.extensions) {
@@ -672,8 +688,8 @@ export class NodeUserAuthorization implements IUserAuthorization {
     this._address = address;
     this._chainId = chainId;
 
-    // Verify SDK-node protocol compatibility
-    await checkNodeVersion(this.tinycloudHosts[0], protocolVersion());
+    // Verify SDK-node protocol compatibility and discover supported features
+    this._nodeFeatures = await checkNodeVersion(this.tinycloudHosts[0], protocolVersion());
 
     // Call extension hooks
     for (const ext of this.extensions) {

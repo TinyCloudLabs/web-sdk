@@ -99,6 +99,27 @@ export {
   type ExecuteResponse,
   type BatchResponse,
   type SQLActionType,
+  // DuckDB Service
+  DuckDbService,
+  DuckDbDatabaseHandle,
+  DuckDbAction,
+  type IDuckDbService,
+  type IDuckDbDatabaseHandle,
+  type DuckDbServiceConfig,
+  type DuckDbQueryOptions,
+  type DuckDbExecuteOptions,
+  type DuckDbBatchOptions,
+  type DuckDbOptions,
+  type DuckDbValue,
+  type DuckDbStatement,
+  type DuckDbQueryResponse,
+  type DuckDbExecuteResponse,
+  type DuckDbBatchResponse,
+  type DuckDbActionType,
+  type SchemaInfo,
+  type TableInfo,
+  type ColumnInfo,
+  type ViewInfo,
   // Vault Service
   DataVaultService,
   VaultAction,
@@ -229,6 +250,7 @@ export {
 export {
   ProtocolMismatchError,
   VersionCheckError,
+  UnsupportedFeatureError,
   checkNodeVersion,
 } from "./version";
 
