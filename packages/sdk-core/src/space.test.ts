@@ -85,8 +85,10 @@ describe("activateSessionWithHost", () => {
 
   it("falls back to statusText when body read fails on error response", async () => {
     const response = new Response(null, { status: 502, statusText: "Bad Gateway" });
-    // Override text() to reject
-    response.text = () => Promise.reject(new Error("body stream already read"));
+    // Override text() to reject — use defineProperty since text is read-only
+    Object.defineProperty(response, "text", {
+      value: () => Promise.reject(new Error("body stream already read")),
+    });
     (globalThis.fetch as any).mockResolvedValueOnce(response);
 
     const result = await activateSessionWithHost(TEST_HOST, TEST_DELEGATION_HEADER);
