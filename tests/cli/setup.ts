@@ -18,7 +18,7 @@ export async function checkServerHealth(): Promise<void> {
     const res = await fetch(`${SERVER_URL}/version`);
     if (!res.ok) throw new Error(`Server returned ${res.status}`);
     const info = await res.json();
-    console.log(`[Server] Connected to tinycloud-node v${info.version}`);
+    console.log(`[Server] Connected to tinycloud-node v${info.version} at ${SERVER_URL}`);
   } catch (e) {
     throw new Error(
       `Cannot reach tinycloud-node at ${SERVER_URL}.\n` +
