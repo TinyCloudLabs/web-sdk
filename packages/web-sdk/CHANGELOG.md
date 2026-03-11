@@ -1,5 +1,16 @@
 # @tinycloudlabs/web-sdk
 
+## 1.6.0
+
+### Patch Changes
+
+- Updated dependencies [9454b78]
+- Updated dependencies [db50ae4]
+- Updated dependencies [bea6063]
+  - @tinycloud/sdk-core@1.6.0
+  - @tinycloud/web-sdk-wasm@1.6.0
+  - @tinycloud/web-core@1.6.0
+
 ## 1.5.0
 
 ### Minor Changes

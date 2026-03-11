@@ -1,5 +1,20 @@
 # @tinycloudlabs/node-sdk
 
+## 1.6.0
+
+### Minor Changes
+
+- db50ae4: Add DuckDB service to the TypeScript SDK. Provides `tc.duckdb` for querying and managing DuckDB databases on TinyCloud nodes, including `query()`, `queryArrow()`, `execute()`, `batch()`, `describe()`, `export()`, and `import()` operations. Named database handles via `tc.duckdb.database()`. SDK services are now conditionally initialized based on node feature detection — accessing an unsupported service throws `UnsupportedFeatureError`.
+
+### Patch Changes
+
+- Updated dependencies [9454b78]
+- Updated dependencies [db50ae4]
+- Updated dependencies [bea6063]
+  - @tinycloud/sdk-core@1.6.0
+  - @tinycloud/node-sdk-wasm@1.6.0
+  - @tinycloud/web-core@1.6.0
+
 ## 1.5.0
 
 ### Patch Changes

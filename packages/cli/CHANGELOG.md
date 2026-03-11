@@ -1,5 +1,18 @@
 # @tinycloud/cli
 
+## 0.3.0
+
+### Minor Changes
+
+- 153e9bb: Add `tc sql` and `tc duckdb` command groups to the CLI. SQL commands support `query`, `execute`, and `export`. DuckDB commands support `query`, `execute`, `describe`, `export`, and `import`. Both command groups accept `--db` for named databases and `--params` for bind parameters.
+
+### Patch Changes
+
+- Updated dependencies [db50ae4]
+- Updated dependencies [bea6063]
+  - @tinycloud/node-sdk@1.6.0
+  - @tinycloud/node-sdk-wasm@1.6.0
+
 ## 0.2.0
 
 ### Minor Changes

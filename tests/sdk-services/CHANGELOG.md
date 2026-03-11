@@ -1,5 +1,12 @@
 # @tinycloudlabs/sdk-services-test
 
+## 5.0.0
+
+### Patch Changes
+
+- Updated dependencies [db50ae4]
+  - @tinycloud/sdk-services@1.6.0
+
 ## 4.0.0
 
 ### Patch Changes
