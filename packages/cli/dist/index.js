@@ -23,13 +23,49 @@ var ExitCode = {
 
 // src/output/formatter.ts
 import ora from "ora";
+
+// src/output/theme.ts
+import chalk from "chalk";
+var TC_PALETTE = {
+  primary: "#4473b9",
+  accent: "#5b9bd5",
+  success: "#2fba6a",
+  warn: "#e8a838",
+  error: "#d94040",
+  muted: "#808080",
+  dim: "#5a5a5a"
+};
+var theme = {
+  primary: chalk.hex(TC_PALETTE.primary),
+  accent: chalk.hex(TC_PALETTE.accent),
+  success: chalk.hex(TC_PALETTE.success),
+  warn: chalk.hex(TC_PALETTE.warn),
+  error: chalk.hex(TC_PALETTE.error),
+  muted: chalk.hex(TC_PALETTE.muted),
+  dim: chalk.hex(TC_PALETTE.dim),
+  heading: chalk.bold.hex(TC_PALETTE.primary),
+  command: chalk.hex(TC_PALETTE.accent),
+  brand: chalk.bold.hex(TC_PALETTE.primary),
+  label: chalk.bold,
+  value: chalk.white,
+  hint: chalk.italic.hex(TC_PALETTE.muted)
+};
+
+// src/output/formatter.ts
 function outputJson(data) {
   process.stdout.write(JSON.stringify(data, null, 2) + "\n");
 }
 function outputError(code, message) {
-  process.stderr.write(
-    JSON.stringify({ error: { code, message } }, null, 2) + "\n"
-  );
+  if (isInteractive()) {
+    process.stderr.write(
+      `${theme.error("\u2717")} ${theme.label(code)}: ${message}
+`
+    );
+  } else {
+    process.stderr.write(
+      JSON.stringify({ error: { code, message } }, null, 2) + "\n"
+    );
+  }
 }
 function isInteractive() {
   return Boolean(process.stdout.isTTY);
@@ -41,12 +77,55 @@ async function withSpinner(label, fn) {
   const spinner = ora(label).start();
   try {
     const result = await fn();
-    spinner.succeed();
+    spinner.succeed(label);
     return result;
   } catch (error) {
-    spinner.fail();
+    spinner.fail(label);
     throw error;
   }
+}
+function shouldOutputJson() {
+  return !isInteractive() || process.argv.includes("--json");
+}
+function formatField(label, value) {
+  if (value === null || value === void 0) return `  ${theme.label(label + ":")} ${theme.muted("\u2014")}`;
+  if (typeof value === "boolean") {
+    return `  ${theme.label(label + ":")} ${value ? theme.success("yes") : theme.muted("no")}`;
+  }
+  return `  ${theme.label(label + ":")} ${theme.value(String(value))}`;
+}
+function formatTable(headers, rows) {
+  const widths = headers.map(
+    (h, i) => Math.max(h.length, ...rows.map((r) => (r[i] || "").length))
+  );
+  const headerLine = headers.map((h, i) => theme.label(h.padEnd(widths[i]))).join("  ");
+  const separator = widths.map((w) => theme.dim("\u2500".repeat(w))).join("  ");
+  const dataLines = rows.map(
+    (row) => row.map((cell, i) => (cell || "").padEnd(widths[i])).join("  ")
+  );
+  return [headerLine, separator, ...dataLines].join("\n");
+}
+function formatCheck(ok, label, detail) {
+  const icon = ok === "warn" ? theme.warn("\u26A0") : ok ? theme.success("\u2713") : theme.error("\u2717");
+  const detailStr = detail ? ` ${theme.muted(`(${detail})`)}` : "";
+  return `${icon} ${label}${detailStr}`;
+}
+function formatSection(title) {
+  return `
+${theme.heading(title)}`;
+}
+function formatBytes(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+function formatTimeAgo(date) {
+  const d = typeof date === "string" ? new Date(date) : date;
+  const seconds = Math.floor((Date.now() - d.getTime()) / 1e3);
+  if (seconds < 60) return "just now";
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  return `${Math.floor(seconds / 86400)}d ago`;
 }
 
 // src/output/errors.ts
@@ -79,6 +158,97 @@ function handleError(error) {
   const cliError = wrapError(error);
   outputError(cliError.code, cliError.message);
   process.exit(cliError.exitCode);
+}
+
+// src/output/taglines.ts
+var HOLIDAY_TAGLINES = [
+  { month: 1, day: 1, range: 1, tagline: "New year, new keys, same cloud." },
+  { month: 2, day: 14, tagline: "We love your data as much as you do." },
+  { month: 3, day: 14, tagline: "3.14159 reasons to encrypt everything." },
+  { month: 5, day: 4, tagline: "May the fourth be with your keys." },
+  { month: 10, day: 31, tagline: "Nothing scarier than plaintext secrets." },
+  { month: 12, day: 25, range: 2, tagline: "Unwrap your data, not your keys." },
+  { month: 12, day: 31, tagline: "Encrypt your resolutions." }
+];
+var TAGLINES = [
+  // Professional
+  "Your data, your keys, your cloud.",
+  "Self-sovereign storage for the modern web.",
+  "The cloud you actually own.",
+  "Encrypted by default, decentralized by design.",
+  "Where your data answers only to you.",
+  "End-to-end encrypted. No exceptions.",
+  "Like S3 but you hold the keys.",
+  "Privacy isn't a feature. It's the architecture.",
+  "Sovereign storage, zero knowledge.",
+  "Your .env is safe here \u2014 we use real cryptography.",
+  // Playful / nerdy
+  "UCAN do anything.",
+  "Keys generated, delegations granted, data liberated.",
+  "Decentralized storage, centralized vibes.",
+  "Trust nobody, delegate everything.",
+  "sudo make me a sandwich, encrypted.",
+  "Have you tried turning your keys off and on again?",
+  "All your base are belong to you.",
+  "In UCAN we trust.",
+  "0 knowledge, 100% confidence.",
+  "Keeping secrets since 2024."
+];
+function getHolidayTagline() {
+  const now = /* @__PURE__ */ new Date();
+  const month = now.getMonth() + 1;
+  const day = now.getDate();
+  for (const h of HOLIDAY_TAGLINES) {
+    const range = h.range ?? 0;
+    if (h.month === month && Math.abs(day - h.day) <= range) {
+      return h.tagline;
+    }
+  }
+  return null;
+}
+function pickTagline() {
+  const holiday = getHolidayTagline();
+  if (holiday) return holiday;
+  return TAGLINES[Math.floor(Math.random() * TAGLINES.length)];
+}
+
+// src/output/banner.ts
+import { execSync } from "child_process";
+var bannerEmitted = false;
+function resolveCommitHash() {
+  try {
+    return execSync("git rev-parse --short HEAD", {
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "pipe"]
+    }).trim() || null;
+  } catch {
+    return null;
+  }
+}
+function formatBannerLine(version) {
+  const commit = resolveCommitHash();
+  const tagline = pickTagline();
+  const versionPart = `tc v${version}`;
+  const commitPart = commit ? ` (${commit})` : "";
+  const separator = " \u2014 ";
+  if (!isInteractive()) {
+    return `${versionPart}${commitPart}${separator}${tagline}`;
+  }
+  return [
+    theme.brand("\u2601\uFE0F  tc"),
+    " ",
+    theme.muted(`v${version}`),
+    commit ? theme.dim(` (${commit})`) : "",
+    theme.dim(separator),
+    theme.primary(tagline)
+  ].join("");
+}
+function emitBanner(version) {
+  if (bannerEmitted) return;
+  if (!isInteractive()) return;
+  if (process.env.TC_HIDE_BANNER === "1") return;
+  bannerEmitted = true;
+  process.stderr.write(formatBannerLine(version) + "\n\n");
 }
 
 // src/config/profiles.ts
@@ -344,8 +514,33 @@ function buildAuthUrl(did, options = {}) {
   return `${OPENKEY_BASE}/delegate?${params.toString()}`;
 }
 async function callbackFlow(did, options = {}) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve3, reject) => {
     let timeout;
+    let settled = false;
+    let rl;
+    function settle(result) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      server.close();
+      if (rl) {
+        rl.close();
+      }
+      if (result.data) {
+        resolve3(result.data);
+      } else {
+        reject(result.error);
+      }
+    }
+    function parsePasteInput(input) {
+      const trimmed = input.trim();
+      try {
+        return JSON.parse(trimmed);
+      } catch {
+        const decoded = Buffer.from(trimmed, "base64").toString("utf-8");
+        return JSON.parse(decoded);
+      }
+    }
     const server = createServer((req, res) => {
       if (req.method === "POST" && req.url === "/callback") {
         let body = "";
@@ -360,13 +555,11 @@ async function callbackFlow(did, options = {}) {
               "Access-Control-Allow-Origin": "*"
             });
             res.end(JSON.stringify({ success: true }));
-            clearTimeout(timeout);
-            server.close();
-            resolve(data);
+            settle({ data });
           } catch (err) {
             res.writeHead(400, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ error: "Invalid JSON" }));
-            reject(new Error("Invalid delegation data received"));
+            settle({ error: new Error("Invalid delegation data received") });
           }
         });
       } else if (req.method === "OPTIONS") {
@@ -384,7 +577,7 @@ async function callbackFlow(did, options = {}) {
     server.listen(0, "127.0.0.1", async () => {
       const addr = server.address();
       if (!addr || typeof addr === "string") {
-        reject(new Error("Failed to start callback server"));
+        settle({ error: new Error("Failed to start callback server") });
         return;
       }
       const port = addr.port;
@@ -401,10 +594,26 @@ async function callbackFlow(did, options = {}) {
         server.close();
         throw new Error("Failed to open browser");
       }
+      if (isInteractive()) {
+        console.error(`
+If the browser can't connect back, paste the delegation code here:`);
+        rl = createInterface({
+          input: process.stdin,
+          output: process.stderr
+        });
+        rl.on("line", (input) => {
+          if (settled) return;
+          try {
+            const data = parsePasteInput(input);
+            settle({ data });
+          } catch {
+            console.error("Invalid delegation code. Expected JSON or base64-encoded JSON. Try again:");
+          }
+        });
+      }
     });
     timeout = setTimeout(() => {
-      server.close();
-      reject(new Error("Authentication timed out after 5 minutes"));
+      settle({ error: new Error("Authentication timed out after 5 minutes") });
     }, 5 * 60 * 1e3);
   });
 }
@@ -419,17 +628,17 @@ Open this URL in a browser to authenticate:
     input: process.stdin,
     output: process.stderr
   });
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve3, reject) => {
     rl.question("Paste delegation code: ", (input) => {
       rl.close();
       try {
         const data = JSON.parse(input.trim());
-        resolve(data);
+        resolve3(data);
       } catch {
         try {
           const decoded = Buffer.from(input.trim(), "base64").toString("utf-8");
           const data = JSON.parse(decoded);
-          resolve(data);
+          resolve3(data);
         } catch {
           reject(new Error("Invalid delegation code. Expected JSON or base64-encoded JSON."));
         }
@@ -564,15 +773,27 @@ function registerAuthCommand(program2) {
       } catch {
         profile = null;
       }
-      outputJson({
-        authenticated: session !== null,
-        did: profile?.did ?? null,
-        primaryDid: profile?.primaryDid ?? null,
-        spaceId: profile?.spaceId ?? null,
-        host: ctx.host,
-        profile: ctx.profile,
-        hasKey: hasKey !== null
-      });
+      const authenticated = session !== null;
+      if (shouldOutputJson()) {
+        outputJson({
+          authenticated,
+          did: profile?.did ?? null,
+          primaryDid: profile?.primaryDid ?? null,
+          spaceId: profile?.spaceId ?? null,
+          host: ctx.host,
+          profile: ctx.profile,
+          hasKey: hasKey !== null
+        });
+      } else {
+        process.stdout.write(theme.heading("Authentication Status") + "\n");
+        process.stdout.write(formatField("Profile", ctx.profile) + "\n");
+        process.stdout.write(formatField("Authenticated", authenticated) + "\n");
+        process.stdout.write(formatField("Host", ctx.host) + "\n");
+        process.stdout.write(formatField("DID", profile?.did ?? null) + "\n");
+        process.stdout.write(formatField("Primary DID", profile?.primaryDid ?? null) + "\n");
+        process.stdout.write(formatField("Space ID", profile?.spaceId ?? null) + "\n");
+        process.stdout.write(formatField("Has Key", hasKey !== null) + "\n");
+      }
     } catch (error) {
       handleError(error);
     }
@@ -583,14 +804,25 @@ function registerAuthCommand(program2) {
       const ctx = await ProfileManager.resolveContext(globalOpts);
       const profile = await ProfileManager.getProfile(ctx.profile);
       const session = await ProfileManager.getSession(ctx.profile);
-      outputJson({
-        profile: ctx.profile,
-        did: profile.did,
-        primaryDid: profile.primaryDid ?? null,
-        spaceId: profile.spaceId ?? null,
-        host: profile.host,
-        authenticated: session !== null
-      });
+      const authenticated = session !== null;
+      if (shouldOutputJson()) {
+        outputJson({
+          profile: ctx.profile,
+          did: profile.did,
+          primaryDid: profile.primaryDid ?? null,
+          spaceId: profile.spaceId ?? null,
+          host: profile.host,
+          authenticated
+        });
+      } else {
+        process.stdout.write(theme.heading("Identity") + "\n");
+        process.stdout.write(formatField("Profile", ctx.profile) + "\n");
+        process.stdout.write(formatField("DID", profile.did) + "\n");
+        process.stdout.write(formatField("Primary DID", profile.primaryDid ?? null) + "\n");
+        process.stdout.write(formatField("Space ID", profile.spaceId ?? null) + "\n");
+        process.stdout.write(formatField("Host", profile.host) + "\n");
+        process.stdout.write(formatField("Authenticated", authenticated) + "\n");
+      }
     } catch (error) {
       handleError(error);
     }
@@ -680,11 +912,16 @@ function registerKvCommand(program2) {
         process.stdout.write(content);
         return;
       }
-      outputJson({
-        key,
-        data,
-        metadata
-      });
+      if (shouldOutputJson()) {
+        outputJson({
+          key,
+          data,
+          metadata
+        });
+      } else {
+        const content = typeof data === "string" ? data : JSON.stringify(data);
+        process.stdout.write(content + "\n");
+      }
     } catch (error) {
       handleError(error);
     }
@@ -748,11 +985,24 @@ function registerKvCommand(program2) {
       }
       const rawData = result.data.data ?? result.data;
       const keyList = Array.isArray(rawData) ? rawData : rawData?.keys ?? [];
-      outputJson({
-        keys: keyList,
-        count: keyList.length,
-        prefix: options.prefix ?? null
-      });
+      if (shouldOutputJson()) {
+        outputJson({
+          keys: keyList,
+          count: keyList.length,
+          prefix: options.prefix ?? null
+        });
+      } else {
+        if (keyList.length === 0) {
+          process.stdout.write(theme.muted("No keys found.") + "\n");
+        } else {
+          const rows = keyList.map((e) => [
+            e.key || e,
+            e.contentLength ? formatBytes(e.contentLength) : "\u2014",
+            e.updatedAt ? formatTimeAgo(e.updatedAt) : "\u2014"
+          ]);
+          process.stdout.write(formatTable(["Key", "Size", "Updated"], rows) + "\n");
+        }
+      }
     } catch (error) {
       handleError(error);
     }
@@ -793,7 +1043,20 @@ function registerSpaceCommand(program2) {
       if (!result.ok) {
         throw new CLIError(result.error.code, result.error.message, ExitCode.ERROR);
       }
-      outputJson({ spaces: result.data, count: result.data.length });
+      if (shouldOutputJson()) {
+        outputJson({ spaces: result.data, count: result.data.length });
+      } else {
+        if (result.data.length === 0) {
+          process.stdout.write(theme.muted("No spaces found.") + "\n");
+        } else {
+          const rows = result.data.map((s) => [
+            s.id || s.spaceId || "\u2014",
+            s.name || "\u2014",
+            s.owner || "\u2014"
+          ]);
+          process.stdout.write(formatTable(["Space ID", "Name", "Owner"], rows) + "\n");
+        }
+      }
     } catch (error) {
       handleError(error);
     }
@@ -1154,10 +1417,20 @@ function registerProfileCommand(program2) {
           }
         })
       );
-      outputJson({
-        profiles,
-        defaultProfile: config.defaultProfile
-      });
+      if (shouldOutputJson()) {
+        outputJson({
+          profiles,
+          defaultProfile: config.defaultProfile
+        });
+      } else {
+        for (const p of profiles) {
+          const marker = p.active ? theme.success("\u25CF ") : "  ";
+          const name = p.active ? theme.brand(p.name) : p.name;
+          const host = theme.muted(p.host || "no host");
+          process.stdout.write(`${marker}${name}  ${host}
+`);
+        }
+      }
     } catch (error) {
       handleError(error);
     }
@@ -1194,12 +1467,24 @@ function registerProfileCommand(program2) {
       const hasKey = await ProfileManager.getKey(profileName) !== null;
       const hasSession = await ProfileManager.getSession(profileName) !== null;
       const config = await ProfileManager.getConfig();
-      outputJson({
-        ...p,
-        hasKey,
-        hasSession,
-        isDefault: profileName === config.defaultProfile
-      });
+      const isDefault = profileName === config.defaultProfile;
+      if (shouldOutputJson()) {
+        outputJson({
+          ...p,
+          hasKey,
+          hasSession,
+          isDefault
+        });
+      } else {
+        process.stdout.write(`${theme.heading(p.name)}${isDefault ? theme.success(" (default)") : ""}
+`);
+        process.stdout.write(formatField("Host", p.host) + "\n");
+        process.stdout.write(formatField("DID", p.did) + "\n");
+        process.stdout.write(formatField("Space", p.spaceId || null) + "\n");
+        process.stdout.write(formatField("Key", hasKey) + "\n");
+        process.stdout.write(formatField("Session", hasSession) + "\n");
+        process.stdout.write(formatField("Created", p.createdAt) + "\n");
+      }
     } catch (error) {
       handleError(error);
     }
@@ -1220,8 +1505,8 @@ function registerProfileCommand(program2) {
     try {
       if (isInteractive()) {
         const rl = createInterface2({ input: process.stdin, output: process.stderr });
-        const answer = await new Promise((resolve) => {
-          rl.question(`Delete profile "${name}"? This cannot be undone. [y/N] `, resolve);
+        const answer = await new Promise((resolve3) => {
+          rl.question(`Delete profile "${name}"? This cannot be undone. [y/N] `, resolve3);
         });
         rl.close();
         if (answer.toLowerCase() !== "y") {
@@ -1540,9 +1825,694 @@ function registerVaultCommand(program2) {
   });
 }
 
+// src/commands/secrets.ts
+import { readFile as readFile4 } from "fs/promises";
+import { writeFile as writeFile4 } from "fs/promises";
+import { PrivateKeySigner as PrivateKeySigner2 } from "@tinycloud/node-sdk";
+var SECRETS_PREFIX = "secrets/";
+async function readStdin3() {
+  const chunks = [];
+  for await (const chunk of process.stdin) {
+    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+  }
+  return Buffer.concat(chunks);
+}
+function resolvePrivateKey2(options) {
+  const key = options.privateKey || process.env.TC_PRIVATE_KEY;
+  if (!key) {
+    throw new CLIError(
+      "AUTH_REQUIRED",
+      "Private key required. Use --private-key <hex> or set TC_PRIVATE_KEY env var.",
+      ExitCode.AUTH_REQUIRED
+    );
+  }
+  return key;
+}
+async function unlockVault2(node, privateKey) {
+  const signer = new PrivateKeySigner2(privateKey);
+  const result = await node.vault.unlock(signer);
+  if (result && !result.ok) {
+    throw new CLIError(result.error.code, result.error.message, ExitCode.ERROR);
+  }
+}
+function registerSecretsCommand(program2) {
+  const secrets = program2.command("secrets").description("Encrypted secrets management");
+  secrets.command("list").description("List secrets").option("--space <spaceId>", "Space to list secrets from (for delegated access)").option("--private-key <hex>", "Ethereum private key (or set TC_PRIVATE_KEY)").action(async (options, cmd) => {
+    try {
+      const globalOpts = cmd.optsWithGlobals();
+      const ctx = await ProfileManager.resolveContext(globalOpts);
+      const privateKey = resolvePrivateKey2(options);
+      const node = await ensureAuthenticated(ctx, { privateKey });
+      await withSpinner("Unlocking vault...", () => unlockVault2(node, privateKey));
+      if (options.space) {
+        throw new CLIError(
+          "NOT_IMPLEMENTED",
+          `Listing secrets from a delegated space (${options.space}) is not yet supported at the SDK level. The vault service currently operates on the space bound to the active session. SDK support for cross-space vault operations is planned.`,
+          ExitCode.ERROR
+        );
+      }
+      const result = await withSpinner("Listing secrets...", () => node.vault.list({ prefix: SECRETS_PREFIX }));
+      if (!result.ok) {
+        throw new CLIError(result.error.code, result.error.message, ExitCode.ERROR);
+      }
+      const keys = result.data.data ?? result.data;
+      const keyList = Array.isArray(keys) ? keys : [];
+      const secretNames = keyList.map(
+        (k) => typeof k === "string" && k.startsWith(SECRETS_PREFIX) ? k.slice(SECRETS_PREFIX.length) : k
+      );
+      outputJson({
+        secrets: secretNames,
+        count: secretNames.length,
+        ...options.space ? { space: options.space } : {}
+      });
+    } catch (error) {
+      handleError(error);
+    }
+  });
+  secrets.command("get <name>").description("Get a secret value").option("--raw", "Output raw value (no JSON wrapping)").option("-o, --output <file>", "Write value to file").option("--private-key <hex>", "Ethereum private key (or set TC_PRIVATE_KEY)").action(async (name, options, cmd) => {
+    try {
+      const globalOpts = cmd.optsWithGlobals();
+      const ctx = await ProfileManager.resolveContext(globalOpts);
+      const privateKey = resolvePrivateKey2(options);
+      const node = await ensureAuthenticated(ctx, { privateKey });
+      await withSpinner("Unlocking vault...", () => unlockVault2(node, privateKey));
+      const vaultKey = `${SECRETS_PREFIX}${name}`;
+      const result = await withSpinner(`Getting secret ${name}...`, () => node.vault.get(vaultKey));
+      if (!result.ok) {
+        if (result.error.code === "NOT_FOUND") {
+          throw new CLIError("NOT_FOUND", `Secret "${name}" not found`, ExitCode.NOT_FOUND);
+        }
+        throw new CLIError(result.error.code, result.error.message, ExitCode.ERROR);
+      }
+      const data = result.data.data ?? result.data;
+      let value;
+      if (typeof data === "string") {
+        try {
+          const parsed = JSON.parse(data);
+          value = parsed.value;
+        } catch {
+          value = data;
+        }
+      } else if (data instanceof Uint8Array) {
+        try {
+          const parsed = JSON.parse(Buffer.from(data).toString("utf-8"));
+          value = parsed.value;
+        } catch {
+          value = Buffer.from(data).toString("utf-8");
+        }
+      } else {
+        value = data.value ?? data;
+      }
+      if (options.output) {
+        await writeFile4(options.output, value);
+        outputJson({ name, written: options.output });
+        return;
+      }
+      if (options.raw) {
+        process.stdout.write(value);
+        return;
+      }
+      outputJson({ name, value });
+    } catch (error) {
+      handleError(error);
+    }
+  });
+  secrets.command("put <name> [value]").description("Store a secret").option("--file <path>", "Read value from file").option("--stdin", "Read value from stdin").option("--private-key <hex>", "Ethereum private key (or set TC_PRIVATE_KEY)").action(async (name, value, options, cmd) => {
+    try {
+      const globalOpts = cmd.optsWithGlobals();
+      const ctx = await ProfileManager.resolveContext(globalOpts);
+      const privateKey = resolvePrivateKey2(options);
+      const node = await ensureAuthenticated(ctx, { privateKey });
+      await withSpinner("Unlocking vault...", () => unlockVault2(node, privateKey));
+      let secretValue;
+      const sources = [value !== void 0, !!options.file, !!options.stdin].filter(Boolean);
+      if (sources.length === 0) {
+        throw new CLIError("USAGE_ERROR", "Must provide a value, --file, or --stdin", ExitCode.USAGE_ERROR);
+      }
+      if (sources.length > 1) {
+        throw new CLIError("USAGE_ERROR", "Provide only one of: value argument, --file, or --stdin", ExitCode.USAGE_ERROR);
+      }
+      if (options.file) {
+        secretValue = await readFile4(options.file, "utf-8");
+      } else if (options.stdin) {
+        secretValue = (await readStdin3()).toString("utf-8");
+      } else {
+        secretValue = value;
+      }
+      const payload = JSON.stringify({
+        value: secretValue,
+        createdAt: (/* @__PURE__ */ new Date()).toISOString()
+      });
+      const vaultKey = `${SECRETS_PREFIX}${name}`;
+      const result = await withSpinner(`Storing secret ${name}...`, () => node.vault.put(vaultKey, payload));
+      if (!result.ok) {
+        throw new CLIError(result.error.code, result.error.message, ExitCode.ERROR);
+      }
+      outputJson({ name, written: true });
+    } catch (error) {
+      handleError(error);
+    }
+  });
+  secrets.command("delete <name>").description("Delete a secret").option("--private-key <hex>", "Ethereum private key (or set TC_PRIVATE_KEY)").action(async (name, options, cmd) => {
+    try {
+      const globalOpts = cmd.optsWithGlobals();
+      const ctx = await ProfileManager.resolveContext(globalOpts);
+      const privateKey = resolvePrivateKey2(options);
+      const node = await ensureAuthenticated(ctx, { privateKey });
+      await withSpinner("Unlocking vault...", () => unlockVault2(node, privateKey));
+      const vaultKey = `${SECRETS_PREFIX}${name}`;
+      const result = await withSpinner(`Deleting secret ${name}...`, () => node.vault.delete(vaultKey));
+      if (!result.ok) {
+        throw new CLIError(result.error.code, result.error.message, ExitCode.ERROR);
+      }
+      outputJson({ name, deleted: true });
+    } catch (error) {
+      handleError(error);
+    }
+  });
+  secrets.command("manage").description("Open the TinyCloud Secrets Manager in your browser").action(async () => {
+    try {
+      const open = (await import("open")).default;
+      await open("https://secrets.tinycloud.xyz");
+      outputJson({ opened: "https://secrets.tinycloud.xyz" });
+    } catch (error) {
+      handleError(error);
+    }
+  });
+}
+
+// src/commands/vars.ts
+import { readFile as readFile5 } from "fs/promises";
+import { writeFile as writeFile5 } from "fs/promises";
+var VARIABLES_PREFIX = "variables/";
+async function readStdin4() {
+  const chunks = [];
+  for await (const chunk of process.stdin) {
+    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+  }
+  return Buffer.concat(chunks);
+}
+function resolvePrivateKey3(options) {
+  const key = options.privateKey || process.env.TC_PRIVATE_KEY;
+  if (!key) {
+    throw new CLIError(
+      "AUTH_REQUIRED",
+      "Private key required. Use --private-key <hex> or set TC_PRIVATE_KEY env var.",
+      ExitCode.AUTH_REQUIRED
+    );
+  }
+  return key;
+}
+function registerVarsCommand(program2) {
+  const vars = program2.command("vars").description("Plaintext variable management");
+  vars.command("list").description("List variables").option("--private-key <hex>", "Ethereum private key (or set TC_PRIVATE_KEY)").action(async (options, cmd) => {
+    try {
+      const globalOpts = cmd.optsWithGlobals();
+      const ctx = await ProfileManager.resolveContext(globalOpts);
+      const privateKey = resolvePrivateKey3(options);
+      const node = await ensureAuthenticated(ctx, { privateKey });
+      const prefixedKv = node.kv.withPrefix(VARIABLES_PREFIX);
+      const result = await withSpinner("Listing variables...", () => prefixedKv.list());
+      if (!result.ok) {
+        throw new CLIError(result.error.code, result.error.message, ExitCode.ERROR);
+      }
+      const rawData = result.data.data ?? result.data;
+      const keyList = Array.isArray(rawData) ? rawData : rawData?.keys ?? [];
+      outputJson({
+        variables: keyList,
+        count: keyList.length
+      });
+    } catch (error) {
+      handleError(error);
+    }
+  });
+  vars.command("get <name>").description("Get a variable value").option("--raw", "Output raw value (no JSON wrapping)").option("-o, --output <file>", "Write value to file").option("--private-key <hex>", "Ethereum private key (or set TC_PRIVATE_KEY)").action(async (name, options, cmd) => {
+    try {
+      const globalOpts = cmd.optsWithGlobals();
+      const ctx = await ProfileManager.resolveContext(globalOpts);
+      const privateKey = resolvePrivateKey3(options);
+      const node = await ensureAuthenticated(ctx, { privateKey });
+      const prefixedKv = node.kv.withPrefix(VARIABLES_PREFIX);
+      const result = await withSpinner(`Getting variable ${name}...`, () => prefixedKv.get(name));
+      if (!result.ok) {
+        if (result.error.code === "KV_NOT_FOUND" || result.error.code === "NOT_FOUND") {
+          throw new CLIError("NOT_FOUND", `Variable "${name}" not found`, ExitCode.NOT_FOUND);
+        }
+        throw new CLIError(result.error.code, result.error.message, ExitCode.ERROR);
+      }
+      const data = result.data.data;
+      let value;
+      if (typeof data === "string") {
+        try {
+          const parsed = JSON.parse(data);
+          value = parsed.value;
+        } catch {
+          value = data;
+        }
+      } else if (data && typeof data === "object" && "value" in data) {
+        value = data.value;
+      } else {
+        value = typeof data === "string" ? data : JSON.stringify(data);
+      }
+      if (options.output) {
+        await writeFile5(options.output, value);
+        outputJson({ name, written: options.output });
+        return;
+      }
+      if (options.raw) {
+        process.stdout.write(value);
+        return;
+      }
+      outputJson({ name, value });
+    } catch (error) {
+      handleError(error);
+    }
+  });
+  vars.command("put <name> [value]").description("Set a variable").option("--file <path>", "Read value from file").option("--stdin", "Read value from stdin").option("--private-key <hex>", "Ethereum private key (or set TC_PRIVATE_KEY)").action(async (name, value, options, cmd) => {
+    try {
+      const globalOpts = cmd.optsWithGlobals();
+      const ctx = await ProfileManager.resolveContext(globalOpts);
+      const privateKey = resolvePrivateKey3(options);
+      const node = await ensureAuthenticated(ctx, { privateKey });
+      let varValue;
+      const sources = [value !== void 0, !!options.file, !!options.stdin].filter(Boolean);
+      if (sources.length === 0) {
+        throw new CLIError("USAGE_ERROR", "Must provide a value, --file, or --stdin", ExitCode.USAGE_ERROR);
+      }
+      if (sources.length > 1) {
+        throw new CLIError("USAGE_ERROR", "Provide only one of: value argument, --file, or --stdin", ExitCode.USAGE_ERROR);
+      }
+      if (options.file) {
+        varValue = await readFile5(options.file, "utf-8");
+      } else if (options.stdin) {
+        varValue = (await readStdin4()).toString("utf-8");
+      } else {
+        varValue = value;
+      }
+      const payload = {
+        value: varValue,
+        createdAt: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      const prefixedKv = node.kv.withPrefix(VARIABLES_PREFIX);
+      const result = await withSpinner(`Setting variable ${name}...`, () => prefixedKv.put(name, payload));
+      if (!result.ok) {
+        throw new CLIError(result.error.code, result.error.message, ExitCode.ERROR);
+      }
+      outputJson({ name, written: true });
+    } catch (error) {
+      handleError(error);
+    }
+  });
+  vars.command("delete <name>").description("Delete a variable").option("--private-key <hex>", "Ethereum private key (or set TC_PRIVATE_KEY)").action(async (name, options, cmd) => {
+    try {
+      const globalOpts = cmd.optsWithGlobals();
+      const ctx = await ProfileManager.resolveContext(globalOpts);
+      const privateKey = resolvePrivateKey3(options);
+      const node = await ensureAuthenticated(ctx, { privateKey });
+      const prefixedKv = node.kv.withPrefix(VARIABLES_PREFIX);
+      const result = await withSpinner(`Deleting variable ${name}...`, () => prefixedKv.delete(name));
+      if (!result.ok) {
+        throw new CLIError(result.error.code, result.error.message, ExitCode.ERROR);
+      }
+      outputJson({ name, deleted: true });
+    } catch (error) {
+      handleError(error);
+    }
+  });
+}
+
+// src/commands/doctor.ts
+function registerDoctorCommand(program2) {
+  program2.command("doctor").description("Run diagnostic checks").action(async (_options, cmd) => {
+    try {
+      const globalOpts = cmd.optsWithGlobals();
+      const checks = [];
+      const nodeVersion = process.version;
+      const nodeOk = parseInt(nodeVersion.slice(1)) >= 18;
+      checks.push({ name: "Node.js", ok: nodeOk, detail: nodeVersion });
+      let profileName = globalOpts.profile;
+      let profileOk = false;
+      let profileDetail = "";
+      try {
+        const config = await ProfileManager.getConfig();
+        profileName = profileName || config.defaultProfile;
+        const profile = await ProfileManager.getProfile(profileName);
+        profileOk = true;
+        profileDetail = `"${profileName}" at ${profile.host}`;
+      } catch {
+        profileDetail = profileName ? `"${profileName}" not found` : "no profiles configured";
+      }
+      checks.push({ name: "Profile", ok: profileOk, detail: profileDetail });
+      let keyOk = false;
+      let keyDetail = "";
+      if (profileOk && profileName) {
+        try {
+          const key = await ProfileManager.getKey(profileName);
+          keyOk = key !== null;
+          if (keyOk) {
+            const profile = await ProfileManager.getProfile(profileName);
+            keyDetail = profile.did ? `${profile.did.slice(0, 20)}...` : "key found";
+          } else {
+            keyDetail = "no key \u2014 run tc init";
+          }
+        } catch {
+          keyDetail = "error reading key";
+        }
+      } else {
+        keyDetail = "skipped (no profile)";
+      }
+      checks.push({ name: "Key", ok: keyOk, detail: keyDetail });
+      let sessionOk = false;
+      let sessionDetail = "";
+      if (profileOk && profileName) {
+        try {
+          const session = await ProfileManager.getSession(profileName);
+          sessionOk = session !== null;
+          sessionDetail = sessionOk ? "active" : "no session \u2014 run tc auth login";
+        } catch {
+          sessionDetail = "error reading session";
+        }
+      } else {
+        sessionDetail = "skipped (no profile)";
+      }
+      checks.push({ name: "Session", ok: sessionOk, detail: sessionDetail });
+      let nodeReachable = false;
+      let nodeDetail = "";
+      try {
+        const host = profileOk && profileName ? (await ProfileManager.getProfile(profileName)).host : globalOpts.host || DEFAULT_HOST;
+        const start = Date.now();
+        const response = await fetch(`${host}/health`);
+        const latency = Date.now() - start;
+        nodeReachable = response.ok;
+        nodeDetail = nodeReachable ? `${host} (${latency}ms)` : `${host} returned ${response.status}`;
+      } catch (e) {
+        nodeDetail = `unreachable \u2014 ${e instanceof Error ? e.message : "connection failed"}`;
+      }
+      checks.push({ name: "Node", ok: nodeReachable, detail: nodeDetail });
+      let spaceOk = false;
+      let spaceDetail = "";
+      if (sessionOk && profileName) {
+        try {
+          const profile = await ProfileManager.getProfile(profileName);
+          spaceOk = Boolean(profile.spaceId);
+          spaceDetail = spaceOk ? `${profile.spaceId.slice(0, 16)}...` : "no space \u2014 run tc space create";
+        } catch {
+          spaceDetail = "error checking space";
+        }
+      } else {
+        spaceDetail = "skipped (no session)";
+      }
+      checks.push({ name: "Space", ok: spaceOk, detail: spaceDetail });
+      const result = {
+        checks,
+        healthy: checks.every((c) => c.ok)
+      };
+      if (shouldOutputJson()) {
+        outputJson(result);
+      } else {
+        process.stderr.write(formatSection("Diagnostics") + "\n");
+        for (const check of checks) {
+          process.stdout.write(formatCheck(check.ok, check.name, check.detail) + "\n");
+        }
+        process.stdout.write("\n");
+        if (result.healthy) {
+          process.stdout.write(theme.success("All checks passed.") + "\n");
+        } else {
+          const failed = checks.filter((c) => !c.ok).length;
+          process.stdout.write(theme.warn(`${failed} check${failed > 1 ? "s" : ""} need attention.`) + "\n");
+        }
+      }
+    } catch (error) {
+      handleError(error);
+    }
+  });
+}
+
+// src/commands/sql.ts
+import { writeFile as writeFile6 } from "fs/promises";
+import { resolve } from "path";
+function registerSqlCommand(program2) {
+  const sql = program2.command("sql").description("SQL database operations");
+  sql.command("query <sql>").description("Run a SELECT query").option("--db <name>", "Database name", "default").option("--params <json>", "Bind parameters as JSON array").action(async (sqlStr, options, cmd) => {
+    try {
+      const globalOpts = cmd.optsWithGlobals();
+      const ctx = await ProfileManager.resolveContext(globalOpts);
+      const node = await ensureAuthenticated(ctx);
+      const params = options.params ? JSON.parse(options.params) : void 0;
+      const result = await withSpinner(
+        "Running query...",
+        () => node.sql.db(options.db).query(sqlStr, params)
+      );
+      if (!result.ok) {
+        throw new CLIError(result.error.code, result.error.message, ExitCode.ERROR);
+      }
+      const { columns, rows, rowCount } = result.data;
+      if (shouldOutputJson()) {
+        outputJson({ columns, rows, rowCount });
+      } else {
+        if (rows.length === 0) {
+          process.stdout.write(theme.muted("No rows returned.") + "\n");
+        } else {
+          const stringRows = rows.map(
+            (row) => row.map((v) => v === null ? "NULL" : String(v))
+          );
+          process.stdout.write(formatTable(columns, stringRows) + "\n");
+          process.stdout.write(theme.muted(`
+${rowCount} row${rowCount === 1 ? "" : "s"} returned`) + "\n");
+        }
+      }
+    } catch (error) {
+      handleError(error);
+    }
+  });
+  sql.command("execute <sql>").description("Run INSERT/UPDATE/DELETE/DDL statement").option("--db <name>", "Database name", "default").option("--params <json>", "Bind parameters as JSON array").action(async (sqlStr, options, cmd) => {
+    try {
+      const globalOpts = cmd.optsWithGlobals();
+      const ctx = await ProfileManager.resolveContext(globalOpts);
+      const node = await ensureAuthenticated(ctx);
+      const params = options.params ? JSON.parse(options.params) : void 0;
+      const result = await withSpinner(
+        "Executing statement...",
+        () => node.sql.db(options.db).execute(sqlStr, params)
+      );
+      if (!result.ok) {
+        throw new CLIError(result.error.code, result.error.message, ExitCode.ERROR);
+      }
+      outputJson({
+        changes: result.data.changes,
+        lastInsertRowId: result.data.lastInsertRowId
+      });
+    } catch (error) {
+      handleError(error);
+    }
+  });
+  sql.command("export").description("Export database as binary file").option("--db <name>", "Database name", "default").option("-o, --output <file>", "Output file path", "export.db").action(async (options, cmd) => {
+    try {
+      const globalOpts = cmd.optsWithGlobals();
+      const ctx = await ProfileManager.resolveContext(globalOpts);
+      const node = await ensureAuthenticated(ctx);
+      const result = await withSpinner(
+        "Exporting database...",
+        () => node.sql.db(options.db).export()
+      );
+      if (!result.ok) {
+        throw new CLIError(result.error.code, result.error.message, ExitCode.ERROR);
+      }
+      const blob = result.data;
+      const buffer = Buffer.from(await blob.arrayBuffer());
+      const outputPath = resolve(options.output);
+      await writeFile6(outputPath, buffer);
+      outputJson({
+        file: outputPath,
+        size: blob.size,
+        sizeHuman: formatBytes(blob.size)
+      });
+    } catch (error) {
+      handleError(error);
+    }
+  });
+}
+
+// src/commands/duckdb.ts
+import { readFile as readFile6, writeFile as writeFile7 } from "fs/promises";
+import { resolve as resolve2 } from "path";
+function registerDuckdbCommand(program2) {
+  const duckdb = program2.command("duckdb").description("DuckDB database operations");
+  duckdb.command("query <sql>").description("Run a SELECT query").option("--db <name>", "Database name", "default").option("--params <json>", "Bind parameters as JSON array").action(async (sqlStr, options, cmd) => {
+    try {
+      const globalOpts = cmd.optsWithGlobals();
+      const ctx = await ProfileManager.resolveContext(globalOpts);
+      const node = await ensureAuthenticated(ctx);
+      const params = options.params ? JSON.parse(options.params) : void 0;
+      const result = await withSpinner(
+        "Running query...",
+        () => node.duckdb.db(options.db).query(sqlStr, params)
+      );
+      if (!result.ok) {
+        throw new CLIError(result.error.code, result.error.message, ExitCode.ERROR);
+      }
+      const { columns, rows, rowCount } = result.data;
+      if (shouldOutputJson()) {
+        outputJson({ columns, rows, rowCount });
+      } else {
+        if (rows.length === 0) {
+          process.stdout.write(theme.muted("No rows returned.") + "\n");
+        } else {
+          const stringRows = rows.map(
+            (row) => row.map((v) => v === null ? "NULL" : String(v))
+          );
+          process.stdout.write(formatTable(columns, stringRows) + "\n");
+          process.stdout.write(theme.muted(`
+${rowCount} row${rowCount === 1 ? "" : "s"} returned`) + "\n");
+        }
+      }
+    } catch (error) {
+      handleError(error);
+    }
+  });
+  duckdb.command("execute <sql>").description("Run INSERT/UPDATE/DELETE/DDL statement").option("--db <name>", "Database name", "default").option("--params <json>", "Bind parameters as JSON array").action(async (sqlStr, options, cmd) => {
+    try {
+      const globalOpts = cmd.optsWithGlobals();
+      const ctx = await ProfileManager.resolveContext(globalOpts);
+      const node = await ensureAuthenticated(ctx);
+      const params = options.params ? JSON.parse(options.params) : void 0;
+      const result = await withSpinner(
+        "Executing statement...",
+        () => node.duckdb.db(options.db).execute(sqlStr, params)
+      );
+      if (!result.ok) {
+        throw new CLIError(result.error.code, result.error.message, ExitCode.ERROR);
+      }
+      outputJson({ changes: result.data.changes });
+    } catch (error) {
+      handleError(error);
+    }
+  });
+  duckdb.command("describe").description("Show database schema (tables, columns, views)").option("--db <name>", "Database name", "default").action(async (options, cmd) => {
+    try {
+      const globalOpts = cmd.optsWithGlobals();
+      const ctx = await ProfileManager.resolveContext(globalOpts);
+      const node = await ensureAuthenticated(ctx);
+      const result = await withSpinner(
+        "Describing schema...",
+        () => node.duckdb.db(options.db).describe()
+      );
+      if (!result.ok) {
+        throw new CLIError(result.error.code, result.error.message, ExitCode.ERROR);
+      }
+      const schema = result.data;
+      if (shouldOutputJson()) {
+        outputJson(schema);
+      } else {
+        const { tables, views } = schema;
+        if (tables.length === 0 && views.length === 0) {
+          process.stdout.write(theme.muted("No tables or views found.") + "\n");
+          return;
+        }
+        if (tables.length > 0) {
+          process.stdout.write(theme.label("Tables:") + "\n\n");
+          for (const table of tables) {
+            process.stdout.write(`  ${theme.value(table.name)}
+`);
+            const colRows = table.columns.map((col) => [
+              col.name,
+              col.type,
+              col.nullable ? "YES" : "NO"
+            ]);
+            const colTable = formatTable(["Column", "Type", "Nullable"], colRows);
+            process.stdout.write(colTable.split("\n").map((l) => "    " + l).join("\n") + "\n\n");
+          }
+        }
+        if (views.length > 0) {
+          process.stdout.write(theme.label("Views:") + "\n\n");
+          const viewRows = views.map((v) => [v.name, v.sql]);
+          process.stdout.write(formatTable(["View", "SQL"], viewRows) + "\n");
+        }
+      }
+    } catch (error) {
+      handleError(error);
+    }
+  });
+  duckdb.command("export").description("Export database as binary file").option("--db <name>", "Database name", "default").option("-o, --output <file>", "Output file path", "export.duckdb").action(async (options, cmd) => {
+    try {
+      const globalOpts = cmd.optsWithGlobals();
+      const ctx = await ProfileManager.resolveContext(globalOpts);
+      const node = await ensureAuthenticated(ctx);
+      const result = await withSpinner(
+        "Exporting database...",
+        () => node.duckdb.db(options.db).export()
+      );
+      if (!result.ok) {
+        throw new CLIError(result.error.code, result.error.message, ExitCode.ERROR);
+      }
+      const blob = result.data;
+      const buffer = Buffer.from(await blob.arrayBuffer());
+      const outputPath = resolve2(options.output);
+      await writeFile7(outputPath, buffer);
+      outputJson({
+        file: outputPath,
+        size: blob.size,
+        sizeHuman: formatBytes(blob.size)
+      });
+    } catch (error) {
+      handleError(error);
+    }
+  });
+  duckdb.command("import <file>").description("Import a DuckDB database file").option("--db <name>", "Database name", "default").action(async (file, options, cmd) => {
+    try {
+      const globalOpts = cmd.optsWithGlobals();
+      const ctx = await ProfileManager.resolveContext(globalOpts);
+      const node = await ensureAuthenticated(ctx);
+      const filePath = resolve2(file);
+      const bytes = new Uint8Array(await readFile6(filePath));
+      const result = await withSpinner(
+        "Importing database...",
+        () => node.duckdb.db(options.db).import(bytes)
+      );
+      if (!result.ok) {
+        throw new CLIError(result.error.code, result.error.message, ExitCode.ERROR);
+      }
+      outputJson({
+        file: filePath,
+        size: bytes.byteLength,
+        sizeHuman: formatBytes(bytes.byteLength),
+        imported: true
+      });
+    } catch (error) {
+      handleError(error);
+    }
+  });
+}
+
 // src/index.ts
 var program = new Command();
-program.name("tc").description("TinyCloud CLI").version("0.1.0").option("-p, --profile <name>", "Profile to use").option("-H, --host <url>", "TinyCloud node URL").option("-v, --verbose", "Enable verbose output").option("--no-cache", "Disable caching").option("-q, --quiet", "Suppress non-essential output");
+program.name("tc").description("TinyCloud CLI \u2014 self-sovereign storage from the terminal").version("0.1.0").option("-p, --profile <name>", "Profile to use").option("-H, --host <url>", "TinyCloud node URL").option("-v, --verbose", "Enable verbose output").option("--no-cache", "Disable caching").option("-q, --quiet", "Suppress non-essential output").option("--json", "Force JSON output");
+program.hook("preAction", async (thisCommand) => {
+  const opts = thisCommand.optsWithGlobals();
+  if (!opts.quiet) {
+    emitBanner("0.1.1");
+  }
+  const commandName = thisCommand.name();
+  const parentName = thisCommand.parent?.name();
+  const fullCommand = parentName && parentName !== "tc" ? `${parentName} ${commandName}` : commandName;
+  const skipGuard = ["tc", "init", "doctor", "completion", "help"].includes(commandName) || fullCommand === "profile create";
+  if (!skipGuard && !opts.quiet && isInteractive()) {
+    try {
+      const config = await ProfileManager.getConfig();
+      const profileName = opts.profile || config.defaultProfile;
+      const hasProfile = await ProfileManager.profileExists(profileName);
+      if (!hasProfile) {
+        process.stderr.write(theme.warn("\u26A0 No profile configured.") + " " + theme.muted("Run: tc init") + "\n\n");
+      } else {
+        const key = await ProfileManager.getKey(profileName);
+        if (!key) {
+          process.stderr.write(theme.warn("\u26A0 No key found.") + " " + theme.muted("Run: tc init") + "\n\n");
+        }
+      }
+    } catch {
+    }
+  }
+});
 registerInitCommand(program);
 registerAuthCommand(program);
 registerKvCommand(program);
@@ -1553,6 +2523,26 @@ registerNodeCommand(program);
 registerProfileCommand(program);
 registerCompletionCommand(program);
 registerVaultCommand(program);
+registerSecretsCommand(program);
+registerVarsCommand(program);
+registerDoctorCommand(program);
+registerSqlCommand(program);
+registerDuckdbCommand(program);
+program.addHelpText("afterAll", () => {
+  if (!process.stdout.isTTY) return "";
+  return `
+${theme.heading("Examples:")}
+  ${theme.command("tc init")}                              ${theme.muted("Set up a profile and generate keys")}
+  ${theme.command("tc auth login")}                        ${theme.muted("Authenticate via browser")}
+  ${theme.command('tc kv put greeting "Hello"')}           ${theme.muted("Store a value")}
+  ${theme.command("tc kv list")}                           ${theme.muted("List all keys")}
+  ${theme.command("tc delegation create --to did:pkh:...")}  ${theme.muted("Grant access to another user")}
+  ${theme.command("tc space list")}                        ${theme.muted("Show your spaces")}
+
+${theme.muted("Docs:")} ${theme.accent("https://docs.tinycloud.xyz/cli")}
+${theme.muted("Repo:")} ${theme.accent("https://github.com/tinycloudlabs/web-sdk")}
+`;
+});
 try {
   await program.parseAsync(process.argv);
 } catch (error) {
