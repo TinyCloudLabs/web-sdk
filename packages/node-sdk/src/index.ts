@@ -238,7 +238,7 @@ export {
   ProtocolMismatchError,
   VersionCheckError,
   UnsupportedFeatureError,
-  checkNodeVersion,
+  checkNodeInfo,
 } from "@tinycloud/sdk-core";
 
 // Re-export ServiceContext value for advanced usage

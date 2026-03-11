@@ -28,7 +28,7 @@ export class VersionCheckError extends Error {
     public readonly cause?: Error
   ) {
     super(
-      `Failed to check version at ${host}. Ensure the node is running v1.0.0+ and the /version endpoint is accessible.`
+      `Failed to fetch node info at ${host}. Ensure the node is running and the /info endpoint is accessible.`
     );
   }
 }
@@ -47,23 +47,19 @@ export class UnsupportedFeatureError extends Error {
   }
 }
 
-/**
- * Check that the SDK protocol version matches the node's protocol version.
- *
- * @param host - The TinyCloud node host URL
- * @param sdkProtocol - The SDK's protocol version (from WASM)
- * @param fetchFn - Fetch implementation (defaults to globalThis.fetch)
- * @throws VersionCheckError if the /version endpoint is unreachable
- * @throws ProtocolMismatchError if protocol versions don't match
- */
-export async function checkNodeVersion(
+export interface NodeInfo {
+  features: string[];
+  quotaUrl?: string;
+}
+
+export async function checkNodeInfo(
   host: string,
   sdkProtocol: number,
   fetchFn: typeof globalThis.fetch = globalThis.fetch.bind(globalThis)
-): Promise<string[]> {
+): Promise<NodeInfo> {
   let response: Response;
   try {
-    response = await fetchFn(`${host}/version`, {
+    response = await fetchFn(`${host}/info`, {
       signal: AbortSignal.timeout(5000),
     });
   } catch (err) {
@@ -78,6 +74,7 @@ export async function checkNodeVersion(
     protocol: number;
     version: string;
     features: string[];
+    quota_url?: string;
   };
 
   if (sdkProtocol !== data.protocol) {
@@ -89,5 +86,8 @@ export async function checkNodeVersion(
     );
   }
 
-  return data.features ?? [];
+  return {
+    features: data.features ?? [],
+    quotaUrl: data.quota_url,
+  };
 }

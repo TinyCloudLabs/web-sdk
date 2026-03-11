@@ -134,7 +134,7 @@ export {
   ProtocolMismatchError,
   VersionCheckError,
   UnsupportedFeatureError,
-  checkNodeVersion,
+  checkNodeInfo,
 } from '@tinycloud/sdk-core';
 
 // Re-export Vault service types from sdk-core

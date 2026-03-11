@@ -9,7 +9,7 @@ const TEST_KEY = process.env.TC_TEST_PRIVATE_KEY ?? DEFAULT_KEY;
 
 export async function checkServerHealth(): Promise<void> {
   try {
-    const res = await fetch(`${SERVER_URL}/version`);
+    const res = await fetch(`${SERVER_URL}/info`);
     if (!res.ok) throw new Error(`Server returned ${res.status}`);
     const info = await res.json();
     console.log(`[Server] Connected to tinycloud-node v${info.version}`);

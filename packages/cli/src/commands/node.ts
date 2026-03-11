@@ -41,7 +41,7 @@ export function registerNodeCommand(program: Command): void {
         const globalOpts = cmd.optsWithGlobals();
         const ctx = await ProfileManager.resolveContext(globalOpts);
 
-        const response = await fetch(`${ctx.host}/version`);
+        const response = await fetch(`${ctx.host}/info`);
         if (!response.ok) {
           throw new CLIError("NODE_ERROR", `Node returned ${response.status}`, ExitCode.NODE_ERROR);
         }
@@ -66,7 +66,7 @@ export function registerNodeCommand(program: Command): void {
         // Fetch health and version in parallel
         const [healthRes, versionRes] = await Promise.allSettled([
           fetch(`${ctx.host}/healthz`),
-          fetch(`${ctx.host}/version`),
+          fetch(`${ctx.host}/info`),
         ]);
 
         const latencyMs = Date.now() - start;

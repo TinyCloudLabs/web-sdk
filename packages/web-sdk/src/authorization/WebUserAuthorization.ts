@@ -30,7 +30,7 @@ import {
   fetchPeerId,
   submitHostDelegation,
   activateSessionWithHost,
-  checkNodeVersion,
+  checkNodeInfo,
   JWK,
 } from "@tinycloud/sdk-core";
 import { dispatchSDKEvent } from "../notifications/ErrorHandler";
@@ -520,7 +520,8 @@ export class WebUserAuthorization implements IUserAuthorization {
     this._tinyCloudSession = tinycloudSession;
 
     // Verify SDK-node protocol compatibility and discover supported features
-    this._nodeFeatures = await checkNodeVersion(this.tinycloudHosts[0], tinycloud.protocolVersion());
+    const nodeInfo = await checkNodeInfo(this.tinycloudHosts[0], tinycloud.protocolVersion());
+    this._nodeFeatures = nodeInfo.features;
 
     // Ensure space exists (creates if needed when autoCreateSpace is true)
     await this.ensureSpaceExists();
@@ -750,7 +751,8 @@ export class WebUserAuthorization implements IUserAuthorization {
     this._chainId = chainId;
 
     // Verify SDK-node protocol compatibility and discover supported features
-    this._nodeFeatures = await checkNodeVersion(this.tinycloudHosts[0], tinycloud.protocolVersion());
+    const nodeInfo = await checkNodeInfo(this.tinycloudHosts[0], tinycloud.protocolVersion());
+    this._nodeFeatures = nodeInfo.features;
 
     // Ensure space exists
     await this.ensureSpaceExists();

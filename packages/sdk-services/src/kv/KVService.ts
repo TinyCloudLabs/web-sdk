@@ -14,7 +14,12 @@ import {
   serviceError,
   FetchResponse,
 } from "../types";
-import { authRequiredError, wrapError } from "../errors";
+import {
+  authRequiredError,
+  wrapError,
+  storageQuotaExceededError,
+  storageLimitReachedError,
+} from "../errors";
 import { IKVService } from "./IKVService";
 import { PrefixedKVService, IPrefixedKVService } from "./PrefixedKVService";
 import {
@@ -77,6 +82,62 @@ export class KVService extends BaseService implements IKVService {
    */
   get config(): KVServiceConfig {
     return this._config;
+  }
+
+  // Parses "Used: X bytes, Limit: Y bytes" from tinycloud-node error responses
+  private parseQuotaInfo(
+    errorText: string
+  ): { usedBytes: number; limitBytes: number } | undefined {
+    const match = errorText.match(
+      /Used:\s*(\d+)\s*bytes,\s*Limit:\s*(\d+)\s*bytes/i
+    );
+    if (match) {
+      return {
+        usedBytes: parseInt(match[1], 10),
+        limitBytes: parseInt(match[2], 10),
+      };
+    }
+    return undefined;
+  }
+
+  private handleQuotaErrorResponse(
+    response: FetchResponse,
+    errorText: string,
+    key: string
+  ): Result<never> | undefined {
+    if (response.status === 402) {
+      const quotaInfo = this.parseQuotaInfo(errorText);
+      return err(
+        storageQuotaExceededError(
+          "kv",
+          `Storage quota exceeded for key "${key}": ${errorText}`,
+          {
+            status: response.status,
+            ...(quotaInfo
+              ? { usedBytes: quotaInfo.usedBytes, limitBytes: quotaInfo.limitBytes }
+              : {}),
+          }
+        )
+      );
+    }
+
+    if (response.status === 413) {
+      const quotaInfo = this.parseQuotaInfo(errorText);
+      return err(
+        storageLimitReachedError(
+          "kv",
+          `Storage limit reached for key "${key}": ${errorText}`,
+          {
+            status: response.status,
+            ...(quotaInfo
+              ? { usedBytes: quotaInfo.usedBytes, limitBytes: quotaInfo.limitBytes }
+              : {}),
+          }
+        )
+      );
+    }
+
+    return undefined;
   }
 
   /**
@@ -275,6 +336,17 @@ export class KVService extends BaseService implements IKVService {
 
         if (!response.ok) {
           const errorText = await response.text();
+
+          // Check for storage quota errors (402, 413)
+          const quotaError = this.handleQuotaErrorResponse(
+            response,
+            errorText,
+            key
+          );
+          if (quotaError) {
+            return quotaError;
+          }
+
           return err(
             serviceError(
               ErrorCodes.KV_WRITE_FAILED,

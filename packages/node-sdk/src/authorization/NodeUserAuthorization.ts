@@ -10,7 +10,7 @@ import {
   fetchPeerId,
   submitHostDelegation,
   activateSessionWithHost,
-  checkNodeVersion,
+  checkNodeInfo,
 } from "@tinycloud/sdk-core";
 import {
   TCWSessionManager as SessionManager,
@@ -462,7 +462,8 @@ export class NodeUserAuthorization implements IUserAuthorization {
     this._chainId = chainId;
 
     // Verify SDK-node protocol compatibility and discover supported features
-    this._nodeFeatures = await checkNodeVersion(this.tinycloudHosts[0], protocolVersion());
+    const nodeInfo = await checkNodeInfo(this.tinycloudHosts[0], protocolVersion());
+    this._nodeFeatures = nodeInfo.features;
 
     // Call extension hooks
     for (const ext of this.extensions) {
@@ -689,7 +690,8 @@ export class NodeUserAuthorization implements IUserAuthorization {
     this._chainId = chainId;
 
     // Verify SDK-node protocol compatibility and discover supported features
-    this._nodeFeatures = await checkNodeVersion(this.tinycloudHosts[0], protocolVersion());
+    const nodeInfo = await checkNodeInfo(this.tinycloudHosts[0], protocolVersion());
+    this._nodeFeatures = nodeInfo.features;
 
     // Call extension hooks
     for (const ext of this.extensions) {
