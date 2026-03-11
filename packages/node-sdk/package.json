@@ -24,7 +24,7 @@
   "scripts": {
     "build": "tsup",
     "clean": "rm -rf dist",
-    "test": "bun test"
+    "test": "echo 'Tests are in tests/node-sdk workspace'"
   },
   "dependencies": {
     "@tinycloud/sdk-core": "workspace:*",
