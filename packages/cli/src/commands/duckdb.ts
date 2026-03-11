@@ -122,7 +122,6 @@ export function registerDuckdbCommand(program: Command): void {
                 col.nullable ? "YES" : "NO",
               ]);
               const colTable = formatTable(["Column", "Type", "Nullable"], colRows);
-              // Indent the column table
               process.stdout.write(colTable.split("\n").map((l: string) => "    " + l).join("\n") + "\n\n");
             }
           }

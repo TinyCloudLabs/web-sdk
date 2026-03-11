@@ -47,17 +47,14 @@ export async function setupCliProfile(): Promise<TinyCloudNode> {
   const session = node.session!;
   const profileDir = join(PROFILES_DIR, PROFILE_NAME);
 
-  // Ensure directories exist
   await mkdir(CONFIG_DIR, { recursive: true });
   await mkdir(profileDir, { recursive: true });
 
-  // Write config.json (set default profile)
   await writeFile(
     join(CONFIG_DIR, "config.json"),
     JSON.stringify({ defaultProfile: PROFILE_NAME, version: 1 }, null, 2),
   );
 
-  // Write profile.json
   await writeFile(
     join(profileDir, "profile.json"),
     JSON.stringify({
@@ -71,13 +68,11 @@ export async function setupCliProfile(): Promise<TinyCloudNode> {
     }, null, 2),
   );
 
-  // Write key.json
   await writeFile(
     join(profileDir, "key.json"),
     JSON.stringify(session.jwk, null, 2),
   );
 
-  // Write session.json
   await writeFile(
     join(profileDir, "session.json"),
     JSON.stringify({
@@ -116,9 +111,7 @@ export async function tc(...args: string[]): Promise<{ stdout: string; stderr: s
   let json: any = null;
   try {
     json = JSON.parse(stdout.trim());
-  } catch {
-    // Not valid JSON — some commands output non-JSON in human mode
-  }
+  } catch {}
 
   return { stdout: stdout.trim(), stderr, exitCode, json };
 }
@@ -131,7 +124,5 @@ export async function cleanupCliProfile(): Promise<void> {
   try {
     await rm(profileDir, { recursive: true });
     console.log("[Cleanup] Removed CLI test profile");
-  } catch {
-    // Profile may not exist
-  }
+  } catch {}
 }

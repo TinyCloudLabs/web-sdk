@@ -145,7 +145,6 @@ describe("tc duckdb", () => {
 
     test("describe with --db targets named database", async () => {
       const dbName = `cli_test_describe_${Date.now()}`;
-      // Create a table in a named db first
       await tc("duckdb", "execute", "--db", dbName,
         `CREATE TABLE test_tbl (x INTEGER)`);
 
@@ -154,13 +153,8 @@ describe("tc duckdb", () => {
       const table = result.json.tables.find((t: any) => t.name === "test_tbl");
       expect(table).toBeDefined();
 
-      // Cleanup
       await node.duckdb.db(dbName).execute("DROP TABLE IF EXISTS test_tbl");
     });
   });
 
-  // NOTE: export/import tests are skipped — the local dev server returns 404 for database export.
-  // These should be enabled when testing against a server that supports export/import.
-  // describe("export", () => { ... });
-  // describe("import", () => { ... });
 });

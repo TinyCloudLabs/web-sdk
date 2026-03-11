@@ -126,7 +126,4 @@ describe("tc sql", () => {
     });
   });
 
-  // NOTE: export tests are skipped — the local dev server returns 404 for database export.
-  // These should be enabled when testing against a server that supports export.
-  // describe("export", () => { ... });
 });

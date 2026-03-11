@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
-import { checkServerHealth, setupCliProfile, cleanupCliProfile, tc } from "../setup";
+import { checkServerHealth, setupCliProfile, tc } from "../setup";
 import type { TinyCloudNode } from "@tinycloud/node-sdk";
 
 describe("tc kv", () => {
@@ -11,14 +11,11 @@ describe("tc kv", () => {
   });
 
   afterAll(async () => {
-    // Clean up test keys via SDK
     try {
       await node.kv.delete("cli-test-greeting");
       await node.kv.delete("cli-test-number");
       await node.kv.delete("cli-test-delete-me");
-    } catch {
-      // Ignore cleanup errors
-    }
+    } catch {}
   });
 
   describe("put", () => {
@@ -82,13 +79,11 @@ describe("tc kv", () => {
 
   describe("delete", () => {
     test("deletes a key", async () => {
-      // First put a key to delete
       await tc("kv", "put", "cli-test-delete-me", "temporary");
       const result = await tc("kv", "delete", "cli-test-delete-me");
       expect(result.exitCode).toBe(0);
       expect(result.json).toMatchObject({ key: "cli-test-delete-me", deleted: true });
 
-      // Verify it's gone
       const getResult = await tc("kv", "get", "cli-test-delete-me");
       expect(getResult.exitCode).toBe(4);
     });
