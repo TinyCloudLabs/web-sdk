@@ -128,6 +128,8 @@ export {
   errorResult,
   storageQuotaExceededError,
   storageLimitReachedError,
+  parseAuthError,
+  authUnauthorizedError,
 } from "./errors";
 
 // Base service

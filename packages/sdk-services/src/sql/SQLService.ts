@@ -14,7 +14,7 @@ import {
   serviceError,
   type FetchResponse,
 } from "../types";
-import { authRequiredError, wrapError } from "../errors";
+import { authRequiredError, wrapError, parseAuthError } from "../errors";
 import type { ISQLService } from "./ISQLService";
 import type { IDatabaseHandle } from "./ISQLService";
 import { DatabaseHandle } from "./DatabaseHandle";
@@ -308,10 +308,16 @@ export class SQLService extends BaseService implements ISQLService {
       errorBody.message ||
       `SQL ${operation} failed: ${response.status} - ${errorText}`;
 
+    const meta: Record<string, unknown> = { status: response.status, statusText: response.statusText };
+
+    if (response.status === 401) {
+      const { resource, action } = parseAuthError(errorText);
+      if (action) meta.requiredAction = action;
+      if (resource) meta.resource = resource;
+    }
+
     return err(
-      serviceError(errorCode, message, "sql", {
-        meta: { status: response.status, statusText: response.statusText },
-      })
+      serviceError(errorCode, message, "sql", { meta })
     );
   }
 
@@ -322,6 +328,8 @@ export class SQLService extends BaseService implements ISQLService {
     switch (status) {
       case 400:
         return ErrorCodes.SQL_ERROR;
+      case 401:
+        return ErrorCodes.AUTH_UNAUTHORIZED;
       case 403:
         if (serverError === "sql_readonly_violation") {
           return ErrorCodes.SQL_READONLY_VIOLATION;

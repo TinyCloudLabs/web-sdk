@@ -14,7 +14,7 @@ import {
   serviceError,
   type FetchResponse,
 } from "../types";
-import { authRequiredError, wrapError } from "../errors";
+import { authRequiredError, wrapError, parseAuthError } from "../errors";
 import type { IDuckDbService, IDuckDbDatabaseHandle } from "./IDuckDbService";
 import { DuckDbDatabaseHandle } from "./DuckDbDatabaseHandle";
 import {
@@ -423,10 +423,16 @@ export class DuckDbService extends BaseService implements IDuckDbService {
       errorBody.message ||
       `DuckDB ${operation} failed: ${response.status} - ${errorText}`;
 
+    const meta: Record<string, unknown> = { status: response.status, statusText: response.statusText };
+
+    if (response.status === 401) {
+      const { resource, action } = parseAuthError(errorText);
+      if (action) meta.requiredAction = action;
+      if (resource) meta.resource = resource;
+    }
+
     return err(
-      serviceError(errorCode, message, "duckdb", {
-        meta: { status: response.status, statusText: response.statusText },
-      })
+      serviceError(errorCode, message, "duckdb", { meta })
     );
   }
 
@@ -437,6 +443,8 @@ export class DuckDbService extends BaseService implements IDuckDbService {
     switch (status) {
       case 400:
         return ErrorCodes.DUCKDB_ERROR;
+      case 401:
+        return ErrorCodes.AUTH_UNAUTHORIZED;
       case 403:
         if (serverError === "duckdb_readonly_violation") {
           return ErrorCodes.DUCKDB_READONLY_VIOLATION;

@@ -19,6 +19,8 @@ import {
   wrapError,
   storageQuotaExceededError,
   storageLimitReachedError,
+  parseAuthError,
+  authUnauthorizedError,
 } from "../errors";
 import { IKVService } from "./IKVService";
 import { PrefixedKVService, IPrefixedKVService } from "./PrefixedKVService";
@@ -271,6 +273,16 @@ export class KVService extends BaseService implements IKVService {
         );
 
         if (!response.ok) {
+          if (response.status === 401) {
+            const errorText = await response.text();
+            const { resource, action } = parseAuthError(errorText);
+            return err(authUnauthorizedError("kv", errorText, {
+              status: response.status,
+              ...(action && { requiredAction: action }),
+              ...(resource && { resource }),
+            }));
+          }
+
           if (response.status === 404) {
             return err(
               serviceError(
@@ -335,6 +347,16 @@ export class KVService extends BaseService implements IKVService {
         );
 
         if (!response.ok) {
+          if (response.status === 401) {
+            const errorText = await response.text();
+            const { resource, action } = parseAuthError(errorText);
+            return err(authUnauthorizedError("kv", errorText, {
+              status: response.status,
+              ...(action && { requiredAction: action }),
+              ...(resource && { resource }),
+            }));
+          }
+
           const errorText = await response.text();
 
           // Check for storage quota errors (402, 413)
@@ -391,6 +413,16 @@ export class KVService extends BaseService implements IKVService {
         );
 
         if (!response.ok) {
+          if (response.status === 401) {
+            const errorText = await response.text();
+            const { resource, action } = parseAuthError(errorText);
+            return err(authUnauthorizedError("kv", errorText, {
+              status: response.status,
+              ...(action && { requiredAction: action }),
+              ...(resource && { resource }),
+            }));
+          }
+
           const errorText = await response.text();
           return err(
             serviceError(
@@ -444,6 +476,16 @@ export class KVService extends BaseService implements IKVService {
         );
 
         if (!response.ok) {
+          if (response.status === 401) {
+            const errorText = await response.text();
+            const { resource, action } = parseAuthError(errorText);
+            return err(authUnauthorizedError("kv", errorText, {
+              status: response.status,
+              ...(action && { requiredAction: action }),
+              ...(resource && { resource }),
+            }));
+          }
+
           if (response.status === 404) {
             return err(
               serviceError(
@@ -495,6 +537,16 @@ export class KVService extends BaseService implements IKVService {
         );
 
         if (!response.ok) {
+          if (response.status === 401) {
+            const errorText = await response.text();
+            const { resource, action } = parseAuthError(errorText);
+            return err(authUnauthorizedError("kv", errorText, {
+              status: response.status,
+              ...(action && { requiredAction: action }),
+              ...(resource && { resource }),
+            }));
+          }
+
           if (response.status === 404) {
             return err(
               serviceError(

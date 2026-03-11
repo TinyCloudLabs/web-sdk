@@ -4,7 +4,7 @@
  * Utilities for creating and handling service errors.
  */
 
-import { ServiceError, ErrorCodes, err } from "./types";
+import { ServiceError, ErrorCodes, err, serviceError } from "./types";
 
 /**
  * Create a service error for authentication required.
@@ -92,6 +92,28 @@ export function permissionDeniedError(
     message: `Permission denied for action: ${action}`,
     service,
   };
+}
+
+/**
+ * Parse the server's "Unauthorized Action: {resource} / {ability}" pattern.
+ */
+export function parseAuthError(responseText: string): { resource?: string; action?: string } {
+  const match = responseText.match(/^Unauthorized Action:\s*(.+?)\s*\/\s*(tinycloud\.\S+)$/m);
+  if (match) {
+    return { resource: match[1].trim(), action: match[2].trim() };
+  }
+  return {};
+}
+
+/**
+ * Create a service error for unauthorized action (missing capability).
+ */
+export function authUnauthorizedError(
+  service: string,
+  message: string,
+  meta?: Record<string, unknown>
+): ServiceError {
+  return serviceError(ErrorCodes.AUTH_UNAUTHORIZED, message, service, { meta });
 }
 
 /**
