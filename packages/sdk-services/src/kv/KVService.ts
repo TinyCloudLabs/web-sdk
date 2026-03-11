@@ -84,10 +84,7 @@ export class KVService extends BaseService implements IKVService {
     return this._config;
   }
 
-  /**
-   * Parse quota info from an error response body.
-   * Expected format: "Used: X bytes, Limit: Y bytes"
-   */
+  // Parses "Used: X bytes, Limit: Y bytes" from tinycloud-node error responses
   private parseQuotaInfo(
     errorText: string
   ): { usedBytes: number; limitBytes: number } | undefined {
@@ -103,10 +100,6 @@ export class KVService extends BaseService implements IKVService {
     return undefined;
   }
 
-  /**
-   * Handle storage quota error responses (402, 413).
-   * Returns an error Result if the status matches, or undefined if not a quota error.
-   */
   private handleQuotaErrorResponse(
     response: FetchResponse,
     errorText: string,

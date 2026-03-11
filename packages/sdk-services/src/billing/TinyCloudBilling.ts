@@ -1,16 +1,5 @@
-/**
- * TinyCloudBilling - Standalone helper for interacting with the billing sidecar.
- *
- * This is NOT part of the core SDK service architecture. It is a lightweight
- * client for the billing API that apps can use to create checkout sessions,
- * manage subscriptions, and handle storage quota upgrade flows.
- */
-
 import type { StorageQuotaInfo } from "../types";
 
-/**
- * Configuration for the billing helper.
- */
 export interface BillingConfig {
   /** Base URL of the billing sidecar (e.g., "https://billing.tinycloud.xyz") */
   billingUrl: string;
@@ -18,9 +7,6 @@ export interface BillingConfig {
   onUpgradeRequired?: (info: StorageQuotaInfo) => void;
 }
 
-/**
- * Options for creating a Stripe checkout session.
- */
 export interface CheckoutOptions {
   /** The user's primary DID */
   did: string;
@@ -30,9 +16,6 @@ export interface CheckoutOptions {
   returnUrl: string;
 }
 
-/**
- * Subscription status returned by the billing API.
- */
 export interface SubscriptionStatus {
   /** Subscription status (e.g., "active", "canceled", "past_due") */
   status: string;
@@ -44,28 +27,6 @@ export interface SubscriptionStatus {
   cancel_at_period_end?: boolean;
 }
 
-/**
- * Billing helper for TinyCloud storage upgrades.
- *
- * @example
- * ```typescript
- * const billing = new TinyCloudBilling({
- *   billingUrl: 'https://billing.tinycloud.xyz',
- *   onUpgradeRequired: (info) => {
- *     // Show upgrade modal to the user
- *     showUpgradeModal(info);
- *   },
- * });
- *
- * // Create a checkout session
- * const { url } = await billing.createCheckout({
- *   did: tc.did,
- *   spaceId: tc.spaceId,
- *   returnUrl: window.location.href,
- * });
- * window.location.href = url;
- * ```
- */
 export class TinyCloudBilling {
   private config: BillingConfig;
 
@@ -73,12 +34,6 @@ export class TinyCloudBilling {
     this.config = config;
   }
 
-  /**
-   * Create a Stripe checkout session for upgrading storage.
-   *
-   * @param options - Checkout options including DID, spaceId, and return URL
-   * @returns Object containing the checkout URL to redirect the user to
-   */
   async createCheckout(
     options: CheckoutOptions
   ): Promise<{ url: string }> {
@@ -101,12 +56,6 @@ export class TinyCloudBilling {
     return resp.json() as Promise<{ url: string }>;
   }
 
-  /**
-   * Get the current subscription status for a user.
-   *
-   * @param did - The user's primary DID
-   * @returns The subscription status
-   */
   async getSubscription(did: string): Promise<SubscriptionStatus> {
     const resp = await fetch(
       `${this.config.billingUrl}/api/subscription/${encodeURIComponent(did)}`
@@ -117,13 +66,6 @@ export class TinyCloudBilling {
     return resp.json() as Promise<SubscriptionStatus>;
   }
 
-  /**
-   * Create a Stripe customer portal session for managing the subscription.
-   *
-   * @param did - The user's primary DID
-   * @param returnUrl - URL to redirect to after portal session
-   * @returns Object containing the portal URL to redirect the user to
-   */
   async createPortalSession(
     did: string,
     returnUrl: string
@@ -139,12 +81,6 @@ export class TinyCloudBilling {
     return resp.json() as Promise<{ url: string }>;
   }
 
-  /**
-   * Handle a storage quota error by invoking the onUpgradeRequired callback.
-   * Call this from a service error handler when a quota error is detected.
-   *
-   * @param info - Storage quota information from the error
-   */
   handleQuotaError(info: StorageQuotaInfo): void {
     if (this.config.onUpgradeRequired) {
       this.config.onUpgradeRequired(info);
