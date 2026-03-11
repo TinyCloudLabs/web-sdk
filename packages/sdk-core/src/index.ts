@@ -251,6 +251,7 @@ export {
   ProtocolMismatchError,
   VersionCheckError,
   UnsupportedFeatureError,
-  checkNodeVersion,
+  checkNodeInfo,
 } from "./version";
+export type { NodeInfo } from "./version";
 
