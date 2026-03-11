@@ -47,6 +47,15 @@ export interface ServiceError {
 }
 
 /**
+ * Storage quota information returned with quota-related errors.
+ */
+export interface StorageQuotaInfo {
+  usedBytes: number;
+  limitBytes: number;
+  service: string;
+}
+
+/**
  * Standard error codes used across services.
  */
 export const ErrorCodes = {
@@ -73,6 +82,10 @@ export const ErrorCodes = {
   SQL_INVALID_STATEMENT: "SQL_INVALID_STATEMENT",
   SQL_SCHEMA_ERROR: "SQL_SCHEMA_ERROR",
   SQL_READONLY_VIOLATION: "SQL_READONLY_VIOLATION",
+
+  // Storage quota errors
+  STORAGE_QUOTA_EXCEEDED: "STORAGE_QUOTA_EXCEEDED",
+  STORAGE_LIMIT_REACHED: "STORAGE_LIMIT_REACHED",
 
   // DuckDB-specific errors
   DUCKDB_ERROR: "DUCKDB_ERROR",

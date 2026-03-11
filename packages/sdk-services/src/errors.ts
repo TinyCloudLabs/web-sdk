@@ -95,6 +95,38 @@ export function permissionDeniedError(
 }
 
 /**
+ * Create a service error for storage quota exceeded (402 Payment Required).
+ */
+export function storageQuotaExceededError(
+  service: string,
+  message: string,
+  meta?: Record<string, unknown>
+): ServiceError {
+  return {
+    code: ErrorCodes.STORAGE_QUOTA_EXCEEDED,
+    message,
+    service,
+    meta,
+  };
+}
+
+/**
+ * Create a service error for storage limit reached (413 Payload Too Large).
+ */
+export function storageLimitReachedError(
+  service: string,
+  message: string,
+  meta?: Record<string, unknown>
+): ServiceError {
+  return {
+    code: ErrorCodes.STORAGE_LIMIT_REACHED,
+    message,
+    service,
+    meta,
+  };
+}
+
+/**
  * Wrap an unknown error in a ServiceError.
  */
 export function wrapError(

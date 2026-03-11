@@ -38,6 +38,7 @@
 export type {
   Result,
   ServiceError,
+  StorageQuotaInfo,
   ErrorCode,
   IServiceContext,
   IService,
@@ -125,6 +126,8 @@ export {
   permissionDeniedError,
   wrapError,
   errorResult,
+  storageQuotaExceededError,
+  storageLimitReachedError,
 } from "./errors";
 
 // Base service
@@ -187,6 +190,14 @@ export type {
   ColumnInfo,
   ViewInfo,
 } from "./duckdb";
+
+// Billing helper
+export { TinyCloudBilling } from "./billing";
+export type {
+  BillingConfig,
+  CheckoutOptions,
+  SubscriptionStatus,
+} from "./billing";
 
 // Vault service
 export { DataVaultService, VaultAction, VaultHeaders, createVaultCrypto } from "./vault";
