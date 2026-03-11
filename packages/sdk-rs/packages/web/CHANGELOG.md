@@ -1,5 +1,11 @@
 # @tinycloudlabs/web-sdk-wasm
 
+## 1.6.0
+
+### Patch Changes
+
+- bea6063: Update tinycloud-node dependency rev for crate rename (tinycloud-lib → tinycloud-auth).
+
 ## 1.0.1
 
 ### Patch Changes

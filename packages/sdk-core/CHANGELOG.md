@@ -1,5 +1,18 @@
 # @tinycloudlabs/sdk-core
 
+## 1.6.0
+
+### Minor Changes
+
+- db50ae4: Add DuckDB service to the TypeScript SDK. Provides `tc.duckdb` for querying and managing DuckDB databases on TinyCloud nodes, including `query()`, `queryArrow()`, `execute()`, `batch()`, `describe()`, `export()`, and `import()` operations. Named database handles via `tc.duckdb.database()`. SDK services are now conditionally initialized based on node feature detection — accessing an unsupported service throws `UnsupportedFeatureError`.
+
+### Patch Changes
+
+- 9454b78: Add unit tests for `activateSessionWithHost` covering successful activation, old-server fallback, error responses, body read failures, and request construction.
+- Updated dependencies [db50ae4]
+  - @tinycloud/sdk-services@1.6.0
+  - @tinycloud/web-core@1.6.0
+
 ## 1.5.0
 
 ### Patch Changes
