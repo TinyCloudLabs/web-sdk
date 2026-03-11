@@ -22,7 +22,7 @@ export class TinyCloudQuota {
     this.config = config;
   }
 
-  /** Set the quota URL discovered from the /version endpoint */
+  /** Set the quota URL discovered from the /info endpoint */
   setQuotaUrl(url: string | null): void {
     this.quotaUrl = url;
   }
