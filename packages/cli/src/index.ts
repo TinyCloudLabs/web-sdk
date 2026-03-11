@@ -17,6 +17,8 @@ import { registerVaultCommand } from "./commands/vault.js";
 import { registerSecretsCommand } from "./commands/secrets.js";
 import { registerVarsCommand } from "./commands/vars.js";
 import { registerDoctorCommand } from "./commands/doctor.js";
+import { registerSqlCommand } from "./commands/sql.js";
+import { registerDuckdbCommand } from "./commands/duckdb.js";
 
 const program = new Command();
 
@@ -75,6 +77,8 @@ registerVaultCommand(program);
 registerSecretsCommand(program);
 registerVarsCommand(program);
 registerDoctorCommand(program);
+registerSqlCommand(program);
+registerDuckdbCommand(program);
 
 program.addHelpText("afterAll", () => {
   if (!process.stdout.isTTY) return "";

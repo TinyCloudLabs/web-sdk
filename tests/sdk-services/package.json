@@ -21,7 +21,7 @@
   "scripts": {
     "build": "tsc",
     "clean": "rm -rf dist",
-    "test": "bun test"
+    "test": "echo 'This is a test utility package, not a test runner'"
   },
   "peerDependencies": {
     "@tinycloud/sdk-services": "workspace:*"
