@@ -191,13 +191,9 @@ export type {
   ViewInfo,
 } from "./duckdb";
 
-// Billing helper
-export { TinyCloudBilling } from "./billing";
-export type {
-  BillingConfig,
-  CheckoutOptions,
-  SubscriptionStatus,
-} from "./billing";
+// Quota
+export { TinyCloudQuota } from "./quota";
+export type { QuotaConfig, QuotaStatus } from "./quota";
 
 // Vault service
 export { DataVaultService, VaultAction, VaultHeaders, createVaultCrypto } from "./vault";
