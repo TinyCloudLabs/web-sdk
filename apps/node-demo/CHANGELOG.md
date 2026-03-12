@@ -1,5 +1,14 @@
 # @tinycloudlabs/node-demo
 
+## 0.0.11
+
+### Patch Changes
+
+- Updated dependencies [e5fea0e]
+  - @tinycloud/node-sdk-wasm@1.7.0
+  - @tinycloud/sdk-core@1.7.0
+  - @tinycloud/node-sdk@1.7.0
+
 ## 0.0.10
 
 ### Patch Changes
