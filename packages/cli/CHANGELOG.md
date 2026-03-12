@@ -1,5 +1,11 @@
 # @tinycloud/cli
 
+## 0.4.0
+
+### Minor Changes
+
+- f841493: Add `tc upgrade` command for self-updating the CLI to the latest published version. Detects the package manager used for the global install (bun or npm) and runs the appropriate upgrade command.
+
 ## 0.3.1
 
 ### Patch Changes
