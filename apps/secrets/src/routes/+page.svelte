@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { connect, initAndUnlock } from '$lib/vault-client';
+  import { connect, initAndUnlock, type ConnectResult } from '$lib/vault-client';
   import {
     loadSecrets, loadVariables, putSecret, deleteSecret,
     putVariable, deleteVariable, getSecrets, getVariables,
@@ -42,7 +42,7 @@
     }
   }
 
-  async function handleUnlock(keyId: string, authResult: { address: string; keyId: string }) {
+  async function handleUnlock(keyId: string, authResult: ConnectResult) {
     auth = { ...auth, status: 'unlocking' };
     try {
       await initAndUnlock(keyId, authResult);

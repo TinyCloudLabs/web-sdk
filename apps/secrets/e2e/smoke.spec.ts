@@ -22,7 +22,7 @@ function isRelevantError(msg: string): boolean {
   return !IGNORED_ERRORS.some((ignored) => msg.includes(ignored));
 }
 
-test.describe('Secrets App — Smoke Tests', () => {
+test.describe('Secrets App Smoke Tests', () => {
   test('page loads without CJS/ESM bundling errors', async ({ page }) => {
     const errors: string[] = [];
     page.on('pageerror', (err) => {
