@@ -1,5 +1,16 @@
 # @tinycloudlabs/sdk-services
 
+## 1.7.0
+
+### Minor Changes
+
+- 8649de8: Add `AUTH_UNAUTHORIZED` error code and 401 handling across all services. When the server returns 401 with "Unauthorized Action: {resource} / {ability}", the SDK now parses the response and returns a structured `AUTH_UNAUTHORIZED` error with `requiredAction` and `resource` in meta. Affects KV, SQL, and DuckDB services.
+- 8649de8: Add storage quota error handling and TinyCloudQuota helper. New error codes `STORAGE_QUOTA_EXCEEDED` (402) and `STORAGE_LIMIT_REACHED` (413) with quota info parsing in KVService. New `TinyCloudQuota` class for querying quota status from the quota URL discovered via `/info`.
+
+### Patch Changes
+
+- def099d: Skip redundant public key writes on vault unlock and auto-include public-space KV delegation when creating delegations with KV actions. Remove unused VaultAction constants.
+
 ## 1.6.0
 
 ### Minor Changes

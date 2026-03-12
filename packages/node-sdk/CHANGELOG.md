@@ -1,5 +1,15 @@
 # @tinycloudlabs/node-sdk
 
+## 1.7.0
+
+### Patch Changes
+
+- def099d: Skip redundant public key writes on vault unlock and auto-include public-space KV delegation when creating delegations with KV actions. Remove unused VaultAction constants.
+- Updated dependencies [8649de8]
+  - @tinycloud/node-sdk-wasm@1.7.0
+  - @tinycloud/sdk-core@1.7.0
+  - @tinycloud/web-core@1.7.0
+
 ## 1.6.0
 
 ### Minor Changes
