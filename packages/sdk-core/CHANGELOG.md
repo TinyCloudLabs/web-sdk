@@ -1,5 +1,15 @@
 # @tinycloudlabs/sdk-core
 
+## 1.7.0
+
+### Patch Changes
+
+- Updated dependencies [8649de8]
+- Updated dependencies [8649de8]
+- Updated dependencies [def099d]
+  - @tinycloud/sdk-services@1.7.0
+  - @tinycloud/web-core@1.7.0
+
 ## 1.6.0
 
 ### Minor Changes
