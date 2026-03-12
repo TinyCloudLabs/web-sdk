@@ -19,6 +19,7 @@ import { registerVarsCommand } from "./commands/vars.js";
 import { registerDoctorCommand } from "./commands/doctor.js";
 import { registerSqlCommand } from "./commands/sql.js";
 import { registerDuckdbCommand } from "./commands/duckdb.js";
+import { registerUpgradeCommand } from "./commands/upgrade.js";
 
 const program = new Command();
 
@@ -43,7 +44,7 @@ program.hook("preAction", async (thisCommand) => {
   const commandName = thisCommand.name();
   const parentName = thisCommand.parent?.name();
   const fullCommand = parentName && parentName !== "tc" ? `${parentName} ${commandName}` : commandName;
-  const skipGuard = ["tc", "init", "doctor", "completion", "help"].includes(commandName) ||
+  const skipGuard = ["tc", "init", "doctor", "completion", "help", "upgrade"].includes(commandName) ||
                     fullCommand === "profile create";
   if (!skipGuard && !opts.quiet && isInteractive()) {
     try {
@@ -79,6 +80,7 @@ registerVarsCommand(program);
 registerDoctorCommand(program);
 registerSqlCommand(program);
 registerDuckdbCommand(program);
+registerUpgradeCommand(program);
 
 program.addHelpText("afterAll", () => {
   if (!process.stdout.isTTY) return "";
