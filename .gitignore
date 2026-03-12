@@ -7,6 +7,7 @@ build
 /target
 .npmrc
 .turbo
+.svelte-kit
 */dist/**/*
 
 # Package dist directories

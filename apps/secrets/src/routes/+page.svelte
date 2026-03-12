@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { connect, initAndUnlock } from '$lib/vault-client';
+  import { connect, initAndUnlock, type ConnectResult } from '$lib/vault-client';
   import {
     loadSecrets, loadVariables, putSecret, deleteSecret,
     putVariable, deleteVariable, getSecrets, getVariables,
@@ -36,16 +36,16 @@
     try {
       const result = await connect();
       auth = { status: 'connected', address: result.address, keyId: result.keyId };
-      await handleUnlock(result.keyId);
+      await handleUnlock(result.keyId, result);
     } catch (e: any) {
       auth = { status: 'error', error: e.message || 'Connection failed' };
     }
   }
 
-  async function handleUnlock(keyId: string) {
+  async function handleUnlock(keyId: string, authResult: ConnectResult) {
     auth = { ...auth, status: 'unlocking' };
     try {
-      await initAndUnlock(keyId);
+      await initAndUnlock(keyId, authResult);
       auth = { ...auth, status: 'ready' };
       await Promise.all([loadSecrets(), loadVariables()]);
     } catch (e: any) {

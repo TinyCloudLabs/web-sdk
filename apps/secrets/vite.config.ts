@@ -4,7 +4,7 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   plugins: [tailwindcss(), sveltekit()],
-  ssr: {
-    external: ['@tinycloud/web-sdk', '@openkey/sdk']
-  }
+  optimizeDeps: {
+    include: ['@tinycloud/web-sdk', '@openkey/sdk'],
+  },
 });

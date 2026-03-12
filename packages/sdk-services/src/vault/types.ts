@@ -90,20 +90,13 @@ export type VaultErrorInput =
  */
 export type VaultError = VaultErrorInput & { service: "vault"; message: string };
 
-/**
- * Vault action types for UCAN invocations.
- */
-export const VaultAction = {
-  PUT: "tinycloud.vault/put",
-  GET: "tinycloud.vault/get",
-  LIST: "tinycloud.vault/list",
-  DELETE: "tinycloud.vault/del",
-  HEAD: "tinycloud.vault/metadata",
-  GRANT: "tinycloud.vault/grant",
-  REVOKE: "tinycloud.vault/revoke",
-} as const;
 
-export type VaultActionType = (typeof VaultAction)[keyof typeof VaultAction];
+/** KV actions the vault needs on the public space for key publishing. */
+export const VaultPublicSpaceKVActions = [
+  "tinycloud.kv/get",
+  "tinycloud.kv/put",
+  "tinycloud.kv/metadata",
+] as const;
 
 /** Metadata header keys used in vault envelopes */
 export const VaultHeaders = {

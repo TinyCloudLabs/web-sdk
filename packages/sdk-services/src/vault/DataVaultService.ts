@@ -318,24 +318,20 @@ export class DataVaultService extends BaseService implements IDataVaultService {
         // This enables other users to discover our public key and vault location.
         // Non-fatal: key derivation succeeded, publishing is optional.
         try {
-          // Try to ensure public space exists (may fail if delegation lacks space/info action)
-          await this.tc.ensurePublicSpace();
-
-          // Publish regardless — the space may already exist even if ensurePublicSpace failed
           const pubKeyB64 = base64Encode(this.encryptionIdentity.publicKey);
-          await this.tc.publicKV.put(
-            ".well-known/vault-pubkey",
-            pubKeyB64
+          const publicSpaceId = this.tc.makePublicSpaceId(this.tc.address, this.tc.chainId);
+
+          // Unauthenticated read — no delegation needed
+          const existing = await this.tc.readPublicSpace<string>(
+            this.host, publicSpaceId, ".well-known/vault-pubkey"
           );
-          await this.tc.publicKV.put(
-            ".well-known/vault-version",
-            "1"
-          );
-          // Publish vault space ID so getShared() can find grants and data
-          await this.tc.publicKV.put(
-            ".well-known/vault-space",
-            this.vaultConfig.spaceId
-          );
+
+          if (!existing.ok || existing.data !== pubKeyB64) {
+            await this.tc.ensurePublicSpace();
+            await this.tc.publicKV.put(".well-known/vault-pubkey", pubKeyB64);
+            await this.tc.publicKV.put(".well-known/vault-version", "1");
+            await this.tc.publicKV.put(".well-known/vault-space", this.vaultConfig.spaceId);
+          }
         } catch {
           // Public key publishing failed — vault still usable
         }
