@@ -1335,7 +1335,6 @@ export class TinyCloudNode {
       throw new Error(`Failed to activate delegation: ${activateResult.error}`);
     }
 
-    // Build the portable delegation result
     const result: PortableDelegation = {
       cid: delegationSession.delegationCid,
       delegationHeader: delegationSession.delegationHeader,
