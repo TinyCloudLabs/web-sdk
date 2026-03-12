@@ -64,6 +64,7 @@ import {
   CreateDelegationWasmParams,
   CreateDelegationWasmResult,
   UnsupportedFeatureError,
+  makePublicSpaceId,
 } from "@tinycloud/sdk-core";
 import { NodeUserAuthorization } from "./authorization/NodeUserAuthorization";
 import { PrivateKeySigner } from "./signers/PrivateKeySigner";
@@ -1270,6 +1271,8 @@ export class TinyCloudNode {
     expiryMs?: number;
     /** Override space ID (for creating delegations to non-primary spaces like public) */
     spaceIdOverride?: string;
+    /** Include a companion delegation for the user's public space (default: true) */
+    includePublicSpace?: boolean;
   }): Promise<PortableDelegation> {
     if (!this.signer) {
       throw new Error("Cannot createDelegation() in session-only mode. Requires wallet mode.");
@@ -1332,8 +1335,8 @@ export class TinyCloudNode {
       throw new Error(`Failed to activate delegation: ${activateResult.error}`);
     }
 
-    // Return the portable delegation
-    return {
+    // Build the portable delegation result
+    const result: PortableDelegation = {
       cid: delegationSession.delegationCid,
       delegationHeader: delegationSession.delegationHeader,
       spaceId: params.spaceIdOverride ?? session.spaceId,
@@ -1346,6 +1349,56 @@ export class TinyCloudNode {
       chainId: session.chainId,
       host: this.config.host,
     };
+
+    // Auto-create public-space delegation for vault key publishing
+    const hasKvActions = params.actions.some(a => a.startsWith("tinycloud.kv/"));
+    if (hasKvActions && params.includePublicSpace !== false) {
+      const publicSpaceId = makePublicSpaceId(
+        ensureEip55(session.address), session.chainId
+      );
+      const publicAbilities: Record<string, Record<string, string[]>> = {
+        kv: { "": ["tinycloud.kv/get", "tinycloud.kv/put", "tinycloud.kv/metadata"] },
+      };
+      const publicPrepared = prepareSession({
+        abilities: publicAbilities,
+        address: ensureEip55(session.address),
+        chainId: session.chainId,
+        domain: new URL(this.config.host!).hostname,
+        issuedAt: now.toISOString(),
+        expirationTime: expirationTime.toISOString(),
+        spaceId: publicSpaceId,
+        delegateUri: params.delegateDID,
+        parents: [session.delegationCid],
+      });
+      const publicSignature = await this.signer.signMessage(publicPrepared.siwe);
+      const publicSession = completeSessionSetup({
+        ...publicPrepared,
+        signature: publicSignature,
+      });
+
+      const publicActivateResult = await activateSessionWithHost(
+        this.config.host!,
+        publicSession.delegationHeader
+      );
+
+      if (publicActivateResult.success) {
+        result.publicDelegation = {
+          cid: publicSession.delegationCid,
+          delegationHeader: publicSession.delegationHeader,
+          spaceId: publicSpaceId,
+          path: "",
+          actions: ["tinycloud.kv/get", "tinycloud.kv/put", "tinycloud.kv/metadata"],
+          disableSubDelegation: params.disableSubDelegation ?? false,
+          expiry: expirationTime,
+          delegateDID: params.delegateDID,
+          ownerAddress: session.address,
+          chainId: session.chainId,
+          host: this.config.host,
+        };
+      }
+    }
+
+    return result;
   }
 
   /**

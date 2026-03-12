@@ -122,8 +122,8 @@ export {
   type ViewInfo,
   // Vault Service
   DataVaultService,
-  VaultAction,
   VaultHeaders,
+  VaultPublicSpaceKVActions,
   createVaultCrypto,
   type IDataVaultService,
   type VaultCrypto,
@@ -135,7 +135,6 @@ export {
   type VaultGrantOptions,
   type VaultEntry,
   type VaultError,
-  type VaultActionType,
 } from "@tinycloud/sdk-services";
 
 // Space utilities

@@ -142,7 +142,7 @@ export type {
 } from "@tinycloud/sdk-core";
 
 // Re-export Vault service values
-export { DataVaultService, VaultAction, VaultHeaders, createVaultCrypto } from "@tinycloud/sdk-core";
+export { DataVaultService, VaultHeaders, VaultPublicSpaceKVActions, createVaultCrypto } from "@tinycloud/sdk-core";
 
 // Re-export Vault service types
 export type {

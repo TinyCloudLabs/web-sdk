@@ -140,7 +140,7 @@ export {
 // Re-export Vault service types from sdk-core
 export {
   DataVaultService,
-  VaultAction,
+  VaultPublicSpaceKVActions,
   createVaultCrypto,
   type WasmVaultFunctions,
   type VaultHeaders,
@@ -153,7 +153,6 @@ export {
   type VaultGrantOptions,
   type VaultEntry,
   type VaultError,
-  type VaultActionType,
 } from '@tinycloud/sdk-core';
 
 // Adapter for web-sdk

@@ -12,8 +12,8 @@ export { DataVaultService, type VaultCrypto } from "./DataVaultService";
 
 // Types
 export {
-  VaultAction,
   VaultHeaders,
+  VaultPublicSpaceKVActions,
   type DataVaultConfig,
   type VaultPutOptions,
   type VaultGetOptions,
@@ -21,7 +21,6 @@ export {
   type VaultGrantOptions,
   type VaultEntry,
   type VaultError,
-  type VaultActionType,
 } from "./types";
 
 export { createVaultCrypto, type WasmVaultFunctions } from "./createVaultCrypto";

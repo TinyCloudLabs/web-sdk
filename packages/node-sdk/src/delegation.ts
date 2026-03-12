@@ -26,6 +26,9 @@ export interface PortableDelegation extends Omit<Delegation, "isRevoked"> {
 
   /** Whether the recipient is prevented from creating sub-delegations */
   disableSubDelegation?: boolean;
+
+  /** Companion delegation for the user's public space (auto-created when includePublicSpace is true) */
+  publicDelegation?: PortableDelegation;
 }
 
 /**

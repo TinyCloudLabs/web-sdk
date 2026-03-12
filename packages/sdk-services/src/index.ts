@@ -198,7 +198,7 @@ export { TinyCloudQuota } from "./quota";
 export type { QuotaConfig, QuotaStatus } from "./quota";
 
 // Vault service
-export { DataVaultService, VaultAction, VaultHeaders, createVaultCrypto } from "./vault";
+export { DataVaultService, VaultHeaders, VaultPublicSpaceKVActions, createVaultCrypto } from "./vault";
 export type { IDataVaultService, VaultCrypto, WasmVaultFunctions } from "./vault";
 export type {
   DataVaultConfig,
@@ -208,5 +208,4 @@ export type {
   VaultGrantOptions,
   VaultEntry,
   VaultError,
-  VaultActionType,
 } from "./vault";
