@@ -17,7 +17,7 @@ export class TinyCloudNodeSelectionModal extends HTMLElement {
   private isCreating: boolean = false;
   private resolveResult: ((result: NodeSelectionResult) => void) | null = null;
   private completionPromise: Promise<NodeSelectionResult>;
-  private selectedHost: string = 'https://node.tinycloud.xyz'; // Default selection
+  private selectedHost: string = 'https://tee.node.tinycloud.xyz'; // Default selection
 
   constructor(options: NodeSelectionModalOptions) {
     super();
@@ -64,9 +64,9 @@ export class TinyCloudNodeSelectionModal extends HTMLElement {
               </p>
               <div class="node-selection">
                 <label class="node-option">
-                  <input type="radio" name="node" value="https://node.tinycloud.xyz" checked>
+                  <input type="radio" name="node" value="https://tee.node.tinycloud.xyz" checked>
                   <div class="node-option-content">
-                    <span class="node-name">node.tinycloud.xyz</span>
+                    <span class="node-name">tee.node.tinycloud.xyz</span>
                     <span class="node-description">General purpose node</span>
                   </div>
                 </label>

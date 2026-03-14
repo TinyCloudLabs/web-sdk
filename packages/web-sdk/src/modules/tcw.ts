@@ -111,7 +111,7 @@ export interface Config extends ClientConfig {
 
   /**
    * TinyCloud server hosts.
-   * @default ['https://node.tinycloud.xyz']
+   * @default ['https://tee.node.tinycloud.xyz']
    */
   tinycloudHosts?: string[];
 

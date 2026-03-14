@@ -11,7 +11,7 @@
  * ```typescript
  * const alice = new TinyCloudNode({
  *   privateKey: process.env.ALICE_PRIVATE_KEY,
- *   host: "https://node.tinycloud.xyz",
+ *   host: "https://tee.node.tinycloud.xyz",
  *   prefix: "myapp",
  * });
  *
@@ -93,7 +93,7 @@ import { DelegatedAccess } from "./DelegatedAccess";
 import { WasmKeyProvider } from "./keys/WasmKeyProvider";
 
 /** Default TinyCloud host */
-const DEFAULT_HOST = "https://node.tinycloud.xyz";
+const DEFAULT_HOST = "https://tee.node.tinycloud.xyz";
 
 /**
  * Configuration for TinyCloudNode.
@@ -102,7 +102,7 @@ const DEFAULT_HOST = "https://node.tinycloud.xyz";
 export interface TinyCloudNodeConfig {
   /** Hex-encoded private key (with or without 0x prefix). Optional - only needed for wallet mode and signIn() */
   privateKey?: string;
-  /** TinyCloud server URL (default: "https://node.tinycloud.xyz") */
+  /** TinyCloud server URL (default: "https://tee.node.tinycloud.xyz") */
   host?: string;
   /** Space prefix for this user's space. Optional - only needed for signIn() */
   prefix?: string;
@@ -446,7 +446,7 @@ export class TinyCloudNode {
    * @example
    * ```typescript
    * // Start in session-only mode
-   * const node = new TinyCloudNode({ host: "https://node.tinycloud.xyz" });
+   * const node = new TinyCloudNode({ host: "https://tee.node.tinycloud.xyz" });
    * console.log(node.did); // did:key:z6Mk... (session key)
    *
    * // Later, connect a wallet

@@ -55,7 +55,7 @@ export interface NodeUserAuthorizationConfig {
   sessionExpirationMs?: number;
   /** Automatically create space if it doesn't exist (default: false) */
   autoCreateSpace?: boolean;
-  /** TinyCloud server endpoints (default: ["https://node.tinycloud.xyz"]) */
+  /** TinyCloud server endpoints (default: ["https://tee.node.tinycloud.xyz"]) */
   tinycloudHosts?: string[];
   /** Whether to include public space capabilities in the session (default: true) */
   enablePublicSpace?: boolean;
@@ -167,7 +167,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
     };
     this.sessionExpirationMs = config.sessionExpirationMs ?? 60 * 60 * 1000;
     this.autoCreateSpace = config.autoCreateSpace ?? false;
-    this.tinycloudHosts = config.tinycloudHosts ?? ["https://node.tinycloud.xyz"];
+    this.tinycloudHosts = config.tinycloudHosts ?? ["https://tee.node.tinycloud.xyz"];
     this.enablePublicSpace = config.enablePublicSpace ?? true;
 
     // Initialize session manager

@@ -297,7 +297,7 @@ describe("UserAuthorizationConfigSchema", () => {
   it("should reject non-array tinycloudHosts", () => {
     const result = UserAuthorizationConfigSchema.safeParse({
       signer: mockSigner,
-      tinycloudHosts: "https://node.tinycloud.xyz",
+      tinycloudHosts: "https://tee.node.tinycloud.xyz",
     });
     expect(result.success).toBe(false);
   });
@@ -337,7 +337,7 @@ describe("UserAuthorizationConfigSchema", () => {
       spaceCreationHandler: { confirmSpaceCreation: async () => true },
       autoCreateSpace: true,
       spacePrefix: "default",
-      tinycloudHosts: ["https://node.tinycloud.xyz"],
+      tinycloudHosts: ["https://tee.node.tinycloud.xyz"],
       sessionExpirationMs: 86400000,
     });
     expect(result.success).toBe(true);

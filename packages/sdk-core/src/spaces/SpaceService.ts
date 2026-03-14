@@ -321,7 +321,7 @@ function transformServerDelegations(
  * @example
  * ```typescript
  * const spaceService = new SpaceService({
- *   hosts: ['https://node.tinycloud.xyz'],
+ *   hosts: ['https://tee.node.tinycloud.xyz'],
  *   session,
  *   invoke,
  * });

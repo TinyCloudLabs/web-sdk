@@ -26,7 +26,7 @@ export interface SpaceHostResult {
  *
  * The peer ID identifies the TinyCloud server instance that will host the space.
  *
- * @param host - TinyCloud server URL (e.g., "https://node.tinycloud.xyz")
+ * @param host - TinyCloud server URL (e.g., "https://tee.node.tinycloud.xyz")
  * @param spaceId - The space ID to host
  * @returns The peer ID string
  * @throws Error if the request fails

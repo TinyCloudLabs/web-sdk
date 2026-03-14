@@ -15,7 +15,7 @@ describe("SpaceCreationContextSchema", () => {
     spaceId: "space-123",
     address: "0x1234567890123456789012345678901234567890",
     chainId: 1,
-    host: "https://node.tinycloud.xyz",
+    host: "https://tee.node.tinycloud.xyz",
   };
 
   it("should accept valid context", () => {
@@ -160,7 +160,7 @@ describe("validateSpaceCreationContext", () => {
       spaceId: "space-123",
       address: "0x1234567890123456789012345678901234567890",
       chainId: 1,
-      host: "https://node.tinycloud.xyz",
+      host: "https://tee.node.tinycloud.xyz",
     });
     expect(result.ok).toBe(true);
     if (result.ok) {

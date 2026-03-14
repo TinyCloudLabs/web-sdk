@@ -5,7 +5,7 @@ export const CONFIG_DIR = join(homedir(), ".tinycloud");
 export const PROFILES_DIR = join(CONFIG_DIR, "profiles");
 export const CONFIG_FILE = join(CONFIG_DIR, "config.json");
 
-export const DEFAULT_HOST = "https://node.tinycloud.xyz";
+export const DEFAULT_HOST = "https://tee.node.tinycloud.xyz";
 export const DEFAULT_PROFILE = "default";
 export const DEFAULT_CHAIN_ID = 1;
 

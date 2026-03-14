@@ -311,7 +311,7 @@ export interface ISharingService {
  * import { SharingService } from "@tinycloud/sdk-core/delegations";
  *
  * const sharing = new SharingService({
- *   hosts: ["https://node.tinycloud.xyz"],
+ *   hosts: ["https://tee.node.tinycloud.xyz"],
  *   session,
  *   invoke,
  *   keyProvider,

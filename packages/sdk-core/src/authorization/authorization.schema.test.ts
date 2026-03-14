@@ -45,7 +45,7 @@ const validSpaceCreationContext = {
   spaceId: "space-123",
   address: validAddress,
   chainId: 1,
-  host: "https://node.tinycloud.xyz",
+  host: "https://tee.node.tinycloud.xyz",
 };
 
 // =============================================================================
@@ -497,7 +497,7 @@ describe("SpaceCreationContextSchema", () => {
       expect(result.data.spaceId).toBe("space-123");
       expect(result.data.address).toBe(validAddress);
       expect(result.data.chainId).toBe(1);
-      expect(result.data.host).toBe("https://node.tinycloud.xyz");
+      expect(result.data.host).toBe("https://tee.node.tinycloud.xyz");
     }
   });
 
@@ -560,7 +560,7 @@ describe("SpaceCreationContextSchema", () => {
 
     it("accepts various valid URLs", () => {
       const hosts = [
-        "https://node.tinycloud.xyz",
+        "https://tee.node.tinycloud.xyz",
         "http://localhost:8000",
         "https://api.example.com:3000/path",
       ];

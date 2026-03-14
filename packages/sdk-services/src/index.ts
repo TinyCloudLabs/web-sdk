@@ -18,7 +18,7 @@
  * // Create a context
  * const context = new ServiceContext({
  *   invoke: wasmInvoke,
- *   hosts: ['https://node.tinycloud.xyz'],
+ *   hosts: ['https://tee.node.tinycloud.xyz'],
  * });
  *
  * // Create and register a service

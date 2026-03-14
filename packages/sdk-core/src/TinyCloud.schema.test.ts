@@ -143,7 +143,7 @@ describe("TinyCloudConfigSchema", () => {
 
   it("should accept minimal config", () => {
     const result = TinyCloudConfigSchema.safeParse({
-      hosts: ["https://node.tinycloud.xyz"],
+      hosts: ["https://tee.node.tinycloud.xyz"],
     });
     expect(result.success).toBe(true);
   });
@@ -151,7 +151,7 @@ describe("TinyCloudConfigSchema", () => {
   it("should accept full config", () => {
     const result = TinyCloudConfigSchema.safeParse({
       resolveEns: true,
-      hosts: ["https://node.tinycloud.xyz"],
+      hosts: ["https://tee.node.tinycloud.xyz"],
       invoke: () => {},
       fetch: () => {},
       services: {
@@ -195,7 +195,7 @@ describe("TinyCloudConfigSchema", () => {
 
   it("should reject non-array hosts", () => {
     const result = TinyCloudConfigSchema.safeParse({
-      hosts: "https://node.tinycloud.xyz",
+      hosts: "https://tee.node.tinycloud.xyz",
     });
     expect(result.success).toBe(false);
   });
@@ -277,12 +277,12 @@ describe("TinyCloudConfigSchema", () => {
 describe("validateTinyCloudConfig", () => {
   it("should return ok result for valid config", () => {
     const result = validateTinyCloudConfig({
-      hosts: ["https://node.tinycloud.xyz"],
+      hosts: ["https://tee.node.tinycloud.xyz"],
       resolveEns: true,
     });
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.data.hosts).toEqual(["https://node.tinycloud.xyz"]);
+      expect(result.data.hosts).toEqual(["https://tee.node.tinycloud.xyz"]);
       expect(result.data.resolveEns).toBe(true);
     }
   });

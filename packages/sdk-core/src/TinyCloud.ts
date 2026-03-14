@@ -642,7 +642,7 @@ export class TinyCloud {
    * Read from any user's public space (unauthenticated).
    * Uses the public REST endpoint — no session needed.
    *
-   * @param host - TinyCloud server URL (e.g., "https://node.tinycloud.xyz")
+   * @param host - TinyCloud server URL (e.g., "https://tee.node.tinycloud.xyz")
    * @param spaceId - Full public space ID
    * @param key - Key to read
    * @param fetchFn - Optional custom fetch function

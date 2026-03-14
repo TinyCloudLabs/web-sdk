@@ -62,7 +62,7 @@ function createError(
  * import { DelegationManager } from "@tinycloud/sdk-core/delegations";
  *
  * const delegations = new DelegationManager({
- *   hosts: ["https://node.tinycloud.xyz"],
+ *   hosts: ["https://tee.node.tinycloud.xyz"],
  *   session,
  *   invoke,
  * });

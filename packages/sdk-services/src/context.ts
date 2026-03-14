@@ -42,7 +42,7 @@ export interface ServiceContextConfig {
  * ```typescript
  * const context = new ServiceContext({
  *   invoke: wasmInvoke,
- *   hosts: ['https://node.tinycloud.xyz'],
+ *   hosts: ['https://tee.node.tinycloud.xyz'],
  *   retryPolicy: { maxAttempts: 5 },
  * });
  *

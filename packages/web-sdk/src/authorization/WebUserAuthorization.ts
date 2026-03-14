@@ -111,7 +111,7 @@ export interface WebUserAuthorizationConfig {
   sessionExpirationMs?: number;
   /** Automatically create space if it doesn't exist (default: true) */
   autoCreateSpace?: boolean;
-  /** TinyCloud server endpoints (default: ["https://node.tinycloud.xyz"]) */
+  /** TinyCloud server endpoints (default: ["https://tee.node.tinycloud.xyz"]) */
   tinycloudHosts?: string[];
 }
 
@@ -212,7 +212,7 @@ export class WebUserAuthorization implements IUserAuthorization {
     };
     this.sessionExpirationMs = config.sessionExpirationMs ?? 60 * 60 * 1000;
     this.autoCreateSpace = config.autoCreateSpace ?? true;
-    this.tinycloudHosts = config.tinycloudHosts ?? ["https://node.tinycloud.xyz"];
+    this.tinycloudHosts = config.tinycloudHosts ?? ["https://tee.node.tinycloud.xyz"];
 
     // Set up provider/signer if provided
     if (config.provider) {

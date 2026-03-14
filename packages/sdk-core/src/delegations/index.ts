@@ -18,7 +18,7 @@
  *
  * // Create delegation manager
  * const delegations = new DelegationManager({
- *   hosts: ["https://node.tinycloud.xyz"],
+ *   hosts: ["https://tee.node.tinycloud.xyz"],
  *   session,
  *   invoke,
  * });

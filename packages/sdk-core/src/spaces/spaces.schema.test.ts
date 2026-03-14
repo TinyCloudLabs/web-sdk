@@ -29,7 +29,7 @@ const validSpaceConfig = {
 };
 
 const validSpaceServiceConfig = {
-  hosts: ["https://node.tinycloud.xyz"],
+  hosts: ["https://tee.node.tinycloud.xyz"],
   session: { spaceId: "space123", verificationMethod: "did:key:z6Mk..." },
   invoke: mockFunction,
   fetch: mockFunction,
@@ -155,7 +155,7 @@ describe("SpaceServiceConfigSchema", () => {
       const result = SpaceServiceConfigSchema.safeParse(validSpaceServiceConfig);
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.hosts).toEqual(["https://node.tinycloud.xyz"]);
+        expect(result.data.hosts).toEqual(["https://tee.node.tinycloud.xyz"]);
         expect(result.data.userDid).toBe(
           "did:pkh:eip155:1:0x1234567890123456789012345678901234567890"
         );
@@ -164,7 +164,7 @@ describe("SpaceServiceConfigSchema", () => {
 
     it("accepts config with only required fields", () => {
       const data = {
-        hosts: ["https://node.tinycloud.xyz"],
+        hosts: ["https://tee.node.tinycloud.xyz"],
         session: { spaceId: "space123" },
         invoke: mockFunction,
       };
@@ -190,7 +190,7 @@ describe("SpaceServiceConfigSchema", () => {
 
     it("accepts config without optional fields", () => {
       const data = {
-        hosts: ["https://node.tinycloud.xyz"],
+        hosts: ["https://tee.node.tinycloud.xyz"],
         session: {},
         invoke: mockFunction,
       };
@@ -200,7 +200,7 @@ describe("SpaceServiceConfigSchema", () => {
 
     it("accepts null session (z.unknown allows any value)", () => {
       const data = {
-        hosts: ["https://node.tinycloud.xyz"],
+        hosts: ["https://tee.node.tinycloud.xyz"],
         session: null,
         invoke: mockFunction,
       };
@@ -235,7 +235,7 @@ describe("SpaceServiceConfigSchema", () => {
     });
 
     it("rejects non-array hosts", () => {
-      const data = { ...validSpaceServiceConfig, hosts: "https://node.tinycloud.xyz" };
+      const data = { ...validSpaceServiceConfig, hosts: "https://tee.node.tinycloud.xyz" };
       const result = SpaceServiceConfigSchema.safeParse(data);
       expect(result.success).toBe(false);
     });
@@ -480,7 +480,7 @@ describe("validateSpaceServiceConfig", () => {
     const result = validateSpaceServiceConfig(validSpaceServiceConfig);
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.data.hosts).toEqual(["https://node.tinycloud.xyz"]);
+      expect(result.data.hosts).toEqual(["https://tee.node.tinycloud.xyz"]);
     }
   });
 

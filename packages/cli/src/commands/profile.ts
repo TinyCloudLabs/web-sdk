@@ -60,7 +60,7 @@ export function registerProfileCommand(program: Command): void {
     .action(async (name: string, options, cmd) => {
       try {
         const globalOpts = cmd.optsWithGlobals();
-        const host = options.host ?? globalOpts.host ?? "https://node.tinycloud.xyz";
+        const host = options.host ?? globalOpts.host ?? "https://tee.node.tinycloud.xyz";
 
         if (await ProfileManager.profileExists(name)) {
           throw new CLIError("PROFILE_EXISTS", `Profile "${name}" already exists`, ExitCode.ERROR);

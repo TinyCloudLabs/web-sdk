@@ -9,7 +9,7 @@ import { activateSessionWithHost } from "./space";
 // Test Helpers
 // =============================================================================
 
-const TEST_HOST = "https://node.tinycloud.xyz";
+const TEST_HOST = "https://tee.node.tinycloud.xyz";
 const TEST_DELEGATION_HEADER = { Authorization: "Bearer ucan-delegation-token" };
 
 function mockFetchResponse(body: any, init?: ResponseInit): Response {
