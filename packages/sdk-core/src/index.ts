@@ -10,6 +10,35 @@
  * @packageDocumentation
  */
 
+// Platform-agnostic client types (canonical definitions)
+export {
+  // Types
+  ClientSession as CoreClientSession,
+  EnsData as CoreEnsData,
+  SiweConfig as CoreSiweConfig,
+  ServerHost,
+  // Schemas
+  ClientSessionSchema as CoreClientSessionSchema,
+  EnsDataSchema as CoreEnsDataSchema,
+  SiweConfigSchema as CoreSiweConfigSchema,
+  // Validation
+  validateClientSession as validateCoreClientSession,
+  // Re-export from siwe
+  SiweMessage,
+} from "./client-types";
+
+// Notification handler
+export {
+  INotificationHandler,
+  SilentNotificationHandler,
+} from "./notifications";
+
+// ENS resolver
+export { IENSResolver } from "./ens";
+
+// WASM bindings abstraction
+export { IWasmBindings, ISessionManager } from "./wasm";
+
 // Signer interface
 export { ISigner, Bytes } from "./signer";
 
