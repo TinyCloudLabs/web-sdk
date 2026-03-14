@@ -4,6 +4,17 @@
 export { TinyCloudWeb, Config, ShareReceiveResult } from './modules/tcw';
 
 // =============================================================================
+// Browser Adapters
+// =============================================================================
+export {
+  BrowserWalletSigner,
+  BrowserSessionStorage,
+  BrowserENSResolver,
+  BrowserNotificationHandler,
+  BrowserWasmBindings,
+} from './adapters';
+
+// =============================================================================
 // Auth module (WebUserAuthorization) and strategies
 // =============================================================================
 export {
@@ -171,14 +182,16 @@ export {
 export { createKVService } from './modules/Storage/tinycloud/KVServiceAdapter';
 
 // =============================================================================
-// Delegation Transport Types (TC-563: useDelegation support)
+// Delegation Transport Types (re-exported from node-sdk for compatibility)
 // =============================================================================
-// These types enable receiving and using delegations from other users.
-// Compatible with node-sdk's delegation system for cross-platform delegation exchange.
-
 export {
   PortableDelegation,
   DelegatedAccess,
   serializeDelegation,
   deserializeDelegation,
-} from './delegation';
+} from '@tinycloud/node-sdk';
+
+// =============================================================================
+// TinyCloudNode re-export (for advanced usage)
+// =============================================================================
+export { TinyCloudNode, TinyCloudNodeConfig } from '@tinycloud/node-sdk';

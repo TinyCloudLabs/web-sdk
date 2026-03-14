@@ -20,10 +20,13 @@ export class BrowserWasmBindings implements IWasmBindings {
   makeSpaceId(address: string, chainId: number, prefix: string): string {
     return tinycloud.makeSpaceId(address, chainId, prefix);
   }
-  createDelegation(...args: any[]) { return tinycloud.createDelegation(...args); }
+  createDelegation(
+    session: any, delegateDID: string, spaceId: string,
+    path: string, actions: string[], expirationSecs: number, notBeforeSecs?: number
+  ) { return tinycloud.createDelegation(session, delegateDID, spaceId, path, actions, expirationSecs, notBeforeSecs); }
   generateHostSIWEMessage(params: any): string { return tinycloud.generateHostSIWEMessage(params); }
   siweToDelegationHeaders(params: any) { return tinycloud.siweToDelegationHeaders(params); }
-  protocolVersion(): string { return tinycloud.protocolVersion(); }
+  protocolVersion(): string { return String(tinycloud.protocolVersion()); }
 
   // Vault crypto
   vault_encrypt(key: Uint8Array, plaintext: Uint8Array) { return tinycloud.vault_encrypt(key, plaintext); }
