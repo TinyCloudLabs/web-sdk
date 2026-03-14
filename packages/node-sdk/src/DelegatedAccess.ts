@@ -9,7 +9,7 @@ import {
   ServiceSession,
   ServiceContext,
 } from "@tinycloud/sdk-core";
-import { invoke } from "@tinycloud/node-sdk-wasm";
+import type { InvokeFunction } from "@tinycloud/sdk-services";
 import { PortableDelegation } from "./delegation";
 
 /**
@@ -30,7 +30,8 @@ export class DelegatedAccess {
   constructor(
     session: TinyCloudSession,
     delegation: PortableDelegation,
-    host: string
+    host: string,
+    invoke: InvokeFunction,
   ) {
     this.session = session;
     this._delegation = delegation;

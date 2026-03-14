@@ -92,6 +92,9 @@ export type {
 // High-level API
 export { TinyCloudNode, TinyCloudNodeConfig } from "./TinyCloudNode";
 
+// WASM bindings
+export { NodeWasmBindings } from "./NodeWasmBindings";
+
 // Delegation
 export { DelegatedAccess } from "./DelegatedAccess";
 export {

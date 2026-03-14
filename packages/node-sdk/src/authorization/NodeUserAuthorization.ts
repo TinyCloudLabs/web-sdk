@@ -13,18 +13,9 @@ import {
   checkNodeInfo,
   ISpaceCreationHandler,
   AutoApproveSpaceCreationHandler,
+  IWasmBindings,
+  ISessionManager,
 } from "@tinycloud/sdk-core";
-import {
-  TCWSessionManager as SessionManager,
-  prepareSession,
-  completeSessionSetup,
-  ensureEip55,
-  makeSpaceId,
-  initPanicHook,
-  generateHostSIWEMessage,
-  siweToDelegationHeaders,
-  protocolVersion,
-} from "@tinycloud/node-sdk-wasm";
 import {
   SignStrategy,
   SignRequest,
@@ -63,6 +54,8 @@ export interface NodeUserAuthorizationConfig {
   tinycloudHosts?: string[];
   /** Whether to include public space capabilities in the session (default: true) */
   enablePublicSpace?: boolean;
+  /** WASM bindings for cryptographic operations. Required. */
+  wasmBindings: IWasmBindings;
 }
 
 /**
@@ -98,9 +91,6 @@ export interface NodeUserAuthorizationConfig {
  * ```
  */
 export class NodeUserAuthorization implements IUserAuthorization {
-  /** Flag to ensure WASM panic hook is only initialized once */
-  private static wasmInitialized = false;
-
   private readonly signer: ISigner;
   private readonly signStrategy: SignStrategy;
   private readonly sessionStorage: ISessionStorage;
@@ -114,8 +104,9 @@ export class NodeUserAuthorization implements IUserAuthorization {
   private readonly spaceCreationHandler?: ISpaceCreationHandler;
   private readonly tinycloudHosts: string[];
   private readonly enablePublicSpace: boolean;
+  private readonly wasm: IWasmBindings;
 
-  private sessionManager: SessionManager;
+  private sessionManager: ISessionManager;
   private extensions: Extension[] = [];
   private _session?: ClientSession;
   private _tinyCloudSession?: TinyCloudSession;
@@ -124,11 +115,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
   private _nodeFeatures: string[] = [];
 
   constructor(config: NodeUserAuthorizationConfig) {
-    // Initialize WASM panic hook once (improves error messages from WASM)
-    if (!NodeUserAuthorization.wasmInitialized) {
-      initPanicHook();
-      NodeUserAuthorization.wasmInitialized = true;
-    }
+    this.wasm = config.wasmBindings;
 
     this.signer = config.signer;
     this.signStrategy = config.signStrategy ?? defaultSignStrategy;
@@ -176,8 +163,8 @@ export class NodeUserAuthorization implements IUserAuthorization {
     this.tinycloudHosts = config.tinycloudHosts ?? ["https://node.tinycloud.xyz"];
     this.enablePublicSpace = config.enablePublicSpace ?? true;
 
-    // Initialize session manager
-    this.sessionManager = new SessionManager();
+    // Initialize session manager via WASM bindings
+    this.sessionManager = this.wasm.createSessionManager();
   }
 
   /**
@@ -229,7 +216,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
     const peerId = await fetchPeerId(host, spaceId);
 
     // Generate host SIWE message
-    const siwe = generateHostSIWEMessage({
+    const siwe = this.wasm.generateHostSIWEMessage({
       address: this._address,
       chainId: this._chainId,
       domain: this.domain,
@@ -242,7 +229,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
     const signature = await this.signMessage(siwe);
 
     // Convert to delegation headers and submit
-    const headers = siweToDelegationHeaders({ siwe, signature });
+    const headers = this.wasm.siweToDelegationHeaders({ siwe, signature });
     const result = await submitHostDelegation(host, headers);
 
     return result.success;
@@ -404,7 +391,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
     this._address = await this.signer.getAddress();
     this._chainId = await this.signer.getChainId();
 
-    const address = ensureEip55(this._address);
+    const address = this.wasm.ensureEip55(this._address);
     const chainId = this._chainId;
 
     // Create a session key
@@ -419,13 +406,13 @@ export class NodeUserAuthorization implements IUserAuthorization {
     const jwk = JSON.parse(jwkString);
 
     // Create space ID
-    const spaceId = makeSpaceId(address, chainId, this.spacePrefix);
+    const spaceId = this.wasm.makeSpaceId(address, chainId, this.spacePrefix);
 
     const now = new Date();
     const expirationTime = new Date(now.getTime() + this.sessionExpirationMs);
 
     // Prepare session - this creates the SIWE message with ReCap capabilities
-    const prepared = prepareSession({
+    const prepared = this.wasm.prepareSession({
       abilities: this.defaultActions,
       address,
       chainId,
@@ -445,7 +432,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
     });
 
     // Complete session setup with the prepared session + signature
-    const session = completeSessionSetup({
+    const session = this.wasm.completeSessionSetup({
       ...prepared,
       signature,
     });
@@ -465,7 +452,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
     // not at signIn time, to avoid creating spaces the user may never use.
     const spacesMetadata: Record<string, string> | undefined =
         this.enablePublicSpace
-            ? { public: makeSpaceId(address, chainId, "public") }
+            ? { public: this.wasm.makeSpaceId(address, chainId, "public") }
             : undefined;
 
     // Create TinyCloud session with full delegation data
@@ -512,7 +499,8 @@ export class NodeUserAuthorization implements IUserAuthorization {
     this._chainId = chainId;
 
     // Verify SDK-node protocol compatibility and discover supported features
-    const nodeInfo = await checkNodeInfo(this.tinycloudHosts[0], protocolVersion());
+    // Cast: IWasmBindings types protocolVersion as string but WASM actually returns number
+    const nodeInfo = await checkNodeInfo(this.tinycloudHosts[0], this.wasm.protocolVersion() as any);
     this._nodeFeatures = nodeInfo.features;
 
     // Call extension hooks
@@ -598,7 +586,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
     address: string;
     chainId: number;
   }> {
-    const address = ensureEip55(await this.signer.getAddress());
+    const address = this.wasm.ensureEip55(await this.signer.getAddress());
     const chainId = await this.signer.getChainId();
 
     // Create a session key
@@ -613,13 +601,13 @@ export class NodeUserAuthorization implements IUserAuthorization {
     const jwk = JSON.parse(jwkString);
 
     // Create space ID
-    const spaceId = makeSpaceId(address, chainId, this.spacePrefix);
+    const spaceId = this.wasm.makeSpaceId(address, chainId, this.spacePrefix);
 
     const now = new Date();
     const expirationTime = new Date(now.getTime() + this.sessionExpirationMs);
 
     // Prepare session - this creates the SIWE message with ReCap capabilities
-    const prepared = prepareSession({
+    const prepared = this.wasm.prepareSession({
       abilities: this.defaultActions,
       address,
       chainId,
@@ -662,7 +650,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
     jwk: Record<string, unknown>,
   ): Promise<ClientSession> {
     // Complete session setup with the prepared session + signature
-    const session = completeSessionSetup({
+    const session = this.wasm.completeSessionSetup({
       ...prepared,
       signature,
     });
@@ -670,7 +658,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
     // Parse address and chainId from the prepared session
     // The SIWE message contains this info, but we need to extract it
     // For now, we'll get it from the signer since it should match
-    const address = ensureEip55(await this.signer.getAddress());
+    const address = this.wasm.ensureEip55(await this.signer.getAddress());
     const chainId = await this.signer.getChainId();
 
     // Create client session (web-core compatible)
@@ -686,7 +674,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
     // Compute additional spaces as metadata (not in the delegation itself).
     const spacesMetadata: Record<string, string> | undefined =
         this.enablePublicSpace
-            ? { public: makeSpaceId(address, chainId, "public") }
+            ? { public: this.wasm.makeSpaceId(address, chainId, "public") }
             : undefined;
 
     // Create TinyCloud session with full delegation data
@@ -740,7 +728,8 @@ export class NodeUserAuthorization implements IUserAuthorization {
     this._chainId = chainId;
 
     // Verify SDK-node protocol compatibility and discover supported features
-    const nodeInfo = await checkNodeInfo(this.tinycloudHosts[0], protocolVersion());
+    // Cast: IWasmBindings types protocolVersion as string but WASM actually returns number
+    const nodeInfo = await checkNodeInfo(this.tinycloudHosts[0], this.wasm.protocolVersion() as any);
     this._nodeFeatures = nodeInfo.features;
 
     // Call extension hooks
