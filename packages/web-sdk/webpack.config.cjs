@@ -25,6 +25,9 @@ const plugins = [
     Buffer: ["buffer", "Buffer"],
     process: "process/browser",
   }),
+  new webpack.DefinePlugin({
+    global: "globalThis",
+  }),
   // Handle node: scheme imports by removing the node: prefix
   new webpack.NormalModuleReplacementPlugin(/^node:/, (resource) => {
     resource.request = resource.request.replace(/^node:/, "");
