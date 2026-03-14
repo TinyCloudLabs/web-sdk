@@ -172,6 +172,13 @@ export interface Config extends ClientConfig {
    * ```
    */
   spaceCreationHandler?: ISpaceCreationHandler;
+
+  /**
+   * Shorthand for passing a Web3 provider (e.g. OpenKeyEIP1193Provider, window.ethereum).
+   * Equivalent to `providers: { web3: { driver: provider } }`.
+   * If both `provider` and `providers.web3` are set, `provider` takes precedence.
+   */
+  provider?: any;
 }
 
 const DEFAULT_CONFIG: ClientConfig = {
@@ -495,8 +502,8 @@ export class TinyCloudWeb {
    */
   private createWebUserAuthorization(config: Config): WebUserAuthorization {
     const webAuthConfig: WebUserAuthorizationConfig = {
-      // Provider from config
-      provider: config.providers?.web3?.driver,
+      // Provider from config — shorthand `provider` takes precedence
+      provider: config.provider ?? config.providers?.web3?.driver,
 
       // Strategy options (or defaults)
       signStrategy: config.signStrategy,
