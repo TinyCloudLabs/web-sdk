@@ -46,6 +46,19 @@ export type {
   Extension,
   PersistedSessionData,
   TinyCloudSession,
+  INotificationHandler,
+  IENSResolver,
+  IWasmBindings,
+  ISessionManager,
+  ISpaceCreationHandler,
+  SpaceCreationContext,
+} from "@tinycloud/sdk-core";
+
+// Re-export core values for extensibility
+export {
+  SilentNotificationHandler,
+  AutoApproveSpaceCreationHandler,
+  defaultSpaceCreationHandler,
 } from "@tinycloud/sdk-core";
 
 // Signers

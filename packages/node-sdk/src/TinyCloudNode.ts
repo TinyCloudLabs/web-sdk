@@ -47,6 +47,12 @@ import {
   ServiceSession,
   ServiceContext,
   ISessionStorage,
+  ISigner,
+  INotificationHandler,
+  SilentNotificationHandler,
+  IENSResolver,
+  IWasmBindings,
+  ISpaceCreationHandler,
   // v2 services
   DelegationManager,
   SpaceService,
@@ -102,6 +108,8 @@ const DEFAULT_HOST = "https://node.tinycloud.xyz";
 export interface TinyCloudNodeConfig {
   /** Hex-encoded private key (with or without 0x prefix). Optional - only needed for wallet mode and signIn() */
   privateKey?: string;
+  /** Custom signer implementation. If provided, takes precedence over privateKey. */
+  signer?: ISigner;
   /** TinyCloud server URL (default: "https://node.tinycloud.xyz") */
   host?: string;
   /** Space prefix for this user's space. Optional - only needed for signIn() */
@@ -118,6 +126,14 @@ export interface TinyCloudNodeConfig {
    * When true, signIn() automatically includes capabilities for the user's public space,
    * accessible via spaces.get('public').kv */
   enablePublicSpace?: boolean;
+  /** Custom WASM bindings (default: @tinycloud/node-sdk-wasm). Used by browser wrapper. */
+  wasmBindings?: IWasmBindings;
+  /** Notification handler for sign-in/sign-out/error events (default: SilentNotificationHandler) */
+  notificationHandler?: INotificationHandler;
+  /** ENS resolver for resolving .eth names in delegation methods */
+  ensResolver?: IENSResolver;
+  /** Custom space creation handler (default: auto-approve when autoCreateSpace is true) */
+  spaceCreationHandler?: ISpaceCreationHandler;
 }
 
 /**
@@ -131,7 +147,7 @@ export class TinyCloudNode {
   private static wasmInitialized = false;
 
   private config: TinyCloudNodeConfig;
-  private signer: PrivateKeySigner | null = null;
+  private signer: ISigner | null = null;
   private auth: NodeUserAuthorization | null = null;
   private tc: TinyCloud | null = null;
   private _address?: string;
@@ -149,6 +165,9 @@ export class TinyCloudNode {
   private sessionKeyId: string;
   /** Session key JWK as object - always available */
   private sessionKeyJwk: object;
+
+  /** Notification handler for user-facing events */
+  private notificationHandler: INotificationHandler;
 
   // v2 services (initialized in constructor)
   private _capabilityRegistry: CapabilityKeyRegistry;
@@ -226,6 +245,9 @@ export class TinyCloudNode {
       sessionManager: this.sessionManager,
     });
 
+    // Initialize notification handler
+    this.notificationHandler = config.notificationHandler ?? new SilentNotificationHandler();
+
     // Initialize SharingService for receive-only access (no session required)
     // This allows session-only users to receive sharing links without signIn()
     // Full capabilities (generate) are added after signIn()
@@ -254,28 +276,38 @@ export class TinyCloudNode {
       },
     });
 
-    // Only set up wallet/auth if privateKey is provided
-    if (config.privateKey) {
+    // Set up wallet/auth if signer or privateKey is provided
+    if (config.signer) {
+      this.signer = config.signer;
+      this.setupAuth(config);
+    } else if (config.privateKey) {
       this.signer = new PrivateKeySigner(config.privateKey, this._chainId);
-
-      // Derive domain from host if not provided
-      const host = this.config.host!;
-      const domain = config.domain ?? new URL(host).hostname;
-
-      this.auth = new NodeUserAuthorization({
-        signer: this.signer,
-        signStrategy: { type: "auto-sign" },
-        sessionStorage: config.sessionStorage ?? new MemorySessionStorage(),
-        domain,
-        spacePrefix: config.prefix,
-        sessionExpirationMs: config.sessionExpirationMs ?? 60 * 60 * 1000,
-        tinycloudHosts: [host],
-        autoCreateSpace: config.autoCreateSpace,
-        enablePublicSpace: config.enablePublicSpace ?? true,
-      });
-
-      this.tc = new TinyCloud(this.auth);
+      this.setupAuth(config);
     }
+  }
+
+  /**
+   * Set up authorization handler and TinyCloud instance.
+   * @internal
+   */
+  private setupAuth(config: TinyCloudNodeConfig): void {
+    const host = this.config.host!;
+    const domain = config.domain ?? new URL(host).hostname;
+
+    this.auth = new NodeUserAuthorization({
+      signer: this.signer!,
+      signStrategy: { type: "auto-sign" },
+      sessionStorage: config.sessionStorage ?? new MemorySessionStorage(),
+      domain,
+      spacePrefix: config.prefix,
+      sessionExpirationMs: config.sessionExpirationMs ?? 60 * 60 * 1000,
+      tinycloudHosts: [host],
+      autoCreateSpace: config.autoCreateSpace,
+      enablePublicSpace: config.enablePublicSpace ?? true,
+      spaceCreationHandler: config.spaceCreationHandler,
+    });
+
+    this.tc = new TinyCloud(this.auth);
   }
 
   /**
@@ -361,6 +393,8 @@ export class TinyCloudNode {
 
     // Initialize service context with session
     this.initializeServices();
+
+    this.notificationHandler.success("Successfully signed in");
   }
 
   /**
@@ -426,6 +460,38 @@ export class TinyCloudNode {
     };
     this._serviceContext.setSession(serviceSession);
 
+    // Create and register Vault service (matches initializeServices behavior)
+    const vaultCrypto = createVaultCrypto({
+      vault_encrypt, vault_decrypt, vault_derive_key,
+      vault_x25519_from_seed, vault_x25519_dh, vault_random_bytes, vault_sha256,
+    });
+    const self = this;
+    this._vault = new DataVaultService({
+      spaceId: sessionData.spaceId,
+      crypto: vaultCrypto,
+      tc: {
+        kv: this._kv!,
+        ensurePublicSpace: async () => {
+          try {
+            await self.ensurePublicSpace();
+            return { ok: true as const, data: undefined };
+          } catch (error) {
+            return { ok: false as const, error: { code: "STORAGE_ERROR", message: error instanceof Error ? error.message : String(error), service: "vault" } };
+          }
+        },
+        get publicKV() { return self._publicKV ?? self.tc!.publicKV; },
+        readPublicSpace: <T>(host: string, spaceId: string, key: string) =>
+          TinyCloud.readPublicSpace<T>(host, spaceId, key),
+        makePublicSpaceId: TinyCloud.makePublicSpaceId,
+        did: this.did,
+        address: sessionData.address ?? this._address ?? "",
+        chainId: sessionData.chainId ?? this._chainId,
+        hosts: [this.config.host!],
+      },
+    });
+    this._vault.initialize(this._serviceContext);
+    this._serviceContext.registerService('vault', this._vault);
+
     // Initialize v2 services
     this.initializeV2Services(serviceSession);
   }
@@ -478,12 +544,54 @@ export class TinyCloudNode {
       tinycloudHosts: [host],
       autoCreateSpace: this.config.autoCreateSpace,
       enablePublicSpace: this.config.enablePublicSpace ?? true,
+      spaceCreationHandler: this.config.spaceCreationHandler,
     });
 
     // Create TinyCloud instance
     this.tc = new TinyCloud(this.auth);
 
     // Update config with prefix
+    this.config.prefix = prefix;
+  }
+
+  /**
+   * Connect any ISigner to upgrade from session-only mode to wallet mode.
+   *
+   * Same as connectWallet() but accepts any ISigner implementation instead
+   * of a raw private key string. Use this for browser wallets, hardware wallets,
+   * or custom signing backends.
+   *
+   * Note: This does NOT automatically sign in. Call signIn() after connecting.
+   *
+   * @param signer - Any ISigner implementation
+   * @param options - Optional configuration
+   * @param options.prefix - Space name prefix (defaults to "default")
+   */
+  connectSigner(signer: ISigner, options?: { prefix?: string; sessionStorage?: ISessionStorage }): void {
+    if (this.signer) {
+      throw new Error("Signer already connected. Cannot connect another signer.");
+    }
+
+    const prefix = options?.prefix ?? "default";
+    const host = this.config.host!;
+    const domain = new URL(host).hostname;
+
+    this.signer = signer;
+
+    this.auth = new NodeUserAuthorization({
+      signer: this.signer,
+      signStrategy: { type: "auto-sign" },
+      sessionStorage: options?.sessionStorage ?? this.config.sessionStorage ?? new MemorySessionStorage(),
+      domain,
+      spacePrefix: prefix,
+      sessionExpirationMs: this.config.sessionExpirationMs ?? 60 * 60 * 1000,
+      tinycloudHosts: [host],
+      autoCreateSpace: this.config.autoCreateSpace,
+      enablePublicSpace: this.config.enablePublicSpace ?? true,
+      spaceCreationHandler: this.config.spaceCreationHandler,
+    });
+
+    this.tc = new TinyCloud(this.auth);
     this.config.prefix = prefix;
   }
 
@@ -1280,6 +1388,13 @@ export class TinyCloudNode {
     const session = this.auth?.tinyCloudSession;
     if (!session) {
       throw new Error("Not signed in. Call signIn() first.");
+    }
+
+    // Resolve ENS names to PKH DIDs
+    if (params.delegateDID.endsWith('.eth') && this.config.ensResolver) {
+      const address = await this.config.ensResolver.resolveAddress(params.delegateDID);
+      if (!address) throw new Error(`Could not resolve ENS name: ${params.delegateDID}`);
+      params = { ...params, delegateDID: `did:pkh:eip155:1:${address}` };
     }
 
     // Build abilities for the delegation
