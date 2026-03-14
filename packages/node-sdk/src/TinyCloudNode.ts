@@ -854,6 +854,11 @@ export class TinyCloudNode {
       sessionExpiry: this.getSessionExpiry(),
       // WASM-based delegation creation (preferred - no server roundtrip)
       createDelegationWasm: (params) => this.createDelegationWrapper(params),
+      // Root delegation for long-lived share links (bypasses session expiry)
+      // In node-sdk we have direct signer access, so no popup needed
+      onRootDelegationNeeded: this.signer
+        ? async (params) => this.createRootDelegationForSharing(params)
+        : undefined,
     });
 
     // Wire up SharingService to SpaceService for space.sharing.generate()
@@ -905,6 +910,89 @@ export class TinyCloudNode {
       actions: result.actions,
       expiry: new Date(result.expiry * 1000),
     };
+  }
+
+  /**
+   * Create a direct root delegation from the wallet to a share key.
+   * This bypasses the session delegation chain, allowing share links
+   * with expiry longer than the current session.
+   * @internal
+   */
+  private async createRootDelegationForSharing(params: {
+    shareKeyDID: string;
+    spaceId: string;
+    path: string;
+    actions: string[];
+    requestedExpiry: Date;
+  }): Promise<Delegation | undefined> {
+    if (!this.signer) {
+      return undefined;
+    }
+
+    const session = this.auth?.tinyCloudSession;
+    if (!session) {
+      return undefined;
+    }
+
+    try {
+      const host = this.config.host!;
+      const now = new Date();
+
+      // Build abilities for the share key
+      const abilities: Record<string, Record<string, string[]>> = {
+        kv: {
+          [params.path]: params.actions,
+        },
+      };
+
+      // Prepare a direct delegation to the share key (no parents = root delegation)
+      const prepared = prepareSession({
+        abilities,
+        address: ensureEip55(session.address),
+        chainId: session.chainId,
+        domain: new URL(host).hostname,
+        issuedAt: now.toISOString(),
+        expirationTime: params.requestedExpiry.toISOString(),
+        spaceId: params.spaceId,
+        delegateUri: params.shareKeyDID,
+      });
+
+      // Sign with the signer (no popup in node-sdk)
+      const signature = await this.signer.signMessage(prepared.siwe);
+
+      const delegationSession = completeSessionSetup({
+        ...prepared,
+        signature,
+      });
+
+      // Activate the delegation with the server
+      const activateResult = await activateSessionWithHost(
+        host,
+        delegationSession.delegationHeader
+      );
+
+      if (!activateResult.success) {
+        console.warn("Failed to activate root delegation for sharing:", activateResult.error);
+        return undefined;
+      }
+
+      return {
+        cid: delegationSession.delegationCid,
+        delegateDID: params.shareKeyDID,
+        delegatorDID: `did:pkh:eip155:${session.chainId}:${session.address}`,
+        spaceId: params.spaceId,
+        path: params.path,
+        actions: params.actions,
+        expiry: params.requestedExpiry,
+        isRevoked: false,
+        allowSubDelegation: true,
+        createdAt: now,
+        authHeader: delegationSession.delegationHeader.Authorization,
+      };
+    } catch (err) {
+      console.warn("Failed to create root delegation for sharing:", err);
+      return undefined;
+    }
   }
 
   /**
