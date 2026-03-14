@@ -12,18 +12,14 @@
 
 // Platform-agnostic client types (canonical definitions)
 export {
-  // Types
-  ClientSession as CoreClientSession,
-  EnsData as CoreEnsData,
-  SiweConfig as CoreSiweConfig,
+  ClientSession,
+  EnsData,
+  SiweConfig,
   ServerHost,
-  // Schemas
-  ClientSessionSchema as CoreClientSessionSchema,
-  EnsDataSchema as CoreEnsDataSchema,
-  SiweConfigSchema as CoreSiweConfigSchema,
-  // Validation
-  validateClientSession as validateCoreClientSession,
-  // Re-export from siwe
+  ClientSessionSchema,
+  EnsDataSchema,
+  SiweConfigSchema,
+  validateClientSession,
   SiweMessage,
 } from "./client-types";
 
@@ -59,12 +55,7 @@ export {
 export {
   IUserAuthorization,
   Extension,
-  EnsData,
-  ClientSession,
-  SiweConfig,
-  ConfigOverrides,
   PartialSiweMessage,
-  SiweMessage,
   UserAuthorizationConfig,
 } from "./userAuthorization";
 

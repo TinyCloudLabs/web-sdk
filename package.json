@@ -5,7 +5,6 @@
   "private": true,
   "packageManager": "bun@1.2.0",
   "workspaces": [
-    "packages/web-core",
     "packages/web-sdk",
     "packages/sdk-core",
     "packages/sdk-services",
@@ -34,7 +33,6 @@
     "node-demo:run:delegation": "bun run --cwd apps/node-demo src/demo-delegation-api.ts",
     "node-test": "bun run --cwd packages/node-sdk build && bun run --cwd apps/node-demo src/test-space.ts",
     "node-test:run": "bun run --cwd apps/node-demo src/test-space.ts",
-    "web-core": "bun --cwd packages/web-core -c",
     "node-sdk": "bun --cwd packages/node-sdk -c",
     "web-sdk": "bun --cwd packages/web-sdk -c",
     "sdk-core": "bun --cwd packages/sdk-core -c",
@@ -60,7 +58,6 @@
     "@docusaurus/core": "^3.7.0",
     "@docusaurus/preset-classic": "^3.7.0",
     "@tinycloud/sdk-core": "workspace:*",
-    "@tinycloud/web-core": "workspace:*",
     "@tinycloud/web-sdk": "workspace:*",
     "@tinycloud/web-sdk-wasm": "workspace:*",
     "@tinycloud/node-sdk-wasm": "workspace:*",

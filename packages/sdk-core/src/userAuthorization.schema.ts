@@ -14,7 +14,8 @@ import { SignStrategySchema } from "./authorization/strategies.schema";
 import { SpaceCreationHandlerSchema } from "./authorization/spaceCreation.schema";
 import type { ISigner } from "./signer";
 import type { ISessionStorage } from "./storage";
-import type { Extension, SiweConfig } from "@tinycloud/web-core/client";
+import type { Extension } from "./userAuthorization";
+import type { SiweConfig } from "./client-types";
 
 // =============================================================================
 // Partial SIWE Message Schema

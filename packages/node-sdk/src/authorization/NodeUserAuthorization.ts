@@ -282,7 +282,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
     // 1. Explicit spaceCreationHandler takes precedence
     // 2. autoCreateSpace: true uses AutoApproveSpaceCreationHandler
     // 3. Otherwise, no handler (space creation skipped silently)
-    const handler = this.spaceCreationHandler
+    const handler: ISpaceCreationHandler | undefined = this.spaceCreationHandler
       ?? (this.autoCreateSpace ? new AutoApproveSpaceCreationHandler() : undefined);
 
     const creationContext = {

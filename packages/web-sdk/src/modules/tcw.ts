@@ -1,6 +1,8 @@
 import {
   RPCProviders,
-} from '@tinycloud/web-core';
+  ClientConfig,
+  Extension,
+} from '../providers';
 import {
   WebUserAuthorization,
   WebUserAuthorizationConfig,
@@ -8,11 +10,7 @@ import {
   ModalSpaceCreationHandler,
   defaultWebSpaceCreationHandler,
 } from '../authorization';
-import {
-  ClientConfig,
-  ClientSession,
-  Extension,
-} from '@tinycloud/web-core/client';
+import type { ClientSession } from '@tinycloud/sdk-core';
 import type { providers } from 'ethers';
 import { SDKErrorHandler, ToastManager } from '../notifications';
 import type { NotificationConfig } from '../notifications/types';

@@ -34,20 +34,32 @@ export {
 } from '@tinycloud/sdk-core';
 
 // =============================================================================
-// Re-exports from web-core packages
+// Re-exports from providers (browser/Web3-specific, formerly in web-core)
 // =============================================================================
-export * from '@tinycloud/web-core/client';
-export * from '@tinycloud/web-core';
-export { SiweMessage } from 'siwe';
+export * from './providers';
 
-// Re-export sdk-core interfaces for platform-agnostic code
+// =============================================================================
+// Re-exports from sdk-core (platform-agnostic types)
+// =============================================================================
 export {
+  // Session and auth types
+  ClientSession,
+  SiweConfig,
+  EnsData,
+  SiweMessage,
+  ServerHost,
+  Extension,
+  // Schemas and validation
+  ClientSessionSchema,
+  EnsDataSchema,
+  SiweConfigSchema,
+  validateClientSession,
+  // Core interfaces
   TinyCloud,
   ISigner,
   ISessionStorage,
   IUserAuthorization as ICoreUserAuthorization,
   PersistedSessionData,
-  SiweConfig,
   PartialSiweMessage,
 } from '@tinycloud/sdk-core';
 

@@ -11,7 +11,6 @@ export default defineConfig({
   external: [
     '@tinycloud/sdk-core',
     '@tinycloud/node-sdk-wasm',
-    '@tinycloud/web-core',
     'siwe',
     'events',
     'fs',
