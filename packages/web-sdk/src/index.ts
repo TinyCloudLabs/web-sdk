@@ -15,14 +15,9 @@ export {
 } from './adapters';
 
 // =============================================================================
-// Auth module (WebUserAuthorization) and strategies
+// Auth module (browser-specific strategies)
 // =============================================================================
 export {
-  WebUserAuthorization,
-  WebUserAuthorizationConfig,
-  WebSignStrategy,
-  WalletPopupStrategy,
-  defaultWebSignStrategy,
   ModalSpaceCreationHandler,
   defaultWebSpaceCreationHandler,
 } from './authorization';

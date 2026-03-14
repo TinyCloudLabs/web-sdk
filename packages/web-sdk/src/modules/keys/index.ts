@@ -3,5 +3,3 @@
  *
  * @packageDocumentation
  */
-
-export { WasmKeyProvider, WasmKeyProviderConfig, createWasmKeyProvider } from "./WasmKeyProvider";
