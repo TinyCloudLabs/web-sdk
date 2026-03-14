@@ -85,8 +85,9 @@ const resolveConfig = {
 
 const baseConfig = {
   mode: isProduction ? "production" : "development",
+  target: "web",
   entry: "./src/index.ts",
-  devtool: isProduction ? false : 'eval-source-map',
+  devtool: isProduction ? false : 'source-map',
   module: { rules },
   resolve: resolveConfig,
   optimization: {
@@ -97,6 +98,8 @@ const baseConfig = {
     }),
   },
   plugins,
+  // Prevent webpack from injecting Node.js polyfills for global, __filename, __dirname
+  node: false,
 };
 
 const esmConfig = {
@@ -104,6 +107,7 @@ const esmConfig = {
   output: {
     filename: "index.mjs",
     path: path.resolve(__dirname, "dist"),
+    globalObject: "globalThis",
     library: {
       type: "module",
     },
@@ -122,6 +126,7 @@ const cjsConfig = {
   output: {
     filename: "index.cjs",
     path: path.resolve(__dirname, "dist"),
+    globalObject: "globalThis",
     library: {
       type: "commonjs2",
     },
