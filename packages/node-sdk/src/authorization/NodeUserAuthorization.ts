@@ -499,8 +499,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
     this._chainId = chainId;
 
     // Verify SDK-node protocol compatibility and discover supported features
-    // Cast: IWasmBindings types protocolVersion as string but WASM actually returns number
-    const nodeInfo = await checkNodeInfo(this.tinycloudHosts[0], this.wasm.protocolVersion() as any);
+    const nodeInfo = await checkNodeInfo(this.tinycloudHosts[0], this.wasm.protocolVersion());
     this._nodeFeatures = nodeInfo.features;
 
     // Call extension hooks
@@ -728,8 +727,7 @@ export class NodeUserAuthorization implements IUserAuthorization {
     this._chainId = chainId;
 
     // Verify SDK-node protocol compatibility and discover supported features
-    // Cast: IWasmBindings types protocolVersion as string but WASM actually returns number
-    const nodeInfo = await checkNodeInfo(this.tinycloudHosts[0], this.wasm.protocolVersion() as any);
+    const nodeInfo = await checkNodeInfo(this.tinycloudHosts[0], this.wasm.protocolVersion());
     this._nodeFeatures = nodeInfo.features;
 
     // Call extension hooks

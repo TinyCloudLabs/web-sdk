@@ -54,9 +54,7 @@ export class NodeWasmBindings implements IWasmBindings {
   createDelegation = createDelegation;
   generateHostSIWEMessage = generateHostSIWEMessage;
   siweToDelegationHeaders = siweToDelegationHeaders;
-  // Cast needed: WASM returns number but IWasmBindings declares string.
-  // The downstream consumer (checkNodeInfo) actually expects number.
-  protocolVersion = protocolVersion as any;
+  protocolVersion = protocolVersion;
 
   // Vault crypto
   vault_encrypt = vault_encrypt;

@@ -34,7 +34,7 @@ export interface IWasmBindings {
   /** Convert a signed SIWE message to delegation headers */
   siweToDelegationHeaders: (params: any) => any;
   /** Get the protocol version */
-  protocolVersion: () => string;
+  protocolVersion: () => number;
 
   // Vault crypto functions
   vault_encrypt: (key: Uint8Array, plaintext: Uint8Array) => Uint8Array;
@@ -44,7 +44,7 @@ export interface IWasmBindings {
     signature: Uint8Array,
     info: Uint8Array,
   ) => Uint8Array;
-  vault_x25519_from_seed: (seed: Uint8Array) => Uint8Array;
+  vault_x25519_from_seed: (seed: Uint8Array) => { publicKey: Uint8Array; privateKey: Uint8Array };
   vault_x25519_dh: (
     privateKey: Uint8Array,
     publicKey: Uint8Array,

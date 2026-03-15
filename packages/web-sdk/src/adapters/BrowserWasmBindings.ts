@@ -26,7 +26,7 @@ export class BrowserWasmBindings implements IWasmBindings {
   ) { return tinycloud.createDelegation(session, delegateDID, spaceId, path, actions, expirationSecs, notBeforeSecs); }
   generateHostSIWEMessage(params: any): string { return tinycloud.generateHostSIWEMessage(params); }
   siweToDelegationHeaders(params: any) { return tinycloud.siweToDelegationHeaders(params); }
-  protocolVersion(): string { return String(tinycloud.protocolVersion()); }
+  protocolVersion(): number { return tinycloud.protocolVersion(); }
 
   // Vault crypto
   vault_encrypt(key: Uint8Array, plaintext: Uint8Array) { return tinycloud.vault_encrypt(key, plaintext); }

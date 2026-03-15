@@ -360,6 +360,9 @@ export class TinyCloudNode {
       );
     }
 
+    // Ensure WASM is ready (critical for browser where WASM loads asynchronously)
+    await this.wasmBindings.ensureInitialized?.();
+
     this._address = await this.signer.getAddress();
     this._chainId = await this.signer.getChainId();
 
@@ -395,6 +398,9 @@ export class TinyCloudNode {
     address?: string;
     chainId?: number;
   }): Promise<void> {
+    // Ensure WASM is ready (critical for browser where WASM loads asynchronously)
+    await this.wasmBindings.ensureInitialized?.();
+
     // Reset services so they get recreated with new session
     this._kv = undefined;
     this._sql = undefined;
@@ -442,11 +448,9 @@ export class TinyCloudNode {
 
     // Create and register Vault service (matches initializeServices behavior)
     const wasm = this.wasmBindings;
-    // Cast needed: IWasmBindings types vault_x25519_from_seed as returning Uint8Array,
-    // but the actual WASM and createVaultCrypto expect { publicKey, privateKey }.
     const vaultCrypto = createVaultCrypto({
       vault_encrypt: wasm.vault_encrypt, vault_decrypt: wasm.vault_decrypt, vault_derive_key: wasm.vault_derive_key,
-      vault_x25519_from_seed: wasm.vault_x25519_from_seed as any, vault_x25519_dh: wasm.vault_x25519_dh,
+      vault_x25519_from_seed: wasm.vault_x25519_from_seed, vault_x25519_dh: wasm.vault_x25519_dh,
       vault_random_bytes: wasm.vault_random_bytes, vault_sha256: wasm.vault_sha256,
     });
     const self = this;
@@ -634,11 +638,9 @@ export class TinyCloudNode {
 
     // Create and register Vault service
     const wasm = this.wasmBindings;
-    // Cast needed: IWasmBindings types vault_x25519_from_seed as returning Uint8Array,
-    // but the actual WASM and createVaultCrypto expect { publicKey, privateKey }.
     const vaultCrypto = createVaultCrypto({
       vault_encrypt: wasm.vault_encrypt, vault_decrypt: wasm.vault_decrypt, vault_derive_key: wasm.vault_derive_key,
-      vault_x25519_from_seed: wasm.vault_x25519_from_seed as any, vault_x25519_dh: wasm.vault_x25519_dh,
+      vault_x25519_from_seed: wasm.vault_x25519_from_seed, vault_x25519_dh: wasm.vault_x25519_dh,
       vault_random_bytes: wasm.vault_random_bytes, vault_sha256: wasm.vault_sha256,
     });
     const self = this;
