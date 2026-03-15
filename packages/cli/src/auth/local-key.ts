@@ -94,6 +94,7 @@ export async function localKeySignIn(options: {
   const node = new TinyCloudNode({
     privateKey: options.privateKey,
     host: options.host,
+    autoCreateSpace: true,
   });
 
   await node.signIn();
