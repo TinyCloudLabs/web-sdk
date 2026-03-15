@@ -184,9 +184,9 @@ export {
   DelegatedAccess,
   serializeDelegation,
   deserializeDelegation,
-} from '@tinycloud/node-sdk';
+} from '@tinycloud/node-sdk/core';
 
 // =============================================================================
 // TinyCloudNode re-export (for advanced usage)
 // =============================================================================
-export { TinyCloudNode, TinyCloudNodeConfig } from '@tinycloud/node-sdk';
+export { TinyCloudNode, TinyCloudNodeConfig } from '@tinycloud/node-sdk/core';

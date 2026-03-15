@@ -45,10 +45,6 @@ const resolveConfig = {
   conditionNames: ["browser", "import", "require", "default"],
   // Enable browser field support
   mainFields: ["browser", "module", "main"],
-  alias: {
-    // Map node-sdk-wasm to browser shim so TinyCloudNode runs in the browser
-    "@tinycloud/node-sdk-wasm": path.resolve(__dirname, "src/shims/node-sdk-wasm.ts"),
-  },
   fallback: {
     // Existing polyfills
     util: require.resolve("util/"),

@@ -74,10 +74,8 @@ import {
   makePublicSpaceId,
 } from "@tinycloud/sdk-core";
 import { NodeUserAuthorization } from "./authorization/NodeUserAuthorization";
-import { PrivateKeySigner } from "./signers/PrivateKeySigner";
 import { FileSessionStorage } from "./storage/FileSessionStorage";
 import { MemorySessionStorage } from "./storage/MemorySessionStorage";
-import { NodeWasmBindings } from "./NodeWasmBindings";
 import { PortableDelegation } from "./delegation";
 import { DelegatedAccess } from "./DelegatedAccess";
 import { WasmKeyProvider } from "./keys/WasmKeyProvider";
@@ -126,7 +124,21 @@ export interface TinyCloudNodeConfig {
  * Each user creates their own TinyCloudNode instance with their private key.
  * The instance manages the user's session and provides access to their space.
  */
+/** @internal */
+export interface NodeDefaults {
+  createWasmBindings: () => IWasmBindings;
+  createSigner: (privateKey: string, chainId?: number) => ISigner;
+}
+
 export class TinyCloudNode {
+  /** @internal Registered by importing @tinycloud/node-sdk (not /core) */
+  private static nodeDefaults?: NodeDefaults;
+
+  /** @internal Register Node.js-specific defaults (NodeWasmBindings, PrivateKeySigner) */
+  static registerNodeDefaults(defaults: NodeDefaults): void {
+    TinyCloudNode.nodeDefaults = defaults;
+  }
+
   private config: TinyCloudNodeConfig;
   private signer: ISigner | null = null;
   private auth: NodeUserAuthorization | null = null;
@@ -193,8 +205,17 @@ export class TinyCloudNode {
       host: config.host ?? DEFAULT_HOST,
     };
 
-    // Initialize WASM bindings (uses default Node bindings if not provided)
-    this.wasmBindings = config.wasmBindings ?? new NodeWasmBindings();
+    // Initialize WASM bindings (uses registered Node defaults if not provided)
+    if (config.wasmBindings) {
+      this.wasmBindings = config.wasmBindings;
+    } else if (TinyCloudNode.nodeDefaults) {
+      this.wasmBindings = TinyCloudNode.nodeDefaults.createWasmBindings();
+    } else {
+      throw new Error(
+        "wasmBindings must be provided in config. " +
+        "Import from '@tinycloud/node-sdk' (not '/core') for automatic Node.js defaults."
+      );
+    }
 
     // Always create session manager and session key immediately
     this.sessionManager = this.wasmBindings.createSessionManager();
@@ -260,7 +281,13 @@ export class TinyCloudNode {
       this.signer = config.signer;
       this.setupAuth(config);
     } else if (config.privateKey) {
-      this.signer = new PrivateKeySigner(config.privateKey, this._chainId);
+      if (!TinyCloudNode.nodeDefaults) {
+        throw new Error(
+          "privateKey requires PrivateKeySigner. Either provide a signer in config, " +
+          "or import from '@tinycloud/node-sdk' (not '/core') for automatic Node.js defaults."
+        );
+      }
+      this.signer = TinyCloudNode.nodeDefaults.createSigner(config.privateKey, this._chainId);
       this.setupAuth(config);
     }
   }
@@ -519,7 +546,13 @@ export class TinyCloudNode {
     const domain = new URL(host).hostname;
 
     // Create signer from private key
-    this.signer = new PrivateKeySigner(privateKey);
+    if (!TinyCloudNode.nodeDefaults) {
+      throw new Error(
+        "connectWallet() requires PrivateKeySigner. Use connectSigner() instead, " +
+        "or import from '@tinycloud/node-sdk' (not '/core') for automatic Node.js defaults."
+      );
+    }
+    this.signer = TinyCloudNode.nodeDefaults.createSigner(privateKey);
 
     // Create authorization handler
     this.auth = new NodeUserAuthorization({

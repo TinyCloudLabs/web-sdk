@@ -10,7 +10,7 @@
  * @packageDocumentation
  */
 
-import { TinyCloudNode, TinyCloudNodeConfig } from "@tinycloud/node-sdk";
+import { TinyCloudNode, TinyCloudNodeConfig } from "@tinycloud/node-sdk/core";
 import {
   IKVService,
   ISQLService,
@@ -48,7 +48,7 @@ import {
 import type { NotificationConfig } from "../notifications/types";
 import { WasmInitializer } from "./WasmInitializer";
 import { invoke } from "./Storage/tinycloud/module";
-import type { PortableDelegation, DelegatedAccess } from "@tinycloud/node-sdk";
+import type { PortableDelegation, DelegatedAccess } from "@tinycloud/node-sdk/core";
 
 declare global {
   interface Window {
