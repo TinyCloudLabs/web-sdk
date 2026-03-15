@@ -1,9 +1,6 @@
 /**
  * RPC Provider types, enums, type guards, and Zod schemas.
  *
- * Migrated from @tinycloud/web-core — these are browser/Web3-specific types
- * that belong in web-sdk rather than the platform-agnostic core.
- *
  * @packageDocumentation
  */
 
@@ -13,9 +10,7 @@ import { ConnectionInfo } from "ethers/lib/utils";
 import type { AxiosRequestConfig } from "axios";
 import type { ClientSession } from "@tinycloud/sdk-core";
 
-// =============================================================================
-// RPC Provider Enum (TypeScript enum form — from types.ts)
-// =============================================================================
+// RPC Provider Enum (TypeScript enum form)
 
 /** Enum of supported EthersJS providers. */
 export enum RPCProviders {
@@ -28,9 +23,7 @@ export enum RPCProviders {
   PocketProvider = "pocket",
 }
 
-// =============================================================================
-// Network Enums (TypeScript enum form — from types.ts)
-// =============================================================================
+// Network Enums (TypeScript enum form)
 
 /** Enum of supported networks for Etherscan. */
 export enum EtherscanProviderNetworks {
@@ -86,9 +79,7 @@ export enum AnkrProviderNetworks {
   ARBITRUM = "arbitrum",
 }
 
-// =============================================================================
-// Provider Types (TypeScript interface form — from types.ts)
-// =============================================================================
+// Provider Types (TypeScript interface form)
 
 /** Infura provider project settings. */
 export type InfuraProviderProjectSettings = {
@@ -162,9 +153,6 @@ export type RPCProvider =
   | AnkrProvider
   | CustomProvider;
 
-// =============================================================================
-// Type Guards (from types.ts)
-// =============================================================================
 
 /* Type-Guard for EtherscanProvider. */
 export const isEtherscanProvider = (
@@ -208,9 +196,6 @@ export const isCustomProvider = (
 ): provider is CustomProvider =>
   provider.service === RPCProviders.CustomProvider;
 
-// =============================================================================
-// Route Configuration Types (from types.ts)
-// =============================================================================
 
 /** TCW Route Configuration.
  *  This configuration is used to override the default endpoint paths.
@@ -269,9 +254,6 @@ export interface ServerRouteNames {
   logout?: string;
 }
 
-// =============================================================================
-// ENS Data (from types.ts)
-// =============================================================================
 
 /** ENS data supported by TCW. */
 export interface EnsData {
@@ -281,9 +263,6 @@ export interface EnsData {
   avatarUrl?: string | null;
 }
 
-// =============================================================================
-// Zod Schemas (from types.schema.ts)
-// =============================================================================
 
 /** ENS data schema. */
 export const EnsDataSchema = z.object({
@@ -305,7 +284,7 @@ export const RPCProvidersSchema = z.enum([
 ]);
 
 /**
- * Enum values for RPCProviders (const object form — from types.schema.ts).
+ * Enum values for RPCProviders (const object form).
  * Both the enum and const object exist and serve different purposes:
  * the enum for type-level discrimination, the const for runtime factory constructors.
  */
@@ -527,9 +506,6 @@ export const ServerRouteNamesSchema = z.object({
   logout: z.string().optional(),
 });
 
-// =============================================================================
-// Validation Helpers (from types.schema.ts)
-// =============================================================================
 
 export interface ValidationError {
   code: string;

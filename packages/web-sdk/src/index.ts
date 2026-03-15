@@ -1,11 +1,7 @@
-// =============================================================================
 // Main class and config
-// =============================================================================
 export { TinyCloudWeb, Config, ShareReceiveResult } from './modules/tcw';
 
-// =============================================================================
 // Browser Adapters
-// =============================================================================
 export {
   BrowserWalletSigner,
   BrowserSessionStorage,
@@ -14,9 +10,7 @@ export {
   BrowserWasmBindings,
 } from './adapters';
 
-// =============================================================================
 // Auth module (browser-specific strategies)
-// =============================================================================
 export {
   ModalSpaceCreationHandler,
   defaultWebSpaceCreationHandler,
@@ -39,14 +33,10 @@ export {
   defaultSpaceCreationHandler,
 } from '@tinycloud/sdk-core';
 
-// =============================================================================
 // Re-exports from providers (browser/Web3-specific, formerly in web-core)
-// =============================================================================
 export * from './providers';
 
-// =============================================================================
 // Re-exports from sdk-core (platform-agnostic types)
-// =============================================================================
 export {
   // Session and auth types
   ClientSession,
@@ -176,9 +166,7 @@ export {
 // Adapter for web-sdk
 export { createKVService } from './modules/Storage/tinycloud/KVServiceAdapter';
 
-// =============================================================================
 // Delegation Transport Types (re-exported from node-sdk for compatibility)
-// =============================================================================
 export {
   PortableDelegation,
   DelegatedAccess,
@@ -186,7 +174,5 @@ export {
   deserializeDelegation,
 } from '@tinycloud/node-sdk/core';
 
-// =============================================================================
 // TinyCloudNode re-export (for advanced usage)
-// =============================================================================
 export { TinyCloudNode, TinyCloudNodeConfig } from '@tinycloud/node-sdk/core';

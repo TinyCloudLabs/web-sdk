@@ -1,11 +1,6 @@
 /**
  * Platform-agnostic client types for TinyCloud SDK.
  *
- * These types were previously in web-core and are now the canonical
- * definitions shared by both web-sdk and node-sdk.
- *
- * NOTE: Extension, IConnected, ConfigOverrides stay in web-sdk (per A1).
- *
  * @packageDocumentation
  */
 
@@ -14,14 +9,7 @@ import { SiweMessage } from "siwe";
 
 export { SiweMessage };
 
-// =============================================================================
-// ENS Data
-// =============================================================================
-
-/**
- * ENS data associated with a user session.
- * Nullability preserved to match existing stored data patterns (per A3).
- */
+/** ENS data associated with a user session. */
 export interface EnsData {
   domain?: string | null;
   avatarUrl?: string | null;
@@ -32,14 +20,7 @@ export const EnsDataSchema = z.object({
   avatarUrl: z.string().nullable().optional(),
 });
 
-// =============================================================================
-// SIWE Configuration
-// =============================================================================
-
-/**
- * Full SIWE configuration shape (per A2).
- * All fields optional — callers provide only what they need to override.
- */
+/** SIWE configuration. All fields optional — callers provide only what they need to override. */
 export interface SiweConfig {
   domain?: string;
   uri?: string;
@@ -66,13 +47,7 @@ export const SiweConfigSchema = z
   })
   .passthrough();
 
-// =============================================================================
-// Client Session
-// =============================================================================
-
-/**
- * Representation of an active client session.
- */
+/** Representation of an active client session. */
 export interface ClientSession {
   /** User address (may be delegated) */
   address: string;
@@ -100,21 +75,10 @@ export const ClientSessionSchema = z.object({
   ens: EnsDataSchema.optional(),
 });
 
-// =============================================================================
-// Server Host
-// =============================================================================
-
 /** The URL of a server running tinycloud-node. */
 export type ServerHost = string;
 
-// =============================================================================
-// Validation
-// =============================================================================
-
-/**
- * Validate unknown data as a ClientSession.
- * Returns the parsed session or null if validation fails.
- */
+/** Validate unknown data as a ClientSession. Returns the parsed session or null. */
 export function validateClientSession(data: unknown): ClientSession | null {
   const result = ClientSessionSchema.safeParse(data);
   return result.success ? result.data : null;

@@ -1,10 +1,8 @@
 /**
  * Browser-coupled extension types.
  *
- * Per A1, these types stay in web-sdk (not sdk-core) because they depend on
- * browser-specific APIs (@tinycloud/web-sdk-wasm, ethers Web3Provider, axios).
- *
- * Migrated from @tinycloud/web-core/src/client/types.ts.
+ * These types stay in web-sdk because they depend on browser-specific
+ * APIs (@tinycloud/web-sdk-wasm, ethers Web3Provider, axios).
  *
  * @packageDocumentation
  */

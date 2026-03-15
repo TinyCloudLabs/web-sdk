@@ -1,18 +1,11 @@
 /**
  * Client configuration types for TCW.
  *
- * Migrated from @tinycloud/web-core/client — these are browser/Web3-specific
- * configuration types that belong in web-sdk.
- *
  * @packageDocumentation
  */
 
 import type { ClientSession, SiweConfig } from "@tinycloud/sdk-core";
 import type { RPCProvider, ServerRoutes } from "./types";
-
-// =============================================================================
-// Client Configuration (from client/types.ts)
-// =============================================================================
 
 /** Core config for TCW. */
 export interface ClientConfig {

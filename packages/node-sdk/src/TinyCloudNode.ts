@@ -997,7 +997,6 @@ export class TinyCloudNode {
       );
 
       if (!activateResult.success) {
-        console.warn("Failed to activate root delegation for sharing:", activateResult.error);
         return undefined;
       }
 
@@ -1014,8 +1013,7 @@ export class TinyCloudNode {
         createdAt: now,
         authHeader: delegationSession.delegationHeader.Authorization,
       };
-    } catch (err) {
-      console.warn("Failed to create root delegation for sharing:", err);
+    } catch {
       return undefined;
     }
   }

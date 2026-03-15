@@ -56,9 +56,7 @@ declare global {
   }
 }
 
-// =============================================================================
 // Config
-// =============================================================================
 
 /**
  * Configuration for TinyCloudWeb.
@@ -84,13 +82,14 @@ export interface Config extends ClientConfig {
   /** Space creation handler (default: ModalSpaceCreationHandler) */
   spaceCreationHandler?: ISpaceCreationHandler;
 
+  /** Session expiration time in milliseconds (default: 1 hour) */
+  sessionExpirationMs?: number;
+
   /** Shorthand for passing a Web3 provider */
   provider?: any;
 }
 
-// =============================================================================
 // Share Link Utilities (static, no auth required)
-// =============================================================================
 
 const TC1_PREFIX = "tc1:";
 
@@ -139,9 +138,7 @@ export interface ShareReceiveResult<T = unknown> {
   spaceId: string;
 }
 
-// =============================================================================
 // TinyCloudWeb
-// =============================================================================
 
 export class TinyCloudWeb {
   /** The Ethereum provider */
@@ -199,7 +196,7 @@ export class TinyCloudWeb {
       host: this.config.tinycloudHosts?.[0] ?? "https://node.tinycloud.xyz",
       prefix: this.config.spacePrefix,
       autoCreateSpace: this.config.autoCreateSpace ?? true,
-      sessionExpirationMs: (this.config as any).sessionExpirationMs,
+      sessionExpirationMs: this.config.sessionExpirationMs,
       notificationHandler: this.notificationHandler,
       wasmBindings: this.wasmBindings,
     };
@@ -318,12 +315,8 @@ export class TinyCloudWeb {
   // Extension & Lifecycle
   // ===========================================================================
 
-  extend(extension: Extension): void {
-    // Extensions are passed to TinyCloudNode if available
-    // In the wrapper pattern, extensions integrate via node's hook system
-    if (this._node) {
-      // TinyCloudNode.extend() — to be added in a follow-up
-    }
+  extend(_extension: Extension): void {
+    // Not yet implemented — TinyCloudNode.extend() needed
   }
 
   cleanup(): void {

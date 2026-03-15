@@ -1,9 +1,6 @@
 /**
  * Provider utility functions.
  *
- * Migrated from @tinycloud/web-core/src/utils/utils.ts — these are
- * browser/Web3-specific utilities that belong in web-sdk.
- *
  * @packageDocumentation
  */
 
