@@ -7,6 +7,10 @@ import { ExitCode } from "../config/constants.js";
 /**
  * Create a TinyCloudNode instance from the current CLI context.
  * Uses the profile's persisted session and key.
+ *
+ * Supports both auth methods:
+ * - "local": Uses the stored Ethereum private key directly
+ * - "openkey": Restores session from stored delegation data (browser auth flow)
  */
 export async function createSDKInstance(
   ctx: CLIContext,
@@ -16,7 +20,10 @@ export async function createSDKInstance(
   const session = await ProfileManager.getSession(ctx.profile) as Record<string, unknown> | null;
   const key = await ProfileManager.getKey(ctx.profile);
 
-  if (!key) {
+  // For local auth, use the stored private key
+  const effectivePrivateKey = options?.privateKey ?? profile.privateKey;
+
+  if (!key && !effectivePrivateKey) {
     throw new CLIError(
       "AUTH_REQUIRED",
       `No key found for profile "${ctx.profile}". Run \`tc init\` first.`,
@@ -24,6 +31,18 @@ export async function createSDKInstance(
     );
   }
 
+  if (profile.authMethod === "local" && effectivePrivateKey) {
+    // Local key auth: create node with private key and sign in
+    const node = new TinyCloudNode({
+      host: ctx.host,
+      privateKey: effectivePrivateKey,
+    });
+
+    await node.signIn();
+    return node;
+  }
+
+  // OpenKey / delegation-based auth
   const node = new TinyCloudNode({
     host: ctx.host,
     privateKey: options?.privateKey,
@@ -56,6 +75,13 @@ export async function ensureAuthenticated(
   ctx: CLIContext,
   options?: { privateKey?: string }
 ): Promise<TinyCloudNode> {
+  const profile = await ProfileManager.getProfile(ctx.profile).catch(() => null);
+
+  // For local auth, we can sign in directly without a stored session
+  if (profile?.authMethod === "local" && profile.privateKey) {
+    return createSDKInstance(ctx, { privateKey: profile.privateKey });
+  }
+
   const session = await ProfileManager.getSession(ctx.profile);
 
   if (!session) {
