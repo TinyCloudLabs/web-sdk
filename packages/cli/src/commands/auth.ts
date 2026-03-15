@@ -34,7 +34,7 @@ async function promptAuthMethod(): Promise<AuthMethod> {
     process.stderr.write(`  ${theme.accent("1)")} OpenKey ${theme.muted("(browser-based, for interactive use)")}\n`);
     process.stderr.write(`  ${theme.accent("2)")} Local key ${theme.muted("(Ethereum private key, for agents/CI)")}\n\n`);
 
-    rl.question("Enter choice (1 or 2): ", (answer) => {
+    rl.question("Enter choice [1]: ", (answer) => {
       rl.close();
       const trimmed = answer.trim();
       if (trimmed === "2" || trimmed.toLowerCase() === "local") {
