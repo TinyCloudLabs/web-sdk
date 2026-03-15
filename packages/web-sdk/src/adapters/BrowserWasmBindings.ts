@@ -8,6 +8,8 @@ export class BrowserWasmBindings implements IWasmBindings {
   async ensureInitialized(): Promise<void> {
     if (!wasmReady) {
       await initialized;
+      // Set global.tinycloudModule so module.ts helpers (invoke, prepareSession, etc.) work
+      (globalThis as any).tinycloudModule = tinycloud;
       wasmReady = true;
     }
   }

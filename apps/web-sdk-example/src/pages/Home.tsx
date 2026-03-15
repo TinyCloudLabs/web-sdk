@@ -204,7 +204,7 @@ function Home() {
     try {
       const signer = walletClientToEthers5Signer(walletClient as any);
       const tcwConfig = getTinyCloudWebConfig({
-        provider: {
+        providers: {
           web3: {
             driver: signer.provider,
           },

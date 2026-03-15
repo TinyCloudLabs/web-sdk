@@ -73,13 +73,23 @@ test.describe('Unified SDK (TinyCloudWeb)', () => {
     // Wait for SIWE signing
     await page.waitForTimeout(5000);
 
-    // Handle space creation if needed
-    const spaceModal = page.locator('tinycloud-space-modal');
-    if (await spaceModal.isVisible().catch(() => false)) {
-      const createButton = spaceModal.locator('button').filter({ hasText: /create/i });
-      if (await createButton.isVisible().catch(() => false)) {
-        await createButton.click();
-        await page.waitForTimeout(5000);
+    // Handle space creation modal if it appears.
+    // The ModalSpaceCreationHandler renders a dialog with "Create TinyCloud Space" button.
+    // It may be a <tinycloud-space-modal> web component OR a regular DOM modal.
+    const createSpaceButton = page.locator('button').filter({ hasText: /Create TinyCloud Space/i });
+    if (await createSpaceButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await createSpaceButton.click();
+      // Wait for space creation (requires another signature)
+      await page.waitForTimeout(8000);
+    } else {
+      // Also check for the old-style web component modal
+      const spaceModal = page.locator('tinycloud-space-modal');
+      if (await spaceModal.isVisible().catch(() => false)) {
+        const createButton = spaceModal.locator('button').filter({ hasText: /create/i });
+        if (await createButton.isVisible().catch(() => false)) {
+          await createButton.click();
+          await page.waitForTimeout(8000);
+        }
       }
     }
 
@@ -88,12 +98,9 @@ test.describe('Unified SDK (TinyCloudWeb)', () => {
     try {
       await signOutButton.waitFor({ timeout: 15000 });
     } catch (e) {
-      // Log console output for debugging sign-in failures
-      const errors = consoleLogs.filter(l => l.startsWith('[error]'));
-      if (errors.length > 0) {
-        console.log('Sign-in errors:');
-        errors.forEach(log => console.log('  ', log));
-      }
+      // Log all console output for debugging sign-in failures
+      console.log('All console logs during sign-in:');
+      consoleLogs.forEach(log => console.log('  ', log));
       throw e;
     }
   }
@@ -148,13 +155,13 @@ test.describe('Unified SDK (TinyCloudWeb)', () => {
       const testValue = `unified-value-${Date.now()}`;
 
       // Click "Add New Content"
-      const addButton = page.getByText('Add New Content');
+      const addButton = page.getByRole('button', { name: 'Add New Content' });
       await addButton.click();
       await page.waitForTimeout(300);
 
-      // Fill in key and value
-      await page.getByLabel('Key').fill(testKey);
-      await page.getByLabel('Value').fill(testValue);
+      // Fill in key and value (inputs have id matching their label text)
+      await page.locator('input#Key').fill(testKey);
+      await page.locator('input#Value').fill(testValue);
 
       // Click Save
       await page.getByText('Save', { exact: true }).click();
@@ -162,16 +169,17 @@ test.describe('Unified SDK (TinyCloudWeb)', () => {
 
       // Should return to list view with the new key visible
       await expect(page.getByText('Key Value Store')).toBeVisible({ timeout: 5000 });
-      await expect(page.getByText(testKey)).toBeVisible({ timeout: 5000 });
+      await expect(page.getByText(testKey, { exact: true })).toBeVisible({ timeout: 5000 });
 
-      // Now Get the value back
-      const itemRow = page.locator('div').filter({ hasText: testKey }).filter({ has: page.getByText('Get') });
-      const getButton = itemRow.getByText('Get');
+      // Now Get the value back — find the row with exact key text, then click Get
+      const keyCell = page.getByText(testKey, { exact: true });
+      const row = keyCell.locator('..').locator('..');  // Navigate up to the row container
+      const getButton = row.getByRole('button', { name: 'Get' });
       await getButton.click();
       await page.waitForTimeout(1000);
 
       // Verify the value matches
-      await expect(page.getByLabel('Value')).toHaveValue(testValue);
+      await expect(page.locator('input#Value')).toHaveValue(testValue);
     });
 
     test('should list stored keys after put', async ({ mockWalletPage: page }) => {
@@ -179,17 +187,17 @@ test.describe('Unified SDK (TinyCloudWeb)', () => {
 
       // Create a test entry
       const testKey = `list-test-${Date.now()}`;
-      const addButton = page.getByText('Add New Content');
+      const addButton = page.getByRole('button', { name: 'Add New Content' });
       await addButton.click();
       await page.waitForTimeout(300);
 
-      await page.getByLabel('Key').fill(testKey);
-      await page.getByLabel('Value').fill('list-test-value');
+      await page.locator('input#Key').fill(testKey);
+      await page.locator('input#Value').fill('list-test-value');
       await page.getByText('Save', { exact: true }).click();
       await page.waitForTimeout(2000);
 
       // The key should appear in the list
-      await expect(page.getByText(testKey)).toBeVisible({ timeout: 5000 });
+      await expect(page.getByText(testKey, { exact: true })).toBeVisible({ timeout: 5000 });
     });
 
     test('should delete a stored key', async ({ mockWalletPage: page }) => {
@@ -197,26 +205,27 @@ test.describe('Unified SDK (TinyCloudWeb)', () => {
 
       // Create a test entry
       const testKey = `delete-unified-${Date.now()}`;
-      const addButton = page.getByText('Add New Content');
+      const addButton = page.getByRole('button', { name: 'Add New Content' });
       await addButton.click();
       await page.waitForTimeout(300);
 
-      await page.getByLabel('Key').fill(testKey);
-      await page.getByLabel('Value').fill('to-delete');
+      await page.locator('input#Key').fill(testKey);
+      await page.locator('input#Value').fill('to-delete');
       await page.getByText('Save', { exact: true }).click();
       await page.waitForTimeout(2000);
 
       // Verify key exists
-      await expect(page.getByText(testKey)).toBeVisible();
+      await expect(page.getByText(testKey, { exact: true })).toBeVisible();
 
-      // Delete it
-      const itemRow = page.locator('div').filter({ hasText: testKey }).filter({ has: page.getByText('Delete') });
-      const deleteButton = itemRow.getByText('Delete');
+      // Delete it — find the row with exact key text
+      const delKeyCell = page.getByText(testKey, { exact: true });
+      const delRow = delKeyCell.locator('..').locator('..');
+      const deleteButton = delRow.getByRole('button', { name: 'Delete' });
       await deleteButton.click();
       await page.waitForTimeout(2000);
 
       // Should be gone
-      await expect(page.getByText(testKey)).not.toBeVisible();
+      await expect(page.getByText(testKey, { exact: true })).not.toBeVisible();
     });
   });
 
@@ -237,7 +246,7 @@ test.describe('Unified SDK (TinyCloudWeb)', () => {
       await expect(storagePrefix).toBeVisible();
 
       // Add New Content button should be available (proves KV is operational)
-      const addButton = page.getByText('Add New Content');
+      const addButton = page.getByRole('button', { name: 'Add New Content' });
       await expect(addButton).toBeVisible();
     });
 
@@ -304,14 +313,11 @@ test.describe('Unified SDK (TinyCloudWeb)', () => {
 
       await page.waitForTimeout(5000);
 
-      // Handle space creation if needed
-      const spaceModal = page.locator('tinycloud-space-modal');
-      if (await spaceModal.isVisible().catch(() => false)) {
-        const createButton = spaceModal.locator('button').filter({ hasText: /create/i });
-        if (await createButton.isVisible().catch(() => false)) {
-          await createButton.click();
-          await page.waitForTimeout(5000);
-        }
+      // Handle space creation modal
+      const createSpaceBtn = page.locator('button').filter({ hasText: /Create TinyCloud Space/i });
+      if (await createSpaceBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+        await createSpaceBtn.click();
+        await page.waitForTimeout(8000);
       }
 
       // Should be signed in again
