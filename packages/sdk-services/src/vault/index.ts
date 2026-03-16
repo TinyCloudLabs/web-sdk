@@ -14,6 +14,8 @@ export { DataVaultService, type VaultCrypto } from "./DataVaultService";
 export {
   VaultHeaders,
   VaultPublicSpaceKVActions,
+  VaultVersionConfig,
+  CURRENT_VAULT_VERSION,
   type DataVaultConfig,
   type VaultPutOptions,
   type VaultGetOptions,

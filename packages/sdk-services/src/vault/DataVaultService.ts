@@ -34,6 +34,8 @@ import {
   VaultError,
   VaultErrorInput,
   VaultHeaders,
+  VaultVersionConfig,
+  CURRENT_VAULT_VERSION,
 } from "./types";
 import {
   loadCachedSignature,
@@ -280,78 +282,111 @@ export class DataVaultService extends BaseService implements IDataVaultService {
   // =========================================================================
 
   /**
-   * Unlock the vault. Derives keys from a single wallet signature.
+   * Unlock the vault. Derives keys from two wallet signatures:
+   * 1. Master signature (per-space) — used to derive the master encryption key
+   * 2. Identity signature (per-address) — used to derive X25519 encryption identity
    *
-   * 1. Signs a single deterministic message (or loads from cache)
-   * 2. Derives both master key and encryption identity from that signature
-   * 3. Ensures public space exists and publishes the public key (first unlock only)
+   * If the identity public key already exists in the public space, the identity
+   * signature is skipped entirely (no wallet popup). The identity private key is
+   * only needed for sharing operations.
    *
-   * @param signer - Object with signMessage method. Optional when a cached
-   *                 signature exists (browser only).
+   * @param signer - Object with signMessage method. Optional when cached
+   *                 signatures exist (browser only).
    */
   async unlock(
     signer?: { signMessage(message: string): Promise<string> } | unknown
   ): Promise<Result<void, VaultError>> {
     return this.withTelemetry("unlock", undefined, async () => {
       const spaceId = this.vaultConfig.spaceId;
+      const versionConfig = VaultVersionConfig[CURRENT_VAULT_VERSION];
+      const masterCacheKey = `vault-master:${spaceId}`;
+      const identityCacheKey = `vault-identity:${this.tc.address}`;
 
       try {
-        // Try to load cached signature first
-        let sigBytes = await loadCachedSignature(spaceId);
-        let fromCache = sigBytes !== null;
+        // -----------------------------------------------------------------
+        // Step 1: Master signature → master key
+        // -----------------------------------------------------------------
+        let masterSigBytes = await loadCachedSignature(masterCacheKey);
 
-        if (!sigBytes) {
-          // No cache — signer is required
+        if (!masterSigBytes) {
           if (!signer) {
             return vaultError({
               code: "VAULT_LOCKED",
-              message: "Signer is required when no cached signature exists",
+              message: "Signer is required when no cached master signature exists",
             });
           }
           const s = signer as { signMessage(message: string): Promise<string> };
-          const sig = await s.signMessage(`tinycloud-vault-v1:${spaceId}`);
-          sigBytes = toBytes(sig);
-
-          // Cache for subsequent unlocks
-          await cacheSignature(spaceId, sigBytes);
+          const sig = await s.signMessage(versionConfig.masterMessage(spaceId));
+          masterSigBytes = toBytes(sig);
+          await cacheSignature(masterCacheKey, masterSigBytes);
         }
 
         // Derive master key: deriveKey(sigBytes, sha256(spaceId), "vault-master")
         this.masterKey = this.crypto.deriveKey(
-          sigBytes,
+          masterSigBytes,
           this.crypto.sha256(toBytes(spaceId)),
           toBytes("vault-master")
         );
 
-        // Derive identity seed: deriveKey(sigBytes, "tinycloud-x25519", "encryption-identity")
-        const seed = this.crypto.deriveKey(
-          sigBytes,
-          toBytes("tinycloud-x25519"),
-          toBytes("encryption-identity")
-        );
-        this.encryptionIdentity = this.crypto.x25519FromSeed(seed);
+        // -----------------------------------------------------------------
+        // Step 2: Identity — check public space first, then sign if needed
+        // -----------------------------------------------------------------
+        const publicSpaceId = this.tc.makePublicSpaceId(this.tc.address, this.tc.chainId);
 
-        // Publish vault metadata to public space on first unlock (not from cache)
-        // This enables other users to discover our public key and vault location.
-        // Non-fatal: key derivation succeeded, publishing is optional.
-        if (!fromCache) {
+        // Check public space for existing vault pubkey
+        let existingPubKey: string | null = null;
+        try {
+          const existing = await this.tc.readPublicSpace<string>(
+            this.host, publicSpaceId, ".well-known/vault-pubkey"
+          );
+          if (existing.ok && existing.data) {
+            existingPubKey = existing.data as string;
+          }
+        } catch {
+          // Read failed — treat as missing
+        }
+
+        if (existingPubKey) {
+          // Public key exists — trust it, skip identity signing entirely
+          this.encryptionIdentity = {
+            publicKey: base64Decode(existingPubKey),
+            privateKey: new Uint8Array(0), // private key not available without signing
+          };
+        } else {
+          // Public key missing — need identity signature to derive keypair
+          let identitySigBytes = await loadCachedSignature(identityCacheKey);
+
+          if (!identitySigBytes) {
+            if (!signer) {
+              // No signer available — skip identity derivation.
+              // Vault still works for get/put (only needs master key).
+              this.encryptionIdentity = null;
+              this._isUnlocked = true;
+              return ok(undefined);
+            }
+            const s = signer as { signMessage(message: string): Promise<string> };
+            const sig = await s.signMessage(versionConfig.identityMessage);
+            identitySigBytes = toBytes(sig);
+            await cacheSignature(identityCacheKey, identitySigBytes);
+          }
+
+          // Derive X25519 keypair from identity signature
+          const seed = this.crypto.deriveKey(
+            identitySigBytes,
+            toBytes("tinycloud-x25519"),
+            toBytes("encryption-identity")
+          );
+          this.encryptionIdentity = this.crypto.x25519FromSeed(seed);
+
+          // Publish public key to public space
           try {
             const pubKeyB64 = base64Encode(this.encryptionIdentity.publicKey);
-            const publicSpaceId = this.tc.makePublicSpaceId(this.tc.address, this.tc.chainId);
-
-            // Unauthenticated read — no delegation needed
-            const existing = await this.tc.readPublicSpace<string>(
-              this.host, publicSpaceId, ".well-known/vault-pubkey"
-            );
-
-            if (!existing.ok || existing.data !== pubKeyB64) {
-              await this.tc.ensurePublicSpace();
-              await this.tc.publicKV.put(".well-known/vault-pubkey", pubKeyB64);
-              await this.tc.publicKV.put(".well-known/vault-version", "1");
-              await this.tc.publicKV.put(".well-known/vault-space", this.vaultConfig.spaceId);
-            }
+            await this.tc.ensurePublicSpace();
+            await this.tc.publicKV.put(".well-known/vault-pubkey", pubKeyB64);
+            await this.tc.publicKV.put(".well-known/vault-version", CURRENT_VAULT_VERSION);
+            await this.tc.publicKV.put(".well-known/vault-space", this.vaultConfig.spaceId);
           } catch {
-            // Public key publishing failed — vault still usable
+            // Publishing failed — vault still usable
           }
         }
 
@@ -371,12 +406,16 @@ export class DataVaultService extends BaseService implements IDataVaultService {
   }
 
   /**
-   * Clear the cached vault signature.
+   * Clear the cached vault signatures.
    *
-   * @param spaceId - Clear only this space's cache. If omitted, clears all.
+   * @param spaceId - Clear only this space's master cache. If omitted, clears all.
    */
   async clearCache(spaceId?: string): Promise<void> {
-    await clearSignatureCache(spaceId);
+    if (spaceId) {
+      await clearSignatureCache(`vault-master:${spaceId}`);
+    } else {
+      await clearSignatureCache();
+    }
   }
 
   /**
@@ -572,6 +611,11 @@ export class DataVaultService extends BaseService implements IDataVaultService {
         const contentType =
           metadata[VaultHeaders.CONTENT_TYPE] ?? "application/json";
         const keyId = metadata[VaultHeaders.KEY_ID] ?? "";
+
+        // Read vault version from entry metadata (plumbing for future versions)
+        const _version = metadata[VaultHeaders.VERSION] ?? CURRENT_VAULT_VERSION;
+        const _versionConfig = VaultVersionConfig[_version as keyof typeof VaultVersionConfig]
+          ?? VaultVersionConfig[CURRENT_VAULT_VERSION];
 
         // Deserialize
         let value: T;
