@@ -1,0 +1,14 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      tinycloud:
+        patterns:
+          - "@tinycloud/*"
+      openkey:
+        patterns:
+          - "@openkey/*"
+    open-pull-requests-limit: 10
