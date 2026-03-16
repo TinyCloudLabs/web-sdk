@@ -1259,13 +1259,17 @@ export class TinyCloudWeb {
       const host = hosts[0];
       const now = new Date();
 
-      // Build abilities for the share key
-      // Note: We use the full path as-is (already includes any prefix)
-      const abilities: Record<string, Record<string, string[]>> = {
-        kv: {
-          [params.path]: params.actions,
-        },
-      };
+      // Build abilities by service type — filter actions by prefix
+      // (matches node-sdk behavior in TinyCloudNode.createDelegation)
+      const kvActions = params.actions.filter(a => a.startsWith("tinycloud.kv/"));
+      const sqlActions = params.actions.filter(a => a.startsWith("tinycloud.sql/"));
+      const abilities: Record<string, Record<string, string[]>> = {};
+      if (kvActions.length > 0) {
+        abilities.kv = { [params.path]: kvActions };
+      }
+      if (sqlActions.length > 0) {
+        abilities.sql = { [params.path]: sqlActions };
+      }
 
       // Prepare a NEW delegation directly to the share key
       // 1. delegateUri targets the share key DID directly
@@ -1350,12 +1354,17 @@ export class TinyCloudWeb {
     try {
       const host = hosts[0];
 
-      // Build abilities for the delegation
-      const abilities: Record<string, Record<string, string[]>> = {
-        kv: {
-          [params.path]: params.actions,
-        },
-      };
+      // Build abilities by service type — filter actions by prefix
+      // (matches node-sdk behavior in TinyCloudNode.createDelegation)
+      const kvActions = params.actions.filter(a => a.startsWith("tinycloud.kv/"));
+      const sqlActions = params.actions.filter(a => a.startsWith("tinycloud.sql/"));
+      const abilities: Record<string, Record<string, string[]>> = {};
+      if (kvActions.length > 0) {
+        abilities.kv = { [params.path]: kvActions };
+      }
+      if (sqlActions.length > 0) {
+        abilities.sql = { [params.path]: sqlActions };
+      }
 
       const now = new Date();
       const expirationTime = params.expiry ?? new Date(now.getTime() + 60 * 60 * 1000); // Default 1 hour
@@ -1911,12 +1920,17 @@ export class TinyCloudWeb {
     const hosts = this.webAuth.getTinycloudHosts();
     const host = hosts[0];
 
-    // Build abilities for the delegation
-    const abilities: Record<string, Record<string, string[]>> = {
-      kv: {
-        [params.path]: params.actions,
-      },
-    };
+    // Build abilities by service type — filter actions by prefix
+    // (matches node-sdk behavior in TinyCloudNode.createDelegation)
+    const kvActions = params.actions.filter(a => a.startsWith("tinycloud.kv/"));
+    const sqlActions = params.actions.filter(a => a.startsWith("tinycloud.sql/"));
+    const abilities: Record<string, Record<string, string[]>> = {};
+    if (kvActions.length > 0) {
+      abilities.kv = { [params.path]: kvActions };
+    }
+    if (sqlActions.length > 0) {
+      abilities.sql = { [params.path]: sqlActions };
+    }
 
     const now = new Date();
     const expiryMs = params.expiryMs ?? 60 * 60 * 1000; // Default 1 hour
@@ -2096,12 +2110,17 @@ export class TinyCloudWeb {
     const actualExpiry =
       requestedExpiry > parentDelegation.expiry ? parentDelegation.expiry : requestedExpiry;
 
-    // Build abilities for the sub-delegation
-    const abilities: Record<string, Record<string, string[]>> = {
-      kv: {
-        [params.path]: params.actions,
-      },
-    };
+    // Build abilities by service type — filter actions by prefix
+    // (matches node-sdk behavior in TinyCloudNode.createSubDelegation)
+    const kvActions = params.actions.filter(a => a.startsWith("tinycloud.kv/"));
+    const sqlActions = params.actions.filter(a => a.startsWith("tinycloud.sql/"));
+    const abilities: Record<string, Record<string, string[]>> = {};
+    if (kvActions.length > 0) {
+      abilities.kv = { [params.path]: kvActions };
+    }
+    if (sqlActions.length > 0) {
+      abilities.sql = { [params.path]: sqlActions };
+    }
 
     // Use parent's host or fall back to config
     const hosts = this.webAuth.getTinycloudHosts();
