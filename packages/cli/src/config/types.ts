@@ -3,6 +3,8 @@ export interface GlobalConfig {
   version: number;
 }
 
+export type AuthMethod = "openkey" | "local";
+
 export interface ProfileConfig {
   name: string;
   host: string;
@@ -12,6 +14,11 @@ export interface ProfileConfig {
   primaryDid?: string;
   spaceId?: string;
   createdAt: string;
+  authMethod?: AuthMethod;
+  /** Hex-encoded Ethereum private key (only present when authMethod is "local") */
+  privateKey?: string;
+  /** Ethereum address derived from privateKey (only present when authMethod is "local") */
+  address?: string;
 }
 
 export interface CLIContext {
