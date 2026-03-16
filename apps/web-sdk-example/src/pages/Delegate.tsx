@@ -356,7 +356,7 @@ function Delegate() {
                   </div>
 
                   {/* Write New Key (if write permission) */}
-                  {delegation?.actions.some(a => a.includes('/put')) && (
+                  {delegation?.actions.some((a: string) => a.includes('/put')) && (
                     <div className="space-y-3 p-4 rounded-base border-2 border-border/30 bg-bw">
                       <h4 className="text-md font-heading text-text">Write New Key</h4>
                       <Input

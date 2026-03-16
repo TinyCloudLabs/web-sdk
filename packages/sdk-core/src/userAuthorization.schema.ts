@@ -14,11 +14,10 @@ import { SignStrategySchema } from "./authorization/strategies.schema";
 import { SpaceCreationHandlerSchema } from "./authorization/spaceCreation.schema";
 import type { ISigner } from "./signer";
 import type { ISessionStorage } from "./storage";
-import type { Extension, SiweConfig } from "@tinycloud/web-core/client";
+import type { Extension } from "./userAuthorization";
+import type { SiweConfig } from "./client-types";
 
-// =============================================================================
 // Partial SIWE Message Schema
-// =============================================================================
 
 /**
  * Schema for partial SIWE message overrides.
@@ -54,9 +53,7 @@ export const PartialSiweMessageSchema = z.object({
 
 export type PartialSiweMessage = z.infer<typeof PartialSiweMessageSchema>;
 
-// =============================================================================
 // User Authorization Config Schema
-// =============================================================================
 
 /**
  * Schema for UserAuthorization configuration.
@@ -158,9 +155,7 @@ export const UserAuthorizationConfigSchema = z.object({
 
 export type UserAuthorizationConfig = z.infer<typeof UserAuthorizationConfigSchema>;
 
-// =============================================================================
 // Validation Helpers
-// =============================================================================
 
 /**
  * Validates a UserAuthorizationConfig object and returns a Result.

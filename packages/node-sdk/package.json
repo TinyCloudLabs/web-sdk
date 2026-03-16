@@ -13,6 +13,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
+    },
+    "./core": {
+      "types": "./dist/core.d.ts",
+      "import": "./dist/core.js",
+      "require": "./dist/core.cjs"
     }
   },
   "engines": {
@@ -29,7 +34,6 @@
   "dependencies": {
     "@tinycloud/sdk-core": "workspace:*",
     "@tinycloud/node-sdk-wasm": "workspace:*",
-    "@tinycloud/web-core": "workspace:*",
     "siwe": "^2.3.2"
   },
   "devDependencies": {

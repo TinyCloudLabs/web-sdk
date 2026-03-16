@@ -47,6 +47,13 @@ import {
   ServiceSession,
   ServiceContext,
   ISessionStorage,
+  ISigner,
+  INotificationHandler,
+  SilentNotificationHandler,
+  IENSResolver,
+  IWasmBindings,
+  ISessionManager,
+  ISpaceCreationHandler,
   // v2 services
   DelegationManager,
   SpaceService,
@@ -67,27 +74,8 @@ import {
   makePublicSpaceId,
 } from "@tinycloud/sdk-core";
 import { NodeUserAuthorization } from "./authorization/NodeUserAuthorization";
-import { PrivateKeySigner } from "./signers/PrivateKeySigner";
 import { FileSessionStorage } from "./storage/FileSessionStorage";
 import { MemorySessionStorage } from "./storage/MemorySessionStorage";
-import {
-  TCWSessionManager as SessionManager,
-  prepareSession,
-  completeSessionSetup,
-  ensureEip55,
-  invoke,
-  makeSpaceId,
-  initPanicHook,
-  createDelegation,
-  // Vault crypto
-  vault_encrypt,
-  vault_decrypt,
-  vault_derive_key,
-  vault_x25519_from_seed,
-  vault_x25519_dh,
-  vault_random_bytes,
-  vault_sha256,
-} from "@tinycloud/node-sdk-wasm";
 import { PortableDelegation } from "./delegation";
 import { DelegatedAccess } from "./DelegatedAccess";
 import { WasmKeyProvider } from "./keys/WasmKeyProvider";
@@ -102,6 +90,8 @@ const DEFAULT_HOST = "https://node.tinycloud.xyz";
 export interface TinyCloudNodeConfig {
   /** Hex-encoded private key (with or without 0x prefix). Optional - only needed for wallet mode and signIn() */
   privateKey?: string;
+  /** Custom signer implementation. If provided, takes precedence over privateKey. */
+  signer?: ISigner;
   /** TinyCloud server URL (default: "https://node.tinycloud.xyz") */
   host?: string;
   /** Space prefix for this user's space. Optional - only needed for signIn() */
@@ -118,6 +108,14 @@ export interface TinyCloudNodeConfig {
    * When true, signIn() automatically includes capabilities for the user's public space,
    * accessible via spaces.get('public').kv */
   enablePublicSpace?: boolean;
+  /** Custom WASM bindings (default: @tinycloud/node-sdk-wasm). Used by browser wrapper. */
+  wasmBindings?: IWasmBindings;
+  /** Notification handler for sign-in/sign-out/error events (default: SilentNotificationHandler) */
+  notificationHandler?: INotificationHandler;
+  /** ENS resolver for resolving .eth names in delegation methods */
+  ensResolver?: IENSResolver;
+  /** Custom space creation handler (default: auto-approve when autoCreateSpace is true) */
+  spaceCreationHandler?: ISpaceCreationHandler;
 }
 
 /**
@@ -126,17 +124,29 @@ export interface TinyCloudNodeConfig {
  * Each user creates their own TinyCloudNode instance with their private key.
  * The instance manages the user's session and provides access to their space.
  */
+/** @internal */
+export interface NodeDefaults {
+  createWasmBindings: () => IWasmBindings;
+  createSigner: (privateKey: string, chainId?: number) => ISigner;
+}
+
 export class TinyCloudNode {
-  /** Flag to ensure WASM panic hook is only initialized once */
-  private static wasmInitialized = false;
+  /** @internal Registered by importing @tinycloud/node-sdk (not /core) */
+  private static nodeDefaults?: NodeDefaults;
+
+  /** @internal Register Node.js-specific defaults (NodeWasmBindings, PrivateKeySigner) */
+  static registerNodeDefaults(defaults: NodeDefaults): void {
+    TinyCloudNode.nodeDefaults = defaults;
+  }
 
   private config: TinyCloudNodeConfig;
-  private signer: PrivateKeySigner | null = null;
+  private signer: ISigner | null = null;
   private auth: NodeUserAuthorization | null = null;
   private tc: TinyCloud | null = null;
   private _address?: string;
   private _chainId: number = 1;
-  private sessionManager: SessionManager;
+  private wasmBindings: IWasmBindings;
+  private sessionManager: ISessionManager;
   private _serviceContext?: ServiceContext;
   private _kv?: KVService;
   private _sql?: SQLService;
@@ -149,6 +159,9 @@ export class TinyCloudNode {
   private sessionKeyId: string;
   /** Session key JWK as object - always available */
   private sessionKeyJwk: object;
+
+  /** Notification handler for user-facing events */
+  private notificationHandler: INotificationHandler;
 
   // v2 services (initialized in constructor)
   private _capabilityRegistry: CapabilityKeyRegistry;
@@ -186,20 +199,26 @@ export class TinyCloudNode {
    * ```
    */
   constructor(config: TinyCloudNodeConfig = {}) {
-    // Initialize WASM panic hook once
-    if (!TinyCloudNode.wasmInitialized) {
-      initPanicHook();
-      TinyCloudNode.wasmInitialized = true;
-    }
-
     // Store config with default host
     this.config = {
       ...config,
       host: config.host ?? DEFAULT_HOST,
     };
 
+    // Initialize WASM bindings (uses registered Node defaults if not provided)
+    if (config.wasmBindings) {
+      this.wasmBindings = config.wasmBindings;
+    } else if (TinyCloudNode.nodeDefaults) {
+      this.wasmBindings = TinyCloudNode.nodeDefaults.createWasmBindings();
+    } else {
+      throw new Error(
+        "wasmBindings must be provided in config. " +
+        "Import from '@tinycloud/node-sdk' (not '/core') for automatic Node.js defaults."
+      );
+    }
+
     // Always create session manager and session key immediately
-    this.sessionManager = new SessionManager();
+    this.sessionManager = this.wasmBindings.createSessionManager();
 
     // Try to use "default" key, create if it doesn't exist
     const defaultKeyId = "default";
@@ -226,13 +245,16 @@ export class TinyCloudNode {
       sessionManager: this.sessionManager,
     });
 
+    // Initialize notification handler
+    this.notificationHandler = config.notificationHandler ?? new SilentNotificationHandler();
+
     // Initialize SharingService for receive-only access (no session required)
     // This allows session-only users to receive sharing links without signIn()
     // Full capabilities (generate) are added after signIn()
     this._sharingService = new SharingService({
       hosts: [this.config.host!],
       // session: undefined - not needed for receive()
-      invoke,
+      invoke: this.wasmBindings.invoke,
       fetch: globalThis.fetch.bind(globalThis),
       keyProvider: this._keyProvider,
       registry: this._capabilityRegistry,
@@ -254,28 +276,45 @@ export class TinyCloudNode {
       },
     });
 
-    // Only set up wallet/auth if privateKey is provided
-    if (config.privateKey) {
-      this.signer = new PrivateKeySigner(config.privateKey, this._chainId);
-
-      // Derive domain from host if not provided
-      const host = this.config.host!;
-      const domain = config.domain ?? new URL(host).hostname;
-
-      this.auth = new NodeUserAuthorization({
-        signer: this.signer,
-        signStrategy: { type: "auto-sign" },
-        sessionStorage: config.sessionStorage ?? new MemorySessionStorage(),
-        domain,
-        spacePrefix: config.prefix,
-        sessionExpirationMs: config.sessionExpirationMs ?? 60 * 60 * 1000,
-        tinycloudHosts: [host],
-        autoCreateSpace: config.autoCreateSpace,
-        enablePublicSpace: config.enablePublicSpace ?? true,
-      });
-
-      this.tc = new TinyCloud(this.auth);
+    // Set up wallet/auth if signer or privateKey is provided
+    if (config.signer) {
+      this.signer = config.signer;
+      this.setupAuth(config);
+    } else if (config.privateKey) {
+      if (!TinyCloudNode.nodeDefaults) {
+        throw new Error(
+          "privateKey requires PrivateKeySigner. Either provide a signer in config, " +
+          "or import from '@tinycloud/node-sdk' (not '/core') for automatic Node.js defaults."
+        );
+      }
+      this.signer = TinyCloudNode.nodeDefaults.createSigner(config.privateKey, this._chainId);
+      this.setupAuth(config);
     }
+  }
+
+  /**
+   * Set up authorization handler and TinyCloud instance.
+   * @internal
+   */
+  private setupAuth(config: TinyCloudNodeConfig): void {
+    const host = this.config.host!;
+    const domain = config.domain ?? new URL(host).hostname;
+
+    this.auth = new NodeUserAuthorization({
+      signer: this.signer!,
+      signStrategy: { type: "auto-sign" },
+      wasmBindings: this.wasmBindings,
+      sessionStorage: config.sessionStorage ?? new MemorySessionStorage(),
+      domain,
+      spacePrefix: config.prefix,
+      sessionExpirationMs: config.sessionExpirationMs ?? 60 * 60 * 1000,
+      tinycloudHosts: [host],
+      autoCreateSpace: config.autoCreateSpace,
+      enablePublicSpace: config.enablePublicSpace ?? true,
+      spaceCreationHandler: config.spaceCreationHandler,
+    });
+
+    this.tc = new TinyCloud(this.auth);
   }
 
   /**
@@ -348,6 +387,9 @@ export class TinyCloudNode {
       );
     }
 
+    // Ensure WASM is ready (critical for browser where WASM loads asynchronously)
+    await this.wasmBindings.ensureInitialized?.();
+
     this._address = await this.signer.getAddress();
     this._chainId = await this.signer.getChainId();
 
@@ -361,6 +403,8 @@ export class TinyCloudNode {
 
     // Initialize service context with session
     this.initializeServices();
+
+    this.notificationHandler.success("Successfully signed in");
   }
 
   /**
@@ -381,6 +425,9 @@ export class TinyCloudNode {
     address?: string;
     chainId?: number;
   }): Promise<void> {
+    // Ensure WASM is ready (critical for browser where WASM loads asynchronously)
+    await this.wasmBindings.ensureInitialized?.();
+
     // Reset services so they get recreated with new session
     this._kv = undefined;
     this._sql = undefined;
@@ -396,7 +443,7 @@ export class TinyCloudNode {
 
     // Create service context
     this._serviceContext = new ServiceContext({
-      invoke,
+      invoke: this.wasmBindings.invoke,
       fetch: globalThis.fetch.bind(globalThis),
       hosts: [this.config.host!],
     });
@@ -425,6 +472,40 @@ export class TinyCloudNode {
       jwk: sessionData.jwk,
     };
     this._serviceContext.setSession(serviceSession);
+
+    // Create and register Vault service (matches initializeServices behavior)
+    const wasm = this.wasmBindings;
+    const vaultCrypto = createVaultCrypto({
+      vault_encrypt: wasm.vault_encrypt, vault_decrypt: wasm.vault_decrypt, vault_derive_key: wasm.vault_derive_key,
+      vault_x25519_from_seed: wasm.vault_x25519_from_seed, vault_x25519_dh: wasm.vault_x25519_dh,
+      vault_random_bytes: wasm.vault_random_bytes, vault_sha256: wasm.vault_sha256,
+    });
+    const self = this;
+    this._vault = new DataVaultService({
+      spaceId: sessionData.spaceId,
+      crypto: vaultCrypto,
+      tc: {
+        kv: this._kv!,
+        ensurePublicSpace: async () => {
+          try {
+            await self.ensurePublicSpace();
+            return { ok: true as const, data: undefined };
+          } catch (error) {
+            return { ok: false as const, error: { code: "STORAGE_ERROR", message: error instanceof Error ? error.message : String(error), service: "vault" } };
+          }
+        },
+        get publicKV() { return self._publicKV ?? self.tc!.publicKV; },
+        readPublicSpace: <T>(host: string, spaceId: string, key: string) =>
+          TinyCloud.readPublicSpace<T>(host, spaceId, key),
+        makePublicSpaceId: TinyCloud.makePublicSpaceId,
+        did: this.did,
+        address: sessionData.address ?? this._address ?? "",
+        chainId: sessionData.chainId ?? this._chainId,
+        hosts: [this.config.host!],
+      },
+    });
+    this._vault.initialize(this._serviceContext);
+    this._serviceContext.registerService('vault', this._vault);
 
     // Initialize v2 services
     this.initializeV2Services(serviceSession);
@@ -465,12 +546,19 @@ export class TinyCloudNode {
     const domain = new URL(host).hostname;
 
     // Create signer from private key
-    this.signer = new PrivateKeySigner(privateKey);
+    if (!TinyCloudNode.nodeDefaults) {
+      throw new Error(
+        "connectWallet() requires PrivateKeySigner. Use connectSigner() instead, " +
+        "or import from '@tinycloud/node-sdk' (not '/core') for automatic Node.js defaults."
+      );
+    }
+    this.signer = TinyCloudNode.nodeDefaults.createSigner(privateKey);
 
     // Create authorization handler
     this.auth = new NodeUserAuthorization({
       signer: this.signer,
       signStrategy: { type: "auto-sign" },
+      wasmBindings: this.wasmBindings,
       sessionStorage: options?.sessionStorage ?? this.config.sessionStorage ?? new MemorySessionStorage(),
       domain,
       spacePrefix: prefix,
@@ -478,12 +566,55 @@ export class TinyCloudNode {
       tinycloudHosts: [host],
       autoCreateSpace: this.config.autoCreateSpace,
       enablePublicSpace: this.config.enablePublicSpace ?? true,
+      spaceCreationHandler: this.config.spaceCreationHandler,
     });
 
     // Create TinyCloud instance
     this.tc = new TinyCloud(this.auth);
 
     // Update config with prefix
+    this.config.prefix = prefix;
+  }
+
+  /**
+   * Connect any ISigner to upgrade from session-only mode to wallet mode.
+   *
+   * Same as connectWallet() but accepts any ISigner implementation instead
+   * of a raw private key string. Use this for browser wallets, hardware wallets,
+   * or custom signing backends.
+   *
+   * Note: This does NOT automatically sign in. Call signIn() after connecting.
+   *
+   * @param signer - Any ISigner implementation
+   * @param options - Optional configuration
+   * @param options.prefix - Space name prefix (defaults to "default")
+   */
+  connectSigner(signer: ISigner, options?: { prefix?: string; sessionStorage?: ISessionStorage }): void {
+    if (this.signer) {
+      throw new Error("Signer already connected. Cannot connect another signer.");
+    }
+
+    const prefix = options?.prefix ?? "default";
+    const host = this.config.host!;
+    const domain = new URL(host).hostname;
+
+    this.signer = signer;
+
+    this.auth = new NodeUserAuthorization({
+      signer: this.signer,
+      signStrategy: { type: "auto-sign" },
+      wasmBindings: this.wasmBindings,
+      sessionStorage: options?.sessionStorage ?? this.config.sessionStorage ?? new MemorySessionStorage(),
+      domain,
+      spacePrefix: prefix,
+      sessionExpirationMs: this.config.sessionExpirationMs ?? 60 * 60 * 1000,
+      tinycloudHosts: [host],
+      autoCreateSpace: this.config.autoCreateSpace,
+      enablePublicSpace: this.config.enablePublicSpace ?? true,
+      spaceCreationHandler: this.config.spaceCreationHandler,
+    });
+
+    this.tc = new TinyCloud(this.auth);
     this.config.prefix = prefix;
   }
 
@@ -498,11 +629,11 @@ export class TinyCloudNode {
     }
 
     // Initialize TinyCloud core services (needed for publicKV, ensurePublicSpace)
-    this.tc!.initializeServices(invoke, [this.config.host!]);
+    this.tc!.initializeServices(this.wasmBindings.invoke, [this.config.host!]);
 
     // Create service context
     this._serviceContext = new ServiceContext({
-      invoke,
+      invoke: this.wasmBindings.invoke,
       fetch: globalThis.fetch.bind(globalThis),
       hosts: [this.config.host!],
     });
@@ -539,9 +670,11 @@ export class TinyCloudNode {
     (this.tc!.serviceContext as ServiceContext).setSession(serviceSession);
 
     // Create and register Vault service
+    const wasm = this.wasmBindings;
     const vaultCrypto = createVaultCrypto({
-      vault_encrypt, vault_decrypt, vault_derive_key,
-      vault_x25519_from_seed, vault_x25519_dh, vault_random_bytes, vault_sha256,
+      vault_encrypt: wasm.vault_encrypt, vault_decrypt: wasm.vault_decrypt, vault_derive_key: wasm.vault_derive_key,
+      vault_x25519_from_seed: wasm.vault_x25519_from_seed, vault_x25519_dh: wasm.vault_x25519_dh,
+      vault_random_bytes: wasm.vault_random_bytes, vault_sha256: wasm.vault_sha256,
     });
     const self = this;
     this._vault = new DataVaultService({
@@ -666,7 +799,7 @@ export class TinyCloudNode {
     this._delegationManager = new DelegationManager({
       hosts: [this.config.host!],
       session: serviceSession,
-      invoke,
+      invoke: this.wasmBindings.invoke,
       fetch: globalThis.fetch.bind(globalThis),
     });
 
@@ -674,7 +807,7 @@ export class TinyCloudNode {
     this._spaceService = new SpaceService({
       hosts: [this.config.host!],
       session: serviceSession,
-      invoke,
+      invoke: this.wasmBindings.invoke,
       fetch: globalThis.fetch.bind(globalThis),
       capabilityRegistry: this._capabilityRegistry,
       userDid: this.did,
@@ -746,6 +879,11 @@ export class TinyCloudNode {
       sessionExpiry: this.getSessionExpiry(),
       // WASM-based delegation creation (preferred - no server roundtrip)
       createDelegationWasm: (params) => this.createDelegationWrapper(params),
+      // Root delegation for long-lived share links (bypasses session expiry)
+      // In node-sdk we have direct signer access, so no popup needed
+      onRootDelegationNeeded: this.signer
+        ? async (params) => this.createRootDelegationForSharing(params)
+        : undefined,
     });
 
     // Wire up SharingService to SpaceService for space.sharing.generate()
@@ -779,7 +917,7 @@ export class TinyCloudNode {
       verificationMethod: params.session.verificationMethod,
     };
 
-    const result = createDelegation(
+    const result = this.wasmBindings.createDelegation(
       wasmSession,
       params.delegateDID,
       params.spaceId,
@@ -797,6 +935,87 @@ export class TinyCloudNode {
       actions: result.actions,
       expiry: new Date(result.expiry * 1000),
     };
+  }
+
+  /**
+   * Create a direct root delegation from the wallet to a share key.
+   * This bypasses the session delegation chain, allowing share links
+   * with expiry longer than the current session.
+   * @internal
+   */
+  private async createRootDelegationForSharing(params: {
+    shareKeyDID: string;
+    spaceId: string;
+    path: string;
+    actions: string[];
+    requestedExpiry: Date;
+  }): Promise<Delegation | undefined> {
+    if (!this.signer) {
+      return undefined;
+    }
+
+    const session = this.auth?.tinyCloudSession;
+    if (!session) {
+      return undefined;
+    }
+
+    try {
+      const host = this.config.host!;
+      const now = new Date();
+
+      // Build abilities for the share key
+      const abilities: Record<string, Record<string, string[]>> = {
+        kv: {
+          [params.path]: params.actions,
+        },
+      };
+
+      // Prepare a direct delegation to the share key (no parents = root delegation)
+      const prepared = this.wasmBindings.prepareSession({
+        abilities,
+        address: this.wasmBindings.ensureEip55(session.address),
+        chainId: session.chainId,
+        domain: new URL(host).hostname,
+        issuedAt: now.toISOString(),
+        expirationTime: params.requestedExpiry.toISOString(),
+        spaceId: params.spaceId,
+        delegateUri: params.shareKeyDID,
+      });
+
+      // Sign with the signer (no popup in node-sdk)
+      const signature = await this.signer.signMessage(prepared.siwe);
+
+      const delegationSession = this.wasmBindings.completeSessionSetup({
+        ...prepared,
+        signature,
+      });
+
+      // Activate the delegation with the server
+      const activateResult = await activateSessionWithHost(
+        host,
+        delegationSession.delegationHeader
+      );
+
+      if (!activateResult.success) {
+        return undefined;
+      }
+
+      return {
+        cid: delegationSession.delegationCid,
+        delegateDID: params.shareKeyDID,
+        delegatorDID: `did:pkh:eip155:${session.chainId}:${session.address}`,
+        spaceId: params.spaceId,
+        path: params.path,
+        actions: params.actions,
+        expiry: params.requestedExpiry,
+        isRevoked: false,
+        allowSubDelegation: true,
+        createdAt: now,
+        authHeader: delegationSession.delegationHeader.Authorization,
+      };
+    } catch {
+      return undefined;
+    }
   }
 
   /**
@@ -1104,9 +1323,9 @@ export class TinyCloudNode {
     const expiryMs = 60 * 60 * 1000;
     const expirationTime = new Date(now.getTime() + expiryMs);
 
-    const prepared = prepareSession({
+    const prepared = this.wasmBindings.prepareSession({
       abilities,
-      address: ensureEip55(this.session.address),
+      address: this.wasmBindings.ensureEip55(this.session.address),
       chainId: this.session.chainId,
       domain: new URL(this.config.host!).hostname,
       issuedAt: now.toISOString(),
@@ -1118,7 +1337,7 @@ export class TinyCloudNode {
 
     const signature = await this.signer.signMessage(prepared.siwe);
 
-    const delegationSession = completeSessionSetup({
+    const delegationSession = this.wasmBindings.completeSessionSetup({
       ...prepared,
       signature,
     });
@@ -1158,7 +1377,7 @@ export class TinyCloudNode {
     if (this._serviceContext) {
       const publicKV = new KVService({ prefix: "" });
       const publicContext = new ServiceContext({
-        invoke,
+        invoke: this.wasmBindings.invoke,
         fetch: this._serviceContext.fetch,
         hosts: this._serviceContext.hosts,
       });
@@ -1282,6 +1501,13 @@ export class TinyCloudNode {
       throw new Error("Not signed in. Call signIn() first.");
     }
 
+    // Resolve ENS names to PKH DIDs
+    if (params.delegateDID.endsWith('.eth') && this.config.ensResolver) {
+      const address = await this.config.ensResolver.resolveAddress(params.delegateDID);
+      if (!address) throw new Error(`Could not resolve ENS name: ${params.delegateDID}`);
+      params = { ...params, delegateDID: `did:pkh:eip155:1:${address}` };
+    }
+
     // Build abilities for the delegation
     const abilities: Record<string, Record<string, string[]>> = {};
     const kvActions = params.actions.filter(a => a.startsWith("tinycloud.kv/"));
@@ -1304,9 +1530,9 @@ export class TinyCloudNode {
     // Prepare the delegation session with:
     // - delegateUri: target the recipient's DID directly (for user-to-user delegation)
     // - parents: reference our session CID for chain validation
-    const prepared = prepareSession({
+    const prepared = this.wasmBindings.prepareSession({
       abilities,
-      address: ensureEip55(session.address),
+      address: this.wasmBindings.ensureEip55(session.address),
       chainId: session.chainId,
       domain: new URL(this.config.host!).hostname,
       issuedAt: now.toISOString(),
@@ -1320,7 +1546,7 @@ export class TinyCloudNode {
     const signature = await this.signer.signMessage(prepared.siwe);
 
     // Complete the session setup
-    const delegationSession = completeSessionSetup({
+    const delegationSession = this.wasmBindings.completeSessionSetup({
       ...prepared,
       signature,
     });
@@ -1353,14 +1579,14 @@ export class TinyCloudNode {
     const hasKvActions = params.actions.some(a => a.startsWith("tinycloud.kv/"));
     if (hasKvActions && params.includePublicSpace !== false) {
       const publicSpaceId = makePublicSpaceId(
-        ensureEip55(session.address), session.chainId
+        this.wasmBindings.ensureEip55(session.address), session.chainId
       );
       const publicAbilities: Record<string, Record<string, string[]>> = {
         kv: { "": ["tinycloud.kv/get", "tinycloud.kv/put", "tinycloud.kv/metadata"] },
       };
-      const publicPrepared = prepareSession({
+      const publicPrepared = this.wasmBindings.prepareSession({
         abilities: publicAbilities,
-        address: ensureEip55(session.address),
+        address: this.wasmBindings.ensureEip55(session.address),
         chainId: session.chainId,
         domain: new URL(this.config.host!).hostname,
         issuedAt: now.toISOString(),
@@ -1370,7 +1596,7 @@ export class TinyCloudNode {
         parents: [session.delegationCid],
       });
       const publicSignature = await this.signer.signMessage(publicPrepared.siwe);
-      const publicSession = completeSessionSetup({
+      const publicSession = this.wasmBindings.completeSessionSetup({
         ...publicPrepared,
         signature: publicSignature,
       });
@@ -1449,7 +1675,7 @@ export class TinyCloudNode {
       // Track received delegation in registry
       this.trackReceivedDelegation(delegation, this.sessionKeyJwk as unknown as JWK);
 
-      return new DelegatedAccess(session, delegation, targetHost);
+      return new DelegatedAccess(session, delegation, targetHost, this.wasmBindings.invoke);
     }
 
     // Wallet mode: create a SIWE sub-delegation
@@ -1487,9 +1713,9 @@ export class TinyCloudNode {
     // - The delegation owner's space (where we're accessing data)
     // - Our existing session key (must match the DID the delegation targets)
     // - Parent reference to the received delegation
-    const prepared = prepareSession({
+    const prepared = this.wasmBindings.prepareSession({
       abilities,
-      address: ensureEip55(mySession.address),
+      address: this.wasmBindings.ensureEip55(mySession.address),
       chainId: mySession.chainId,
       domain: new URL(targetHost).hostname,
       issuedAt: now.toISOString(),
@@ -1503,7 +1729,7 @@ export class TinyCloudNode {
     const signature = await this.signer!.signMessage(prepared.siwe);
 
     // Complete the session setup
-    const invokerSession = completeSessionSetup({
+    const invokerSession = this.wasmBindings.completeSessionSetup({
       ...prepared,
       signature,
     });
@@ -1535,7 +1761,7 @@ export class TinyCloudNode {
     // Track received delegation in registry
     this.trackReceivedDelegation(delegation, jwk as unknown as JWK);
 
-    return new DelegatedAccess(session, delegation, targetHost);
+    return new DelegatedAccess(session, delegation, targetHost, this.wasmBindings.invoke);
   }
 
   /**
@@ -1622,9 +1848,9 @@ export class TinyCloudNode {
     // Uses THIS user's address (who received the delegation and is now sub-delegating)
     // Targets the recipient's PKH DID (delegateUri)
     // References the parent delegation as the chain
-    const prepared = prepareSession({
+    const prepared = this.wasmBindings.prepareSession({
       abilities,
-      address: ensureEip55(this._address),
+      address: this.wasmBindings.ensureEip55(this._address),
       chainId: this._chainId,
       domain: new URL(targetHost).hostname,
       issuedAt: now.toISOString(),
@@ -1638,7 +1864,7 @@ export class TinyCloudNode {
     const signature = await this.signer.signMessage(prepared.siwe);
 
     // Complete the session setup
-    const subDelegationSession = completeSessionSetup({
+    const subDelegationSession = this.wasmBindings.completeSessionSetup({
       ...prepared,
       signature,
     });

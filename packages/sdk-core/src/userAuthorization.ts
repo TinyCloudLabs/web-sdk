@@ -2,24 +2,28 @@ import { ISigner } from "./signer";
 import { ISessionStorage, PersistedSessionData } from "./storage";
 import { SignStrategy, ISpaceCreationHandler } from "./authorization";
 
-// Re-export types from web-core to ensure type compatibility
-// Client types are exported from the /client subpath
-export {
-  ClientSession,
-  Extension,
-  SiweConfig,
-  ConfigOverrides,
-} from "@tinycloud/web-core/client";
+// Re-export platform-agnostic types from client-types (canonical definitions)
+export { ClientSession, EnsData, SiweConfig, SiweMessage } from "./client-types";
 
-// Root types (ENS, SiweMessage) are exported from the main entry
-export { EnsData, SiweMessage } from "@tinycloud/web-core";
+import type { ClientSession, SiweConfig } from "./client-types";
 
-import type {
-  ClientSession,
-  Extension,
-  SiweConfig,
-} from "@tinycloud/web-core/client";
-import type { SiweMessage } from "@tinycloud/web-core";
+/**
+ * Interface for an extension to TCW.
+ * This is the platform-agnostic subset — browser-coupled extensions
+ * (IConnected, ConfigOverrides, ExtraFields) live in web-sdk/providers.
+ */
+export interface Extension {
+  /** [recap] Capability namespace. */
+  namespace?: string;
+  /** [recap] Default delegated actions in capability namespace. */
+  defaultActions?(): Promise<string[]>;
+  /** [recap] Delegated actions by target in capability namespace. */
+  targetedActions?(): Promise<{ [target: string]: string[] }>;
+  /** [recap] Extra metadata to help validate the capability. */
+  extraFields?(): Promise<Record<string, unknown>>;
+  /** Hook to run after TCW has signed in. */
+  afterSignIn?(session: ClientSession): Promise<void>;
+}
 
 /**
  * Partial SIWE message for overrides.

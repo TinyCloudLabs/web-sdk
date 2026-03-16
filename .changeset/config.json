@@ -8,7 +8,6 @@
       "@tinycloud/sdk-core",
       "@tinycloud/web-sdk",
       "@tinycloud/node-sdk",
-      "@tinycloud/web-core",
       "@tinycloud/sdk-services",
       "@tinycloud/web-sdk-wasm",
       "@tinycloud/node-sdk-wasm"

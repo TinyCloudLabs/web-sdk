@@ -1,17 +1,17 @@
-// =============================================================================
 // Main class and config
-// =============================================================================
 export { TinyCloudWeb, Config, ShareReceiveResult } from './modules/tcw';
 
-// =============================================================================
-// Auth module (WebUserAuthorization) and strategies
-// =============================================================================
+// Browser Adapters
 export {
-  WebUserAuthorization,
-  WebUserAuthorizationConfig,
-  WebSignStrategy,
-  WalletPopupStrategy,
-  defaultWebSignStrategy,
+  BrowserWalletSigner,
+  BrowserSessionStorage,
+  BrowserENSResolver,
+  BrowserNotificationHandler,
+  BrowserWasmBindings,
+} from './adapters';
+
+// Auth module (browser-specific strategies)
+export {
   ModalSpaceCreationHandler,
   defaultWebSpaceCreationHandler,
 } from './authorization';
@@ -33,21 +33,29 @@ export {
   defaultSpaceCreationHandler,
 } from '@tinycloud/sdk-core';
 
-// =============================================================================
-// Re-exports from web-core packages
-// =============================================================================
-export * from '@tinycloud/web-core/client';
-export * from '@tinycloud/web-core';
-export { SiweMessage } from 'siwe';
+// Re-exports from providers (browser/Web3-specific, formerly in web-core)
+export * from './providers';
 
-// Re-export sdk-core interfaces for platform-agnostic code
+// Re-exports from sdk-core (platform-agnostic types)
 export {
+  // Session and auth types
+  ClientSession,
+  SiweConfig,
+  EnsData,
+  SiweMessage,
+  ServerHost,
+  Extension,
+  // Schemas and validation
+  ClientSessionSchema,
+  EnsDataSchema,
+  SiweConfigSchema,
+  validateClientSession,
+  // Core interfaces
   TinyCloud,
   ISigner,
   ISessionStorage,
   IUserAuthorization as ICoreUserAuthorization,
   PersistedSessionData,
-  SiweConfig,
   PartialSiweMessage,
 } from '@tinycloud/sdk-core';
 
@@ -158,15 +166,13 @@ export {
 // Adapter for web-sdk
 export { createKVService } from './modules/Storage/tinycloud/KVServiceAdapter';
 
-// =============================================================================
-// Delegation Transport Types (TC-563: useDelegation support)
-// =============================================================================
-// These types enable receiving and using delegations from other users.
-// Compatible with node-sdk's delegation system for cross-platform delegation exchange.
-
+// Delegation Transport Types (re-exported from node-sdk for compatibility)
 export {
   PortableDelegation,
   DelegatedAccess,
   serializeDelegation,
   deserializeDelegation,
-} from './delegation';
+} from '@tinycloud/node-sdk/core';
+
+// TinyCloudNode re-export (for advanced usage)
+export { TinyCloudNode, TinyCloudNodeConfig } from '@tinycloud/node-sdk/core';

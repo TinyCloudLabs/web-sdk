@@ -1,7 +1,7 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: ['src/index.ts'],
+  entry: ['src/index.ts', 'src/core.ts'],
   format: ['esm', 'cjs'],
   dts: true,
   clean: true,
@@ -11,7 +11,6 @@ export default defineConfig({
   external: [
     '@tinycloud/sdk-core',
     '@tinycloud/node-sdk-wasm',
-    '@tinycloud/web-core',
     'siwe',
     'events',
     'fs',

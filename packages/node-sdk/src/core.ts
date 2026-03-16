@@ -1,41 +1,17 @@
 /**
- * @tinycloud/node-sdk
+ * @tinycloud/node-sdk/core
  *
- * TinyCloud SDK for Node.js environments.
+ * Platform-agnostic entry point for TinyCloud node-sdk.
  *
- * This package provides Node.js-specific implementations of the TinyCloud SDK:
- * - PrivateKeySigner: Sign messages using a private key
- * - NodeUserAuthorization: Authorize users with configurable sign strategies
- * - MemorySessionStorage: Store sessions in memory
- * - FileSessionStorage: Persist sessions to the file system
+ * This entry point excludes Node.js-specific modules that depend on
+ * @tinycloud/node-sdk-wasm (PrivateKeySigner, NodeWasmBindings), making it
+ * safe to import in browser builds without webpack aliases or shims.
  *
- * @example
- * ```typescript
- * import { TinyCloud } from '@tinycloud/sdk-core';
- * import {
- *   NodeUserAuthorization,
- *   PrivateKeySigner,
- *   FileSessionStorage,
- * } from '@tinycloud/node-sdk';
- *
- * const signer = new PrivateKeySigner(process.env.PRIVATE_KEY);
- * const auth = new NodeUserAuthorization({
- *   signer,
- *   signStrategy: { type: 'auto-sign' },
- *   domain: 'api.myapp.com',
- *   sessionStorage: new FileSessionStorage('/tmp/sessions'),
- * });
- *
- * const tc = new TinyCloud(auth);
- * await tc.signIn();
- * ```
+ * Browser consumers (e.g., @tinycloud/web-sdk) should import from this
+ * entry point instead of the root "@tinycloud/node-sdk".
  *
  * @packageDocumentation
  */
-
-// Register Node.js-specific defaults (NodeWasmBindings, PrivateKeySigner)
-// This must be imported before TinyCloudNode is used, so it runs on module load.
-import "./nodeDefaults";
 
 // Re-export core values
 export { TinyCloud } from "@tinycloud/sdk-core";
@@ -65,9 +41,6 @@ export {
   defaultSpaceCreationHandler,
 } from "@tinycloud/sdk-core";
 
-// Signers
-export { PrivateKeySigner } from "./signers/PrivateKeySigner";
-
 // Storage implementations
 export { MemorySessionStorage } from "./storage/MemorySessionStorage";
 export { FileSessionStorage } from "./storage/FileSessionStorage";
@@ -95,9 +68,6 @@ export type {
 
 // High-level API
 export { TinyCloudNode, TinyCloudNodeConfig } from "./TinyCloudNode";
-
-// WASM bindings
-export { NodeWasmBindings } from "./NodeWasmBindings";
 
 // Delegation
 export { DelegatedAccess } from "./DelegatedAccess";

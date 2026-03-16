@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TinyCloud SDK Browser Test</title>
+</head>
+<body>
+  <h1>TinyCloud SDK Browser Test Page</h1>
+  <p id="status">Loading SDK...</p>
+
+  <!--
+    Load the web-sdk webpack bundle directly.
+    The bundle is self-contained with all dependencies (ethers, WASM, etc).
+    Served from the symlinked sdk-bundle directory.
+  -->
+  <script type="module">
+    try {
+      const sdk = await import('./sdk-bundle/index.mjs');
+
+      // Expose key exports to window for page.evaluate() access
+      window.TinyCloudWeb = sdk.TinyCloudWeb;
+      window.TinyCloudNode = sdk.TinyCloudNode;
+      window.__SDK_LOADED = true;
+      window.__SDK_EXPORTS = Object.keys(sdk);
+
+      document.getElementById('status').textContent = 'SDK loaded successfully';
+      console.log('[TestPage] SDK loaded. Exports:', Object.keys(sdk).length);
+    } catch (err) {
+      document.getElementById('status').textContent = 'SDK load failed: ' + err.message;
+      window.__SDK_ERROR = err.message;
+      console.error('[TestPage] SDK load error:', err);
+    }
+  </script>
+</body>
+</html>

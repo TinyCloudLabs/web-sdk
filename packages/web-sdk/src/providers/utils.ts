@@ -1,3 +1,10 @@
+/**
+ * Provider utility functions.
+ *
+ * @packageDocumentation
+ */
+
+import { ethers, getDefaultProvider } from "ethers";
 import {
   isAlchemyProvider,
   isAnkrProvider,
@@ -8,13 +15,12 @@ import {
   isPocketProvider,
   AlchemyProviderNetworks,
   AnkrProviderNetworks,
-  EnsData,
   EtherscanProviderNetworks,
   InfuraProviderNetworks,
   PocketProviderNetworks,
+  EnsData,
   RPCProvider,
-} from '../types';
-import { ethers, getDefaultProvider } from 'ethers';
+} from "./types";
 
 /**
  * @param rpc - RPCProvider
@@ -77,7 +83,7 @@ export const resolveEns = async (
   address: string
 ): Promise<EnsData> => {
   if (!address) {
-    throw new Error('Missing address.');
+    throw new Error("Missing address.");
   }
   const ens: EnsData = {};
   const promises: Array<Promise<any>> = [];
@@ -87,10 +93,10 @@ export const resolveEns = async (
   await Promise.all(promises)
     .then(([domain, avatarUrl]) => {
       if (domain) {
-        ens['domain'] = domain;
+        ens["domain"] = domain;
       }
       if (avatarUrl) {
-        ens['avatarUrl'] = avatarUrl;
+        ens["avatarUrl"] = avatarUrl;
       }
     })
     .catch(console.error);

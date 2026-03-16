@@ -7,8 +7,16 @@
  * @packageDocumentation
  */
 
-import type { KeyProvider, JWK } from "@tinycloud/sdk-core";
-import type { TCWSessionManager as SessionManager } from "@tinycloud/node-sdk-wasm";
+import type { KeyProvider, JWK, ISessionManager } from "@tinycloud/sdk-core";
+
+/**
+ * Extended session manager with optional key listing support.
+ * The base ISessionManager doesn't include listSessionKeys(),
+ * but concrete implementations (e.g., TCWSessionManager) may provide it.
+ */
+interface SessionManagerWithListing extends ISessionManager {
+  listSessionKeys?(): string[];
+}
 
 /**
  * Configuration for WasmKeyProvider.
@@ -18,7 +26,7 @@ export interface WasmKeyProviderConfig {
    * The WASM session manager instance.
    * Must be created before constructing the KeyProvider.
    */
-  sessionManager: SessionManager;
+  sessionManager: SessionManagerWithListing;
 }
 
 /**
@@ -29,7 +37,7 @@ export interface WasmKeyProviderConfig {
  *
  * @example
  * ```typescript
- * import { SessionManager } from "@tinycloud/node-sdk-wasm";
+ * // sessionManager from wasmBindings.createSessionManager()
  * import { WasmKeyProvider } from "@tinycloud/node-sdk";
  *
  * const sessionManager = new SessionManager();
@@ -42,7 +50,7 @@ export interface WasmKeyProviderConfig {
  * ```
  */
 export class WasmKeyProvider implements KeyProvider {
-  private sessionManager: SessionManager;
+  private sessionManager: SessionManagerWithListing;
 
   /**
    * Create a new WasmKeyProvider.
@@ -108,7 +116,7 @@ export class WasmKeyProvider implements KeyProvider {
    * @returns Array of key IDs
    */
   listKeys(): string[] {
-    const keys = this.sessionManager.listSessionKeys();
+    const keys = this.sessionManager.listSessionKeys?.();
     return Array.isArray(keys) ? keys : [];
   }
 
@@ -130,6 +138,6 @@ export class WasmKeyProvider implements KeyProvider {
  * @param sessionManager - The WASM session manager
  * @returns A new WasmKeyProvider instance
  */
-export function createWasmKeyProvider(sessionManager: SessionManager): WasmKeyProvider {
+export function createWasmKeyProvider(sessionManager: SessionManagerWithListing): WasmKeyProvider {
   return new WasmKeyProvider({ sessionManager });
 }

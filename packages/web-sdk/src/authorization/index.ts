@@ -1,19 +1,10 @@
 /**
  * Web-sdk authorization module.
  *
- * Provides WebUserAuthorization implementing the node-sdk architecture
- * with browser-specific features like wallet popups and modal confirmations.
+ * Provides browser-specific space creation handling with modal confirmations.
  *
  * @packageDocumentation
  */
-
-export {
-  WebUserAuthorization,
-  WebUserAuthorizationConfig,
-  WebSignStrategy,
-  WalletPopupStrategy,
-  defaultWebSignStrategy,
-} from "./WebUserAuthorization";
 
 export {
   ModalSpaceCreationHandler,
