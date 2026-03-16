@@ -46,7 +46,7 @@
     "browser": "^0.2.6",
     "browserify-zlib": "^0.2.0",
     "buffer": "^6.0.3",
-    "cross-env": "5.2.1",
+    "cross-env": "10.1.0",
     "crypto-browserify": "^3.12.1",
     "ethers": "^5.7.2",
     "events": "^3.3.0",
