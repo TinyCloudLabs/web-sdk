@@ -4,7 +4,7 @@ import { OpenKey } from '@openkey/sdk';
  * EIP-1193 compatible provider that routes signing to OpenKey.
  * TinyCloudWeb treats this like any browser wallet.
  */
-export class OpenKeyEIP1193Provider {
+export class OpenKeyProvider {
   private openkey: OpenKey;
   private address: string;
   private keyId: string;

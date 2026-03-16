@@ -1,10 +1,11 @@
-import { createRequire } from "node:module";
+import { readFileSync } from "node:fs";
 import { Command } from "commander";
 import { handleError } from "./output/errors.js";
 import { emitBanner } from "./output/banner.js";
 
-const require = createRequire(import.meta.url);
-const { version } = require("../../package.json");
+const { version } = JSON.parse(
+  readFileSync(new URL("../package.json", import.meta.url), "utf-8")
+);
 import { theme } from "./output/theme.js";
 import { isInteractive } from "./output/formatter.js";
 import { ProfileManager } from "./config/profiles.js";
