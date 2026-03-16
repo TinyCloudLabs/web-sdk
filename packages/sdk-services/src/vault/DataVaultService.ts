@@ -612,11 +612,6 @@ export class DataVaultService extends BaseService implements IDataVaultService {
           metadata[VaultHeaders.CONTENT_TYPE] ?? "application/json";
         const keyId = metadata[VaultHeaders.KEY_ID] ?? "";
 
-        // Read vault version from entry metadata (plumbing for future versions)
-        const _version = metadata[VaultHeaders.VERSION] ?? CURRENT_VAULT_VERSION;
-        const _versionConfig = VaultVersionConfig[_version as keyof typeof VaultVersionConfig]
-          ?? VaultVersionConfig[CURRENT_VAULT_VERSION];
-
         // Deserialize
         let value: T;
         if (options?.raw) {

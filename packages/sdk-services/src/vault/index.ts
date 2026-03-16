@@ -27,8 +27,4 @@ export {
 
 export { createVaultCrypto, type WasmVaultFunctions } from "./createVaultCrypto";
 
-export {
-  loadCachedSignature,
-  cacheSignature,
-  clearSignatureCache,
-} from "./SignatureCache";
+export { clearSignatureCache } from "./SignatureCache";

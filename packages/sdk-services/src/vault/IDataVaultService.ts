@@ -44,8 +44,8 @@ import type {
  */
 export interface IDataVaultService extends IService {
   /**
-   * Unlock the vault. Derives keys from a single wallet signature.
-   * Signer is optional when a cached signature exists (browser only).
+   * Unlock the vault. Derives keys from wallet signatures.
+   * Signer is optional when cached signatures exist (browser only).
    */
   unlock(signer?: unknown): Promise<Result<void, VaultError>>;
 
