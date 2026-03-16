@@ -1,5 +1,12 @@
 # @tinycloud/cli
 
+## 0.4.3
+
+### Patch Changes
+
+- 99219f8: Read version from package.json instead of hardcoding
+  - @tinycloud/node-sdk@2.0.1
+
 ## 0.4.2
 
 ### Patch Changes
