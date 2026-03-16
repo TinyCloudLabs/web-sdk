@@ -50,7 +50,7 @@
     "tailwind-merge": "^3.0.2",
     "@tailwindcss/postcss": "^4.1.11",
     "tailwindcss": "^4.1.11",
-    "webpack-bundle-analyzer": "^4.10.2"
+    "webpack-bundle-analyzer": "^5.2.0"
   },
   "scripts": {
     "start": "npx react-app-rewired start",
