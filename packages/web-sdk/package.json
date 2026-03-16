@@ -71,7 +71,7 @@
     "@types/lodash.merge": "^4.6.9",
     "@types/node": "^18.19.74",
     "@types/webpack": "^5.28.5",
-    "@typescript-eslint/eslint-plugin": "^5.62.0",
+    "@typescript-eslint/eslint-plugin": "^8.57.1",
     "@typescript-eslint/parser": "^5.62.0",
     "@webpack-cli/generators": "^3.0.7",
     "babel-jest": "^28.1.3",
