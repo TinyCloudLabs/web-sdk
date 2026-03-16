@@ -1,6 +1,10 @@
+import { createRequire } from "node:module";
 import { Command } from "commander";
 import { handleError } from "./output/errors.js";
 import { emitBanner } from "./output/banner.js";
+
+const require = createRequire(import.meta.url);
+const { version } = require("../../package.json");
 import { theme } from "./output/theme.js";
 import { isInteractive } from "./output/formatter.js";
 import { ProfileManager } from "./config/profiles.js";
@@ -26,7 +30,7 @@ const program = new Command();
 program
   .name("tc")
   .description("TinyCloud CLI — self-sovereign storage from the terminal")
-  .version("0.1.0")
+  .version(version)
   .option("-p, --profile <name>", "Profile to use")
   .option("-H, --host <url>", "TinyCloud node URL")
   .option("-v, --verbose", "Enable verbose output")
@@ -37,7 +41,7 @@ program
 program.hook("preAction", async (thisCommand) => {
   const opts = thisCommand.optsWithGlobals();
   if (!opts.quiet) {
-    emitBanner("0.1.1");
+    emitBanner(version);
   }
 
   // Config guard — warn if not configured for auth-required commands
