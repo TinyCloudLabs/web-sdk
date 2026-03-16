@@ -14,6 +14,8 @@ export { DataVaultService, type VaultCrypto } from "./DataVaultService";
 export {
   VaultHeaders,
   VaultPublicSpaceKVActions,
+  VaultVersionConfig,
+  CURRENT_VAULT_VERSION,
   type DataVaultConfig,
   type VaultPutOptions,
   type VaultGetOptions,
@@ -24,3 +26,5 @@ export {
 } from "./types";
 
 export { createVaultCrypto, type WasmVaultFunctions } from "./createVaultCrypto";
+
+export { clearSignatureCache } from "./SignatureCache";

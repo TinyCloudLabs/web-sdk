@@ -98,6 +98,16 @@ export const VaultPublicSpaceKVActions = [
   "tinycloud.kv/metadata",
 ] as const;
 
+/** Version-keyed signing message configuration for vault key derivation. */
+export const VaultVersionConfig = {
+  "1": {
+    masterMessage: (spaceId: string) => `tinycloud-vault-master-v1:${spaceId}`,
+    identityMessage: "tinycloud-encryption-identity-v1",
+  },
+} as const;
+
+export const CURRENT_VAULT_VERSION = "1" as const;
+
 /** Metadata header keys used in vault envelopes */
 export const VaultHeaders = {
   VERSION: "x-vault-version",

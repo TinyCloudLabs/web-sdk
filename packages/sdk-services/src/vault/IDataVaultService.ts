@@ -43,8 +43,17 @@ import type {
  * ```
  */
 export interface IDataVaultService extends IService {
-  /** Unlock the vault. Triggers wallet signatures to derive keys. */
-  unlock(signer: unknown): Promise<Result<void, VaultError>>;
+  /**
+   * Unlock the vault. Derives keys from wallet signatures.
+   * Signer is optional when cached signatures exist (browser only).
+   */
+  unlock(signer?: unknown): Promise<Result<void, VaultError>>;
+
+  /**
+   * Clear the cached vault signature.
+   * @param spaceId - Clear only this space's cache. If omitted, clears all.
+   */
+  clearCache(spaceId?: string): Promise<void>;
 
   /** Lock the vault, clearing all key material from memory. */
   lock(): void;
