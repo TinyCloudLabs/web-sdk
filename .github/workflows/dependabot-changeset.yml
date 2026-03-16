@@ -19,23 +19,15 @@ jobs:
           ref: ${{ github.head_ref }}
           token: ${{ secrets.GH_TOKEN }}
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Update lockfile
-        run: bun install
-
       - name: Generate changeset
         run: |
           CHANGESET_ID="dependabot-$(echo '${{ github.head_ref }}' | sed 's/[^a-zA-Z0-9]/-/g' | head -c 50)"
-          
+
           HEADER="---"
-          
+
           if [ -f "package.json" ]; then
             WORKSPACES=$(node -e "const p = require('./package.json'); (p.workspaces || []).forEach(w => { try { const wp = require('./' + w + '/package.json'); console.log(wp.name); } catch(e) {} })" 2>/dev/null || true)
-            
+
             if [ -n "$WORKSPACES" ]; then
               while IFS= read -r pkg; do
                 [ -n "$pkg" ] && HEADER="$HEADER
@@ -47,20 +39,20 @@ jobs:
 \"$PKG_NAME\": patch"
             fi
           fi
-          
+
           HEADER="$HEADER
 ---"
-          
+
           mkdir -p .changeset
           printf '%s\n\n%s\n' "$HEADER" "${{ github.event.pull_request.title }}" > ".changeset/${CHANGESET_ID}.md"
-          
+
           echo "Created changeset: .changeset/${CHANGESET_ID}.md"
           cat ".changeset/${CHANGESET_ID}.md"
 
-      - name: Commit lockfile and changeset
+      - name: Commit changeset
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add bun.lock .changeset/
-          git diff --staged --quiet && echo "No changes to commit" || git commit -m "chore: update lockfile and add changeset for dependabot"
+          git add .changeset/
+          git diff --staged --quiet && echo "No changes to commit" || git commit -m "chore: add changeset for dependabot update"
           git push
