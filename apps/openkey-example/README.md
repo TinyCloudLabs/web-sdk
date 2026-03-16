@@ -10,7 +10,7 @@ The app uses an EIP-1193 compatible provider that wraps the OpenKey SDK:
 User clicks "Connect with OpenKey"
   -> OpenKey iframe modal opens (passkey auth, key selection)
   -> Returns { address, keyId, keyType }
-  -> OpenKeyEIP1193Provider created
+  -> OpenKeyProvider created
   -> Wrapped in ethers Web3Provider
   -> Passed to TinyCloudWeb
   -> signIn() triggers SIWE signing via OpenKey iframe modal
@@ -156,10 +156,10 @@ src/
 
 ### `src/pages/Home.tsx`
 
-The main authentication flow uses the SDK's built-in `OpenKeyEIP1193Provider`:
+The main authentication flow uses the SDK's built-in `OpenKeyProvider`:
 
 ```typescript
-import { OpenKey, OpenKeyEIP1193Provider } from '@openkey/sdk';
+import { OpenKey, OpenKeyProvider } from '@openkey/sdk';
 
 const connectAndSignIn = async () => {
   // 1. Connect to OpenKey (iframe modal)
@@ -167,7 +167,7 @@ const connectAndSignIn = async () => {
   const authResult = await openkey.connect();
 
   // 2. Create EIP-1193 provider (handles managed + external keys)
-  const eip1193Provider = new OpenKeyEIP1193Provider(openkey, authResult);
+  const eip1193Provider = new OpenKeyProvider(openkey, authResult);
 
   // 3. Wrap in ethers Web3Provider
   const web3Provider = new providers.Web3Provider(eip1193Provider);
