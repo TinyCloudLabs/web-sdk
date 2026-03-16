@@ -513,6 +513,7 @@ export class TinyCloudWeb {
       // Map siweConfig properties
       domain: config.siweConfig?.domain,
       statement: config.siweConfig?.statement,
+      nonce: config.siweConfig?.nonce,
 
       // Space configuration
       spacePrefix: config.spacePrefix,

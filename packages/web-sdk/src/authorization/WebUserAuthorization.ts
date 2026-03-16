@@ -113,6 +113,8 @@ export interface WebUserAuthorizationConfig {
   autoCreateSpace?: boolean;
   /** TinyCloud server endpoints (default: ["https://node.tinycloud.xyz"]) */
   tinycloudHosts?: string[];
+  /** Custom nonce for the SIWE message (e.g., from a billing server). If not set, a random nonce is generated. */
+  nonce?: string;
 }
 
 /**
@@ -176,6 +178,7 @@ export class WebUserAuthorization implements IUserAuthorization {
   // Wallet/Provider state (nullable for session-only mode)
   private _provider?: providers.Web3Provider;
   private _signer?: ISigner;
+  private customNonce?: string;
 
   // Session management
   private sessionManager: tcwSession.TCWSessionManager;
@@ -213,6 +216,7 @@ export class WebUserAuthorization implements IUserAuthorization {
     this.sessionExpirationMs = config.sessionExpirationMs ?? 60 * 60 * 1000;
     this.autoCreateSpace = config.autoCreateSpace ?? true;
     this.tinycloudHosts = config.tinycloudHosts ?? ["https://node.tinycloud.xyz"];
+    this.customNonce = config.nonce;
 
     // Set up provider/signer if provided
     if (config.provider) {
@@ -454,6 +458,7 @@ export class WebUserAuthorization implements IUserAuthorization {
       expirationTime: expirationTime.toISOString(),
       spaceId,
       jwk,
+      ...(this.customNonce ? { nonce: this.customNonce } : {}),
     });
 
     // Sign the SIWE message using configured strategy
