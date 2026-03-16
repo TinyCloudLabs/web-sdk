@@ -24,10 +24,15 @@ echo "always-auth=true" >> .npmrc
 
 # Also create .npmrc in each package directory
 echo "Creating package-specific .npmrc files..."
-mkdir -p packages/web-core
-echo "registry=https://registry.npmjs.org/" > packages/web-core/.npmrc
-echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> packages/web-core/.npmrc
-echo "always-auth=true" >> packages/web-core/.npmrc
+mkdir -p packages/sdk-core
+echo "registry=https://registry.npmjs.org/" > packages/sdk-core/.npmrc
+echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> packages/sdk-core/.npmrc
+echo "always-auth=true" >> packages/sdk-core/.npmrc
+
+mkdir -p packages/node-sdk
+echo "registry=https://registry.npmjs.org/" > packages/node-sdk/.npmrc
+echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> packages/node-sdk/.npmrc
+echo "always-auth=true" >> packages/node-sdk/.npmrc
 
 mkdir -p packages/sdk-rs
 echo "registry=https://registry.npmjs.org/" > packages/sdk-rs/.npmrc

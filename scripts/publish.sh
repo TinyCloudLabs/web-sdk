@@ -90,9 +90,13 @@ resolve_workspace_dependencies
 echo "Creating tags for each package..."
 ROOT_DIR=$(pwd)
 
-cd "$ROOT_DIR/packages/web-core"
-CORE_VERSION=$(cat package.json | grep '"version"' | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[[:space:]]')
-git tag "web-core-v$CORE_VERSION" || echo "Tag web-core-v$CORE_VERSION already exists"
+cd "$ROOT_DIR/packages/sdk-core"
+SDK_CORE_VERSION=$(cat package.json | grep '"version"' | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[[:space:]]')
+git tag "sdk-core-v$SDK_CORE_VERSION" || echo "Tag sdk-core-v$SDK_CORE_VERSION already exists"
+
+cd "$ROOT_DIR/packages/node-sdk"
+NODE_SDK_VERSION=$(cat package.json | grep '"version"' | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[[:space:]]')
+git tag "node-sdk-v$NODE_SDK_VERSION" || echo "Tag node-sdk-v$NODE_SDK_VERSION already exists"
 
 cd "$ROOT_DIR/packages/sdk-rs"
 SDK_RS_VERSION=$(cat package.json | grep '"version"' | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[[:space:]]')
@@ -131,13 +135,20 @@ echo "Creating GitHub draft releases..."
 if ! command -v gh &> /dev/null; then
   echo "GitHub CLI (gh) is not installed. Skipping GitHub release creation."
 else
-  # Create draft release for web-core
-  echo "Creating draft release for web-core v$CORE_VERSION..."
-  gh release create "web-core-v$CORE_VERSION" \
-    --title "Web Core v$CORE_VERSION" \
-    --notes "Release notes for web-core v$CORE_VERSION" \
+  # Create draft release for sdk-core
+  echo "Creating draft release for sdk-core v$SDK_CORE_VERSION..."
+  gh release create "sdk-core-v$SDK_CORE_VERSION" \
+    --title "SDK Core v$SDK_CORE_VERSION" \
+    --notes "Release notes for sdk-core v$SDK_CORE_VERSION" \
     --draft
-  
+
+  # Create draft release for node-sdk
+  echo "Creating draft release for node-sdk v$NODE_SDK_VERSION..."
+  gh release create "node-sdk-v$NODE_SDK_VERSION" \
+    --title "Node SDK v$NODE_SDK_VERSION" \
+    --notes "Release notes for node-sdk v$NODE_SDK_VERSION" \
+    --draft
+
   # Create draft release for sdk-rs
   echo "Creating draft release for sdk-rs v$SDK_RS_VERSION..."
   gh release create "sdk-rs-v$SDK_RS_VERSION" \
@@ -155,6 +166,7 @@ fi
 
 echo "Publish completed successfully!"
 echo "The following packages were released:"
-echo "- @tinycloud/web-core@$CORE_VERSION"
+echo "- @tinycloud/sdk-core@$SDK_CORE_VERSION"
+echo "- @tinycloud/node-sdk@$NODE_SDK_VERSION"
 echo "- @tinycloud/web-sdk-wasm@$SDK_RS_VERSION"
 echo "- @tinycloud/web-sdk@$SDK_VERSION"

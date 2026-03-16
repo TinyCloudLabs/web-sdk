@@ -3,8 +3,8 @@
 # Clean each package
 packages=(
   "packages/web-sdk"
-  "packages/web-core"
   "packages/sdk-core"
+  "packages/node-sdk"
   "packages/sdk-rs"
   "packages/sdk-rs/packages/web"
   "packages/sdk-rs/packages/node"
