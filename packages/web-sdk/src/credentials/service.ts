@@ -69,10 +69,10 @@ export class CredentialsService {
     for (const entryValue of catalog.profiles) {
       if (typeof entryValue !== "object" || entryValue === null || Array.isArray(entryValue)) continue;
       const entry = entryValue as Record<string, unknown>;
-      if (entry.supported !== true || entry.enabled !== true || entry.readiness !== "ready") continue;
+      if (entry.supported !== true || entry.enabled !== true || (entry.readiness !== "ready" && entry.readiness !== "degraded")) continue;
       try { const candidate = validateCredentialFlowDescriptor(entry.descriptor); if (descriptorSatisfiesRequirement(candidate, requirement) && entry.descriptorDigest === await canonicalDigest(candidate)) return candidate; } catch { /* fail closed and inspect no other metadata on malformed entry */ }
     }
-    throw new CredentialError("UNSUPPORTED_PROFILE", "No ready credential profile satisfies the requirement");
+    throw new CredentialError("UNSUPPORTED_PROFILE", "No available credential profile satisfies the requirement");
   }
 
   async find(requirementValue: CredentialRequirement, options: CredentialsOperationOptions = {}): Promise<StoredCredentialRecord | undefined> {
