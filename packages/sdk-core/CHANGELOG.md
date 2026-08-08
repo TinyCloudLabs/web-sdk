@@ -1,5 +1,14 @@
 # @tinycloudlabs/sdk-core
 
+## 3.0.0-beta.6
+
+### Patch Changes
+
+- 31043b5: Finish the TC-500 production receiver path: authorize exact-email notifications
+  for Policy/v3 shares through a Node-signed, single-use delivery receipt, and let
+  the receiver use an enabled degraded acquisition profile while continuing to
+  reject disabled profiles.
+
 ## 3.0.0-beta.5
 
 ### Patch Changes

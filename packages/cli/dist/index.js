@@ -27305,7 +27305,7 @@ async function verifyPkhSignature(did, payload, signature) {
 }
 function verifyDidKeySignature(did, payload, signature) {
   const publicKey = ed25519PublicKeyFromDidKey2(did);
-  const signatureBytes = decodeBase64Url3(signature);
+  const signatureBytes = decodeBase64Url4(signature);
   if (signatureBytes.length !== 64) {
     throw new LocationRecordValidationError(
       "did:key signature must be a base64url Ed25519 signature"
@@ -27335,7 +27335,7 @@ function ed25519PublicKeyFromDidKey2(did) {
     "did:key must be an Ed25519 public key"
   );
 }
-function decodeBase64Url3(value) {
+function decodeBase64Url4(value) {
   const alphabet2 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
   const bytes22 = [];
   let buffer = 0;
