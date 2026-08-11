@@ -3,6 +3,7 @@ import { CredentialError, canonicalDigest, createHolderBinding, type CredentialF
 import { BrowserCredentialInteraction, InlineCredentialInteraction } from "../src/credentials/browser";
 import { interpretCredentialFlow } from "../src/credentials/interpreter";
 import { renderCredentialDescriptor } from "../src/credentials/renderer";
+import { CredentialsService } from "../src/credentials/service";
 import { findStoredCredential, storeCredential } from "../src/credentials/storage";
 import { OpenCredentialsHttpTransport } from "../src/credentials/transport";
 import type { CredentialAcquisitionTransport, CredentialRequestState } from "../src/credentials/types";
@@ -68,6 +69,49 @@ for (const code of ["UNSUPPORTED_PROFILE", "UNSUPPORTED_VERSION"] as const) {
     }
   });
 }
+
+test("credential discovery prefers ready profiles and permits an enabled degraded profile", async () => {
+  const degraded = { ...email, display: { ...email.display, title: "degraded profile" } };
+  const ready = { ...email, display: { ...email.display, title: "ready profile" } };
+  const entry = async (descriptor: CredentialFlowDescriptor, readiness: "ready" | "degraded") => ({
+    profile: descriptor.profile,
+    profileVersion: descriptor.profileVersion,
+    supported: true,
+    enabled: true,
+    readiness,
+    descriptor,
+    descriptorDigest: await canonicalDigest(descriptor),
+  });
+  const selected: string[] = [];
+  const transport = {
+    create: async ({ descriptor }: { descriptor: CredentialFlowDescriptor }) => {
+      selected.push(descriptor.display.title);
+      throw new CredentialError("OFFLINE", "stop after descriptor selection");
+    },
+  } as unknown as CredentialAcquisitionTransport;
+  const client = {
+    credentialHolderDid: HOLDER,
+    credentialHolderKid: `${HOLDER}#${HOLDER.slice("did:key:".length)}`,
+    session: () => undefined,
+    receiverCredentialCustody: {},
+  } as any;
+  const discoveryUrl = "https://witness.credentials.org/.well-known/opencredentials";
+  const acquireFrom = async (profiles: unknown[]) => new CredentialsService(client).acquire(requirement(email), {
+    discoveryUrl,
+    interaction: "headless",
+    transport,
+    fetch: async () => new Response(JSON.stringify({
+      type: "tinycloud.credentials/catalog/v1",
+      protocol: "tinycloud.credentials/acquisition/v1",
+      catalogVersion: 1,
+      profiles,
+    }), { status: 200, headers: { "content-type": "application/json" } }),
+  });
+
+  await expect(acquireFrom([await entry(degraded, "degraded"), await entry(ready, "ready")])).rejects.toMatchObject({ code: "OFFLINE" });
+  await expect(acquireFrom([await entry(degraded, "degraded")])).rejects.toMatchObject({ code: "OFFLINE" });
+  expect(selected).toEqual(["ready profile", "degraded profile"]);
+});
 
 test("HTTP transport classifies offline and caller cancellation as recoverable", async () => {
   const offline = new OpenCredentialsHttpTransport(email, async () => { throw new TypeError("offline"); });
