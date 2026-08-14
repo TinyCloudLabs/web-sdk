@@ -70,7 +70,8 @@ export interface UnifiedNativeCapability {
   readonly caveat?: Readonly<Record<string, string>>;
 }
 
-export interface UnifiedContentSource {
+export interface EncryptedUnifiedContentSource {
+  readonly type?: "xyz.tinycloud.share/encrypted-kv/v1";
   readonly shareId: string;
   readonly kvResource: string;
   readonly selector: UnifiedResourceSelector;
@@ -80,6 +81,17 @@ export interface UnifiedContentSource {
   readonly mode: "mutable" | "immutable";
   readonly initialCiphertextDigestHex?: string;
 }
+
+export interface PlaintextUnifiedContentSource {
+  readonly type: "xyz.tinycloud.share/plaintext-kv/v1";
+  readonly shareId: string;
+  readonly kvResource: string;
+  readonly selector: "exact";
+  readonly mode: "mutable";
+  readonly contentDigestHex: string;
+}
+
+export type UnifiedContentSource = EncryptedUnifiedContentSource | PlaintextUnifiedContentSource;
 
 export interface UnifiedPolicyV1 {
   readonly schema: typeof POLICY_V1_SCHEMA;

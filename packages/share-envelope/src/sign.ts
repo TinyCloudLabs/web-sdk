@@ -241,7 +241,9 @@ export async function verifyEnvelopeV3(envelope: ShareEnvelopeV3, options: Verif
   const marker = parsed.contentSource.kvResource.indexOf("/kv/");
   const resourceSpace = marker < 1 ? "" : parsed.contentSource.kvResource.slice(0, marker);
   const resourcePath = marker < 1 ? "" : parsed.contentSource.kvResource.slice(marker + 4);
-  if (parsed.shareId !== parsed.contentSource.shareId || resourceSpace !== parsed.target.spaceId || resourcePath !== parsed.resource.path.replace(/\/$/, "") || parsed.resource.kind !== parsed.contentSource.selector || kv?.kind !== "kv" || expectedKvActions.some((action) => !kv.actions.includes(action as never)) || parsed.encryptionNetwork !== parsed.contentSource.encryptionNetwork || parsed.contentSource.keyVersion <= 0 || (policy.expiresAt !== undefined && Date.parse(parsed.expiry) > Date.parse(policy.expiresAt))) return false;
+  const plaintext = parsed.contentSource.type === "xyz.tinycloud.share/plaintext-kv/v1";
+  const encryptedBindingInvalid = !plaintext && "encryptionNetwork" in parsed.contentSource && (parsed.encryptionNetwork !== parsed.contentSource.encryptionNetwork || parsed.contentSource.keyVersion <= 0);
+  if (parsed.shareId !== parsed.contentSource.shareId || resourceSpace !== parsed.target.spaceId || resourcePath !== parsed.resource.path.replace(/\/$/, "") || parsed.resource.kind !== parsed.contentSource.selector || kv?.kind !== "kv" || expectedKvActions.some((action) => !kv.actions.includes(action as never)) || encryptedBindingInvalid || (plaintext && (parsed.encrypted || parsed.encryptionNetwork !== undefined || policy.capabilityCeiling.some((capability) => capability.kind === "encryption"))) || (policy.expiresAt !== undefined && Date.parse(parsed.expiry) > Date.parse(policy.expiresAt))) return false;
   const binding = parsed.attestedEnforcerBinding;
   const { signature: bindingSignature, ...unsignedBinding } = binding;
   const expectedBindingDigestHex = hex(sha256(new TextEncoder().encode(canonicalize({ enforcerDid: binding.enforcerDid, nodeAudience: binding.nodeAudience }))));

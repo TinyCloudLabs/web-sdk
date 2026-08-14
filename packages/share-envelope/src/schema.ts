@@ -427,7 +427,8 @@ const unifiedEncryptionCapabilitySchema = z.object({
   action: z.literal("tinycloud.encryption/decrypt"),
 }).strict();
 const unifiedCapabilitySchema = z.union([unifiedKvCapabilitySchema, unifiedEncryptionCapabilitySchema]);
-const unifiedContentSourceSchema = z.object({
+const encryptedUnifiedContentSourceSchema = z.object({
+  type: z.literal("xyz.tinycloud.share/encrypted-kv/v1").optional(),
   shareId: z.string().min(1),
   kvResource: unifiedResourceSchema,
   selector: z.union([z.literal("exact"), z.literal("prefix")]),
@@ -437,6 +438,15 @@ const unifiedContentSourceSchema = z.object({
   mode: z.union([z.literal("mutable"), z.literal("immutable")]),
   initialCiphertextDigestHex: z.string().regex(/^[0-9a-f]{64}$/).optional(),
 }).strict();
+const plaintextUnifiedContentSourceSchema = z.object({
+  type: z.literal("xyz.tinycloud.share/plaintext-kv/v1"),
+  shareId: z.string().min(1),
+  kvResource: unifiedResourceSchema,
+  selector: z.literal("exact"),
+  mode: z.literal("mutable"),
+  contentDigestHex: z.string().regex(/^[0-9a-f]{64}$/),
+}).strict();
+const unifiedContentSourceSchema = z.union([encryptedUnifiedContentSourceSchema, plaintextUnifiedContentSourceSchema]);
 export const unifiedPolicyV1Schema = z.object({
   schema: z.literal("xyz.tinycloud.policy/policy/v1"),
   policyId: z.string().regex(/^pol_[a-z2-7]+$/),
@@ -444,7 +454,7 @@ export const unifiedPolicyV1Schema = z.object({
   createdAt: z.string().datetime({ offset: true }),
   expiresAt: z.string().datetime({ offset: true }).optional(),
   contentSource: unifiedContentSourceSchema,
-  capabilityCeiling: z.array(unifiedCapabilitySchema).min(2),
+  capabilityCeiling: z.array(unifiedCapabilitySchema).min(1),
   signature: z.object({ suite: z.string().min(1), signerDid: z.string().min(1), value: z.string().min(1) }).strict(),
 }).strict();
 export const policyCredentialRequirementV1Schema = z.object({
@@ -464,7 +474,7 @@ export const unifiedPolicyV2Schema = z.object({
   createdAt: z.string().datetime({ offset: true }),
   expiresAt: z.string().datetime({ offset: true }).optional(),
   contentSource: unifiedContentSourceSchema,
-  capabilityCeiling: z.array(unifiedCapabilitySchema).min(2),
+  capabilityCeiling: z.array(unifiedCapabilitySchema).min(1),
   credentialRequirement: policyCredentialRequirementV1Schema,
   signature: z.object({ suite: z.literal("Ed25519"), signerDid: z.string().min(1), value: z.string().min(1) }).strict(),
 }).strict();
@@ -506,10 +516,10 @@ const unsignedShareEnvelopeV3BaseSchema = z.object({
   attestedEnforcerBinding: attestedEnforcerBindingV2Schema,
   contentSource: unifiedContentSourceSchema,
   contentSourceDigestHex: z.string().regex(/^[0-9a-f]{64}$/),
-  encryptionNetwork: unifiedEncryptionNetworkSchema,
+  encryptionNetwork: unifiedEncryptionNetworkSchema.optional(),
   expiry: z.string().datetime({ offset: true }),
   display: displaySchema,
-  encrypted: z.literal(true),
+  encrypted: z.boolean(),
   metadata: contentMetadataSchema,
 }).strict();
 
@@ -524,13 +534,14 @@ function validateV3Invariants(value: z.infer<typeof unsignedShareEnvelopeV3BaseS
   if (value.policyCid.length === 0 || value.policyCid === value.policyRoot.cid || value.policyCid === value.enforcementRoot.cid) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["policyCid"], message: "policy CID must be distinct from both roots" });
   }
-  if (value.contentSource.encryptionNetwork !== value.encryptionNetwork) {
+  const plaintext = value.contentSource.type === "xyz.tinycloud.share/plaintext-kv/v1";
+  if (!plaintext && "encryptionNetwork" in value.contentSource && value.contentSource.encryptionNetwork !== value.encryptionNetwork) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["encryptionNetwork"], message: "encryption network is not bound to the source" });
   }
   if (value.attestedEnforcerBinding.enforcerDid !== value.target.nodeAudience || value.attestedEnforcerBinding.signature.signerDid !== value.attestedEnforcerBinding.nodeAudience || Date.parse(value.attestedEnforcerBinding.expiresAt) < Date.parse(value.expiry)) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["attestedEnforcerBinding"], message: "enforcer binding does not cover the target and share lifetime" });
   }
-  if (value.policy.contentSource.shareId !== value.contentSource.shareId || value.policy.contentSource.kvResource !== value.contentSource.kvResource || value.policy.contentSource.selector !== value.contentSource.selector || value.policy.contentSource.encryptionNetwork !== value.encryptionNetwork || value.policy.contentSource.encryptedSymmetricKeyDigestHex !== value.contentSource.encryptedSymmetricKeyDigestHex || value.policy.contentSource.keyVersion !== value.contentSource.keyVersion || value.policy.contentSource.mode !== value.contentSource.mode || value.policy.contentSource.initialCiphertextDigestHex !== value.contentSource.initialCiphertextDigestHex) {
+  if (JSON.stringify(value.policy.contentSource) !== JSON.stringify(value.contentSource)) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["contentSource"], message: "content source is not bound to policy" });
   }
   if (value.policy.signature.suite !== "Ed25519" || value.policy.signature.signerDid !== value.policy.ownerDid) {
@@ -538,7 +549,10 @@ function validateV3Invariants(value: z.infer<typeof unsignedShareEnvelopeV3BaseS
   }
   const kvCapabilities = value.policy.capabilityCeiling.filter((capability) => capability.kind === "kv");
   const decryptCapabilities = value.policy.capabilityCeiling.filter((capability) => capability.kind === "encryption" && capability.resource === value.encryptionNetwork && capability.action === "tinycloud.encryption/decrypt");
-  if (value.policy.capabilityCeiling.length !== 2 || kvCapabilities.length !== 1 || decryptCapabilities.length !== 1 || kvCapabilities[0]?.resource !== value.contentSource.kvResource || kvCapabilities[0]?.selector !== value.contentSource.selector) {
+  const ceilingInvalid = plaintext
+    ? value.encrypted || value.encryptionNetwork !== undefined || value.policy.capabilityCeiling.length !== 1 || kvCapabilities.length !== 1 || decryptCapabilities.length !== 0 || kvCapabilities[0]?.actions.some((action) => action !== "tinycloud.kv/get")
+    : !value.encrypted || value.policy.capabilityCeiling.length !== 2 || kvCapabilities.length !== 1 || decryptCapabilities.length !== 1;
+  if (ceilingInvalid || kvCapabilities[0]?.resource !== value.contentSource.kvResource || kvCapabilities[0]?.selector !== value.contentSource.selector) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["policy", "capabilityCeiling"], message: "policy ceiling must contain exact decrypt network" });
   }
 }
