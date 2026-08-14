@@ -34,6 +34,12 @@ tc init
 # Authenticate via browser
 tc auth login
 
+# Authenticate on a remote/headless machine
+tc auth login --device
+
+# Enable only Share publishing authority
+tc enable share
+
 # Store and retrieve data
 tc kv put greeting "Hello, world"
 tc kv get greeting
@@ -58,6 +64,8 @@ tc delegation create --to did:pkh:eip155:1:0x...
 |---------|-------------|
 | `tc init` | Set up a profile and generate keys |
 | `tc auth login` | Authenticate via browser |
+| `tc auth login --device` | Authenticate with an OpenKey URL and user code |
+| `tc enable share` | Enable narrowly scoped Share publishing authority |
 | `tc auth status` | Show authentication status |
 | `tc auth whoami` | Show current identity |
 | `tc kv get <key>` | Retrieve a value |

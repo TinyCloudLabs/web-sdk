@@ -24,6 +24,7 @@ import {
 } from "@tinycloud/share-sdk";
 import { canonicalize, fromBase64Url, toBase64Url } from "@tinycloud/share-envelope";
 import { activateSessionWithHost } from "@tinycloud/sdk-core";
+import { DEFAULT_HOST } from "../config/constants.js";
 
 const DEFAULT_SHARE_ORIGIN = "https://share.tinycloud.xyz";
 
@@ -455,7 +456,15 @@ export function createShareAuthorityAdapters(input: {
   return {
     targetAdapter,
     authorization,
-    records: input.profileName === undefined ? createEncryptedSessionHistory() : createEncryptedProfileHistory(input.profileName, async (bytes) => (await authenticatedNode()).signSessionBytes(bytes)),
+    records: input.profileName === undefined ? createEncryptedSessionHistory() : createEncryptedProfileHistory(input.profileName, async (bytes) => {
+      // Bearer-share history only needs the already-established local session
+      // signer. Do not fetch Share public configuration or initialize addressed
+      // authority services after a successful upload.
+      const profileName = await input.profileName!();
+      const context = await ProfileManager.resolveContext({ profile: profileName });
+      const { ensureAuthenticated } = await import("../lib/sdk.js");
+      return (await ensureAuthenticated(context)).signSessionBytes(bytes);
+    }),
     delivery,
     revocation,
     legacyReader,
@@ -574,6 +583,8 @@ export function createProductionUploadAuthorizer(input: {
   readonly testOnly?: boolean;
   /** Resolved by the command adapter so --profile always wins over defaults. */
   readonly profileName?: () => Promise<string>;
+  /** Resolve the explicit CLI/ENV Node origin for first-time profiles. */
+  readonly nodeOrigin?: () => Promise<string>;
 } = {}): (upload: ShareUploadInput) => Promise<ShareUploadAuthorization> {
   const origin = input.origin ?? DEFAULT_SHARE_ORIGIN;
   if (origin !== DEFAULT_SHARE_ORIGIN) throw new ShareAuthorityError("UNAVAILABLE", "share upload authorization is restricted to the canonical Share origin");
@@ -586,10 +597,29 @@ export function createProductionUploadAuthorizer(input: {
       const acquired = await input.acquireUploadAuthorization?.({ profileName, upload });
       if (acquired !== undefined) return acquired;
     }
-    const profile = await ProfileManager.getProfile(profileName).catch(() => {
-      throw new ShareAuthorityError("AUTH_REQUIRED", "share upload requires an initialized profile");
+    const existing = await ProfileManager.getProfile(profileName).catch(() => null);
+    if (existing?.authMethod === "openkey") {
+      try {
+        return await openKeyUploadAuthorization({ fetchFn, origin, profileName, upload, node: await authenticatedNodeForProfile(profileName, existing.host) });
+      } catch (error) {
+        if (!(error instanceof ShareAuthorityError) || error.code !== "AUTH_REQUIRED") throw error;
+      }
+    }
+    const { ensureShareDeviceAuthorization } = await import("../auth/device-auth.js");
+    const nodeOrigin = await (input.nodeOrigin?.() ?? Promise.resolve(existing?.host ?? process.env.TC_HOST ?? DEFAULT_HOST));
+    const acquired = await ensureShareDeviceAuthorization({
+      profileName,
+      nodeOrigin,
+      shareOrigin: origin,
+      openkeyHost: process.env.TC_OPENKEY_HOST ?? existing?.openkeyHost,
+      fetchFn,
     });
-    if (profile.authMethod === "openkey") return openKeyUploadAuthorization({ fetchFn, origin, profileName, upload, node: await authenticatedNodeForProfile(profileName, profile.host) });
-    throw new ShareAuthorityError("AUTH_REQUIRED", "share upload requires an active OpenKey session");
+    return openKeyUploadAuthorization({
+      fetchFn,
+      origin,
+      profileName,
+      upload,
+      node: await authenticatedNodeForProfile(profileName, acquired.profile.host),
+    });
   };
 }
