@@ -29,6 +29,7 @@ describe("Share device authorization client", () => {
   test("never sends private key material and accepts only the requested relay binding", async () => {
     const { jwk, did } = generateKey();
     const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
+    const instructions: Array<{ verificationUri: string; verificationUriComplete: string; userCode: string }> = [];
     let startBody: Record<string, unknown> | undefined;
     const transactionId = randomBytes(18).toString("base64url");
     const fetchFn = Object.assign(async (url: string | URL | Request, init?: RequestInit) => {
@@ -81,15 +82,58 @@ describe("Share device authorization client", () => {
       nodeOrigin: "https://node.tinycloud.xyz",
       shareOrigin: "https://share.tinycloud.xyz",
       fetchFn,
-      emitInstructions: () => undefined,
+      emitInstructions: (value) => instructions.push(value),
       wait: async () => undefined,
     });
     expect(result.delegationCid).toBe("bafy-device-client-test");
     expect(requests).toHaveLength(2);
+    expect(requests.map(({ url }) => url)).toEqual([
+      "https://api.openkey.so/api/device-authorizations",
+      "https://api.openkey.so/api/device-authorizations/token",
+    ]);
+    expect(instructions).toEqual([{
+      verificationUri: "https://openkey.so/device",
+      verificationUriComplete: "https://openkey.so/device?user_code=ABCD-EFGH",
+      userCode: "ABCD-EFGH",
+    }]);
     expect(JSON.stringify(requests[0]!.body)).not.toContain(`\"d\"`);
     expect(requests[0]!.body.permissions).toEqual(SHARE_DEVICE_PERMISSIONS);
     expect(requests[1]!.body.deviceSecret).toMatch(/^[A-Za-z0-9_-]{43}$/);
     expect(requests[1]!.body.codeVerifier).toMatch(/^[A-Za-z0-9_-]{43}$/);
+  });
+
+  test("preserves an explicit custom device API host for local deployments", async () => {
+    const { jwk, did } = generateKey();
+    const requests: string[] = [];
+    const fetchFn = Object.assign(async (url: string | URL | Request) => {
+      requests.push(String(url));
+      if (requests.length === 1) {
+        return response({
+          transactionId: randomBytes(18).toString("base64url"),
+          userCode: "CDEF-GHJK",
+          verificationUri: "https://openkey.localhost/device",
+          verificationUriComplete: "https://openkey.localhost/device?user_code=CDEF-GHJK",
+          expiresIn: 600,
+          interval: 2,
+        }, 201);
+      }
+      return response({ error: "expired_token" }, 410);
+    }, { preconnect: () => undefined }) as typeof globalThis.fetch;
+
+    await expect(acquireShareDeviceDelegation({
+      sessionDid: did,
+      jwk,
+      nodeOrigin: "https://node.tinycloud.xyz",
+      shareOrigin: "https://share.tinycloud.xyz",
+      openkeyHost: "https://openkey.localhost",
+      fetchFn,
+      emitInstructions: () => undefined,
+      wait: async () => undefined,
+    })).rejects.toThrow(/expired_token/);
+    expect(requests).toEqual([
+      "https://openkey.localhost/api/device-authorizations",
+      "https://openkey.localhost/api/device-authorizations/token",
+    ]);
   });
 
   test("rejects a relay result bound to another Share origin", async () => {

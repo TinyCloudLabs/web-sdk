@@ -37,7 +37,7 @@ import {
   tinycloudConfigPath,
   tinycloudHomePath
 } from "@tinycloud/operations/state";
-var CONFIG_DIR, PROFILES_DIR, CONFIG_FILE, DEFAULT_HOST, DEFAULT_OPENKEY_HOST, DEFAULT_PROFILE, DEFAULT_CHAIN_ID, ExitCode;
+var CONFIG_DIR, PROFILES_DIR, CONFIG_FILE, DEFAULT_HOST, DEFAULT_OPENKEY_HOST, DEFAULT_OPENKEY_DEVICE_API_HOST, DEFAULT_PROFILE, DEFAULT_CHAIN_ID, ExitCode;
 var init_constants = __esm({
   "src/config/constants.ts"() {
     "use strict";
@@ -46,6 +46,7 @@ var init_constants = __esm({
     CONFIG_FILE = tinycloudConfigPath();
     DEFAULT_HOST = "https://node.tinycloud.xyz";
     DEFAULT_OPENKEY_HOST = "https://openkey.so";
+    DEFAULT_OPENKEY_DEVICE_API_HOST = "https://api.openkey.so";
     DEFAULT_PROFILE = "default";
     DEFAULT_CHAIN_ID = 1;
     ExitCode = {
@@ -31169,7 +31170,7 @@ function assertApprovedBinding(input) {
   if (invalid) throw new Error(`OpenKey returned an invalid delegation: ${invalid}`);
 }
 async function acquireShareDeviceDelegation(input) {
-  const openkeyHost = canonicalOrigin(input.openkeyHost ?? DEFAULT_OPENKEY_HOST, "OpenKey host");
+  const openkeyHost = canonicalOrigin(input.openkeyHost ?? DEFAULT_OPENKEY_DEVICE_API_HOST, "OpenKey host");
   const nodeOrigin = canonicalOrigin(input.nodeOrigin, "TinyCloud node origin");
   const shareOrigin = canonicalOrigin(input.shareOrigin, "Share origin");
   const fetchFn = input.fetchFn ?? globalThis.fetch;
