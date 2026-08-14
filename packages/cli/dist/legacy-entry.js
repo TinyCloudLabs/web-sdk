@@ -34703,6 +34703,9 @@ function inputUrl(value, stdin) {
   if (value === void 0 || value.length === 0) throw new CLIError("INVALID_ARGUMENT", "a share URL or - is required", 2);
   return Promise.resolve(value);
 }
+function jsonOutput(options, command) {
+  return options.json === true || command.optsWithGlobals().json === true;
+}
 function expires(value) {
   try {
     return new Date(Date.now() + parseDuration(value));
@@ -34753,8 +34756,9 @@ function assertAggregateInputLimit(inputs, maxBytes) {
 }
 function registerShareCommand(program) {
   const share = program.command("share").description("Publish and consume TinyCloud Share links");
-  share.command("publish <files...>").description("Publish one or more bounded files as a Share").option("--name <filename>", "Filename for stdin input").option("--to <target>", "Share target", "anyone").option("--notify", "Request idempotent email delivery for addressed targets").option("--expires <duration>", "Share lifetime", "7d").option("--max-bytes <bytes>", "Bound input bytes").option("--media-type <type>", "Media type for a single input").option("--action <actions...>", "Addressed permission: read, list, or edit").option("--prefix", "Publish multiple inputs beneath one addressed prefix").option("--binary", "Allow non-UTF-8 bearer content").option("--inline", "Embed the sealed envelope in the URL fragment").option("--compact", "Use a CID-addressed compact link (default)").option("--json", "Print versioned redacted JSON").option("--registry <url>", "Authenticated registry upload endpoint", DEFAULT_REGISTRY).option("--viewer-origin <origin>", "Canonical HTTPS viewer origin", SHARE_ORIGIN).option("--insecure-registry", "Allow an explicit localhost HTTP registry for hermetic tests").action(async (files, options) => {
+  share.command("publish <files...>").description("Publish one or more bounded files as a Share").option("--name <filename>", "Filename for stdin input").option("--to <target>", "Share target", "anyone").option("--notify", "Request idempotent email delivery for addressed targets").option("--expires <duration>", "Share lifetime", "7d").option("--max-bytes <bytes>", "Bound input bytes").option("--media-type <type>", "Media type for a single input").option("--action <actions...>", "Addressed permission: read, list, or edit").option("--prefix", "Publish multiple inputs beneath one addressed prefix").option("--binary", "Allow non-UTF-8 bearer content").option("--inline", "Embed the sealed envelope in the URL fragment").option("--compact", "Use a CID-addressed compact link (default)").option("--json", "Print versioned redacted JSON").option("--registry <url>", "Authenticated registry upload endpoint", DEFAULT_REGISTRY).option("--viewer-origin <origin>", "Canonical HTTPS viewer origin", SHARE_ORIGIN).option("--insecure-registry", "Allow an explicit localhost HTTP registry for hermetic tests").action(async (files, options, command) => {
     try {
+      const json = jsonOutput(options, command);
       if (options.inline && options.compact) throw new CLIError("INVALID_ARGUMENT", "--inline and --compact are mutually exclusive", 2);
       const maxBytes = byteLimit(options.maxBytes);
       if (files.length === 0 || files.includes("-") && files.length > 1) throw new CLIError("INVALID_ARGUMENT", "stdin must be the only publish input", 2);
@@ -34786,7 +34790,7 @@ function registerShareCommand(program) {
         ...publishServices()
       });
       if ("state" in result) {
-        if (options.json) {
+        if (json) {
           writeJson2({ protocol: "tinycloud-share", version: 1, authorization: authorizationRequiredJson(result) });
           process.exitCode = 6;
           return;
@@ -34799,25 +34803,27 @@ function registerShareCommand(program) {
         const delivery = await notifyShare({ shareId: record.shareId, recipient: target.address, record, adapter: shareServices.delivery });
         if (delivery.state === "partial-failure") process.exitCode = 9;
       }
-      if (options.json) writeJson2(redactPublishedShare(result));
+      if (json) writeJson2(redactPublishedShare(result));
       else publishHuman(result);
     } catch (error) {
       handleError(shareCliError(error));
     }
   });
-  share.command("inspect [url]").description("Verify a share link and print safe metadata").option("--stdin", "Read the complete URL from stdin").option("--json", "Print versioned redacted JSON").option("--registry <url>", "Registry read endpoint", DEFAULT_READ_REGISTRY).option("--viewer-origin <origin>", "Require this canonical Share origin", SHARE_ORIGIN).action(async (url, options) => {
+  share.command("inspect [url]").description("Verify a share link and print safe metadata").option("--stdin", "Read the complete URL from stdin").option("--json", "Print versioned redacted JSON").option("--registry <url>", "Registry read endpoint", DEFAULT_READ_REGISTRY).option("--viewer-origin <origin>", "Require this canonical Share origin", SHARE_ORIGIN).action(async (url, options, command) => {
     try {
+      const json = jsonOutput(options, command);
       const link2 = await inputUrl(url, options.stdin === true);
       const result = await inspectShare(link2, { registryBaseUrl: options.registry, expectedOrigin: options.viewerOrigin, ...fetchServices() });
-      if (options.json) writeJson2(result);
+      if (json) writeJson2(result);
       else inspectHuman(result);
     } catch (error) {
       handleError(shareCliError(error));
     }
   });
-  share.command("receive [url]").description("Verify and receive a share link").option("--stdin", "Read the complete URL from stdin").option("--output <directory>", "Create the file in this directory").option("--stdout", "Write verified plaintext bytes to stdout").option("--force", "Allow replacing an existing non-symlink output").option("--max-bytes <bytes>", "Bound received content bytes").option("--resume-token <token>", "Resume a previously returned recipient authorization step").option("--authorization-proof-file <path>", "Read the JSON authorization proof from a file").option("--json", "Print versioned redacted JSON").option("--registry <url>", "Registry read endpoint", DEFAULT_READ_REGISTRY).option("--viewer-origin <origin>", "Require this canonical Share origin", SHARE_ORIGIN).option("--legacy", "Read a legacy tc1: link (read-only)").action(async (url, options) => {
+  share.command("receive [url]").description("Verify and receive a share link").option("--stdin", "Read the complete URL from stdin").option("--output <directory>", "Create the file in this directory").option("--stdout", "Write verified plaintext bytes to stdout").option("--force", "Allow replacing an existing non-symlink output").option("--max-bytes <bytes>", "Bound received content bytes").option("--resume-token <token>", "Resume a previously returned recipient authorization step").option("--authorization-proof-file <path>", "Read the JSON authorization proof from a file").option("--json", "Print versioned redacted JSON").option("--registry <url>", "Registry read endpoint", DEFAULT_READ_REGISTRY).option("--viewer-origin <origin>", "Require this canonical Share origin", SHARE_ORIGIN).option("--legacy", "Read a legacy tc1: link (read-only)").action(async (url, options, command) => {
     try {
-      if (options.stdout && options.json) throw new CLIError("INVALID_ARGUMENT", "--stdout and --json are mutually exclusive", 2);
+      const json = jsonOutput(options, command);
+      if (options.stdout && json) throw new CLIError("INVALID_ARGUMENT", "--stdout and --json are mutually exclusive", 2);
       const maxBytes = byteLimit(options.maxBytes);
       const link2 = await inputUrl(url, options.stdin === true);
       const proof = await authorizationProof(options);
@@ -34829,7 +34835,7 @@ function registerShareCommand(program) {
           return;
         }
         const output2 = await writeShareOutput(options.output ?? ".", "share.md", bytes, options.force === true);
-        if (options.json) writeJson2({ protocol: "tinycloud-share", version: 1, legacy: true, path: output2 });
+        if (json) writeJson2({ protocol: "tinycloud-share", version: 1, legacy: true, path: output2 });
         else receiveHuman(output2);
         return;
       }
@@ -34843,7 +34849,7 @@ function registerShareCommand(program) {
         ...proof === void 0 ? {} : { authorizationProof: proof }
       });
       if ("state" in result) {
-        if (options.json) {
+        if (json) {
           writeJson2({ protocol: "tinycloud-share", version: 1, authorization: authorizationRequiredJson(result) });
           process.exitCode = 6;
           return;
@@ -34855,14 +34861,15 @@ function registerShareCommand(program) {
         return;
       }
       const output = await writeShareOutput(options.output ?? ".", result.metadata.display.filename ?? "share.md", result.bytes, options.force === true);
-      if (options.json) receiveJson(result, output);
+      if (json) receiveJson(result, output);
       else receiveHuman(output);
     } catch (error) {
       handleError(shareCliError(error));
     }
   });
-  share.command("migrate [url]").description("Read a legacy tc1 link and re-mint a modern Share link").option("--stdin", "Read the complete legacy link from stdin").option("--name <filename>", "Filename for the migrated content", "migrated.md").option("--to <target>", "Modern Share target", "anyone").option("--notify", "Request idempotent email delivery for addressed targets").option("--expires <duration>", "Modern share lifetime", "7d").option("--max-bytes <bytes>", "Bound migrated content bytes").option("--inline", "Embed the sealed envelope in the URL fragment").option("--registry <url>", "Authenticated registry upload endpoint", DEFAULT_REGISTRY).option("--viewer-origin <origin>", "Canonical HTTPS viewer origin", SHARE_ORIGIN).option("--insecure-registry", "Allow an explicit localhost HTTP registry for hermetic tests").option("--json", "Print versioned redacted JSON").action(async (url, options) => {
+  share.command("migrate [url]").description("Read a legacy tc1 link and re-mint a modern Share link").option("--stdin", "Read the complete legacy link from stdin").option("--name <filename>", "Filename for the migrated content", "migrated.md").option("--to <target>", "Modern Share target", "anyone").option("--notify", "Request idempotent email delivery for addressed targets").option("--expires <duration>", "Modern share lifetime", "7d").option("--max-bytes <bytes>", "Bound migrated content bytes").option("--inline", "Embed the sealed envelope in the URL fragment").option("--registry <url>", "Authenticated registry upload endpoint", DEFAULT_REGISTRY).option("--viewer-origin <origin>", "Canonical HTTPS viewer origin", SHARE_ORIGIN).option("--insecure-registry", "Allow an explicit localhost HTTP registry for hermetic tests").option("--json", "Print versioned redacted JSON").action(async (url, options, command) => {
     try {
+      const json = jsonOutput(options, command);
       if (shareServices.legacyReader === void 0) throw new CLIError("UNSUPPORTED_LINK", "legacy migration requires an installed read-only tc1 adapter", 2);
       const link2 = await inputUrl(url, options.stdin === true);
       if (!isLegacyShareLink(link2)) throw new CLIError("UNSUPPORTED_LINK", "only tc1: links can be migrated", 2);
@@ -34898,41 +34905,44 @@ function registerShareCommand(program) {
           return result;
         }
       });
-      if (options.json) writeJson2({ protocol: "tinycloud-share", version: 1, legacy: true, migrated: redactPublishedShare(migrated.migrated) });
+      if (json) writeJson2({ protocol: "tinycloud-share", version: 1, legacy: true, migrated: redactPublishedShare(migrated.migrated) });
       else publishHuman(migrated.migrated);
     } catch (error) {
       handleError(shareCliError(error));
     }
   });
-  share.command("list").description("List encrypted sender history without complete bearer URLs").option("--json", "Print versioned redacted JSON").action(async (options) => {
+  share.command("list").description("List encrypted sender history without complete bearer URLs").option("--json", "Print versioned redacted JSON").action(async (options, command) => {
     try {
+      const json = jsonOutput(options, command);
       if (shareServices.records === void 0) throw new CLIError("AUTH_REQUIRED", "sender history storage is not configured", 3);
       const result = await listShares(shareServices.records);
-      if (options.json) writeJson2({ protocol: "tinycloud-share", version: 1, shares: result });
+      if (json) writeJson2({ protocol: "tinycloud-share", version: 1, shares: result });
       else process.stdout.write(result.map((item) => `${item.shareId}	${item.target}	${item.expiresAt}`).join("\n") + (result.length ? "\n" : ""));
     } catch (error) {
       handleError(shareCliError(error));
     }
   });
-  share.command("show <id>").description("Show one redacted sender-history record").option("--reveal-link", "Explicitly include the complete link").option("--json", "Print versioned redacted JSON").action(async (id, options) => {
+  share.command("show <id>").description("Show one redacted sender-history record").option("--reveal-link", "Explicitly include the complete link").option("--json", "Print versioned redacted JSON").action(async (id, options, command) => {
     try {
-      if (options.revealLink && options.json) throw new CLIError("INVALID_ARGUMENT", "--reveal-link cannot be combined with --json", 2);
+      const json = jsonOutput(options, command);
+      if (options.revealLink && json) throw new CLIError("INVALID_ARGUMENT", "--reveal-link cannot be combined with --json", 2);
       if (shareServices.records === void 0) throw new CLIError("AUTH_REQUIRED", "sender history storage is not configured", 3);
       const result = await showShare({ storage: shareServices.records, shareId: id, revealLink: options.revealLink === true, link: options.revealLink ? await shareServices.linkFor?.(id) : void 0 });
-      if (options.json) writeJson2({ protocol: "tinycloud-share", version: 1, share: result });
+      if (json) writeJson2({ protocol: "tinycloud-share", version: 1, share: result });
       else writeJson2(result);
     } catch (error) {
       handleError(shareCliError(error));
     }
   });
-  share.command("notify <id>").description("Retry idempotent delivery without recreating the share").requiredOption("--to <address>", "Recipient email").option("--json", "Print versioned JSON").action(async (id, options) => {
+  share.command("notify <id>").description("Retry idempotent delivery without recreating the share").requiredOption("--to <address>", "Recipient email").option("--json", "Print versioned JSON").action(async (id, options, command) => {
     try {
+      const json = jsonOutput(options, command);
       if (shareServices.delivery === void 0) throw new CLIError("AUTH_REQUIRED", "delivery authority is not configured", 3);
       if (shareServices.records === void 0) throw new CLIError("AUTH_REQUIRED", "sender history storage is not configured", 3);
       const record = await shareServices.records.get(id);
       if (record === void 0) throw new CLIError("NOT_FOUND", "share not found", 4);
       const result = await notifyShare({ shareId: id, recipient: options.to, record, adapter: shareServices.delivery });
-      if (options.json) writeJson2(result);
+      if (json) writeJson2(result);
       else process.stdout.write(`${result.state}
 `);
       if (result.state === "partial-failure") process.exitCode = 9;
@@ -34940,8 +34950,9 @@ function registerShareCommand(program) {
       handleError(shareCliError(error));
     }
   });
-  share.command("revoke <id>").description("Revoke addressed shares; report bearer retention honestly").option("--ancestor", "Revoke the owner delegation ancestry").option("--json", "Print versioned JSON").action(async (id, options) => {
+  share.command("revoke <id>").description("Revoke addressed shares; report bearer retention honestly").option("--ancestor", "Revoke the owner delegation ancestry").option("--json", "Print versioned JSON").action(async (id, options, command) => {
     try {
+      const json = jsonOutput(options, command);
       if (shareServices.records === void 0) throw new CLIError("AUTH_REQUIRED", "sender history storage is not configured", 3);
       const record = shareServices.getRecord ? await shareServices.getRecord(id) : await shareServices.records.get(id);
       if (record === void 0) throw new CLIError("NOT_FOUND", "share not found", 4);
@@ -34949,7 +34960,7 @@ function registerShareCommand(program) {
       if (result.state === "unsupported") {
         throw new CLIError("UNSUPPORTED_TARGET", result.reason, 2);
       }
-      if (options.json) writeJson2({ protocol: "tinycloud-share", version: 1, result });
+      if (json) writeJson2({ protocol: "tinycloud-share", version: 1, result });
       else process.stdout.write(`${result.state}
 `);
     } catch (error) {

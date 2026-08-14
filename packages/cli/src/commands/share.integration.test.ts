@@ -52,26 +52,34 @@ async function addressedFixture(): Promise<{ url: string; blob: Uint8Array; poli
 
 describe("tc share command integration", () => {
   test("publishes, inspects, receives, and records one compact link", async () => {
+    const viewerOrigin = "https://share-dev.tinycloud.link";
+    const readOptions = ["--viewer-origin", viewerOrigin, "--registry", `${viewerOrigin}/registry`];
     const root = await mkdtemp(join(tmpdir(), "tc-share-command-"));
     const input = join(root, "report.md");
     const output = join(root, "received");
     await writeFile(input, "# command round trip\n", "utf8");
     const blobs = new Map<string, Uint8Array>();
+    const fetched: string[] = [];
     const records = new MemorySenderShareRecordStorage();
     configureShareCommandServices({
       records,
       uploadBlob: async (value) => { blobs.set(value.cid, value.blob.slice()); return { cid: value.cid, deleteAfter: value.deleteAfter }; },
       fetchFn: Object.assign(async (inputUrl: string | URL | Request) => {
+        fetched.push(String(inputUrl));
         const cid = new URL(String(inputUrl)).pathname.split("/").at(-1)!;
         const blob = blobs.get(cid);
         return blob === undefined ? new Response(null, { status: 404 }) : new Response(blob, { status: 200, headers: { "content-type": "application/vnd.ipld.raw" } });
       }, { preconnect: () => undefined }) as typeof globalThis.fetch,
     });
 
-    const link = (await runShareCaptured(["share", "publish", input, "--viewer-origin", "https://share.tinycloud.xyz"])).stdout.trim();
-    expect(link).toMatch(/^https:\/\/share\.tinycloud\.xyz\/s\//);
-    expect((await runShareCaptured(["share", "inspect", link, "--viewer-origin", "https://share.tinycloud.xyz"])).stdout.trim()).toContain("Share ");
-    const receivedPath = (await runShareCaptured(["share", "receive", link, "--output", output, "--viewer-origin", "https://share.tinycloud.xyz"])).stdout.trim();
+    const link = (await runShareCaptured(["share", "publish", input, "--viewer-origin", viewerOrigin])).stdout.trim();
+    expect(link).toMatch(/^https:\/\/share-dev\.tinycloud\.link\/s\//);
+    expect((await runShareCaptured(["share", "inspect", link, ...readOptions])).stdout.trim()).toContain("Share ");
+    expect(fetched.at(-1)).toStartWith(`${viewerOrigin}/registry/ipfs/`);
+    const inspection = await runShareCaptured(["share", "inspect", link, "--json", ...readOptions]);
+    expect(inspection.exitCode).toBe(0);
+    expect(JSON.parse(inspection.stdout).metadata.display.filename).toBe("report.md");
+    const receivedPath = (await runShareCaptured(["share", "receive", link, "--output", output, ...readOptions])).stdout.trim();
     expect(await readFile(receivedPath, "utf8")).toBe("# command round trip\n");
     expect((await records.list()).length).toBe(1);
   });
