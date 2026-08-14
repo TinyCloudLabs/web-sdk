@@ -8,7 +8,7 @@ import {
   randomBytes,
   type KeyObject,
 } from "node:crypto";
-import { DEFAULT_CHAIN_ID, DEFAULT_OPENKEY_HOST } from "../config/constants.js";
+import { DEFAULT_CHAIN_ID, DEFAULT_OPENKEY_DEVICE_API_HOST } from "../config/constants.js";
 import { ProfileManager } from "../config/profiles.js";
 import type { ProfileConfig } from "../config/types.js";
 import { generateKey, keyToDID } from "./local-key.js";
@@ -224,7 +224,7 @@ export async function acquireShareDeviceDelegation(input: {
   emitInstructions?: (value: { verificationUri: string; verificationUriComplete: string; userCode: string }) => void;
   wait?: (milliseconds: number) => Promise<void>;
 }): Promise<Record<string, unknown>> {
-  const openkeyHost = canonicalOrigin(input.openkeyHost ?? DEFAULT_OPENKEY_HOST, "OpenKey host");
+  const openkeyHost = canonicalOrigin(input.openkeyHost ?? DEFAULT_OPENKEY_DEVICE_API_HOST, "OpenKey host");
   const nodeOrigin = canonicalOrigin(input.nodeOrigin, "TinyCloud node origin");
   const shareOrigin = canonicalOrigin(input.shareOrigin, "Share origin");
   const fetchFn = input.fetchFn ?? globalThis.fetch;
