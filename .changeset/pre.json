@@ -36,6 +36,7 @@
     "tc-500-accountless-share-receive",
     "tc-500-browser-compact-ucan",
     "tc-500-production-receiver-followup",
-    "tc-500-received-share-metadata"
+    "tc-500-received-share-metadata",
+    "tidy-cats-share"
   ]
 }

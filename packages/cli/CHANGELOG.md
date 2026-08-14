@@ -1,5 +1,11 @@
 # @tinycloud/cli
 
+## 0.9.1-beta.7
+
+### Patch Changes
+
+- 08f5bad: Route hosted Share device authorization through the canonical OpenKey API origin while preserving the browser approval origin and explicit self-hosted overrides.
+
 ## 0.9.1-beta.6
 
 ### Patch Changes

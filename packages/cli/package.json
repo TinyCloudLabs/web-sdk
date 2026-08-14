@@ -1,6 +1,6 @@
 {
   "name": "@tinycloud/cli",
-  "version": "0.9.1-beta.6",
+  "version": "0.9.1-beta.7",
   "description": "TinyCloud CLI - manage data, delegations, and nodes from the terminal",
   "author": "TinyCloud, Inc.",
   "license": "EGPL",
