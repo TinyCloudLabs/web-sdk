@@ -3,6 +3,9 @@ import { registerShareCommand } from "./share.js";
 
 export async function runShareCaptured(args: readonly string[]): Promise<{ stdout: string; stderr: string; exitCode: number }> {
   const program = new Command();
+  // Match the production command graph: tc defines --json globally and the
+  // Share subcommands expose it in their own help output.
+  program.option("--json", "Force JSON output");
   registerShareCommand(program);
   let stdout = "";
   let stderr = "";
