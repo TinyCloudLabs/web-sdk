@@ -28,6 +28,16 @@ function selectedShareProfile(): string | undefined {
   return process.env.TC_PROFILE;
 }
 
+function selectedShareHost(): string | undefined {
+  const args = process.argv.slice(2);
+  for (let index = 0; index < args.length; index += 1) {
+    const value = args[index];
+    if (value === "--host" || value === "-H") return args[index + 1];
+    if (value?.startsWith("--host=")) return value.slice("--host=".length);
+  }
+  return process.env.TC_HOST;
+}
+
 program
   .name("tc")
   .description("TinyCloud CLI — self-sovereign storage from the terminal")
@@ -79,6 +89,7 @@ configureShareCommandServices({
   authorizeUpload: createProductionUploadAuthorizer({
     fetchFn: globalThis.fetch,
     profileName: async () => selectedShareProfile() ?? (await ProfileManager.getConfig()).defaultProfile,
+    nodeOrigin: async () => selectedShareHost() ?? (await ProfileManager.resolveContext({ profile: selectedShareProfile() })).host,
   }),
   targetAdapter: shareAuthority.targetAdapter,
   authorization: shareAuthority.authorization,

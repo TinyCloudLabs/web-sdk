@@ -218,6 +218,13 @@ function formatTable(headers, rows) {
   );
   return [headerLine, separator, ...dataLines].join("\n");
 }
+function output(data, humanFormatter) {
+  if (shouldOutputJson() || !humanFormatter) {
+    outputJson(data);
+  } else {
+    process.stdout.write(humanFormatter() + "\n");
+  }
+}
 function formatCheck(ok2, label, detail) {
   const icon = ok2 === "warn" ? theme.warn("\u26A0") : ok2 ? theme.success("\u2713") : theme.error("\u2717");
   const detailStr = detail ? ` ${theme.muted(`(${detail})`)}` : "";
@@ -6225,7 +6232,7 @@ function eddsa(Point2, cHash, eddsaOpts = {}) {
   });
   const { prehash } = eddsaOpts;
   const { BASE, Fp: Fp2, Fn: Fn2 } = Point2;
-  const randomBytes5 = eddsaOpts.randomBytes || randomBytes;
+  const randomBytes6 = eddsaOpts.randomBytes || randomBytes;
   const adjustScalarBytes2 = eddsaOpts.adjustScalarBytes || ((bytes) => bytes);
   const domain = eddsaOpts.domain || ((data, ctx, phflag) => {
     _abool2(phflag, "phflag");
@@ -6307,7 +6314,7 @@ function eddsa(Point2, cHash, eddsaOpts = {}) {
     signature: 2 * _size,
     seed: _size
   };
-  function randomSecretKey(seed = randomBytes5(lengths.seed)) {
+  function randomSecretKey(seed = randomBytes6(lengths.seed)) {
     return _abytes2(seed, lengths.seed, "seed");
   }
   function keygen(seed) {
@@ -8989,7 +8996,7 @@ function weierstrass(curveDef) {
   function prepSig(msgHash, privateKey, opts = defaultSigOpts) {
     if (["recovered", "canonical"].some((k) => k in opts))
       throw new Error("sign() legacy options not supported");
-    const { hash, randomBytes: randomBytes5 } = CURVE;
+    const { hash, randomBytes: randomBytes6 } = CURVE;
     let { lowS, prehash, extraEntropy: ent } = opts;
     if (lowS == null)
       lowS = true;
@@ -9001,7 +9008,7 @@ function weierstrass(curveDef) {
     const d = normPrivateKeyToScalar(privateKey);
     const seedArgs = [int2octets(d), int2octets(h1int)];
     if (ent != null && ent !== false) {
-      const e = ent === true ? randomBytes5(Fp2.BYTES) : ent;
+      const e = ent === true ? randomBytes6(Fp2.BYTES) : ent;
       seedArgs.push(ensureBytes2("extraEntropy", e));
     }
     const seed = concatBytes3(...seedArgs);
@@ -14663,7 +14670,7 @@ var init_dist2 = __esm({
       async handleErrorResponse(response, operation) {
         const errorText = await response.text();
         const errorBody = parseServiceErrorBody(errorText);
-        const errorCode = this.mapHttpStatusToErrorCode(
+        const errorCode2 = this.mapHttpStatusToErrorCode(
           response.status,
           errorBody.error
         );
@@ -14681,7 +14688,7 @@ var init_dist2 = __esm({
           if (resource) meta.resource = resource;
         }
         return err(
-          serviceError(errorCode, message, "sql", { meta })
+          serviceError(errorCode2, message, "sql", { meta })
         );
       }
       mapHttpStatusToErrorCode(status, serverError) {
@@ -15011,7 +15018,7 @@ var init_dist2 = __esm({
       async handleErrorResponse(response, operation) {
         const errorText = await response.text();
         const errorBody = parseServiceErrorBody(errorText);
-        const errorCode = this.mapHttpStatusToErrorCode(
+        const errorCode2 = this.mapHttpStatusToErrorCode(
           response.status,
           errorBody.error
         );
@@ -15029,7 +15036,7 @@ var init_dist2 = __esm({
           if (resource) meta.resource = resource;
         }
         return err(
-          serviceError(errorCode, message, "duckdb", { meta })
+          serviceError(errorCode2, message, "duckdb", { meta })
         );
       }
       mapHttpStatusToErrorCode(status, serverError) {
@@ -18210,19 +18217,19 @@ function hex(bytes3) {
 }
 function base32Lower(bytes3) {
   const alphabet2 = "abcdefghijklmnopqrstuvwxyz234567";
-  let output = "";
+  let output2 = "";
   let buffer = 0;
   let bits = 0;
   for (const byte of bytes3) {
     buffer = buffer << 8 | byte;
     bits += 8;
     while (bits >= 5) {
-      output += alphabet2[buffer >>> bits - 5 & 31];
+      output2 += alphabet2[buffer >>> bits - 5 & 31];
       bits -= 5;
     }
   }
-  if (bits > 0) output += alphabet2[buffer << 5 - bits & 31];
-  return output;
+  if (bits > 0) output2 += alphabet2[buffer << 5 - bits & 31];
+  return output2;
 }
 function assertCanonicalCid(cidString) {
   const cid2 = CID.parse(cidString);
@@ -25367,13 +25374,13 @@ function concat2(arrays, length22) {
   if (length22 == null) {
     length22 = arrays.reduce((acc, curr) => acc + curr.length, 0);
   }
-  const output = allocUnsafe(length22);
+  const output2 = allocUnsafe(length22);
   let offset = 0;
   for (const arr of arrays) {
-    output.set(arr, offset);
+    output2.set(arr, offset);
     offset += arr.length;
   }
-  return asUint8Array(output);
+  return asUint8Array(output2);
 }
 function createCodec(name2, prefix, encode52, decode72) {
   return {
@@ -30963,6 +30970,11 @@ Open this URL in a browser to authenticate:
   });
 }
 
+// src/auth/device-auth.ts
+init_constants();
+init_profiles();
+import { createHash, randomBytes as randomBytes3 } from "crypto";
+
 // src/auth/local-key.ts
 import { TCWSessionManager, importKey, initPanicHook } from "@tinycloud/node-sdk-wasm";
 import { PrivateKeySigner } from "@tinycloud/node-sdk";
@@ -31033,6 +31045,198 @@ async function localKeySignIn(options) {
   };
 }
 
+// src/auth/device-auth.ts
+var SHARE_DEVICE_DELEGATION_SECONDS = 30 * 24 * 60 * 60;
+var SHARE_DEVICE_PERMISSIONS = [{
+  service: "tinycloud.capabilities",
+  space: "applications",
+  path: "",
+  actions: ["tinycloud.capabilities/read"]
+}];
+function digest2(value) {
+  return createHash("sha256").update(value).digest("base64url");
+}
+function canonicalOrigin(value, label) {
+  const url = new URL(value);
+  const loopback = url.hostname === "127.0.0.1" || url.hostname === "localhost";
+  if (url.origin !== value || url.protocol !== "https:" && !(loopback && url.protocol === "http:")) {
+    throw new Error(`${label} must be a canonical HTTPS origin`);
+  }
+  return value;
+}
+function jsonEqual(left, right) {
+  const canonical = (value) => Array.isArray(value) ? value.map(canonical) : value && typeof value === "object" ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, entry]) => [key, canonical(entry)])) : value;
+  return JSON.stringify(canonical(left)) === JSON.stringify(canonical(right));
+}
+function validateStart(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("OpenKey returned an invalid device authorization response");
+  const result = value;
+  if (typeof result.transactionId !== "string" || !/^[A-Za-z0-9_-]{20,}$/.test(result.transactionId) || typeof result.userCode !== "string" || !/^[A-Z2-9]{4}-[A-Z2-9]{4}$/.test(result.userCode) || typeof result.verificationUri !== "string" || typeof result.verificationUriComplete !== "string" || !Number.isSafeInteger(result.expiresIn) || Number(result.expiresIn) < 60 || !Number.isSafeInteger(result.interval) || Number(result.interval) < 1) throw new Error("OpenKey returned an invalid device authorization response");
+  canonicalOrigin(new URL(result.verificationUri).origin, "verification URI");
+  if (new URL(result.verificationUriComplete).origin !== new URL(result.verificationUri).origin) {
+    throw new Error("OpenKey returned an invalid verification URI");
+  }
+  return result;
+}
+async function responseJson(response) {
+  try {
+    return await response.json();
+  } catch {
+    throw new Error(`OpenKey device authorization failed (HTTP ${response.status})`);
+  }
+}
+function errorCode(value) {
+  return value && typeof value === "object" && typeof value.error === "string" ? value.error : void 0;
+}
+function publicSessionJwk(value) {
+  const publicJwk = publicJwkForDelegation(value);
+  const record = publicJwk;
+  if (record.kty !== "OKP" || record.crv !== "Ed25519" || typeof record.x !== "string") {
+    throw new Error("CLI session key is not a public Ed25519 JWK");
+  }
+  return publicJwk;
+}
+function assertApprovedBinding(input) {
+  if (input.binding.transactionId !== input.transactionId || input.binding.sessionDid !== input.sessionDid || input.binding.nodeOrigin !== input.nodeOrigin || input.binding.shareOrigin !== input.shareOrigin || !jsonEqual(input.binding.permissions, SHARE_DEVICE_PERMISSIONS)) throw new Error("OpenKey returned a delegation with the wrong device binding");
+  const expiresAt = Date.parse(input.binding.delegationExpiresAt);
+  if (!Number.isFinite(expiresAt) || expiresAt <= Date.now() || expiresAt > Date.now() + SHARE_DEVICE_DELEGATION_SECONDS * 1e3 + 3e4) {
+    throw new Error("OpenKey returned a delegation outside the requested expiry window");
+  }
+  if (input.delegation.verificationMethod !== input.sessionDid) {
+    throw new Error("OpenKey returned a delegation for a different CLI session DID");
+  }
+  if (!input.delegation.jwk || typeof input.delegation.jwk !== "object" || !jsonEqual(publicSessionJwk(input.delegation.jwk), input.publicJwk)) {
+    throw new Error("OpenKey returned a delegation for a different CLI session key");
+  }
+  const invalid = validateDelegationCallbackPayload(input.delegation);
+  if (invalid) throw new Error(`OpenKey returned an invalid delegation: ${invalid}`);
+}
+async function acquireShareDeviceDelegation(input) {
+  const openkeyHost = canonicalOrigin(input.openkeyHost ?? DEFAULT_OPENKEY_HOST, "OpenKey host");
+  const nodeOrigin = canonicalOrigin(input.nodeOrigin, "TinyCloud node origin");
+  const shareOrigin = canonicalOrigin(input.shareOrigin, "Share origin");
+  const fetchFn = input.fetchFn ?? globalThis.fetch;
+  const deviceSecret = randomBytes3(32).toString("base64url");
+  const codeVerifier = randomBytes3(32).toString("base64url");
+  const publicJwk = publicSessionJwk(input.jwk);
+  const startResponse = await fetchFn(`${openkeyHost}/api/device-authorizations`, {
+    method: "POST",
+    credentials: "omit",
+    redirect: "error",
+    referrerPolicy: "no-referrer",
+    headers: { accept: "application/json", "content-type": "application/json" },
+    body: JSON.stringify({
+      deviceSecretHash: digest2(deviceSecret),
+      codeChallenge: digest2(codeVerifier),
+      sessionDid: input.sessionDid,
+      publicJwk,
+      permissions: SHARE_DEVICE_PERMISSIONS,
+      nodeOrigin,
+      shareOrigin,
+      delegationTtlSeconds: SHARE_DEVICE_DELEGATION_SECONDS
+    })
+  });
+  const startValue = await responseJson(startResponse);
+  if (!startResponse.ok) throw new Error(`OpenKey device authorization failed: ${errorCode(startValue) ?? startResponse.status}`);
+  const started = validateStart(startValue);
+  (input.emitInstructions ?? ((value) => {
+    process.stderr.write(`OpenKey device authorization
+Visit: ${value.verificationUri}
+Code:  ${value.userCode}
+
+Waiting for approval\u2026
+`);
+  }))({ verificationUri: started.verificationUri, verificationUriComplete: started.verificationUriComplete, userCode: started.userCode });
+  const deadline = Date.now() + started.expiresIn * 1e3;
+  let interval = started.interval;
+  const wait = input.wait ?? ((milliseconds) => new Promise((resolve4) => setTimeout(resolve4, milliseconds)));
+  while (Date.now() < deadline) {
+    await wait(interval * 1e3);
+    const response = await fetchFn(`${openkeyHost}/api/device-authorizations/token`, {
+      method: "POST",
+      credentials: "omit",
+      redirect: "error",
+      referrerPolicy: "no-referrer",
+      headers: { accept: "application/json", "content-type": "application/json" },
+      body: JSON.stringify({ transactionId: started.transactionId, deviceSecret, codeVerifier })
+    });
+    const value = await responseJson(response);
+    const code3 = errorCode(value);
+    if (response.status === 429 && code3 === "slow_down") {
+      interval += 1;
+      continue;
+    }
+    if (!response.ok) throw new Error(`OpenKey device authorization failed: ${code3 ?? response.status}`);
+    const result = value;
+    if (result.status === "pending") {
+      interval = Math.max(interval, result.interval);
+      continue;
+    }
+    if (result.status !== "approved" || !result.delegation || !result.binding) {
+      throw new Error("OpenKey returned an invalid device authorization result");
+    }
+    assertApprovedBinding({ binding: result.binding, transactionId: started.transactionId, sessionDid: input.sessionDid, nodeOrigin, shareOrigin, publicJwk, delegation: result.delegation });
+    return result.delegation;
+  }
+  throw new Error("OpenKey device authorization expired before approval");
+}
+function mergePrivateJwkIntoSession(session, key) {
+  const sessionJwk = session.jwk;
+  if (!sessionJwk || typeof sessionJwk !== "object") return session;
+  const sessionJwkRecord = sessionJwk;
+  if (typeof sessionJwkRecord.d === "string" && sessionJwkRecord.d.length > 0) return session;
+  const privateParameter = key.d;
+  if (typeof privateParameter !== "string" || privateParameter.length === 0) return session;
+  return { ...session, jwk: { ...sessionJwkRecord, d: privateParameter } };
+}
+async function ensureShareDeviceAuthorization(input) {
+  let profile = await ProfileManager.getProfile(input.profileName).catch(() => null);
+  if (profile?.authMethod === "local" && input.allowReplaceLocal !== true) {
+    throw new Error("This profile uses a local owner key. Run `tc auth login --device` explicitly to replace its authentication posture.");
+  }
+  let key = await ProfileManager.getKey(input.profileName);
+  if (!key) {
+    const generated = generateKey2();
+    key = generated.jwk;
+    await ProfileManager.setKey(input.profileName, key);
+  }
+  const sessionDid = keyToDID(key);
+  profile = {
+    ...profile,
+    name: input.profileName,
+    host: input.nodeOrigin,
+    chainId: profile?.chainId ?? DEFAULT_CHAIN_ID,
+    spaceName: profile?.spaceName ?? "applications",
+    did: sessionDid,
+    sessionDid,
+    createdAt: profile?.createdAt ?? (/* @__PURE__ */ new Date()).toISOString(),
+    posture: "owner-openkey",
+    operatorType: profile?.operatorType ?? "human",
+    authMethod: "openkey",
+    openkeyHost: input.openkeyHost ?? profile?.openkeyHost
+  };
+  await ProfileManager.setProfile(input.profileName, profile);
+  const delegation = await acquireShareDeviceDelegation({
+    sessionDid,
+    jwk: key,
+    nodeOrigin: input.nodeOrigin,
+    shareOrigin: input.shareOrigin,
+    openkeyHost: input.openkeyHost ?? profile.openkeyHost,
+    fetchFn: input.fetchFn,
+    emitInstructions: input.emitInstructions,
+    wait: input.wait
+  });
+  const session = mergePrivateJwkIntoSession(delegation, key);
+  await ProfileManager.setSession(input.profileName, session);
+  const updatedProfile = {
+    ...profile,
+    ownerDid: typeof session.ownerDid === "string" ? session.ownerDid : profile.ownerDid,
+    spaceId: typeof session.spaceId === "string" ? session.spaceId : profile.spaceId
+  };
+  await ProfileManager.setProfile(input.profileName, updatedProfile);
+  return { profile: updatedProfile, delegation: session };
+}
+
 // src/commands/auth.ts
 init_theme();
 function resolveOpenKeyHost(profile) {
@@ -31040,7 +31244,7 @@ function resolveOpenKeyHost(profile) {
 }
 async function promptAuthMethod() {
   if (!isInteractive()) {
-    return "local";
+    return "openkey";
   }
   const rl = createInterface2({
     input: process.stdin,
@@ -31066,8 +31270,11 @@ async function promptAuthMethod() {
 }
 function registerAuthCommand(program) {
   const auth = program.command("auth").description("Authentication management");
-  auth.command("login").description("Authenticate with TinyCloud").option("--paste", "Use manual paste mode instead of browser callback").option("--no-popup", "Print the OpenKey URL without opening a browser").option("--method <method>", "Authentication method: local or openkey").action(async (options, cmd) => {
+  auth.command("login").description("Authenticate with TinyCloud").option("--device", "Use OpenKey device authorization (recommended for remote/headless use)").option("--paste", "Use manual paste mode instead of browser callback").option("--no-popup", "Print the OpenKey URL without opening a browser").option("--method <method>", "Authentication method: local or openkey").action(async (options, cmd) => {
     try {
+      if (options.device && options.paste) {
+        throw new CLIError("INVALID_ARGUMENT", "--device and --paste are mutually exclusive.", ExitCode.USAGE_ERROR);
+      }
       const globalOpts = cmd.optsWithGlobals();
       const ctx = await ProfileManager.resolveContext(globalOpts);
       let method;
@@ -31084,11 +31291,15 @@ function registerAuthCommand(program) {
         method = await promptAuthMethod();
       }
       if (method === "local") {
+        if (options.device) {
+          throw new CLIError("INVALID_ARGUMENT", "--device requires --method openkey.", ExitCode.USAGE_ERROR);
+        }
         await handleLocalAuth(ctx.profile, ctx.host);
       } else {
         await handleOpenKeyAuth(ctx.profile, ctx.host, {
           paste: options.paste,
-          noPopup: options.popup === false
+          noPopup: options.popup === false,
+          device: options.device === true || !isInteractive() && options.paste !== true
         });
       }
     } catch (error) {
@@ -31676,15 +31887,15 @@ async function importRequestBoundDelegation(ctx, artifact) {
   );
   switch (result.status) {
     case "ok": {
-      const output = result.output;
+      const output2 = result.output;
       outputJson({
         imported: true,
-        activated: output.activated,
+        activated: output2.activated,
         kind: "tinycloud.auth.delegation",
         requestId: typeof artifact === "object" && artifact !== null && typeof artifact.requestId === "string" ? artifact.requestId : null,
-        delegationCid: output.cid,
-        permissions: output.effectivePermissions,
-        expiry: output.expiry
+        delegationCid: output2.cid,
+        permissions: output2.effectivePermissions,
+        expiry: output2.expiry
       });
       return;
     }
@@ -32183,6 +32394,24 @@ async function handleLocalAuth(profileName, host, options = {}) {
   return { profile: updatedProfile, sessionResult };
 }
 async function handleOpenKeyAuth(profileName, host, options = {}) {
+  if (options.device) {
+    const result = await ensureShareDeviceAuthorization({
+      profileName,
+      nodeOrigin: host,
+      shareOrigin: "https://share.tinycloud.xyz",
+      openkeyHost: process.env.TC_OPENKEY_HOST,
+      allowReplaceLocal: true
+    });
+    outputJson({
+      authenticated: true,
+      profile: profileName,
+      did: result.profile.did,
+      spaceId: result.profile.spaceId ?? null,
+      authMethod: "openkey",
+      mode: "device"
+    });
+    return;
+  }
   const { profile, delegationData } = await refreshOpenKeySession(profileName, host, options);
   outputJson({
     authenticated: true,
@@ -32191,25 +32420,6 @@ async function handleOpenKeyAuth(profileName, host, options = {}) {
     spaceId: delegationData.spaceId,
     authMethod: "openkey"
   });
-}
-function mergePrivateJwkIntoSession(session, key) {
-  const sessionJwk = session.jwk;
-  if (!sessionJwk || typeof sessionJwk !== "object") {
-    return session;
-  }
-  const sessionJwkRecord = sessionJwk;
-  const sessionD = sessionJwkRecord.d;
-  if (typeof sessionD === "string" && sessionD.length > 0) {
-    return session;
-  }
-  const keyD = key.d;
-  if (typeof keyD !== "string" || keyD.length === 0) {
-    return session;
-  }
-  return {
-    ...session,
-    jwk: { ...sessionJwkRecord, d: keyD }
-  };
 }
 async function refreshOpenKeySession(profileName, host, options = {}) {
   const key = await ProfileManager.getKey(profileName);
@@ -32780,6 +32990,36 @@ ${rowCount} row${rowCount === 1 ? "" : "s"} returned`) + "\n");
         sizeHuman: formatBytes(bytes.byteLength),
         imported: true
       });
+    } catch (error) {
+      handleError(error);
+    }
+  });
+}
+
+// src/commands/enable.ts
+init_profiles();
+init_errors();
+init_formatter();
+function registerEnableCommand(program) {
+  const enable = program.command("enable").description("Enable a narrowly scoped TinyCloud service");
+  enable.command("share").description("Approve Share publishing through OpenKey device authorization").action(async (_options, command) => {
+    try {
+      const context = await ProfileManager.resolveContext(command.optsWithGlobals());
+      const result = await ensureShareDeviceAuthorization({
+        profileName: context.profile,
+        nodeOrigin: context.host,
+        shareOrigin: "https://share.tinycloud.xyz",
+        openkeyHost: process.env.TC_OPENKEY_HOST,
+        allowReplaceLocal: true
+      });
+      const value = {
+        enabled: true,
+        service: "share",
+        profile: context.profile,
+        sessionDid: result.profile.sessionDid ?? result.profile.did,
+        expiresAt: result.delegation.expiresAt ?? result.delegation.expirationTime ?? result.delegation.expiry
+      };
+      output(value, () => `Share enabled for profile ${context.profile}.`);
     } catch (error) {
       handleError(error);
     }
@@ -34521,7 +34761,7 @@ function receiveJson(result, path) {
 // src/share/io.ts
 import { constants } from "fs";
 import { lstat, mkdir as mkdir3, mkdtemp, open as open3, readFile as readFile9, realpath, stat as stat2, link, rename as rename2, rm as rm2, unlink } from "fs/promises";
-import { randomBytes as randomBytes3 } from "crypto";
+import { randomBytes as randomBytes4 } from "crypto";
 import { basename as basename2, join as join6, resolve as resolve2, sep } from "path";
 var MAX_SHARE_STDIN_BYTES = 100 * 1024 * 1024;
 var MAX_SHARE_URL_BYTES = 64 * 1024;
@@ -34600,7 +34840,7 @@ async function writeShareOutput(directory, filename, bytes, force) {
   const stagingDirectory = await mkdtemp(join6(stableDirectory, ".tinycloud-share-stage-"));
   const stagingInfo = await lstat(stagingDirectory);
   if (!stagingInfo.isDirectory() || (stagingInfo.mode & 511) !== 448) throw new Error("OUTPUT_EXISTS");
-  const stagingPath = join6(stagingDirectory, `.tinycloud-share-${randomBytes3(16).toString("hex")}.tmp`);
+  const stagingPath = join6(stagingDirectory, `.tinycloud-share-${randomBytes4(16).toString("hex")}.tmp`);
   let temporaryPath;
   let handle;
   try {
@@ -34653,11 +34893,11 @@ function parseShareTarget(value) {
   if (value.includes("@")) return { kind: "email", address: value };
   throw new CLIError("INVALID_ARGUMENT", "--to must be anyone, a did:, an email address, or domain:example.com", 2);
 }
-function publishServices() {
+function publishServices(insecureLocalRegistry = false) {
   return {
     ...shareServices.uploadBlob === void 0 ? {} : { uploadBlob: shareServices.uploadBlob },
     ...shareServices.authorizeUpload === void 0 ? {} : { authorizeUpload: shareServices.authorizeUpload },
-    ...shareServices.authorizeUpload === void 0 ? {} : { authorizationOrigin: SHARE_ORIGIN },
+    ...shareServices.authorizeUpload === void 0 || insecureLocalRegistry ? {} : { authorizationOrigin: SHARE_ORIGIN },
     ...shareServices.credentials === void 0 ? {} : { credentials: shareServices.credentials },
     ...shareServices.fetchFn === void 0 ? {} : { fetchFn: shareServices.fetchFn }
   };
@@ -34787,7 +35027,7 @@ function registerShareCommand(program) {
         allowInsecureRegistry: options.insecureRegistry === true,
         notify: options.notify === true,
         targetAdapter: shareServices.targetAdapter,
-        ...publishServices()
+        ...publishServices(options.insecureRegistry === true)
       });
       if ("state" in result) {
         if (json) {
@@ -34834,9 +35074,9 @@ function registerShareCommand(program) {
           process.stdout.write(Buffer.from(bytes));
           return;
         }
-        const output2 = await writeShareOutput(options.output ?? ".", "share.md", bytes, options.force === true);
-        if (json) writeJson2({ protocol: "tinycloud-share", version: 1, legacy: true, path: output2 });
-        else receiveHuman(output2);
+        const output3 = await writeShareOutput(options.output ?? ".", "share.md", bytes, options.force === true);
+        if (json) writeJson2({ protocol: "tinycloud-share", version: 1, legacy: true, path: output3 });
+        else receiveHuman(output3);
         return;
       }
       const result = await receiveShare(link2, {
@@ -34860,9 +35100,9 @@ function registerShareCommand(program) {
         process.stdout.write(Buffer.from(result.bytes));
         return;
       }
-      const output = await writeShareOutput(options.output ?? ".", result.metadata.display.filename ?? "share.md", result.bytes, options.force === true);
-      if (json) receiveJson(result, output);
-      else receiveHuman(output);
+      const output2 = await writeShareOutput(options.output ?? ".", result.metadata.display.filename ?? "share.md", result.bytes, options.force === true);
+      if (json) receiveJson(result, output2);
+      else receiveHuman(output2);
     } catch (error) {
       handleError(shareCliError(error));
     }
@@ -34891,7 +35131,7 @@ function registerShareCommand(program) {
             allowInsecureRegistry: options.insecureRegistry === true,
             notify: options.notify === true,
             targetAdapter: shareServices.targetAdapter,
-            ...publishServices()
+            ...publishServices(options.insecureRegistry === true)
           });
           if ("state" in result) throw new CLIError(result.method === "openkey-device" ? "DEVICE_AUTH_REQUIRED" : "CLAIM_REQUIRED", "recipient authorization is required; continue through the configured authority adapter", 6);
           const record = await rememberPublishedShare(result);
@@ -34974,7 +35214,7 @@ init_profiles();
 init_formatter();
 init_errors();
 init_constants();
-import { randomBytes as randomBytes4 } from "crypto";
+import { randomBytes as randomBytes5 } from "crypto";
 import { mkdir as mkdir4, writeFile as writeFile6 } from "fs/promises";
 import { dirname as dirname3 } from "path";
 init_host();
@@ -35057,7 +35297,7 @@ it directly with \`tc space host <name>\` (no request needed).
       const artifact = {
         kind: "tinycloud.host.request",
         version: 1,
-        requestId: `hostreq_${Date.now().toString(36)}_${randomBytes4(4).toString("hex")}`,
+        requestId: `hostreq_${Date.now().toString(36)}_${randomBytes5(4).toString("hex")}`,
         createdAt: (/* @__PURE__ */ new Date()).toISOString(),
         spaceName,
         spaceId,
@@ -36139,6 +36379,7 @@ function registerVarsCommand(program) {
 function registerTinyCloudCommands(program) {
   registerInitCommand(program);
   registerAuthCommand(program);
+  registerEnableCommand(program);
   registerKvCommand(program);
   registerSpaceCommand(program);
   registerDelegationCommand(program);

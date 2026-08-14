@@ -33,6 +33,11 @@ function resolveOpenKeyHost(profile: ProfileConfig): string {
 }
 import { startAuthFlow } from "../auth/browser-auth.js";
 import {
+  ensureShareDeviceAuthorization,
+  mergePrivateJwkIntoSession,
+} from "../auth/device-auth.js";
+export { mergePrivateJwkIntoSession } from "../auth/device-auth.js";
+import {
   generateLocalIdentity,
   deriveAddress,
   addressToDID,
@@ -72,7 +77,7 @@ export type OpenKeyAcquisition = typeof startAuthFlow;
  */
 async function promptAuthMethod(): Promise<AuthMethod> {
   if (!isInteractive()) {
-    return "local";
+    return "openkey";
   }
 
   const rl = createInterface({
@@ -103,11 +108,15 @@ export function registerAuthCommand(program: Command): void {
   auth
     .command("login")
     .description("Authenticate with TinyCloud")
+    .option("--device", "Use OpenKey device authorization (recommended for remote/headless use)")
     .option("--paste", "Use manual paste mode instead of browser callback")
     .option("--no-popup", "Print the OpenKey URL without opening a browser")
     .option("--method <method>", "Authentication method: local or openkey")
     .action(async (options, cmd) => {
       try {
+        if (options.device && options.paste) {
+          throw new CLIError("INVALID_ARGUMENT", "--device and --paste are mutually exclusive.", ExitCode.USAGE_ERROR);
+        }
         const globalOpts = cmd.optsWithGlobals();
         const ctx = await ProfileManager.resolveContext(globalOpts);
 
@@ -127,11 +136,15 @@ export function registerAuthCommand(program: Command): void {
         }
 
         if (method === "local") {
+          if (options.device) {
+            throw new CLIError("INVALID_ARGUMENT", "--device requires --method openkey.", ExitCode.USAGE_ERROR);
+          }
           await handleLocalAuth(ctx.profile, ctx.host);
         } else {
           await handleOpenKeyAuth(ctx.profile, ctx.host, {
             paste: options.paste,
             noPopup: options.popup === false,
+            device: options.device === true || (!isInteractive() && options.paste !== true),
           });
         }
       } catch (error) {
@@ -1598,8 +1611,26 @@ async function handleLocalAuth(
 async function handleOpenKeyAuth(
   profileName: string,
   host: string,
-  options: { paste?: boolean; noPopup?: boolean } = {},
+  options: { paste?: boolean; noPopup?: boolean; device?: boolean } = {},
 ): Promise<void> {
+  if (options.device) {
+    const result = await ensureShareDeviceAuthorization({
+      profileName,
+      nodeOrigin: host,
+      shareOrigin: "https://share.tinycloud.xyz",
+      openkeyHost: process.env.TC_OPENKEY_HOST,
+      allowReplaceLocal: true,
+    });
+    outputJson({
+      authenticated: true,
+      profile: profileName,
+      did: result.profile.did,
+      spaceId: result.profile.spaceId ?? null,
+      authMethod: "openkey",
+      mode: "device",
+    });
+    return;
+  }
   const { profile, delegationData } = await refreshOpenKeySession(profileName, host, options);
 
   outputJson({
@@ -1627,29 +1658,6 @@ async function handleOpenKeyAuth(
  * legitimately returns a session JWK with its own private parameter, this
  * function leaves that JWK untouched.
  */
-export function mergePrivateJwkIntoSession(
-  session: Record<string, unknown>,
-  key: object,
-): Record<string, unknown> {
-  const sessionJwk = session.jwk;
-  if (!sessionJwk || typeof sessionJwk !== "object") {
-    return session;
-  }
-  const sessionJwkRecord = sessionJwk as Record<string, unknown>;
-  const sessionD = sessionJwkRecord.d;
-  if (typeof sessionD === "string" && sessionD.length > 0) {
-    return session;
-  }
-  const keyD = (key as Record<string, unknown>).d;
-  if (typeof keyD !== "string" || keyD.length === 0) {
-    return session;
-  }
-  return {
-    ...session,
-    jwk: { ...sessionJwkRecord, d: keyD },
-  };
-}
-
 export async function refreshOpenKeySession(
   profileName: string,
   host: string,

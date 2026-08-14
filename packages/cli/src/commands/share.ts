@@ -69,11 +69,11 @@ export function parseShareTarget(value: string): ShareTarget {
   throw new CLIError("INVALID_ARGUMENT", "--to must be anyone, a did:, an email address, or domain:example.com", 2);
 }
 
-function publishServices(): Pick<SharePublishOptions, "uploadBlob" | "authorizeUpload" | "authorizationOrigin" | "credentials" | "fetchFn"> {
+function publishServices(insecureLocalRegistry = false): Pick<SharePublishOptions, "uploadBlob" | "authorizeUpload" | "authorizationOrigin" | "credentials" | "fetchFn"> {
   return {
     ...(shareServices.uploadBlob === undefined ? {} : { uploadBlob: shareServices.uploadBlob }),
     ...(shareServices.authorizeUpload === undefined ? {} : { authorizeUpload: shareServices.authorizeUpload }),
-    ...(shareServices.authorizeUpload === undefined ? {} : { authorizationOrigin: SHARE_ORIGIN }),
+    ...(shareServices.authorizeUpload === undefined || insecureLocalRegistry ? {} : { authorizationOrigin: SHARE_ORIGIN }),
     ...(shareServices.credentials === undefined ? {} : { credentials: shareServices.credentials }),
     ...(shareServices.fetchFn === undefined ? {} : { fetchFn: shareServices.fetchFn }),
   };
@@ -241,7 +241,7 @@ export function registerShareCommand(program: Command): void {
           allowInsecureRegistry: options.insecureRegistry === true,
           notify: options.notify === true,
           targetAdapter: shareServices.targetAdapter,
-          ...publishServices(),
+          ...publishServices(options.insecureRegistry === true),
         });
         if ("state" in result) {
           if (json) {
@@ -370,7 +370,7 @@ export function registerShareCommand(program: Command): void {
               allowInsecureRegistry: options.insecureRegistry === true,
               notify: options.notify === true,
               targetAdapter: shareServices.targetAdapter,
-              ...publishServices(),
+              ...publishServices(options.insecureRegistry === true),
             });
             if ("state" in result) throw new CLIError(result.method === "openkey-device" ? "DEVICE_AUTH_REQUIRED" : "CLAIM_REQUIRED", "recipient authorization is required; continue through the configured authority adapter", 6);
             const record = await rememberPublishedShare(result);

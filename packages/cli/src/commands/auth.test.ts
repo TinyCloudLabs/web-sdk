@@ -203,6 +203,11 @@ mock.module("../config/profiles.js", () => ({
 }));
 
 mock.module("../auth/browser-auth.js", () => ({
+  publicJwkForDelegation: (jwk: Record<string, unknown>) => {
+    const { d: _privateKey, ...publicJwk } = jwk;
+    return publicJwk;
+  },
+  validateDelegationCallbackPayload: () => null,
   startAuthFlow: async (
     did: string,
     options: {
