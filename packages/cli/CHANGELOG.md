@@ -1,5 +1,11 @@
 # @tinycloud/cli
 
+## 0.9.1-beta.6
+
+### Patch Changes
+
+- aee2308: Add Share-first, end-to-end-encrypted OpenKey device authorization for first-time remote publishing, plus explicit `tc auth login --device` and `tc enable share` commands.
+
 ## 0.9.1-beta.5
 
 ### Patch Changes

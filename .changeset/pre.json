@@ -27,6 +27,7 @@
     "@tinycloud/manage-key-reference-clients": "0.0.0"
   },
   "changesets": [
+    "calm-shares-device-auth",
     "fix-share-agent-receive",
     "tc-292-raw-eip1193",
     "tc-475-inline-credential-acquisition",
