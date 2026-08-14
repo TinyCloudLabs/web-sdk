@@ -1,4 +1,13 @@
-import { createHash, randomBytes } from "node:crypto";
+import {
+  createDecipheriv,
+  createHash,
+  createPublicKey,
+  diffieHellman,
+  generateKeyPairSync,
+  hkdfSync,
+  randomBytes,
+  type KeyObject,
+} from "node:crypto";
 import { DEFAULT_CHAIN_ID, DEFAULT_OPENKEY_HOST } from "../config/constants.js";
 import { ProfileManager } from "../config/profiles.js";
 import type { ProfileConfig } from "../config/types.js";
@@ -22,6 +31,14 @@ type DeviceStartResponse = {
   interval: number;
 };
 
+type DeviceRelayEnvelope = {
+  version: 1;
+  algorithm: "ECDH-P256-A256GCM";
+  ephemeralPublicJwk: { kty: "EC"; crv: "P-256"; x: string; y: string };
+  nonce: string;
+  ciphertext: string;
+};
+
 type DeviceBinding = {
   transactionId: string;
   sessionDid: string;
@@ -33,7 +50,7 @@ type DeviceBinding = {
 
 type DevicePollResponse =
   | { status: "pending"; interval: number }
-  | { status: "approved"; delegation: Record<string, unknown>; binding: DeviceBinding };
+  | { status: "approved"; relay: DeviceRelayEnvelope; binding: DeviceBinding };
 
 function digest(value: string): string {
   return createHash("sha256").update(value).digest("base64url");
@@ -98,6 +115,61 @@ function publicSessionJwk(value: object): object {
   return publicJwk;
 }
 
+function publicRelayJwk(value: unknown): DeviceRelayEnvelope["ephemeralPublicJwk"] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("OpenKey returned an invalid relay key");
+  const jwk = value as Record<string, unknown>;
+  if (
+    jwk.kty !== "EC" || jwk.crv !== "P-256" ||
+    typeof jwk.x !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(jwk.x) ||
+    typeof jwk.y !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(jwk.y) ||
+    "d" in jwk
+  ) throw new Error("OpenKey returned an invalid relay key");
+  return { kty: "EC", crv: "P-256", x: jwk.x, y: jwk.y };
+}
+
+function decodeCanonicalBase64Url(value: unknown, label: string): Buffer {
+  if (typeof value !== "string" || !/^[A-Za-z0-9_-]+$/.test(value)) throw new Error(`OpenKey returned an invalid ${label}`);
+  const decoded = Buffer.from(value, "base64url");
+  if (decoded.toString("base64url") !== value) throw new Error(`OpenKey returned an invalid ${label}`);
+  return decoded;
+}
+
+function decryptRelayResult(envelope: unknown, transactionId: string, privateKey: KeyObject): Record<string, unknown> {
+  if (!envelope || typeof envelope !== "object" || Array.isArray(envelope)) throw new Error("OpenKey returned an invalid encrypted relay result");
+  const relay = envelope as Partial<DeviceRelayEnvelope>;
+  if (relay.version !== 1 || relay.algorithm !== "ECDH-P256-A256GCM") throw new Error("OpenKey returned an unsupported encrypted relay result");
+  const peer = createPublicKey({ key: publicRelayJwk(relay.ephemeralPublicJwk), format: "jwk" });
+  const nonce = decodeCanonicalBase64Url(relay.nonce, "relay nonce");
+  const ciphertext = decodeCanonicalBase64Url(relay.ciphertext, "relay ciphertext");
+  if (nonce.length !== 12 || ciphertext.length <= 16) throw new Error("OpenKey returned an invalid encrypted relay result");
+  const sharedSecret = diffieHellman({ privateKey, publicKey: peer });
+  const key = Buffer.from(hkdfSync("sha256", sharedSecret, Buffer.from(transactionId), Buffer.from("openkey-device-relay-v1"), 32));
+  const decipher = createDecipheriv("aes-256-gcm", key, nonce);
+  decipher.setAAD(Buffer.from(transactionId));
+  decipher.setAuthTag(ciphertext.subarray(ciphertext.length - 16));
+  let value: unknown;
+  try {
+    value = JSON.parse(Buffer.concat([decipher.update(ciphertext.subarray(0, -16)), decipher.final()]).toString("utf8"));
+  } catch {
+    throw new Error("OpenKey returned an unreadable encrypted relay result");
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("OpenKey returned an invalid encrypted relay result");
+  return value as Record<string, unknown>;
+}
+
+function assertShareDelegationPermissions(value: unknown): void {
+  if (!Array.isArray(value) || value.length !== 1) throw new Error("OpenKey returned a delegation outside the requested Share scope");
+  const permission = value[0] as Record<string, unknown>;
+  if (
+    !permission ||
+    (permission.service !== "tinycloud.capabilities" && permission.service !== "capabilities") ||
+    (permission.space !== "applications" && !(typeof permission.space === "string" && permission.space.endsWith(":applications"))) ||
+    permission.path !== "" ||
+    !Array.isArray(permission.actions) || permission.actions.length !== 1 ||
+    permission.actions[0] !== "tinycloud.capabilities/read"
+  ) throw new Error("OpenKey returned a delegation outside the requested Share scope");
+}
+
 function assertApprovedBinding(input: {
   binding: DeviceBinding;
   transactionId: string;
@@ -120,6 +192,12 @@ function assertApprovedBinding(input: {
   }
   if (input.delegation.verificationMethod !== input.sessionDid) {
     throw new Error("OpenKey returned a delegation for a different CLI session DID");
+  }
+  assertShareDelegationPermissions(input.delegation.permissions);
+  const delegationExpiryValue = input.delegation.expiresAt ?? input.delegation.expirationTime ?? input.delegation.expiry;
+  const delegationExpiresAt = typeof delegationExpiryValue === "string" ? Date.parse(delegationExpiryValue) : Number.NaN;
+  if (!Number.isFinite(delegationExpiresAt) || delegationExpiresAt !== expiresAt) {
+    throw new Error("OpenKey returned a delegation outside the approved expiry window");
   }
   if (!input.delegation.jwk || typeof input.delegation.jwk !== "object" || !jsonEqual(publicSessionJwk(input.delegation.jwk), input.publicJwk)) {
     throw new Error("OpenKey returned a delegation for a different CLI session key");
@@ -144,6 +222,8 @@ export async function acquireShareDeviceDelegation(input: {
   const fetchFn = input.fetchFn ?? globalThis.fetch;
   const deviceSecret = randomBytes(32).toString("base64url");
   const codeVerifier = randomBytes(32).toString("base64url");
+  const relayKeys = generateKeyPairSync("ec", { namedCurve: "prime256v1" });
+  const relayPublicJwk = publicRelayJwk(relayKeys.publicKey.export({ format: "jwk" }));
   const publicJwk = publicSessionJwk(input.jwk);
   const startResponse = await fetchFn(`${openkeyHost}/api/device-authorizations`, {
     method: "POST",
@@ -154,6 +234,7 @@ export async function acquireShareDeviceDelegation(input: {
     body: JSON.stringify({
       deviceSecretHash: digest(deviceSecret),
       codeChallenge: digest(codeVerifier),
+      relayPublicJwk,
       sessionDid: input.sessionDid,
       publicJwk,
       permissions: SHARE_DEVICE_PERMISSIONS,
@@ -194,11 +275,12 @@ export async function acquireShareDeviceDelegation(input: {
       interval = Math.max(interval, result.interval);
       continue;
     }
-    if (result.status !== "approved" || !result.delegation || !result.binding) {
+    if (result.status !== "approved" || !result.relay || !result.binding) {
       throw new Error("OpenKey returned an invalid device authorization result");
     }
-    assertApprovedBinding({ binding: result.binding, transactionId: started.transactionId, sessionDid: input.sessionDid, nodeOrigin, shareOrigin, publicJwk, delegation: result.delegation });
-    return result.delegation;
+    const delegation = decryptRelayResult(result.relay, started.transactionId, relayKeys.privateKey);
+    assertApprovedBinding({ binding: result.binding, transactionId: started.transactionId, sessionDid: input.sessionDid, nodeOrigin, shareOrigin, publicJwk, delegation });
+    return delegation;
   }
   throw new Error("OpenKey device authorization expired before approval");
 }

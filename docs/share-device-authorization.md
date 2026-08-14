@@ -24,10 +24,12 @@ CLI session DID/public key, Node and Share origins, requested permissions, and
 the approved expiry. The default delegation lifetime is 30 days. Share object
 retention remains seven days.
 
-The CLI holds a 256-bit device secret and independent PKCE verifier. OpenKey
-stores only their hashes, rate-limits creation and polling, encrypts approved
-delegations at rest, and releases each result once. No private CLI key is sent
-to OpenKey or the Share registry.
+The CLI holds a 256-bit device secret, an independent PKCE verifier, and an
+ephemeral P-256 relay decryption key. OpenKey stores only the secret/verifier
+hashes, rate-limits creation and polling, and releases each result once. The
+browser encrypts the approved delegation directly to the CLI relay public key,
+so the device relay receives ciphertext rather than a plaintext delegation. No
+private CLI key is sent to OpenKey or the Share registry.
 
 ## Hermetic public smoke
 
@@ -39,6 +41,7 @@ bun ../openkey/scripts/share-device-auth-smoke.ts --cli "$PWD/packages/cli/dist/
 ```
 
 The harness invokes the public `tc share publish report.md` entry point against
-real local HTTP protocol services and a cryptographically valid delegation. It
-asserts the device prompt, persisted session, two attested uploads, seven-day
-retention, and complete Share URL.
+real local HTTP protocol services and a cryptographically valid,
+end-to-end-encrypted relay result. It asserts the device prompt, persisted
+session, two attested uploads, seven-day retention, and complete Share URL. It
+does not automate the separate human passkey/browser approval journey.

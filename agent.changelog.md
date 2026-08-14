@@ -7,7 +7,9 @@ entry when `agent.dev.md` or related agent workflow expectations change.
 
 - Added the Share-first device authorization contract and its cross-repository public CLI smoke.
   Agents must preserve loopback login for local interactive use, keep `--paste` explicit, and prove
-  first-time `tc share publish` through the public command before widening service enablement.
+  first-time `tc share publish` through the public command before widening service enablement. Relay
+  results must remain end-to-end encrypted to the CLI; encrypted-at-rest plaintext handling by the
+  relay is not sufficient.
 
 ## 2026-05-17
 

@@ -122,7 +122,12 @@ export function registerAuthCommand(program: Command): void {
 
         // Determine auth method
         let method: AuthMethod;
-        if (options.method) {
+        if (options.device && options.method === "local") {
+          throw new CLIError("INVALID_ARGUMENT", "--device requires --method openkey.", ExitCode.USAGE_ERROR);
+        }
+        if (options.device) {
+          method = "openkey";
+        } else if (options.method) {
           if (options.method !== "local" && options.method !== "openkey") {
             throw new CLIError(
               "INVALID_METHOD",
@@ -136,9 +141,6 @@ export function registerAuthCommand(program: Command): void {
         }
 
         if (method === "local") {
-          if (options.device) {
-            throw new CLIError("INVALID_ARGUMENT", "--device requires --method openkey.", ExitCode.USAGE_ERROR);
-          }
           await handleLocalAuth(ctx.profile, ctx.host);
         } else {
           await handleOpenKeyAuth(ctx.profile, ctx.host, {
