@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createCipheriv, createPublicKey, diffieHellman, generateKeyPairSync, hkdfSync, randomBytes } from "node:crypto";
+import { createCipheriv, createHmac, createPublicKey, diffieHellman, generateKeyPairSync, randomBytes } from "node:crypto";
 import { generateKey } from "./local-key.js";
 import { acquireShareDeviceDelegation, SHARE_DEVICE_PERMISSIONS } from "./device-auth.js";
 
@@ -10,7 +10,8 @@ function response(value: unknown, status = 200): Response {
 function encryptRelay(relayPublicJwk: object, transactionId: string, value: unknown) {
   const ephemeral = generateKeyPairSync("ec", { namedCurve: "prime256v1" });
   const sharedSecret = diffieHellman({ privateKey: ephemeral.privateKey, publicKey: createPublicKey({ key: relayPublicJwk, format: "jwk" }) });
-  const key = Buffer.from(hkdfSync("sha256", sharedSecret, Buffer.from(transactionId), Buffer.from("openkey-device-relay-v1"), 32));
+  const extracted = createHmac("sha256", Buffer.from(transactionId)).update(sharedSecret).digest();
+  const key = createHmac("sha256", extracted).update(Buffer.from("openkey-device-relay-v1")).update(Buffer.from([1])).digest();
   const nonce = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", key, nonce);
   cipher.setAAD(Buffer.from(transactionId));

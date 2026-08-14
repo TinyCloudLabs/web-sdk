@@ -30777,10 +30777,10 @@ __export(device_auth_exports, {
 import {
   createDecipheriv,
   createHash,
+  createHmac,
   createPublicKey,
   diffieHellman,
   generateKeyPairSync,
-  hkdfSync,
   randomBytes as randomBytes4
 } from "crypto";
 function digest4(value) {
@@ -30838,6 +30838,10 @@ function decodeCanonicalBase64Url(value, label) {
   if (decoded.toString("base64url") !== value) throw new Error(`OpenKey returned an invalid ${label}`);
   return decoded;
 }
+function deriveRelayKey(sharedSecret, transactionId) {
+  const extracted = createHmac("sha256", Buffer.from(transactionId)).update(sharedSecret).digest();
+  return createHmac("sha256", extracted).update(Buffer.from("openkey-device-relay-v1")).update(Buffer.from([1])).digest();
+}
 function decryptRelayResult(envelope, transactionId, privateKey) {
   if (!envelope || typeof envelope !== "object" || Array.isArray(envelope)) throw new Error("OpenKey returned an invalid encrypted relay result");
   const relay = envelope;
@@ -30847,7 +30851,7 @@ function decryptRelayResult(envelope, transactionId, privateKey) {
   const ciphertext = decodeCanonicalBase64Url(relay.ciphertext, "relay ciphertext");
   if (nonce.length !== 12 || ciphertext.length <= 16) throw new Error("OpenKey returned an invalid encrypted relay result");
   const sharedSecret = diffieHellman({ privateKey, publicKey: peer });
-  const key = Buffer.from(hkdfSync("sha256", sharedSecret, Buffer.from(transactionId), Buffer.from("openkey-device-relay-v1"), 32));
+  const key = deriveRelayKey(sharedSecret, transactionId);
   const decipher = createDecipheriv("aes-256-gcm", key, nonce);
   decipher.setAAD(Buffer.from(transactionId));
   decipher.setAuthTag(ciphertext.subarray(ciphertext.length - 16));
