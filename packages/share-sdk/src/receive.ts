@@ -84,7 +84,7 @@ export interface SharePolicyEvidence {
   readonly registrationCid: string;
   readonly shareId: string;
   readonly recipientMatcher: unknown;
-  readonly target: { readonly origin: string; readonly nodeAudience: string; readonly spaceId: string };
+  readonly target: { readonly origin: string; readonly nodeAudience: string; readonly enforcerDid?: string; readonly spaceId: string };
   readonly resource: { readonly kind: "exact" | "prefix"; readonly path: string };
   readonly actions: readonly string[];
   readonly contentSource: unknown;
@@ -294,6 +294,12 @@ function resourceContains(outer: SharePolicyEvidence["resource"], inner: SharePo
   return inner.path === outer.path || inner.path.startsWith(prefix);
 }
 
+function policyTargetMatches(evidence: SharePolicyEvidence["target"], envelope: ShareEnvelopeV2["target"]): boolean {
+  return evidence.origin === envelope.origin
+    && evidence.nodeAudience === envelope.nodeAudience
+    && evidence.spaceId === envelope.spaceId;
+}
+
 function policyEvidenceMatches(envelope: ShareEnvelopeV2, evidence: SharePolicyEvidence): boolean {
   const registeredActions = new Set(evidence.actions.map(actionName));
   return evidence.policyCid === (envelope.authorizationTarget.kind === "policy" ? envelope.authorizationTarget.policyCid : "")
@@ -301,7 +307,11 @@ function policyEvidenceMatches(envelope: ShareEnvelopeV2, evidence: SharePolicyE
     && evidence.registrationCid.length > 0
     && evidence.shareId === envelope.shareId
     && canonicalize(evidence.recipientMatcher) === canonicalize(envelope.recipientMatcher)
-    && canonicalize(evidence.target) === canonicalize(envelope.target)
+    // A Node registration also carries its independently pinned enforcerDid.
+    // The user-facing envelope target intentionally omits that field, so bind
+    // the three fields shared by both contracts instead of requiring the
+    // differently shaped objects to serialize identically.
+    && policyTargetMatches(evidence.target, envelope.target)
     && resourceContains(evidence.resource, envelope.resource)
     && envelope.actions.every((action) => registeredActions.has(actionName(action)))
     && canonicalize(evidence.contentSource) === canonicalize(envelope.contentSource)
