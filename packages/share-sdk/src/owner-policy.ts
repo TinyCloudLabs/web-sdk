@@ -112,7 +112,7 @@ export interface OwnerSharePolicyRegistration {
   readonly enforcerDid: string;
   readonly shareId: string;
   readonly recipientMatcher: OwnerShareMatcher;
-  readonly target: { readonly origin: string; readonly nodeAudience: string; readonly spaceId: string };
+  readonly target: { readonly origin: string; readonly nodeAudience: string; readonly enforcerDid?: string; readonly spaceId: string };
   readonly resource: { readonly kind: "exact" | "prefix"; readonly path: string };
   readonly actions: readonly OwnerShareAction[];
   readonly contentSource: { readonly kind: "kv"; readonly space: string; readonly path: string; readonly action: "tinycloud.kv/get" };

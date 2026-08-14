@@ -45,7 +45,7 @@ function registrationFor(input: RegisterOwnerSharePolicyParams): OwnerSharePolic
     enforcerDid: policy.target.enforcerDid,
     shareId: policy.shareId,
     recipientMatcher: policy.recipientMatcher,
-    target: { origin: policy.target.origin, nodeAudience: policy.target.nodeAudience, spaceId: policy.target.spaceId },
+    target: { origin: policy.target.origin, nodeAudience: policy.target.nodeAudience, enforcerDid: policy.target.enforcerDid, spaceId: policy.target.spaceId },
     resource: policy.resource,
     actions: policy.actions,
     contentSource: policy.contentSource,
