@@ -1,5 +1,11 @@
 # @tinycloud/cli
 
+## 0.9.1-beta.5
+
+### Patch Changes
+
+- 9cc11ca: Honor Share subcommands' `--json` flag when the root CLI also defines that option, restoring machine-readable success output for inspect, receive, and lifecycle commands.
+
 ## 0.9.1-beta.4
 
 ### Patch Changes
