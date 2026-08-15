@@ -19817,7 +19817,7 @@ async function publishAddressedShare(options) {
       enforcementDelegation,
       contentSourceDigest
     });
-    const authorityMaterialDigest = await sha2564(fromBase64Url(enforcementDelegation.dagCbor));
+    const authorityMaterialDigest = await sha2564(new TextEncoder().encode(registration.registration.registrationCid));
     const authorityTarget = {
       origin: options.nodeOrigin,
       nodeAudience: options.nodeAudience,
