@@ -221,7 +221,7 @@ export async function publishAddressedShare(options: AddressedSharePublishOption
       enforcementDelegation,
       contentSourceDigest,
     });
-    const authorityMaterialDigest = await sha256(fromBase64Url(enforcementDelegation.dagCbor));
+    const authorityMaterialDigest = await sha256(new TextEncoder().encode(registration.registration.registrationCid));
     const authorityTarget = {
       origin: options.nodeOrigin,
       nodeAudience: options.nodeAudience,
