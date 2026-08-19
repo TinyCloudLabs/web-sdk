@@ -242,7 +242,26 @@ export async function verifyEnvelopeV3(envelope: ShareEnvelopeV3, options: Verif
   const resourceSpace = marker < 1 ? "" : parsed.contentSource.kvResource.slice(0, marker);
   const resourcePath = marker < 1 ? "" : parsed.contentSource.kvResource.slice(marker + 4);
   if (parsed.shareId !== parsed.contentSource.shareId || resourceSpace !== parsed.target.spaceId || resourcePath !== parsed.resource.path.replace(/\/$/, "") || parsed.resource.kind !== parsed.contentSource.selector || kv?.kind !== "kv" || expectedKvActions.some((action) => !kv.actions.includes(action as never)) || parsed.encryptionNetwork !== parsed.contentSource.encryptionNetwork || parsed.contentSource.keyVersion <= 0 || (policy.expiresAt !== undefined && Date.parse(parsed.expiry) > Date.parse(policy.expiresAt))) return false;
+  if (parsed.policyEngine !== undefined || parsed.localContent !== undefined) {
+    // Accountless v3 is authorized by the separately registered standalone
+    // Policy Engine policy. The legacy sibling roots and Node attestation are
+    // intentionally absent: accepting them here would reintroduce a dependency
+    // on Node /share/* policy routes. The owner signature above binds the
+    // engine, exact object, wrapped key, ciphertext digest, and expiry.
+    return parsed.policyEngine !== undefined
+      && parsed.localContent !== undefined
+      && parsed.policyRoot === undefined
+      && parsed.enforcementRoot === undefined
+      && parsed.attestedEnforcerBinding === undefined
+      && parsed.recipientMatcher.kind === "exactEmail"
+      && parsed.resource.kind === "exact"
+      && parsed.actions.length === 1
+      && parsed.actions[0] === "read";
+  }
   const binding = parsed.attestedEnforcerBinding;
+  const policyRootBinding = parsed.policyRoot;
+  const enforcementRootBinding = parsed.enforcementRoot;
+  if (binding === undefined || policyRootBinding === undefined || enforcementRootBinding === undefined) return false;
   const { signature: bindingSignature, ...unsignedBinding } = binding;
   const expectedBindingDigestHex = hex(sha256(new TextEncoder().encode(canonicalize({ enforcerDid: binding.enforcerDid, nodeAudience: binding.nodeAudience }))));
   if (binding.enforcerDid !== parsed.target.nodeAudience || binding.attestationBindingDigestHex !== expectedBindingDigestHex || bindingSignature.signerDid !== binding.nodeAudience || bindingSignature.suite !== "Ed25519" || Date.parse(binding.issuedAt) > Date.now() || Date.parse(binding.expiresAt) <= Date.now() || Date.parse(binding.expiresAt) < Date.parse(parsed.expiry)) return false;
@@ -252,10 +271,10 @@ export async function verifyEnvelopeV3(envelope: ShareEnvelopeV3, options: Verif
   } catch {
     return false;
   }
-  if (parsed.policyRoot.role !== "policy-authority" || parsed.enforcementRoot.role !== "policy-enforcement" || parsed.policyRoot.cid === parsed.enforcementRoot.cid) return false;
+  if (policyRootBinding.role !== "policy-authority" || enforcementRootBinding.role !== "policy-enforcement" || policyRootBinding.cid === enforcementRootBinding.cid) return false;
   try {
-    const policyRoot = verifyCompactUcanAuthorization(parsed.policyRoot.authorization, parsed.policyRoot.cid);
-    const enforcementRoot = verifyCompactUcanAuthorization(parsed.enforcementRoot.authorization, parsed.enforcementRoot.cid);
+    const policyRoot = verifyCompactUcanAuthorization(policyRootBinding.authorization, policyRootBinding.cid);
+    const enforcementRoot = verifyCompactUcanAuthorization(enforcementRootBinding.authorization, enforcementRootBinding.cid);
     const policyFact = policyRoot.payload.fct[0];
     const enforcementFact = enforcementRoot.payload.fct[0];
     const common = ["ownerDid", "policyId", "policyDigestHex", "policyCid", "contentSourceDigestHex", "capabilityCeilingHashHex", "nativeProjectionHashHex", "nodeAudience"];

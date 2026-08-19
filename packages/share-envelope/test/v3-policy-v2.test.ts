@@ -105,9 +105,9 @@ describe("ShareEnvelopeV3 Policy/v2", () => {
     const roundTripped = shareEnvelopeV3Schema.parse(JSON.parse(JSON.stringify(envelope)));
     expect(roundTripped.policy).toEqual(policy);
     expect(roundTripped.target.nodeAudience).toBe(ownerDid);
-    expect(roundTripped.attestedEnforcerBinding.enforcerDid).toBe(ownerDid);
-    expect(roundTripped.attestedEnforcerBinding.nodeAudience).toBe(nodeDid);
-    expect(roundTripped.attestedEnforcerBinding.signature.signerDid).toBe(nodeDid);
+    expect(roundTripped.attestedEnforcerBinding!.enforcerDid).toBe(ownerDid);
+    expect(roundTripped.attestedEnforcerBinding!.nodeAudience).toBe(nodeDid);
+    expect(roundTripped.attestedEnforcerBinding!.signature.signerDid).toBe(nodeDid);
     if (roundTripped.policy.schema !== "xyz.tinycloud.policy/policy/v2") throw new Error("expected Policy/v2");
     expect(roundTripped.policy.credentialRequirement).toEqual(vector.policyProjection);
     expect(verifyEnvelopeV3SignatureOnly(roundTripped)).toBe(true);
@@ -121,7 +121,7 @@ describe("ShareEnvelopeV3 Policy/v2", () => {
       ...envelope,
       attestedEnforcerBinding: {
         ...envelope.attestedEnforcerBinding,
-        signature: { ...envelope.attestedEnforcerBinding.signature, signerDid: ownerDid },
+        signature: { ...envelope.attestedEnforcerBinding!.signature, signerDid: ownerDid },
       },
     }).success).toBe(false);
     expect(shareEnvelopeV3Schema.safeParse({
@@ -146,9 +146,22 @@ describe("ShareEnvelopeV3 Policy/v2", () => {
       policyId: `pol_${"a".repeat(52)}`,
       requirementId: "recipient-email",
     };
-    const bound = signEnvelopeV3({ ...base.unsigned, policyEngine: binding }, privateKey);
+    const localContent = {
+      keyWrap: "share-envelope-aes-gcm-v1" as const,
+      wrappedKey: toBase64Url(new Uint8Array(61).fill(7)),
+      ciphertextDigest: toBase64Url(new Uint8Array(32).fill(8)),
+    };
+    const bound = signEnvelopeV3({
+      ...base.unsigned,
+      policyRoot: undefined,
+      enforcementRoot: undefined,
+      attestedEnforcerBinding: undefined,
+      policyEngine: binding,
+      localContent,
+    }, privateKey);
     const parsed = shareEnvelopeV3Schema.parse(JSON.parse(JSON.stringify(bound)));
     expect(parsed.policyEngine).toEqual(binding);
+    expect(parsed.localContent).toEqual(localContent);
     expect(verifyEnvelopeV3SignatureOnly(parsed)).toBe(true);
 
     // The recipient decides which engine to trust and which policy to name from
@@ -162,7 +175,11 @@ describe("ShareEnvelopeV3 Policy/v2", () => {
       ...parsed,
       policyEngine: { ...binding, policyId: `pol_${"b".repeat(52)}` },
     })).toBe(false);
-    expect(verifyEnvelopeV3SignatureOnly({ ...parsed, policyEngine: undefined })).toBe(false);
+    expect(() => verifyEnvelopeV3SignatureOnly({ ...parsed, policyEngine: undefined })).toThrow();
+    expect(verifyEnvelopeV3SignatureOnly({
+      ...parsed,
+      localContent: { ...localContent, ciphertextDigest: toBase64Url(new Uint8Array(32).fill(9)) },
+    })).toBe(false);
 
     // Structural refusals: a non-https engine, a non-content-addressed policy
     // id, and an unknown member all fail closed.

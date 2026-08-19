@@ -223,6 +223,9 @@ function verifyV3PolicyAuthorization(input: {
     && POLICY_SESSION_FACT_KEYS.every((key) => key in fact)
     && POLICY_SESSION_V4_AUDIT_FACT_KEYS.every((key) => key in fact);
   const binding = object(input.envelope.attestedEnforcerBinding, "v3 attested enforcer binding");
+  const policyRoot = input.envelope.policyRoot;
+  const enforcementRoot = input.envelope.enforcementRoot;
+  if (policyRoot === undefined || enforcementRoot === undefined) throw new Error("v3 legacy policy roots are missing");
   const policy = object(input.envelope.policy, "v3 policy");
   const now = Math.floor(Date.now() / 1000);
   if ((!legacyShape && !v4Shape)
@@ -238,15 +241,15 @@ function verifyV3PolicyAuthorization(input: {
     || fact.enforcerDid !== binding.enforcerDid
     || fact.nodeAudience !== binding.nodeAudience
     || fact.recipientDid !== input.holderDid
-    || fact.policyDelegationCid !== input.envelope.policyRoot.cid
-    || fact.enforcementDelegationCid !== input.envelope.enforcementRoot.cid
+    || fact.policyDelegationCid !== policyRoot.cid
+    || fact.enforcementDelegationCid !== enforcementRoot.cid
     || typeof fact.remainingRedelegationDepth !== "number"
     || !Number.isInteger(fact.remainingRedelegationDepth)
     || fact.remainingRedelegationDepth < 0
     || fact.remainingRedelegationDepth > 8
     || compact.payload.prf.length !== 2
-    || compact.payload.prf[0] !== input.envelope.policyRoot.cid
-    || compact.payload.prf[1] !== input.envelope.enforcementRoot.cid
+    || compact.payload.prf[0] !== policyRoot.cid
+    || compact.payload.prf[1] !== enforcementRoot.cid
     || compact.payload.nbf > now
     || compact.payload.exp <= now
     || compact.payload.exp - compact.payload.nbf > 60

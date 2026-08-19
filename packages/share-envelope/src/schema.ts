@@ -508,6 +508,17 @@ export const policyEngineBindingSchema = z.object({
   requirementId: z.string().min(1),
 }).strict();
 
+/**
+ * Local-decryption material for an accountless policy-gated body. The content
+ * key is itself sealed under the link's envelope key; TinyCloud stores only
+ * the body ciphertext and never receives either key.
+ */
+export const localContentBindingSchema = z.object({
+  keyWrap: z.literal("share-envelope-aes-gcm-v1"),
+  wrappedKey: base64UrlString(),
+  ciphertextDigest: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
+}).strict();
+
 const unsignedShareEnvelopeV3BaseSchema = z.object({
   version: z.literal(3),
   shareId: z.string().min(1),
@@ -518,9 +529,9 @@ const unsignedShareEnvelopeV3BaseSchema = z.object({
   target: v3TargetSchema,
   policy: unifiedPolicySchema,
   policyCid: z.string().min(1),
-  policyRoot: unifiedRootSchema,
-  enforcementRoot: unifiedRootSchema,
-  attestedEnforcerBinding: attestedEnforcerBindingV2Schema,
+  policyRoot: unifiedRootSchema.optional(),
+  enforcementRoot: unifiedRootSchema.optional(),
+  attestedEnforcerBinding: attestedEnforcerBindingV2Schema.optional(),
   contentSource: unifiedContentSourceSchema,
   contentSourceDigestHex: z.string().regex(/^[0-9a-f]{64}$/),
   encryptionNetwork: unifiedEncryptionNetworkSchema,
@@ -541,6 +552,7 @@ const unsignedShareEnvelopeV3BaseSchema = z.object({
    * and because bearer/link-only shares have no policy at all.
    */
   policyEngine: policyEngineBindingSchema.optional(),
+  localContent: localContentBindingSchema.optional(),
 }).strict();
 
 function validateV3Invariants(value: z.infer<typeof unsignedShareEnvelopeV3BaseSchema>, ctx: z.RefinementCtx): void {
@@ -548,17 +560,27 @@ function validateV3Invariants(value: z.infer<typeof unsignedShareEnvelopeV3BaseS
   if (new Set(actions).size !== actions.length || actions.some((action, index) => action !== (["read", "list", "edit"] as const).filter((candidate) => actions.includes(candidate))[index])) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["actions"], message: "actions must be unique and canonically ordered" });
   }
-  if (value.policyRoot.role !== "policy-authority" || value.enforcementRoot.role !== "policy-enforcement") {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["policyRoot", "role"], message: "root roles are fixed" });
+  const accountless = value.policyEngine !== undefined || value.localContent !== undefined;
+  if (accountless && (value.policyEngine === undefined || value.localContent === undefined)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["policyEngine"], message: "accountless policy and local content bindings must appear together" });
   }
-  if (value.policyCid.length === 0 || value.policyCid === value.policyRoot.cid || value.policyCid === value.enforcementRoot.cid) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["policyCid"], message: "policy CID must be distinct from both roots" });
+  if (!accountless) {
+    if (value.policyRoot === undefined || value.enforcementRoot === undefined || value.attestedEnforcerBinding === undefined) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["policyRoot"], message: "legacy v3 shares require both roots and the enforcer binding" });
+    } else {
+      if (value.policyRoot.role !== "policy-authority" || value.enforcementRoot.role !== "policy-enforcement") {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["policyRoot", "role"], message: "root roles are fixed" });
+      }
+      if (value.policyCid.length === 0 || value.policyCid === value.policyRoot.cid || value.policyCid === value.enforcementRoot.cid) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["policyCid"], message: "policy CID must be distinct from both roots" });
+      }
+      if (value.attestedEnforcerBinding.enforcerDid !== value.target.nodeAudience || value.attestedEnforcerBinding.signature.signerDid !== value.attestedEnforcerBinding.nodeAudience || Date.parse(value.attestedEnforcerBinding.expiresAt) < Date.parse(value.expiry)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["attestedEnforcerBinding"], message: "enforcer binding does not cover the target and share lifetime" });
+      }
+    }
   }
   if (value.contentSource.encryptionNetwork !== value.encryptionNetwork) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["encryptionNetwork"], message: "encryption network is not bound to the source" });
-  }
-  if (value.attestedEnforcerBinding.enforcerDid !== value.target.nodeAudience || value.attestedEnforcerBinding.signature.signerDid !== value.attestedEnforcerBinding.nodeAudience || Date.parse(value.attestedEnforcerBinding.expiresAt) < Date.parse(value.expiry)) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["attestedEnforcerBinding"], message: "enforcer binding does not cover the target and share lifetime" });
   }
   if (value.policy.contentSource.shareId !== value.contentSource.shareId || value.policy.contentSource.kvResource !== value.contentSource.kvResource || value.policy.contentSource.selector !== value.contentSource.selector || value.policy.contentSource.encryptionNetwork !== value.encryptionNetwork || value.policy.contentSource.encryptedSymmetricKeyDigestHex !== value.contentSource.encryptedSymmetricKeyDigestHex || value.policy.contentSource.keyVersion !== value.contentSource.keyVersion || value.policy.contentSource.mode !== value.contentSource.mode || value.policy.contentSource.initialCiphertextDigestHex !== value.contentSource.initialCiphertextDigestHex) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["contentSource"], message: "content source is not bound to policy" });
@@ -585,3 +607,4 @@ export type UnifiedRoot = z.infer<typeof unifiedRootSchema>;
 export type UnsignedShareEnvelopeV3 = z.infer<typeof unsignedShareEnvelopeV3Schema>;
 export type ShareEnvelopeV3 = z.infer<typeof shareEnvelopeV3Schema>;
 export type PolicyEngineBinding = z.infer<typeof policyEngineBindingSchema>;
+export type LocalContentBinding = z.infer<typeof localContentBindingSchema>;

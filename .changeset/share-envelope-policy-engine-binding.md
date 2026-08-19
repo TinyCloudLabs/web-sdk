@@ -13,3 +13,10 @@ the owner signed — a value supplied by whatever host served the page could poi
 the recipient at a different engine or a different policy. The field is optional
 so a deployment with no engine enrolled, and bearer/link-only sharing, are
 unchanged.
+
+Accountless envelopes pair that block with a signed `localContent` binding: a
+content key sealed under the link's envelope key plus the exact ciphertext
+digest. In this mode the legacy Node policy roots and enforcer attestation are
+absent, so parsing and verification do not create a dependency on Node
+`/share/*` routes. Legacy v3 envelopes continue to require and verify those
+fields exactly as before.

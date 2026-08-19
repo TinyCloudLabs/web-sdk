@@ -75,6 +75,17 @@ describe("publishSignedPolicyObjects", () => {
     expect((error as PolicyAccessError).code).toBe("access-descriptor-invalid");
   });
 
+  it("refuses a non-origin endpoint before transport", async () => {
+    const { transport, sent } = recordingTransport({ status: 200, body: {} });
+    const error = await publishSignedPolicyObjects({
+      endpoint: `${ENGINE}/tenant?redirect=https://attacker.example`,
+      signedObjects: [POLICY],
+      transport,
+    }).catch((cause: unknown) => cause);
+    expect((error as PolicyAccessError).code).toBe("access-descriptor-invalid");
+    expect(sent).toHaveLength(0);
+  });
+
   it("surfaces the engine's own denial code", async () => {
     const { transport } = recordingTransport({
       status: 403,

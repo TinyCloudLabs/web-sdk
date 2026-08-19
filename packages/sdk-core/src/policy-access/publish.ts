@@ -54,8 +54,31 @@ export interface PublishSignedPolicyObjectsResult {
   readonly registeredPolicyIds: readonly string[];
 }
 
-function trimTrailingSlash(value: string): string {
-  return value.endsWith("/") ? value.slice(0, -1) : value;
+function registrationEndpoint(value: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new PolicyAccessError(
+      "access-descriptor-invalid",
+      "policy engine endpoint must be an absolute origin",
+    );
+  }
+  const loopback = parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost";
+  if (
+    (parsed.protocol !== "https:" && !(loopback && parsed.protocol === "http:")) ||
+    parsed.username !== "" ||
+    parsed.password !== "" ||
+    parsed.pathname !== "/" ||
+    parsed.search !== "" ||
+    parsed.hash !== ""
+  ) {
+    throw new PolicyAccessError(
+      "access-descriptor-invalid",
+      "policy engine endpoint must be a canonical HTTPS origin (HTTP is allowed only on loopback)",
+    );
+  }
+  return `${parsed.origin}${POLICY_REGISTRATION_PATH}`;
 }
 
 function schemaOf(value: unknown): string | undefined {
@@ -101,7 +124,7 @@ export async function publishSignedPolicyObjects(
 
   const response = await input.transport.request({
     method: "POST",
-    url: `${trimTrailingSlash(input.endpoint)}${POLICY_REGISTRATION_PATH}`,
+    url: registrationEndpoint(input.endpoint),
     body: { signedObjects: input.signedObjects },
   });
   if (response.status !== 200) {
