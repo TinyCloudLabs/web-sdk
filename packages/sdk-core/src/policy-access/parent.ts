@@ -2,7 +2,6 @@ import { PolicyAccessError } from "./errors";
 import type { PolicyAccessTransport } from "./transport";
 
 export const POLICY_PARENT_REGISTRATION_PATH = "/policy/v0/parent-delegations" as const;
-export const GENERIC_DELEGATION_IMPORT_PATH = "/delegate" as const;
 
 export interface PolicyParentCapability {
   readonly service: string;
@@ -14,7 +13,6 @@ export interface PolicyParentCapability {
 
 export interface RegisterPolicyParentDelegationInput {
   readonly policyEngineEndpoint: string;
-  readonly nodeEndpoint: string;
   readonly ownerDid: string;
   /** Owner-signed, proofless compact UCAN addressed to the grant issuer. */
   readonly authorization: string;
@@ -34,24 +32,14 @@ function origin(value: string): string {
 }
 
 /**
- * Persist an owner-signed generic root in the normal Node delegation graph,
- * then register the same bytes as the Policy Engine's issuance parent.
- * Neither operation gives Node any policy-evaluation role.
+ * Register an already-imported generic delegation as the Policy Engine's
+ * issuance parent. Author and import the wallet-rooted delegation through the
+ * SDK's normal `createOwnerDelegation` API before calling this function.
  */
 export async function registerPolicyParentDelegation(
   input: RegisterPolicyParentDelegationInput,
 ): Promise<void> {
   const engineOrigin = origin(input.policyEngineEndpoint);
-  const nodeOrigin = origin(input.nodeEndpoint);
-  const imported = await input.transport.request({
-    method: "POST",
-    url: `${nodeOrigin}${GENERIC_DELEGATION_IMPORT_PATH}`,
-    headers: { authorization: `Bearer ${input.authorization.replace(/^Bearer\s+/i, "")}` },
-  });
-  const importedBody = imported.body as { cid?: unknown } | undefined;
-  if (imported.status !== 200 || importedBody?.cid !== input.delegationCid) {
-    throw new PolicyAccessError("node-response-invalid", "node refused the generic policy issuance parent", { status: imported.status });
-  }
   const registration = await input.transport.request({
     method: "POST",
     url: `${engineOrigin}${POLICY_PARENT_REGISTRATION_PATH}`,

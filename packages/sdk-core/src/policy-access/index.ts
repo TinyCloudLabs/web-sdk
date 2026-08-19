@@ -97,7 +97,6 @@ export {
 } from "./invitation";
 
 export {
-  GENERIC_DELEGATION_IMPORT_PATH,
   POLICY_PARENT_REGISTRATION_PATH,
   registerPolicyParentDelegation,
   type PolicyParentCapability,

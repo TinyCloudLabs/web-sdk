@@ -279,7 +279,7 @@ export type CreateOwnerDelegationParams = CoreCreateOwnerDelegationParams;
 
 export interface UnifiedOwnerRootInput {
   readonly ownerDid: string;
-  readonly role: "policy-authority" | "policy-enforcement" | "policy-issuance";
+  readonly role: "policy-authority" | "policy-enforcement";
   readonly audienceDid: string;
   readonly policyId: string;
   readonly policyDigestHex: string;
@@ -3222,11 +3222,7 @@ export class TinyCloudNode {
   async createUnifiedOwnerRoot(input: UnifiedOwnerRootInput): Promise<UnifiedOwnerRootReceipt> {
     const ownerDid = this.credentialHolderDid;
     if (input.ownerDid !== ownerDid) throw new Error("unified owner root signer does not match owner DID");
-    const facts = input.role === "policy-issuance" ? {
-      type: "tinycloud.policy/issuance-parent/v1",
-      ownerDid,
-      policyId: input.policyId,
-    } : {
+    const facts = {
       role: input.role,
       mode: input.role === "policy-authority" ? "policy-source" : "conditional-mint",
       ownerDid,
