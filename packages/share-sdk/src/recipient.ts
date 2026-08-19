@@ -550,7 +550,7 @@ export class ShareRecipientClient {
       const symmetricKey = await aesGcmDecrypt(shared, columnEnvelope.slice(1));
       shared.fill(0);
       if (symmetricKey.length !== 32) throw new Error("v3 content key is malformed");
-      const plaintext = await aesGcmDecrypt(symmetricKey, fromBase64Url(encrypted.ciphertext));
+      const plaintext = await aesGcmDecrypt(symmetricKey, fromBase64(encrypted.ciphertext, "v3 ciphertext"));
       this.v3ContentKey?.fill(0);
       this.v3ContentKey = symmetricKey;
       this.v3ContentEnvelope = encrypted;
@@ -563,7 +563,7 @@ export class ShareRecipientClient {
   /** Re-encrypt edited v3 content with the admitted content key. */
   async encryptV3Content(bytes: Uint8Array, mediaType: string): Promise<Uint8Array> {
     if (this.options.envelope.version !== 3 || this.v3ContentKey === undefined || this.v3ContentEnvelope === undefined) throw new Error("v3 content must be decrypted before it can be saved");
-    return new TextEncoder().encode(canonicalize({ ...this.v3ContentEnvelope, ciphertext: toBase64Url(await aesGcmEncrypt(this.v3ContentKey, bytes)), metadata: { ...(this.v3ContentEnvelope.metadata ?? {}), contentType: mediaType } }));
+    return new TextEncoder().encode(canonicalize({ ...this.v3ContentEnvelope, ciphertext: toBase64(await aesGcmEncrypt(this.v3ContentKey, bytes)), metadata: { ...(this.v3ContentEnvelope.metadata ?? {}), contentType: mediaType } }));
   }
 
   async resumeWithProof(envelope: ShareEnvelopeV2, resumeToken: string, proof: unknown): Promise<ShareAuthorizedContent> {
