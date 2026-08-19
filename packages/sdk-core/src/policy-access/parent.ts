@@ -13,8 +13,6 @@ export interface PolicyParentCapability {
 
 export interface RegisterPolicyParentDelegationInput {
   readonly policyEngineEndpoint: string;
-  readonly ownerNodeEndpoint: string;
-  readonly ownerNodeSpaceId: string;
   readonly ownerDid: string;
   /** Owner-signed, proofless compact UCAN addressed to the grant issuer. */
   readonly authorization: string;
@@ -34,29 +32,14 @@ function origin(value: string): string {
 }
 
 /**
- * Activate an owner-signed generic root on the ordinary Node `/delegate`
- * boundary, then register the same verified root as the Policy Engine's
- * issuance parent. No application route or bearer authority is involved.
+ * Register an owner-signed generic root as the Policy Engine's issuance
+ * parent. The root is addressed to the Policy Engine grant issuer, so it is
+ * neither Node authority nor something Node should import.
  */
 export async function registerPolicyParentDelegation(
   input: RegisterPolicyParentDelegationInput,
 ): Promise<void> {
-  const nodeOrigin = origin(input.ownerNodeEndpoint);
   const engineOrigin = origin(input.policyEngineEndpoint);
-  const activation = await input.transport.request({
-    method: "POST",
-    url: `${nodeOrigin}/delegate`,
-    headers: { Authorization: input.authorization },
-  });
-  const activationBody = activation.body as { activated?: unknown; skipped?: unknown } | undefined;
-  if (
-    activation.status < 200 || activation.status >= 300 ||
-    !Array.isArray(activationBody?.activated) ||
-    !activationBody.activated.includes(input.ownerNodeSpaceId) ||
-    (Array.isArray(activationBody.skipped) && activationBody.skipped.includes(input.ownerNodeSpaceId))
-  ) {
-    throw new PolicyAccessError("delegation-import-failed", "owner node refused the policy issuance parent", { status: activation.status });
-  }
   const registration = await input.transport.request({
     method: "POST",
     url: `${engineOrigin}${POLICY_PARENT_REGISTRATION_PATH}`,
