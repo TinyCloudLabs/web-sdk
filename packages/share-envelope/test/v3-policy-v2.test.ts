@@ -129,6 +129,51 @@ describe("ShareEnvelopeV3 Policy/v2", () => {
       target: { ...envelope.target, nodeAudience: nodeDid },
     }).success).toBe(false);
   });
+
+  it("covers the policy-engine binding with the envelope signature", async () => {
+    const privateKey = new Uint8Array(32).fill(51);
+    const ownerDid = didKeyFromEd25519PublicKey(ed25519.getPublicKey(privateKey));
+    const base = await minimalV3Envelope(privateKey, ownerDid);
+
+    // A share with no engine enrolled is still valid: the field is optional so
+    // a deployment can ship before it has an engine.
+    expect(shareEnvelopeV3Schema.safeParse(base.envelope).success).toBe(true);
+
+    const binding = {
+      endpoint: "https://policy.example.test",
+      audience: "urn:tinycloud:policy-engine:test",
+      grantIssuerDid: didKeyFromEd25519PublicKey(ed25519.getPublicKey(new Uint8Array(32).fill(52))),
+      policyId: `pol_${"a".repeat(52)}`,
+      requirementId: "recipient-email",
+    };
+    const bound = signEnvelopeV3({ ...base.unsigned, policyEngine: binding }, privateKey);
+    const parsed = shareEnvelopeV3Schema.parse(JSON.parse(JSON.stringify(bound)));
+    expect(parsed.policyEngine).toEqual(binding);
+    expect(verifyEnvelopeV3SignatureOnly(parsed)).toBe(true);
+
+    // The recipient decides which engine to trust and which policy to name from
+    // these bytes, so substituting either must break the signature rather than
+    // silently redirect the presentation.
+    expect(verifyEnvelopeV3SignatureOnly({
+      ...parsed,
+      policyEngine: { ...binding, endpoint: "https://attacker.example.test" },
+    })).toBe(false);
+    expect(verifyEnvelopeV3SignatureOnly({
+      ...parsed,
+      policyEngine: { ...binding, policyId: `pol_${"b".repeat(52)}` },
+    })).toBe(false);
+    expect(verifyEnvelopeV3SignatureOnly({ ...parsed, policyEngine: undefined })).toBe(false);
+
+    // Structural refusals: a non-https engine, a non-content-addressed policy
+    // id, and an unknown member all fail closed.
+    for (const invalid of [
+      { ...binding, endpoint: "http://policy.example.test" },
+      { ...binding, policyId: "pol_short" },
+      { ...binding, extra: "x" },
+    ]) {
+      expect(shareEnvelopeV3Schema.safeParse({ ...parsed, policyEngine: invalid }).success).toBe(false);
+    }
+  });
 });
 
 function base32Lower(bytes: Uint8Array): string {
@@ -146,4 +191,69 @@ function base32Lower(bytes: Uint8Array): string {
   }
   if (bits > 0) output += alphabet[(buffer << (5 - bits)) & 31];
   return output;
+}
+
+async function minimalV3Envelope(privateKey: Uint8Array, ownerDid: string) {
+  const nodeDid = didKeyFromEd25519PublicKey(ed25519.getPublicKey(new Uint8Array(32).fill(53)));
+  const spaceId = "tinycloud:pkh:eip155:1:0x2222222222222222222222222222222222222222:share";
+  const contentSource = {
+    shareId: "share-engine-binding",
+    kvResource: `${spaceId}/kv/shares/report.txt`,
+    selector: "exact" as const,
+    encryptionNetwork: `urn:tinycloud:encryption:${ownerDid}:default`,
+    encryptedSymmetricKeyDigestHex: "a".repeat(64),
+    keyVersion: 1,
+    mode: "immutable" as const,
+    initialCiphertextDigestHex: "b".repeat(64),
+  };
+  const capabilityCeiling = [
+    { kind: "kv" as const, resource: contentSource.kvResource, selector: "exact" as const, actions: ["tinycloud.kv/get" as const] },
+    { kind: "encryption" as const, resource: contentSource.encryptionNetwork, action: "tinycloud.encryption/decrypt" as const },
+  ];
+  const unsignedPolicy = {
+    schema: "xyz.tinycloud.policy/policy/v1" as const,
+    ownerDid,
+    createdAt: "2026-08-03T12:00:00Z",
+    expiresAt: "2026-08-04T12:00:00Z",
+    contentSource,
+    capabilityCeiling,
+  };
+  const policyDigest = sha256(new TextEncoder().encode(
+    `xyz.tinycloud.policy/policy/v1\0${canonicalize(unsignedPolicy)}`,
+  ));
+  const policy = unifiedPolicySchema.parse({
+    ...unsignedPolicy,
+    policyId: `pol_${base32Lower(policyDigest)}`,
+    signature: { suite: "Ed25519", signerDid: ownerDid, value: toBase64Url(ed25519.sign(policyDigest, privateKey)) },
+  });
+  const policyCid = await computeCid(new TextEncoder().encode(canonicalize(policy)));
+  const unsigned = {
+    version: 3 as const,
+    shareId: contentSource.shareId,
+    recipientMatcher: { kind: "exactEmail" as const, value: "recipient@example.test" },
+    actions: ["read" as const],
+    resource: { kind: "exact" as const, path: "shares/report.txt" },
+    target: { origin: "https://node.example.test", nodeAudience: ownerDid, spaceId },
+    policy,
+    policyCid,
+    policyRoot: { cid: "policy-root", authorization: "a.b.c", role: "policy-authority" as const },
+    enforcementRoot: { cid: "enforcement-root", authorization: "d.e.f", role: "policy-enforcement" as const },
+    attestedEnforcerBinding: {
+      schema: "xyz.tinycloud.policy/attested-enforcer/v2" as const,
+      enforcerDid: ownerDid,
+      nodeAudience: nodeDid,
+      attestationBindingDigestHex: "d".repeat(64),
+      issuedAt: "2026-08-03T12:00:00Z",
+      expiresAt: "2026-08-04T12:00:00Z",
+      signature: { suite: "Ed25519" as const, signerDid: nodeDid, value: toBase64Url(new Uint8Array(64)) },
+    },
+    contentSource,
+    contentSourceDigestHex: "e".repeat(64),
+    encryptionNetwork: contentSource.encryptionNetwork,
+    expiry: "2026-08-04T12:00:00Z",
+    display: { filename: "report.txt" },
+    encrypted: true as const,
+    metadata: { mediaType: "text/plain", byteLength: 12, filename: "report.txt", encoding: "utf-8" as const },
+  };
+  return { unsigned, envelope: signEnvelopeV3(unsigned, privateKey) };
 }

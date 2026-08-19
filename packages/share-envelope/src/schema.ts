@@ -491,6 +491,23 @@ const v3TargetSchema = z.object({
   nodeAudience: z.string().min(1),
   spaceId: z.string().refine(isCanonicalPathSegment, { message: "expected a canonical space id" }),
 }).strict();
+/**
+ * The exact-recipient policy the sender registered with a standalone Policy
+ * Engine, as the owner signed it.
+ *
+ * `audience` and `grantIssuerDid` are pinned here rather than discovered from
+ * the engine, so a substituted engine cannot mint a delegation the recipient
+ * would accept. `requirementId` names the evidence atom in that policy the
+ * recipient satisfies with its credential.
+ */
+export const policyEngineBindingSchema = z.object({
+  endpoint: z.string().refine(isCanonicalHttpsOrigin, "endpoint must be a canonical https origin"),
+  audience: z.string().min(1),
+  grantIssuerDid: z.string().regex(/^did:key:z[1-9A-HJ-NP-Za-km-z]+$/),
+  policyId: z.string().regex(/^pol_[a-z2-7]{52}$/),
+  requirementId: z.string().min(1),
+}).strict();
+
 const unsignedShareEnvelopeV3BaseSchema = z.object({
   version: z.literal(3),
   shareId: z.string().min(1),
@@ -511,6 +528,19 @@ const unsignedShareEnvelopeV3BaseSchema = z.object({
   display: displaySchema,
   encrypted: z.literal(true),
   metadata: contentMetadataSchema,
+  /**
+   * Where the standalone Policy Engine holds the owner-signed policy that
+   * governs this share, and under which evidence requirement a recipient must
+   * present.
+   *
+   * This has to live inside the *signed* envelope. The recipient uses it to
+   * decide which engine to talk to and which policy to name, and both are
+   * authority decisions: a policy id supplied by the host serving the page
+   * would let that host point the recipient at a different policy. Optional
+   * because a deployment with no engine enrolled keeps the previous receiver,
+   * and because bearer/link-only shares have no policy at all.
+   */
+  policyEngine: policyEngineBindingSchema.optional(),
 }).strict();
 
 function validateV3Invariants(value: z.infer<typeof unsignedShareEnvelopeV3BaseSchema>, ctx: z.RefinementCtx): void {
@@ -554,3 +584,4 @@ export type UnifiedPolicy = z.infer<typeof unifiedPolicySchema>;
 export type UnifiedRoot = z.infer<typeof unifiedRootSchema>;
 export type UnsignedShareEnvelopeV3 = z.infer<typeof unsignedShareEnvelopeV3Schema>;
 export type ShareEnvelopeV3 = z.infer<typeof shareEnvelopeV3Schema>;
+export type PolicyEngineBinding = z.infer<typeof policyEngineBindingSchema>;
