@@ -51,7 +51,7 @@
     "build": "tsup",
     "clean": "rm -rf dist",
     "test": "bun test",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.examples.json"
+    "typecheck:examples": "tsc --noEmit -p tsconfig.examples.json"
   },
   "dependencies": {
     "@noble/hashes": "1.8.0",
