@@ -3,6 +3,8 @@
  *
  * Application-facing APIs for the accountless, policy-gated read:
  *
+ * 0. (sender) publish the owner-signed policy to the standalone Policy Engine
+ *    through its own registration contract (`POST /policy/v0/signed-objects`);
  * 1. mint an ephemeral holder/session key in the browser;
  * 2. acquire an exact-claim credential from OpenCredentials over the simple
  *    delivered-email/OTP flow — no wallet, no account, no OpenKey identity;
@@ -71,5 +73,13 @@ export {
   type PolicyAccessReadResult,
   type PolicyAccessSession,
 } from "./access";
+
+export {
+  POLICY_REGISTRATION_PATH,
+  REGISTRABLE_SIGNED_OBJECT_SCHEMAS,
+  publishSignedPolicyObjects,
+  type PublishSignedPolicyObjectsInput,
+  type PublishSignedPolicyObjectsResult,
+} from "./publish";
 
 export { decryptLocally, type LocalDecryptInput } from "./decrypt";

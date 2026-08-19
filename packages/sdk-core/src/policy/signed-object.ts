@@ -20,12 +20,18 @@ export const POLICY_SCHEMA = "xyz.tinycloud.policy/policy/v0";
 export const POLICY_STATUS_SCHEMA = "xyz.tinycloud.policy/status/v0";
 export const POLICY_ENGINE_RECORD_SCHEMA =
   "xyz.tinycloud.policy/engine-record/v0";
+export const OPERATIONAL_KEY_AUTHORIZATION_SCHEMA =
+  "xyz.tinycloud.auth/key-authorization/v0";
 
 export const ED25519_JCS_SIGNATURE_SUITE = "eddsa-ed25519-sha256-jcs-v1";
 export const EIP191_JCS_SIGNATURE_SUITE =
   "eip191-secp256k1-sha256-jcs-v1";
 
-export type SignedObjectKind = "Policy" | "PolicyStatus" | "PolicyEngineRecord";
+export type SignedObjectKind =
+  | "Policy"
+  | "PolicyStatus"
+  | "PolicyEngineRecord"
+  | "OperationalKeyAuthorization";
 
 export type SignatureSuite =
   | typeof ED25519_JCS_SIGNATURE_SUITE
@@ -89,15 +95,43 @@ export type UnsignedPolicyEngineRecord = Omit<
   "engineRecordId" | "signature"
 >;
 
+/**
+ * The roles an owner can delegate to an operational key. The Policy Engine
+ * derives *all* non-self-signed authority from these: a `PolicyEngineRecord`
+ * naming a grant issuer is only honoured if the same owner separately
+ * authorised that key for `grant-issuer`.
+ */
+export type OperationalKeyRole = "policy-signer" | "trust-issuer" | "grant-issuer";
+
+export interface OperationalKeyAuthorization {
+  readonly schema: typeof OPERATIONAL_KEY_AUTHORIZATION_SCHEMA;
+  readonly authorizationId: string;
+  readonly ownerDid: string;
+  readonly keyDid: string;
+  readonly roles: readonly OperationalKeyRole[];
+  readonly resourceIds?: readonly string[];
+  readonly trustIssuerScope?: JsonObject;
+  readonly notBefore: string;
+  readonly expiresAt?: string;
+  readonly signature: SignedObjectSignature;
+}
+
+export type UnsignedOperationalKeyAuthorization = Omit<
+  OperationalKeyAuthorization,
+  "authorizationId" | "signature"
+>;
+
 export type SignedPolicyObject =
   | Policy
   | PolicyStatus
-  | PolicyEngineRecord;
+  | PolicyEngineRecord
+  | OperationalKeyAuthorization;
 
 export type UnsignedPolicyObject =
   | UnsignedPolicy
   | UnsignedPolicyStatus
-  | UnsignedPolicyEngineRecord;
+  | UnsignedPolicyEngineRecord
+  | UnsignedOperationalKeyAuthorization;
 
 export interface SignedObjectSigner {
   readonly suite: SignatureSuite;
@@ -124,7 +158,7 @@ export type SignedObjectVerificationResult<T extends SignedPolicyObject> =
 interface ObjectDescriptor {
   readonly kind: SignedObjectKind;
   readonly schema: string;
-  readonly idField: "policyId" | "statusId" | "engineRecordId";
+  readonly idField: "policyId" | "statusId" | "engineRecordId" | "authorizationId";
   readonly idPrefix: string;
   readonly domain: string;
 }
@@ -150,6 +184,13 @@ const DESCRIPTORS: Record<SignedObjectKind, ObjectDescriptor> = {
     idField: "engineRecordId",
     idPrefix: "peng_",
     domain: POLICY_ENGINE_RECORD_SCHEMA,
+  },
+  OperationalKeyAuthorization: {
+    kind: "OperationalKeyAuthorization",
+    schema: OPERATIONAL_KEY_AUTHORIZATION_SCHEMA,
+    idField: "authorizationId",
+    idPrefix: "opka_",
+    domain: OPERATIONAL_KEY_AUTHORIZATION_SCHEMA,
   },
 };
 
@@ -235,6 +276,33 @@ export function createAndSignPolicyEngineRecord(
   return createAndSignSignedObject(input, signer).then((object) =>
     validatePolicyEngineRecordSignedShape(object),
   );
+}
+
+export function createAndSignOperationalKeyAuthorization(
+  input: unknown,
+  signer: SignedObjectSigner,
+): Promise<OperationalKeyAuthorization> {
+  return createAndSignSignedObject(input, signer).then((object) =>
+    validateOperationalKeyAuthorizationSignedShape(object),
+  );
+}
+
+export function validateOperationalKeyAuthorizationUnsigned(
+  input: unknown,
+): UnsignedOperationalKeyAuthorization {
+  return validateOperationalKeyAuthorizationShape(
+    input,
+    false,
+  ) as unknown as UnsignedOperationalKeyAuthorization;
+}
+
+export function validateOperationalKeyAuthorizationSignedShape(
+  input: unknown,
+): OperationalKeyAuthorization {
+  return validateOperationalKeyAuthorizationShape(
+    input,
+    true,
+  ) as unknown as OperationalKeyAuthorization;
 }
 
 export async function verifySignedObject(
@@ -356,6 +424,8 @@ function validateSignedObjectShape(input: unknown): SignedPolicyObject {
       return validatePolicyStatusSignedShape(normalized);
     case "PolicyEngineRecord":
       return validatePolicyEngineRecordSignedShape(normalized);
+    case "OperationalKeyAuthorization":
+      return validateOperationalKeyAuthorizationSignedShape(normalized);
   }
 }
 
@@ -370,6 +440,10 @@ function validateUnsignedForDescriptor(
       return validatePolicyStatusUnsigned(input) as unknown as JsonObject;
     case "PolicyEngineRecord":
       return validatePolicyEngineRecordUnsigned(input) as unknown as JsonObject;
+    case "OperationalKeyAuthorization":
+      return validateOperationalKeyAuthorizationUnsigned(
+        input,
+      ) as unknown as JsonObject;
   }
 }
 
@@ -525,6 +599,77 @@ function validatePolicyEngineRecordShape(
   requiredStringArray(object, "supportedEvidenceVerifiers", "$");
   requiredString(object, "grantIssuerDid", "$");
   requiredDateString(object, "expiresAt", "$");
+  return object;
+}
+
+/**
+ * `resourceIds` and `trustIssuerScope` are omitted rather than nulled when
+ * absent, because the engine's JCS digest is over the object as written: an
+ * explicit `null` is a different canonical form and therefore a different id.
+ */
+function validateOperationalKeyAuthorizationShape(
+  input: unknown,
+  signed: boolean,
+): JsonObject {
+  const object = expectJsonObject(normalizeJson(input), "$");
+  assertExactKeys(
+    object,
+    signed
+      ? [
+          "schema",
+          "authorizationId",
+          "ownerDid",
+          "keyDid",
+          "roles",
+          "resourceIds",
+          "trustIssuerScope",
+          "notBefore",
+          "expiresAt",
+          "signature",
+        ]
+      : [
+          "schema",
+          "ownerDid",
+          "keyDid",
+          "roles",
+          "resourceIds",
+          "trustIssuerScope",
+          "notBefore",
+          "expiresAt",
+        ],
+    "$",
+  );
+  expectConst(
+    requiredString(object, "schema", "$"),
+    OPERATIONAL_KEY_AUTHORIZATION_SCHEMA,
+    "$.schema",
+  );
+  if (signed) {
+    requiredString(object, "authorizationId", "$");
+    validateSignature(requiredValue(object, "signature", "$"));
+  }
+  requiredString(object, "ownerDid", "$");
+  requiredString(object, "keyDid", "$");
+  requiredStringArray(object, "roles", "$", (value, path) => {
+    if (
+      value !== "policy-signer" &&
+      value !== "trust-issuer" &&
+      value !== "grant-issuer"
+    ) {
+      throw new SignedObjectSchemaError(`${path} is not a known role`);
+    }
+  });
+  requiredArray(object, "roles", "$", 1);
+  if (hasOwn(object, "resourceIds")) {
+    requiredStringArray(object, "resourceIds", "$");
+  }
+  if (hasOwn(object, "trustIssuerScope")) {
+    expectJsonObject(requiredValue(object, "trustIssuerScope", "$"), "$.trustIssuerScope");
+  }
+  requiredDateString(object, "notBefore", "$");
+  if (hasOwn(object, "expiresAt")) {
+    requiredDateString(object, "expiresAt", "$");
+  }
   return object;
 }
 
@@ -885,6 +1030,9 @@ function descriptorForSchema(schema: string): ObjectDescriptor {
   if (schema === POLICY_SCHEMA) return DESCRIPTORS.Policy;
   if (schema === POLICY_STATUS_SCHEMA) return DESCRIPTORS.PolicyStatus;
   if (schema === POLICY_ENGINE_RECORD_SCHEMA) return DESCRIPTORS.PolicyEngineRecord;
+  if (schema === OPERATIONAL_KEY_AUTHORIZATION_SCHEMA) {
+    return DESCRIPTORS.OperationalKeyAuthorization;
+  }
   throw new SignedObjectSchemaError(`unsupported signed-object schema: ${schema}`);
 }
 

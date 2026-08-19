@@ -57,7 +57,12 @@ const negativeFixture = (await Bun.file(
   fixture("test-fixtures/policy-engine-vectors/signed-object-profile/negative.json"),
 ).json()) as { cases: Array<Record<string, unknown>> };
 
-const coveredKinds = new Set(["Policy", "PolicyStatus", "PolicyEngineRecord"]);
+const coveredKinds = new Set([
+  "Policy",
+  "PolicyStatus",
+  "PolicyEngineRecord",
+  "OperationalKeyAuthorization",
+]);
 const coveredVectors = objectsFixture.objects.filter((entry) =>
   coveredKinds.has(entry.object_type),
 );
@@ -138,7 +143,7 @@ async function expectTypedFailure(
 
 describe("signed-object profile vectors", () => {
   it("round-trips JCS bytes, digest domains, and ids for covered objects", () => {
-    expect(coveredVectors.length).toBe(5);
+    expect(coveredVectors.length).toBe(8);
     for (const vector of coveredVectors) {
       const material = deriveSignedObjectMaterial(vector.unsigned);
       expect(Buffer.from(material.jcsBytes).toString("hex")).toBe(

@@ -39,6 +39,42 @@ Two properties are load-bearing:
   wallet popup, no redirect. The only key involved is the ephemeral one this
   module mints, and it dies with the tab.
 
+## Publishing the policy (sender side)
+
+The reader flow assumes the engine already knows the policy. Putting it there is
+the sender's job, and it goes to the engine directly — not through a node, and
+not through an application-shaped route:
+
+```ts
+import { publishSignedPolicyObjects } from "@tinycloud/sdk-core/policy-access";
+import {
+  createAndSignOperationalKeyAuthorization,
+  createAndSignPolicyEngineRecord,
+} from "@tinycloud/sdk-core/policy";
+import { createAndSignTranscriptSharePolicy } from "@tinycloud/sdk-core/policy";
+
+// The owner authorises this engine's grant issuer once, then publishes one
+// policy per shared resource. The engine derives all authority from these
+// signatures; it trusts nothing about the transport.
+await publishSignedPolicyObjects({
+  endpoint: policyEngineEndpoint,
+  signedObjects: [grantIssuerAuthorization, engineRecord, policy],
+  transport,
+});
+```
+
+`publishSignedPolicyObjects` posts to the engine's `POST
+/policy/v0/signed-objects` route, which is the runtime half of the same
+registration contract the engine's boot-time `signedObjects` load applies. The
+engine re-verifies canonicalization, digest, content-addressed id, and signature
+on every object, and applies the same authority and `PolicyEngineRecord`
+coverage rules. A denial surfaces as `engine-denied` carrying the engine's own
+reason string in `denialCode`.
+
+The batch is all-or-nothing: if any object is rejected, the engine commits none
+of them. Re-publishing an unchanged policy is idempotent, because policy ids are
+content-addressed.
+
 ## Quick start
 
 ```ts
