@@ -25811,7 +25811,9 @@ var init_dist3 = __esm({
           const wrapped = fromBase64(value.wrappedKey, "v3 wrapped content key");
           if (wrapped.length < 60) throw new Error("v3 wrapped content key is malformed");
           const shared = x25519.getSharedSecret(receiverPrivateKey, wrapped.slice(0, 32));
-          const symmetricKey = await aesGcmDecrypt(shared, wrapped.slice(32));
+          const columnEnvelope = wrapped.slice(32);
+          if (columnEnvelope[0] !== 1) throw new Error("v3 wrapped content key version is unsupported");
+          const symmetricKey = await aesGcmDecrypt(shared, columnEnvelope.slice(1));
           shared.fill(0);
           if (symmetricKey.length !== 32) throw new Error("v3 content key is malformed");
           const plaintext = await aesGcmDecrypt(symmetricKey, fromBase64Url(encrypted.ciphertext));
