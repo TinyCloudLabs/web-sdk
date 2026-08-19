@@ -18135,13 +18135,18 @@ function assertExactKeys(value, keys, label) {
 }
 function decodeBase64Url(value) {
   if (!/^[A-Za-z0-9_-]+$/.test(value) || value.length % 4 === 1) throw new TypeError("compact Authorization segment is not base64url");
-  const bytes3 = typeof Buffer !== "undefined" ? new Uint8Array(Buffer.from(value, "base64url")) : Uint8Array.from(atob(value.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(value.length / 4) * 4, "=")), (character) => character.charCodeAt(0));
-  const encoded = typeof Buffer !== "undefined" ? Buffer.from(bytes3).toString("base64url") : btoa(String.fromCharCode(...bytes3)).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+  let bytes3;
+  try {
+    bytes3 = fromBase64Url(value);
+  } catch {
+    throw new TypeError("compact Authorization segment is not canonical");
+  }
+  const encoded = toBase64Url(bytes3);
   if (encoded !== value) throw new TypeError("compact Authorization segment is not canonical");
   return bytes3;
 }
 function encodeBase64Url(value) {
-  return typeof Buffer !== "undefined" ? Buffer.from(value).toString("base64url") : btoa(String.fromCharCode(...value)).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+  return toBase64Url(value);
 }
 function equal(left, right) {
   return left.length === right.length && left.every((byte, index) => byte === right[index]);
