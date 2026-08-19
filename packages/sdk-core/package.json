@@ -28,6 +28,11 @@
       "import": "./dist/policy/index.js",
       "require": "./dist/policy/index.cjs"
     },
+    "./policy-access": {
+      "types": "./dist/policy-access/index.d.ts",
+      "import": "./dist/policy-access/index.js",
+      "require": "./dist/policy-access/index.cjs"
+    },
     "./requester": {
       "types": "./dist/requester/index.d.ts",
       "import": "./dist/requester/index.js",

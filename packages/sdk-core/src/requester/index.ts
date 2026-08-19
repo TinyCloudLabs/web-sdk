@@ -1489,6 +1489,13 @@ export function parseNodeNativePortableDelegation(
   );
 }
 
+/** Native resource segments the node exposes, and the ability namespace each implies. */
+const NATIVE_SERVICE_SEGMENTS = [
+  { segment: "sql", service: "tinycloud.sql" },
+  { segment: "kv", service: "tinycloud.kv" },
+  { segment: "vfs", service: "tinycloud.vfs" },
+] as const;
+
 function delegationAuthorityFromCompactJws(encoded: string): {
   issuerDid: string;
   holderDid: string;
@@ -1566,17 +1573,28 @@ function delegationAuthorityFromCompactJws(encoded: string): {
         throw new Error("UCAN att abilities are invalid");
       }
       const abilities = rawAbilities as Record<string, unknown>;
-      const marker = resource.indexOf("/sql/");
-      if (!resource.startsWith("tinycloud:") || marker < 0)
+      if (!resource.startsWith("tinycloud:"))
         throw new Error("unsupported UCAN resource");
-      const space = resource.slice(0, marker);
-      const path = resource.slice(marker + "/sql/".length);
+      // Resources are `tinycloud:<space>/<service>/<path>`. Take the first
+      // service marker so a path segment that happens to be named after another
+      // service cannot re-point the capability at that service.
+      const segment = NATIVE_SERVICE_SEGMENTS.map(
+        (candidate) =>
+          [candidate, resource.indexOf(`/${candidate.segment}/`)] as const,
+      )
+        .filter(([, index]) => index >= 0)
+        .sort(([, left], [, right]) => left - right)[0];
+      if (segment === undefined) throw new Error("unsupported UCAN resource");
+      const [{ segment: marker }, markerIndex] = segment;
+      const space = resource.slice(0, markerIndex);
+      const path = resource.slice(markerIndex + marker.length + 2);
       for (const [action, rawCaveats] of Object.entries(abilities)) {
-        const service = action.startsWith("tinycloud.sql/")
-          ? "tinycloud.sql"
-          : action.startsWith("tinycloud.kv/")
-            ? "tinycloud.kv"
-            : undefined;
+        // The service comes from the ability, not the resource segment: the
+        // frozen M1 producer exposes one resource under both `tinycloud.sql/read`
+        // and `tinycloud.kv/get`.
+        const service = NATIVE_SERVICE_SEGMENTS.find((candidate) =>
+          action.startsWith(`${candidate.service}/`),
+        )?.service;
         if (!Array.isArray(rawCaveats) || rawCaveats.length !== 1) {
           throw new Error("UCAN ability must have exactly one caveat branch");
         }

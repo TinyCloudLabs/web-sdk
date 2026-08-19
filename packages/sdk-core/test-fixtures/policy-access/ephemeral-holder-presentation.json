@@ -1,0 +1,42 @@
+{
+  "label": "policy-access accountless ephemeral-holder presentation",
+  "producer": "@tinycloud/sdk-core/policy-access",
+  "note": "Signed by @tinycloud/sdk-core with a fixed seed. The policy engine verifies these exact bytes so the JCS + domain-separator + did:key encodings cannot drift between the two implementations.",
+  "holderSeedHex": "0909090909090909090909090909090909090909090909090909090909090909",
+  "presentation": {
+    "schema": "xyz.tinycloud.policy/presentation/v0",
+    "policyId": "pol_exact_email",
+    "eligibleSubjectDid": "did:key:z6MkwVDfCg9LbbY6xjH3EZk8YSFQZujV5Y4y1ZWeER9tDiN3",
+    "holderDid": "did:key:z6MkwVDfCg9LbbY6xjH3EZk8YSFQZujV5Y4y1ZWeER9tDiN3",
+    "holderBinding": {
+      "type": "ephemeral-holder"
+    },
+    "requestedCapabilities": [
+      {
+        "service": "tinycloud.kv",
+        "space": "tinycloud:did:pkh:eip155:1:0xowner:default",
+        "path": "shares/share-1/report.md.enc",
+        "actions": [
+          "tinycloud.kv/get"
+        ]
+      }
+    ],
+    "requestedCapabilitiesHash": "6c2f965ba609963678b2d51421d252b03dc2dc02fbde7b01de70ae1cef17cd31",
+    "audience": "urn:tinycloud:policy-engine:test",
+    "nonce": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+    "expiresAt": "2026-08-19T12:01:00Z",
+    "evidence": [
+      {
+        "requirementId": "exact-email",
+        "presentation": {
+          "sdJwt": "eyJ.placeholder.sd-jwt"
+        }
+      }
+    ],
+    "holderSignature": {
+      "suite": "eddsa-ed25519-sha256-jcs-v1",
+      "signerDid": "did:key:z6MkwVDfCg9LbbY6xjH3EZk8YSFQZujV5Y4y1ZWeER9tDiN3",
+      "value": "WlVzsAPTL91--8GXMRheCCYKJBPetPAFlMFTW-UN0CyN-Y4ZHZJXzxffoCUzu0GWThYAL8NTn-Ke0LA0E3DpAQ"
+    }
+  }
+}

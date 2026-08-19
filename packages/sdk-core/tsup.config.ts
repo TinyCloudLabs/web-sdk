@@ -5,6 +5,7 @@ export default defineConfig({
     "src/index.ts",
     "src/bootstrap/index.ts",
     "src/policy/index.ts",
+    "src/policy-access/index.ts",
     "src/requester/index.ts",
     "src/delegations/index.ts",
   ],
