@@ -1,0 +1,15 @@
+{
+  // `examples/` deliberately imports `@tinycloud/sdk-core/policy-access` by its
+  // published name rather than a relative path: that is what makes it evidence
+  // that the API is usable from outside this package. It therefore sits outside
+  // the main program's `rootDir`, and gets its own no-emit typecheck.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false
+  },
+  "include": ["examples/**/*", "src/policy-access/example.test.ts"],
+  "exclude": ["node_modules", "dist"]
+}

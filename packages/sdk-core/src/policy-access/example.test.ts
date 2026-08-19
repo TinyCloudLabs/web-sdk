@@ -363,7 +363,6 @@ describe("a non-Share application reading a policy-gated resource", () => {
     expect(trace).toEqual([
       `POST ${ISSUER_ORIGIN}/v1/acquisitions`,
       `POST ${ISSUER_ORIGIN}/v1/acquisitions/acq_00000000000001/challenge`,
-      `GET ${ISSUER_ORIGIN}/v1/acquisitions/acq_00000000000001/state`,
       `POST ${ISSUER_ORIGIN}/v1/acquisitions/acq_00000000000001/proof`,
       `GET ${ISSUER_ORIGIN}/v1/acquisitions/acq_00000000000001/holder-binding`,
       `POST ${ISSUER_ORIGIN}/v1/acquisitions/acq_00000000000001/holder-signature`,

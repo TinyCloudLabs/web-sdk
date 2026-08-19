@@ -124,14 +124,27 @@ export function createFetchPolicyAccessTransport(
           }`,
         );
       }
-      const text = await response.text();
-      let body: unknown = undefined;
-      if (text.length > 0) {
-        try {
-          body = JSON.parse(text);
-        } catch {
-          body = text;
+      // Ciphertext comes back as opaque bytes. Decoding it as text and
+      // re-encoding would corrupt any byte that is not valid UTF-8, so anything
+      // that is not declared JSON is carried through as raw bytes.
+      const contentType = response.headers.get("content-type") ?? "";
+      const isJson = /^application\/(?:[\w.+-]+\+)?json\b/i.test(contentType);
+      let body: unknown;
+      if (isJson) {
+        const text = await response.text();
+        if (text.length > 0) {
+          try {
+            body = JSON.parse(text);
+          } catch {
+            throw new PolicyAccessError(
+              "node-response-invalid",
+              `${url.origin}${url.pathname} declared JSON but did not return it`,
+            );
+          }
         }
+      } else {
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        body = bytes.byteLength === 0 ? undefined : bytes;
       }
       return { status: response.status, body, finalUrl: response.url || request.url };
     },

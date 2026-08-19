@@ -551,6 +551,47 @@ describe("policy-access boundaries", () => {
   });
 });
 
+describe("fetch transport body handling", () => {
+  const transport = () =>
+    createFetchPolicyAccessTransport({
+      originPolicy: { allowedOrigins: [NODE_ORIGIN] },
+      fetchFn: (async (url: URL) =>
+        new Response(
+          url.pathname === "/invoke"
+            ? new Uint8Array([0x01, 0xff, 0xfe, 0x00, 0x80])
+            : JSON.stringify({ activated: [NODE_SPACE_ID] }),
+          {
+            headers: {
+              "content-type":
+                url.pathname === "/invoke"
+                  ? "application/octet-stream"
+                  : "application/json",
+            },
+          },
+        )) as unknown as typeof fetch,
+    });
+
+  it("returns ciphertext as raw bytes, not lossily decoded text", async () => {
+    const response = await transport().request({
+      method: "POST",
+      url: `${NODE_ORIGIN}/invoke`,
+    });
+    expect(response.body).toBeInstanceOf(Uint8Array);
+    // 0xff 0xfe 0x80 are not valid UTF-8; a text round-trip would replace them.
+    expect([...(response.body as Uint8Array)]).toEqual([
+      0x01, 0xff, 0xfe, 0x00, 0x80,
+    ]);
+  });
+
+  it("still parses declared JSON", async () => {
+    const response = await transport().request({
+      method: "POST",
+      url: `${NODE_ORIGIN}/delegate`,
+    });
+    expect(response.body).toEqual({ activated: [NODE_SPACE_ID] });
+  });
+});
+
 describe("local decryption", () => {
   it("round-trips a sealed blob without any service seeing the key", async () => {
     const key = new Uint8Array(32).fill(7);

@@ -3,7 +3,9 @@
     "target": "ES2020",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "lib": ["ES2020"],
+    "lib": [
+      "ES2020"
+    ],
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
@@ -15,6 +17,12 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/policy-access/example.test.ts"
+  ]
 }

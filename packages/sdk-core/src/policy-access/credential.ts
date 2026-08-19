@@ -160,6 +160,10 @@ export async function beginEmailCredentialAcquisition(
     );
   }
 
+  // Remember the nonce the challenge issued so the proof does not need a second
+  // round-trip whose answer can legitimately be null once the nonce is spent.
+  let challengeNonce: string | undefined;
+
   return {
     requestId,
     async requestOtp() {
@@ -177,21 +181,27 @@ export async function beginEmailCredentialAcquisition(
           "otp challenge returned no challengeNonce",
         );
       }
+      challengeNonce = nonce;
       return { challengeNonce: nonce };
     },
     async submitOtp(otp: string) {
-      const state = await options.transport.request({
-        method: "GET",
-        url: `${origin}${credentialEndpointPath("state", requestId)}`,
-        headers: bearer,
-      });
-      requireOk(state.status, state.body, [200], "acquisition state");
-      const challengeNonce = asRecord(state.body)?.challengeNonce;
-      if (typeof challengeNonce !== "string") {
-        throw new PolicyAccessError(
-          "credential-response-invalid",
-          "acquisition state has no live challengeNonce for the otp step",
-        );
+      if (challengeNonce === undefined) {
+        // Fall back to the issuer's state view for a resumed tab that never
+        // called requestOtp() in this page lifetime.
+        const state = await options.transport.request({
+          method: "GET",
+          url: `${origin}${credentialEndpointPath("state", requestId)}`,
+          headers: bearer,
+        });
+        requireOk(state.status, state.body, [200], "acquisition state");
+        const nonce = asRecord(state.body)?.challengeNonce;
+        if (typeof nonce !== "string" || nonce.length === 0) {
+          throw new PolicyAccessError(
+            "credential-response-invalid",
+            "acquisition state has no live challengeNonce for the otp step",
+          );
+        }
+        challengeNonce = nonce;
       }
       const proof = await options.transport.request({
         method: "POST",
