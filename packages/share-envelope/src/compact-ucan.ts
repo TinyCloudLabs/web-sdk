@@ -2,6 +2,7 @@ import { ed25519 } from "@noble/curves/ed25519";
 import { blake3 } from "@noble/hashes/blake3";
 import { CID } from "multiformats/cid";
 import { create as createDigest } from "multiformats/hashes/digest";
+import { fromBase64Url, toBase64Url } from "./bytes.js";
 import { canonicalize } from "./jcs.js";
 import { ed25519PublicKeyFromDidKey } from "./didkey.js";
 
@@ -111,20 +112,19 @@ function assertExactKeys(value: Record<string, unknown>, keys: readonly string[]
 
 function decodeBase64Url(value: string): Uint8Array {
   if (!/^[A-Za-z0-9_-]+$/.test(value) || value.length % 4 === 1) throw new TypeError("compact Authorization segment is not base64url");
-  const bytes = typeof Buffer !== "undefined"
-    ? new Uint8Array(Buffer.from(value, "base64url"))
-    : Uint8Array.from(atob(value.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(value.length / 4) * 4, "=")), (character) => character.charCodeAt(0));
-  const encoded = typeof Buffer !== "undefined"
-    ? Buffer.from(bytes).toString("base64url")
-    : btoa(String.fromCharCode(...bytes)).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+  let bytes: Uint8Array;
+  try {
+    bytes = fromBase64Url(value);
+  } catch {
+    throw new TypeError("compact Authorization segment is not canonical");
+  }
+  const encoded = toBase64Url(bytes);
   if (encoded !== value) throw new TypeError("compact Authorization segment is not canonical");
   return bytes;
 }
 
 function encodeBase64Url(value: Uint8Array): string {
-  return typeof Buffer !== "undefined"
-    ? Buffer.from(value).toString("base64url")
-    : btoa(String.fromCharCode(...value)).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+  return toBase64Url(value);
 }
 
 function equal(left: Uint8Array, right: Uint8Array): boolean {
