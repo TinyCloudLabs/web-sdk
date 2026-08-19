@@ -83,3 +83,22 @@ export {
 } from "./publish";
 
 export { decryptLocally, type LocalDecryptInput } from "./decrypt";
+
+export {
+  CREDENTIAL_INVITATION_PATH,
+  CREDENTIAL_INVITATION_REQUEST_SCHEMA,
+  DELIVERY_ADMISSION_PATH,
+  DELIVERY_ADMISSION_REQUEST_SCHEMA,
+  DELIVERY_ADMISSION_SCHEMA,
+  requestCredentialInvitationDelivery,
+  type CredentialInvitationDeliveryResult,
+  type DeliveryAdmission,
+  type RequestCredentialInvitationInput,
+} from "./invitation";
+
+export {
+  POLICY_PARENT_REGISTRATION_PATH,
+  registerPolicyParentDelegation,
+  type PolicyParentCapability,
+  type RegisterPolicyParentDelegationInput,
+} from "./parent";
