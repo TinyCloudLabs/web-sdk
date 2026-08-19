@@ -25780,7 +25780,7 @@ var init_dist3 = __esm({
         if (envelope.version !== 3 || this.session === void 0 || this.v3Authorization === void 0 || this.v3NodeAudience === void 0 || signer === void 0) throw new Error("v3 policy session signer is required");
         const encrypted = parseV3InlineEncryptedEnvelope(bytes3, envelope);
         const receiverPrivateKey = crypto.getRandomValues(new Uint8Array(32));
-        const receiverPublicKey = toBase64Url(x25519.getPublicKey(receiverPrivateKey));
+        const receiverPublicKey = toBase64(x25519.getPublicKey(receiverPrivateKey));
         const receiverPublicKeyHash = canonicalHashHex2(receiverPublicKey);
         const body = { type: "tinycloud.encryption.decrypt/v1", targetNode: this.v3NodeAudience, networkId: encrypted.networkId, alg: encrypted.alg, keyVersion: encrypted.keyVersion, encryptedSymmetricKey: encrypted.encryptedSymmetricKey, encryptedSymmetricKeyHash: encrypted.encryptedSymmetricKeyHash, receiverPublicKey, receiverPublicKeyHash };
         const bodyHash = hex2(sha2562(new TextEncoder().encode(canonicalize2(body))));
