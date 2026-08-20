@@ -6,13 +6,10 @@ import {
   type EncodedShareData,
   type ISessionManager,
   type IWasmBindings,
-  canonicalOwnerSharePolicy,
-  computeOwnerShareRegistrationCid,
-  type OwnerDelegationReceipt,
-  type OwnerSharePolicyRegistration,
 } from "@tinycloud/sdk-core";
 import { Wallet } from "ethers";
 import { ed25519 } from "@noble/curves/ed25519";
+import { sha256 } from "@noble/hashes/sha256";
 import { base58btc } from "multiformats/bases/base58";
 import { canonicalizeSignedObjectUnsigned as canonicalize } from "../../sdk-core/src/policy/signed-object";
 
@@ -646,80 +643,67 @@ describe("TinyCloudNode sharing", () => {
     await expect(withoutSession.createOwnerDelegation(params)).rejects.toThrow("Owner session is required");
   });
 
-  test("registerOwnerSharePolicy posts only after the caller supplies the activated owner receipt", async () => {
-    const policy = await canonicalOwnerSharePolicy({
-      type: "TinyCloudSharePolicy",
-      version: 2,
-      shareId: "share-1",
-      ownerDid: "did:pkh:eip155:1:0xowner",
-      shareKeyDid: "did:key:z6MkShare",
-      recipientMatcher: { kind: "exactEmail", value: "alice@example.com" },
-      target: { origin: "https://share.tinycloud.xyz", nodeAudience: "did:web:tee.node.tinycloud.xyz", enforcerDid: "did:key:z6MkEnforcer", spaceId: SPACE },
-      resource: { kind: "exact", path: "shares/share-1/document.md" },
-      actions: ["tinycloud.kv/get", "tinycloud.kv/metadata"],
-      contentSource: { kind: "kv", space: SPACE, path: "shares/share-1/document.md", action: "tinycloud.kv/get" },
-      contentSourceDigest: "content-digest",
-      ownerDelegationCid: "bafy-owner",
-      expiresAt: "2030-01-01T00:00:00.000Z",
-    });
-    const ownerDelegation = {
-      delegationCid: "bafy-owner",
-      signedDagCbor: new Uint8Array([1]),
-      delegation: { delegateDID: "did:key:z6MkShare", spaceId: SPACE, path: "shares/share-1/document.md", actions: ["tinycloud.kv/get"], expiry: new Date("2030-01-01T00:00:00.000Z") },
-      permissions: [{ service: "tinycloud.kv", path: "shares/share-1/document.md", actions: ["tinycloud.kv/get"] }],
-    } satisfies OwnerDelegationReceipt;
-    const enforcement = {
-      cid: "bafy-enforcement",
-      dagCbor: "bytes",
-      issuerDid: "did:key:z6MkShare",
-      audienceDid: "did:key:z6MkEnforcer",
-      facts: {
-        ownerDelegationCid: "bafy-owner",
-        policyCid: policy.cid,
-        shareId: "share-1",
-        shareKeyDid: "did:key:z6MkShare",
-        enforcerDid: "did:key:z6MkEnforcer",
-        nodeAudience: "did:web:tee.node.tinycloud.xyz",
-        spaceId: SPACE,
-        path: "shares/share-1/document.md",
-        actions: ["tinycloud.kv/get", "tinycloud.kv/metadata"],
-        contentSourceDigest: "content-digest",
-        expiresAt: "2030-01-01T00:00:00.000Z",
-      },
-      signature: "sig",
+  test("registerPolicy matches the embedded Node Policy/v3 registration contract", async () => {
+    const nodeSeed = ed25519.utils.randomSecretKey();
+    const nodeDid = `did:key:${base58btc.encode(Uint8Array.from([0xed, 0x01, ...ed25519.getPublicKey(nodeSeed)]))}`;
+    const expiresAt = "2030-01-01T00:00:00Z";
+    const enforcerDid = nodeDid;
+    const unsignedBinding = {
+      schema: "xyz.tinycloud.policy/attested-enforcer/v2",
+      enforcerDid,
+      nodeAudience: nodeDid,
+      attestationBindingDigestHex: Buffer.from(sha256(new TextEncoder().encode(canonicalize({ enforcerDid, nodeAudience: nodeDid })))).toString("hex"),
+      issuedAt: "2026-01-01T00:00:00.000Z",
+      expiresAt,
     } as const;
-    const registrationCore = {
-      policyCid: policy.cid,
-      ownerDelegationCid: ownerDelegation.delegationCid,
-      enforcementDelegationCid: enforcement.cid,
-      ownerDid: "did:pkh:eip155:1:0xowner",
-      shareKeyDid: "did:key:z6MkShare",
-      enforcerDid: "did:key:z6MkEnforcer",
-      shareId: "share-1",
-      recipientMatcher: { kind: "exactEmail", value: "alice@example.com" },
-      target: { origin: "https://share.tinycloud.xyz", nodeAudience: "did:web:tee.node.tinycloud.xyz", enforcerDid: "did:key:z6MkEnforcer", spaceId: SPACE },
-      resource: { kind: "exact" as const, path: "shares/share-1/document.md" },
-      actions: ["tinycloud.kv/get", "tinycloud.kv/metadata"],
-      contentSource: { kind: "kv", space: SPACE, path: "shares/share-1/document.md", action: "tinycloud.kv/get" },
-      contentSourceDigest: "content-digest",
-      registeredAt: "2029-01-01T00:00:00.000Z",
-      expiresAt: "2030-01-01T00:00:00.000Z",
-    } satisfies Omit<OwnerSharePolicyRegistration, "registrationCid">;
-    const proofSeed = ed25519.utils.randomSecretKey();
-    const proofPublicKey = ed25519.getPublicKey(proofSeed);
-    const proofKid = `did:key:${base58btc.encode(Uint8Array.from([0xed, 0x01, ...proofPublicKey]))}`;
-    const proofSignature = Buffer.from(ed25519.sign(new TextEncoder().encode(`xyz.tinycloud.share/policy-registration/v2\0${canonicalize(registrationCore)}`), proofSeed)).toString("base64url");
-    const responseBody = { registration: { registrationCid: computeOwnerShareRegistrationCid(registrationCore), ...registrationCore }, proof: { alg: "EdDSA", kid: proofKid, signature: proofSignature } };
-    const fetchMock = mock(async (input: string, init?: RequestInit) => {
-      expect(input).toBe("https://node.example/share/v2/policies");
-      expect(init?.method).toBe("POST");
-      expect(typeof init?.body).toBe("string");
-      return new Response(JSON.stringify(responseBody), { status: 200, headers: { "content-type": "application/json" } });
+    const binding = {
+      ...unsignedBinding,
+      signature: {
+        suite: "Ed25519",
+        signerDid: nodeDid,
+        value: Buffer.from(ed25519.sign(sha256(new TextEncoder().encode(`xyz.tinycloud.policy/AttestedEnforcerBinding/v2\0${canonicalize(unsignedBinding)}`)), nodeSeed)).toString("base64url"),
+      },
+    } as const;
+    const policy = { schema: "xyz.tinycloud.policy/policy/v2", policyId: "pol_test" };
+    const calls: Array<{ readonly url: string; readonly body: Record<string, unknown> }> = [];
+    const fetchMock = mock(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("/share/")) throw new Error("retired Share transport was used");
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      calls.push({ url, body });
+      if (url.endsWith("/policy/v3/enforcer-bindings")) {
+        return new Response(JSON.stringify(binding), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      expect(url).toBe("https://node.example/policy/v3/policies");
+      return new Response(JSON.stringify({ policyCid: "bafy-policy", policyRootCid: "bafy-policy-root", enforcementRootCid: "bafy-enforcement-root" }), { status: 200, headers: { "content-type": "application/json" } });
     });
     globalThis.fetch = fetchMock as unknown as typeof fetch;
     const node = new TinyCloudNode({ host: "https://node.example", wasmBindings: makeWasmBindings() });
-    const receipt = await node.registerOwnerSharePolicy({ policy: { ...policy, proof: "policy-proof" }, ownerDelegation, enforcementDelegation: enforcement, contentSourceDigest: "content-digest", nodeProof: { kid: proofKid, publicKey: proofPublicKey } });
-    expect(receipt.registration.registrationCid).toBe(responseBody.registration.registrationCid);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const receipt = await node.registerPolicy({
+      policyCid: "bafy-policy",
+      policy,
+      policyRoot: { cid: "bafy-policy-root", authorization: "policy.authorization.value" },
+      enforcementRoot: { cid: "bafy-enforcement-root", authorization: "enforcement.authorization.value" },
+      contentSourceDigestHex: "1".repeat(64),
+      nativeProjectionHashHex: "2".repeat(64),
+      rootExpiresAt: expiresAt,
+      enforcerDid,
+      expectedNodeAudience: nodeDid,
+    });
+    expect(receipt).toEqual({ policyCid: "bafy-policy", policyRootCid: "bafy-policy-root", enforcementRootCid: "bafy-enforcement-root", attestedEnforcerBinding: binding });
+    expect(calls.map((call) => call.url)).toEqual([
+      "https://node.example/policy/v3/enforcer-bindings",
+      "https://node.example/policy/v3/policies",
+    ]);
+    expect(calls[0]!.body).toEqual({ rootExpiresAt: expiresAt, enforcerDid });
+    expect(calls[1]!.body).toEqual({
+      policyCid: "bafy-policy",
+      policy,
+      policyRoot: "policy.authorization.value",
+      enforcementRoot: "enforcement.authorization.value",
+      contentSourceDigestHex: "1".repeat(64),
+      nativeProjectionHashHex: "2".repeat(64),
+      attestedEnforcerBinding: binding,
+    });
   });
 });

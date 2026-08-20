@@ -23,6 +23,8 @@ import {
   type ValidatedRuntimeDelegation,
   type UnifiedOwnerRootInput,
   type UnifiedOwnerRootReceipt,
+  type RegisterPolicyV3Input,
+  type RegisterPolicyV3Receipt,
 } from "@tinycloud/node-sdk/core";
 import {
   IKVService,
@@ -60,8 +62,6 @@ import {
   type NetworkDescriptor,
   type CreateOwnerDelegationParams,
   type OwnerDelegationReceipt,
-  type RegisterOwnerSharePolicyParams,
-  type OwnerSharePolicyRegistrationReceipt,
   type LocalNodeIdentityStore,
   SignInOptions,
   ACCOUNT_MANIFEST_PERMISSIONS,
@@ -885,12 +885,12 @@ export class TinyCloudWeb {
     });
   }
 
-  /** Register an owner-bound addressed sharing policy through TinyCloud Node. */
-  async registerOwnerSharePolicy(
-    params: RegisterOwnerSharePolicyParams,
-  ): Promise<OwnerSharePolicyRegistrationReceipt> {
+  /** Register signed policy material through the Node-owned Policy/v3 runtime. */
+  async registerPolicy(
+    params: Omit<RegisterPolicyV3Input, "nodeOrigin" | "fetch">,
+  ): Promise<RegisterPolicyV3Receipt> {
     const node = await this.ensureNode();
-    return node.registerOwnerSharePolicy(params);
+    return node.registerPolicy(params);
   }
 
   /** Authorize a short-lived, one-use v2 delivery using the authenticated invocation chain. */
