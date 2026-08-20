@@ -9,6 +9,7 @@ import {
   validatePolicyCredentialAdmissionV4Authority,
   type UnsignedPolicyCredentialPresentationV4,
 } from "./credential-admission";
+import { requestPolicyChallengeV3 } from "./unified";
 
 describe("TC-500 policy presentation v4", () => {
   test("matches the frozen cross-language golden vector", async () => {
@@ -55,5 +56,35 @@ describe("TC-500 policy presentation v4", () => {
     expect(() => validatePolicyCredentialAdmissionV4Authority(session, { nodeAudience, enforcerDid })).not.toThrow();
     expect(() => validatePolicyCredentialAdmissionV4Authority(session, { nodeAudience: "did:key:z6MkAttacker", enforcerDid })).toThrow("authority binding");
     expect(() => validatePolicyCredentialAdmissionV4Authority(session, { nodeAudience, enforcerDid: "did:key:z6MkAttacker" })).toThrow("authority binding");
+  });
+
+  test("uses only the embedded Node policy route", async () => {
+    const calls: string[] = [];
+    const challenge = await requestPolicyChallengeV3({
+      nodeOrigin: "https://node.example",
+      policyCid: "bafy-policy",
+      recipientDid: "did:key:zHolder",
+      requestedCapabilities: [],
+      fetch: (async (input) => {
+        calls.push(String(input));
+        return new Response(JSON.stringify({
+          challengeId: "challenge",
+          nonce: "nonce",
+          policyCid: "bafy-policy",
+          recipientDid: "did:key:zHolder",
+        }), { headers: { "content-type": "application/json" } });
+      }) as typeof fetch,
+    });
+    expect(challenge.challengeId).toBe("challenge");
+    expect(calls).toEqual(["https://node.example/policy/v3/challenges"]);
+    expect(calls.some((url) => url.includes("/share/"))).toBe(false);
+    await expect(requestPolicyChallengeV3({
+      nodeOrigin: "https://node.example",
+      policyRuntimePath: "/share/v3/policy",
+      policyCid: "bafy-policy",
+      recipientDid: "did:key:zHolder",
+      requestedCapabilities: [],
+      fetch: (async () => new Response()) as typeof fetch,
+    })).rejects.toThrow("policy runtime path is invalid");
   });
 });

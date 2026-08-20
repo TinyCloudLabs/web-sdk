@@ -128,6 +128,12 @@ export interface PolicyChallengeV3 {
 
 export async function requestPolicyChallengeV3(input: {
   readonly nodeOrigin: string;
+  /**
+   * Policy control routes are part of the recipient's TinyCloud Node.  This is
+   * deliberately a path, not a second origin: applications must not send a
+   * credential presentation to a separately discovered policy service.
+   */
+  readonly policyRuntimePath?: string;
   readonly policyCid: string;
   readonly recipientDid: string;
   readonly requestedCapabilities: readonly UnifiedPolicyCapability[];
@@ -135,7 +141,8 @@ export async function requestPolicyChallengeV3(input: {
   readonly signal?: AbortSignal;
 }): Promise<PolicyChallengeV3> {
   const fetchFn = input.fetch ?? globalThis.fetch.bind(globalThis);
-  const response = await fetchFn(new URL("/share/v3/policy/challenges", input.nodeOrigin), {
+  const policyRuntimePath = policyRuntimeBasePath(input.policyRuntimePath);
+  const response = await fetchFn(new URL(`${policyRuntimePath}/challenges`, input.nodeOrigin), {
     method: "POST",
     redirect: "error",
     signal: input.signal,
@@ -147,6 +154,14 @@ export async function requestPolicyChallengeV3(input: {
   if (typeof value.challengeId !== "string" || typeof value.nonce !== "string" || value.policyCid !== input.policyCid || value.recipientDid !== input.recipientDid)
     throw new Error("policy challenge binding is invalid");
   return value;
+}
+
+function policyRuntimeBasePath(value: string | undefined): string {
+  const path = value ?? "/policy/v3";
+  if (!/^\/policy(?:\/[a-z0-9-]+)*$/.test(path)) {
+    throw new Error("policy runtime path is invalid");
+  }
+  return path;
 }
 
 export async function mintPolicySessionV3(input: {
