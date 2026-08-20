@@ -120,7 +120,7 @@ export function validateShareDeliveryAuthorizationV3Bytes(
     request.schema !== "xyz.tinycloud.credentials/invitation-request/v1"
     || admission.schema !== "xyz.tinycloud.policy/delivery-admission/v0"
     || fields.some((field) => request[field] !== admission[field])
-    || request.policyId !== policy.policyId
+    || request.policyId !== envelope.policyCid
     || request.recipient !== expected.request.recipientEmail
     || request.resource !== contentSource.kvResource
     || request.credentialType !== credentialType.id

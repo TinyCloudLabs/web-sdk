@@ -14,6 +14,7 @@ const jti = "A".repeat(22);
 
 const envelope = {
   version: 3,
+  policyCid: shareCid,
   shareId: "share-v3",
   recipientMatcher: { kind: "exactEmail", value: "alice@example.com" },
   actions: ["read"],
@@ -40,7 +41,7 @@ const request = {
 function response(overrides: Record<string, unknown> = {}): Uint8Array {
   const invitation = {
     schema: "xyz.tinycloud.credentials/invitation-request/v1",
-    policyId: envelope.policy.policyId,
+    policyId: envelope.policyCid,
     recipient: request.recipientEmail,
     resource: envelope.contentSource.kvResource,
     credentialType: envelope.policy.credentialRequirement.credentialType.id,
@@ -96,7 +97,7 @@ describe("v3 share delivery authorization", () => {
 
   it("rejects a tampered admission signature", () => {
     const parsed = JSON.parse(new TextDecoder().decode(response()));
-    parsed.admission.signature.value = `${parsed.admission.signature.value.slice(0, -1)}A`;
+    parsed.admission.signature.value = `${parsed.admission.signature.value.startsWith("A") ? "B" : "A"}${parsed.admission.signature.value.slice(1)}`;
     expect(() => validateShareDeliveryAuthorizationV3Bytes(new TextEncoder().encode(JSON.stringify(parsed)), {
       request,
       senderKeyDid,
