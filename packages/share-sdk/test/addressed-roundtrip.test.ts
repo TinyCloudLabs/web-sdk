@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { ed25519 } from "@noble/curves/ed25519";
 import { base58btc } from "multiformats/bases/base58";
-import { publishAddressedShare, type AddressedPolicyRegistrationInput } from "../src/index.js";
+import { historyRecordForPublishedShare, publishAddressedShare, type AddressedPolicyRegistrationInput } from "../src/index.js";
 
 const ownerSeed = Uint8Array.from({ length: 32 }, (_, index) => index + 1);
 const ownerDid = `did:key:${base58btc.encode(Uint8Array.from([0xed, 0x01, ...ed25519.getPublicKey(ownerSeed)]))}`;
@@ -86,7 +86,16 @@ describe("canonical addressed publication", () => {
     });
     expect(published.metadata.policyCid).toBe(registration?.policyCid);
     expect(JSON.stringify(published)).not.toContain(published.url);
+    expect(JSON.stringify(published)).not.toContain(published.deliveryMaterial?.envelopeKey);
     expect(JSON.stringify(registration)).not.toContain("/share/");
+  });
+
+  it("retains the v3 envelope and binding material in encrypted sender history", async () => {
+    const { published } = await fixture();
+    const record = historyRecordForPublishedShare(published);
+    expect(record.deliveryMaterial).toEqual(published.deliveryMaterial);
+    expect(record.deliveryMaterial?.shareCid).toBe(published.link.cid);
+    expect(record.deliveryMaterial?.envelope).toMatchObject({ version: 3, policyCid: published.metadata.policyCid });
   });
 
   it("preserves the registry's millisecond retention contract independently of policy expiry", async () => {

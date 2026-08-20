@@ -83,9 +83,8 @@ program.hook("preAction", async (thisCommand) => {
 
 configureShareCommandServices({
   fetchFn: globalThis.fetch,
-  // The CLI mints a body-bound Node upload attestation from the selected
-  // OpenKey session. The authorizer is lazy: public inspect/receive never
-  // touches profile state, and no secret is serialized into a publish result.
+  // Node-specific registry upload authorization is retired. The adapter keeps
+  // the explicit contract seam while production callers use inline links.
   authorizeUpload: createProductionUploadAuthorizer({
     fetchFn: globalThis.fetch,
     profileName: async () => selectedShareProfile() ?? (await ProfileManager.getConfig()).defaultProfile,

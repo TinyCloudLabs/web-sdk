@@ -1,6 +1,6 @@
 import type { DelegatedShareKey, OwnerShareAction, OwnerShareMatcher, OwnerSharePolicyRegistrationReceipt } from "./owner-policy";
 import { restoreDelegatedShareKey } from "./owner-policy";
-import type { PublishedShare } from "./publish.js";
+import type { PublishedShare, PublishedShareDeliveryMaterial } from "./publish.js";
 
 export interface EncryptedShareHistoryStorage {
   put(value: Uint8Array): Promise<void>;
@@ -44,6 +44,8 @@ export interface SenderShareRecord {
   /** Complete bearer links are encrypted at rest and only revealed explicitly. */
   readonly link?: string;
   readonly filename?: string;
+  /** Policy/v3 delivery material. The containing history record must remain encrypted at rest. */
+  readonly deliveryMaterial?: PublishedShareDeliveryMaterial;
 }
 
 /** Create the durable encrypted-history shape from canonical publication receipts. */
@@ -80,6 +82,7 @@ export function historyRecordForPublishedShare(result: PublishedShare, now: Date
     registeredAt: now.toISOString(),
     expiresAt: result.metadata.expiresAt,
     link: result.url,
+    ...(result.deliveryMaterial === undefined ? {} : { deliveryMaterial: result.deliveryMaterial }),
     ...(result.metadata.display.filename === undefined ? {} : { filename: result.metadata.display.filename }),
   };
 }

@@ -7,7 +7,7 @@ import {
 } from "@tinycloud/share-envelope";
 import {
   SHARE_CONTENT_LIMIT, SHARE_PUBLISH_RESULT_VERSION, redactPublishedShare,
-  uploadShareBlob, type PublishedShare, type SharePublishOptions,
+  uploadShareBlob, type PublishedShare, type PublishedShareDeliveryMaterial, type SharePublishOptions,
 } from "./publish.js";
 import { normalizeShareTarget, type ShareTarget } from "./targets.js";
 import type { OwnerShareAction, OwnerShareMatcher } from "./owner-policy.js";
@@ -218,6 +218,7 @@ function publicationResult(input: {
   readonly enforcerDid: string;
   readonly expiry: string;
   readonly retention: string;
+  readonly deliveryMaterial: PublishedShareDeliveryMaterial;
 }): PublishedShare {
   const result = {
     protocol: "tinycloud-share", version: SHARE_PUBLISH_RESULT_VERSION, url: input.url,
@@ -235,6 +236,7 @@ function publicationResult(input: {
   } satisfies PublishedShare;
   Object.defineProperty(result, "toJSON", { enumerable: false, value: () => redactPublishedShare(result) });
   Object.defineProperty(result, "url", { enumerable: false, value: input.url });
+  Object.defineProperty(result, "deliveryMaterial", { enumerable: false, value: input.deliveryMaterial });
   return result;
 }
 
@@ -312,8 +314,9 @@ export async function publishAddressedShare(options: AddressedSharePublishOption
       enforcementRootCid: enforcementRoot.cid,
       contentSourceDigestHex,
     });
-    options.onDeliveryMaterial?.({ envelope, sealedEnvelope: toBase64Url(sealed.blob), envelopeKey: toBase64Url(envelopeKey), shareCid: sealed.cid });
-    return publicationResult({ options, url, envelopeCid: sealed.cid, matcher, policyCid: created.policyCid, policyRootCid: policyRoot.cid, enforcementRootCid: enforcementRoot.cid, enforcerDid: registration.attestedEnforcerBinding.enforcerDid, expiry, retention });
+    const deliveryMaterial = { envelope, sealedEnvelope: toBase64Url(sealed.blob), envelopeKey: toBase64Url(envelopeKey), shareCid: sealed.cid };
+    options.onDeliveryMaterial?.(deliveryMaterial);
+    return publicationResult({ options, url, envelopeCid: sealed.cid, matcher, policyCid: created.policyCid, policyRootCid: policyRoot.cid, enforcementRootCid: enforcementRoot.cid, enforcerDid: registration.attestedEnforcerBinding.enforcerDid, expiry, retention, deliveryMaterial });
   } finally {
     envelopeKey.fill(0);
   }

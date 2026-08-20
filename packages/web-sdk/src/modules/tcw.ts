@@ -893,7 +893,7 @@ export class TinyCloudWeb {
     return node.registerPolicy(params);
   }
 
-  /** Authorize a short-lived, one-use v2 delivery using the authenticated invocation chain. */
+  /** @deprecated Policy/v2 delivery transport is retired. Use authorizeShareDeliveryV3. */
   async authorizeShareDelivery(input: Parameters<TinyCloudNode["authorizeShareDelivery"]>[0]): ReturnType<TinyCloudNode["authorizeShareDelivery"]> {
     const node = await this.ensureNode();
     return node.authorizeShareDelivery(input);

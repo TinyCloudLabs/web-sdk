@@ -19453,6 +19453,7 @@ function historyRecordForPublishedShare(result, now = /* @__PURE__ */ new Date()
     registeredAt: now.toISOString(),
     expiresAt: result.metadata.expiresAt,
     link: result.url,
+    ...result.deliveryMaterial === void 0 ? {} : { deliveryMaterial: result.deliveryMaterial },
     ...result.metadata.display.filename === void 0 ? {} : { filename: result.metadata.display.filename }
   };
 }

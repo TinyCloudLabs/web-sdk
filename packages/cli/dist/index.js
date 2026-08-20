@@ -37,7 +37,7 @@ import {
   tinycloudConfigPath,
   tinycloudHomePath
 } from "@tinycloud/operations/state";
-var CONFIG_DIR, PROFILES_DIR, CONFIG_FILE, DEFAULT_HOST, DEFAULT_OPENKEY_DEVICE_API_HOST, DEFAULT_PROFILE, DEFAULT_CHAIN_ID, ExitCode;
+var CONFIG_DIR, PROFILES_DIR, CONFIG_FILE, DEFAULT_HOST, DEFAULT_PROFILE, ExitCode;
 var init_constants = __esm({
   "src/config/constants.ts"() {
     "use strict";
@@ -45,9 +45,7 @@ var init_constants = __esm({
     PROFILES_DIR = profilesPath();
     CONFIG_FILE = tinycloudConfigPath();
     DEFAULT_HOST = "https://node.tinycloud.xyz";
-    DEFAULT_OPENKEY_DEVICE_API_HOST = "https://api.openkey.so";
     DEFAULT_PROFILE = "default";
-    DEFAULT_CHAIN_ID = 1;
     ExitCode = {
       SUCCESS: 0,
       ERROR: 1,
@@ -6165,7 +6163,7 @@ function eddsa(Point2, cHash, eddsaOpts = {}) {
   });
   const { prehash } = eddsaOpts;
   const { BASE, Fp: Fp2, Fn: Fn2 } = Point2;
-  const randomBytes5 = eddsaOpts.randomBytes || randomBytes;
+  const randomBytes3 = eddsaOpts.randomBytes || randomBytes;
   const adjustScalarBytes2 = eddsaOpts.adjustScalarBytes || ((bytes) => bytes);
   const domain = eddsaOpts.domain || ((data, ctx, phflag) => {
     _abool2(phflag, "phflag");
@@ -6247,7 +6245,7 @@ function eddsa(Point2, cHash, eddsaOpts = {}) {
     signature: 2 * _size,
     seed: _size
   };
-  function randomSecretKey(seed = randomBytes5(lengths.seed)) {
+  function randomSecretKey(seed = randomBytes3(lengths.seed)) {
     return _abytes2(seed, lengths.seed, "seed");
   }
   function keygen(seed) {
@@ -9070,7 +9068,7 @@ function weierstrass(curveDef) {
   function prepSig(msgHash, privateKey, opts = defaultSigOpts) {
     if (["recovered", "canonical"].some((k) => k in opts))
       throw new Error("sign() legacy options not supported");
-    const { hash, randomBytes: randomBytes5 } = CURVE;
+    const { hash, randomBytes: randomBytes3 } = CURVE;
     let { lowS, prehash, extraEntropy: ent } = opts;
     if (lowS == null)
       lowS = true;
@@ -9082,7 +9080,7 @@ function weierstrass(curveDef) {
     const d = normPrivateKeyToScalar(privateKey);
     const seedArgs = [int2octets(d), int2octets(h1int)];
     if (ent != null && ent !== false) {
-      const e = ent === true ? randomBytes5(Fp2.BYTES) : ent;
+      const e = ent === true ? randomBytes3(Fp2.BYTES) : ent;
       seedArgs.push(ensureBytes2("extraEntropy", e));
     }
     const seed = concatBytes3(...seedArgs);
@@ -14707,7 +14705,7 @@ var init_dist2 = __esm({
       async handleErrorResponse(response, operation) {
         const errorText = await response.text();
         const errorBody = parseServiceErrorBody(errorText);
-        const errorCode2 = this.mapHttpStatusToErrorCode(
+        const errorCode = this.mapHttpStatusToErrorCode(
           response.status,
           errorBody.error
         );
@@ -14725,7 +14723,7 @@ var init_dist2 = __esm({
           if (resource) meta.resource = resource;
         }
         return err(
-          serviceError(errorCode2, message, "sql", { meta })
+          serviceError(errorCode, message, "sql", { meta })
         );
       }
       mapHttpStatusToErrorCode(status, serverError) {
@@ -15055,7 +15053,7 @@ var init_dist2 = __esm({
       async handleErrorResponse(response, operation) {
         const errorText = await response.text();
         const errorBody = parseServiceErrorBody(errorText);
-        const errorCode2 = this.mapHttpStatusToErrorCode(
+        const errorCode = this.mapHttpStatusToErrorCode(
           response.status,
           errorBody.error
         );
@@ -15073,7 +15071,7 @@ var init_dist2 = __esm({
           if (resource) meta.resource = resource;
         }
         return err(
-          serviceError(errorCode2, message, "duckdb", { meta })
+          serviceError(errorCode, message, "duckdb", { meta })
         );
       }
       mapHttpStatusToErrorCode(status, serverError) {
@@ -19438,6 +19436,7 @@ function publicationResult(input) {
   };
   Object.defineProperty(result, "toJSON", { enumerable: false, value: () => redactPublishedShare(result) });
   Object.defineProperty(result, "url", { enumerable: false, value: input.url });
+  Object.defineProperty(result, "deliveryMaterial", { enumerable: false, value: input.deliveryMaterial });
   return result;
 }
 async function publishAddressedShare(options) {
@@ -19535,8 +19534,9 @@ async function publishAddressedShare(options) {
       enforcementRootCid: enforcementRoot.cid,
       contentSourceDigestHex
     });
-    options.onDeliveryMaterial?.({ envelope, sealedEnvelope: toBase64Url(sealed.blob), envelopeKey: toBase64Url(envelopeKey), shareCid: sealed.cid });
-    return publicationResult({ options, url, envelopeCid: sealed.cid, matcher, policyCid: created.policyCid, policyRootCid: policyRoot.cid, enforcementRootCid: enforcementRoot.cid, enforcerDid: registration.attestedEnforcerBinding.enforcerDid, expiry, retention });
+    const deliveryMaterial = { envelope, sealedEnvelope: toBase64Url(sealed.blob), envelopeKey: toBase64Url(envelopeKey), shareCid: sealed.cid };
+    options.onDeliveryMaterial?.(deliveryMaterial);
+    return publicationResult({ options, url, envelopeCid: sealed.cid, matcher, policyCid: created.policyCid, policyRootCid: policyRoot.cid, enforcementRootCid: enforcementRoot.cid, enforcerDid: registration.attestedEnforcerBinding.enforcerDid, expiry, retention, deliveryMaterial });
   } finally {
     envelopeKey.fill(0);
   }
@@ -19986,6 +19986,7 @@ function historyRecordForPublishedShare(result, now = /* @__PURE__ */ new Date()
     registeredAt: now.toISOString(),
     expiresAt: result.metadata.expiresAt,
     link: result.url,
+    ...result.deliveryMaterial === void 0 ? {} : { deliveryMaterial: result.deliveryMaterial },
     ...result.metadata.display.filename === void 0 ? {} : { filename: result.metadata.display.filename }
   };
 }
@@ -26146,64 +26147,6 @@ function createShareLinkDataSchema(dataSchema) {
     path: external_exports.string()
   });
 }
-function activationFlightKey(host, delegationHeader) {
-  const entries = Object.entries(delegationHeader).sort(
-    ([a], [b]) => a < b ? -1 : a > b ? 1 : 0
-  );
-  return JSON.stringify([host, entries]);
-}
-async function activateSessionWithHost(host, delegationHeader) {
-  const key = activationFlightKey(host, delegationHeader);
-  const existing = inFlightActivations.get(key);
-  if (!existing) return startActivationFlight(key, host, delegationHeader);
-  try {
-    return await existing;
-  } catch {
-    return joinOrStartActivationFlight(key, host, delegationHeader);
-  }
-}
-function joinOrStartActivationFlight(key, host, delegationHeader) {
-  return inFlightActivations.get(key) ?? startActivationFlight(key, host, delegationHeader);
-}
-function startActivationFlight(key, host, delegationHeader) {
-  const flight = postSessionActivation(host, delegationHeader);
-  inFlightActivations.set(key, flight);
-  const evict = () => {
-    if (inFlightActivations.get(key) === flight) inFlightActivations.delete(key);
-  };
-  flight.then(evict, evict);
-  return flight;
-}
-async function postSessionActivation(host, delegationHeader) {
-  const res = await fetch(`${host}/delegate`, {
-    method: "POST",
-    headers: delegationHeader
-  });
-  if (res.ok) {
-    try {
-      const body = await res.json();
-      return {
-        success: true,
-        status: res.status,
-        activated: body.activated ?? [],
-        skipped: body.skipped ?? [],
-        commitEventCid: body.cid
-      };
-    } catch {
-      return {
-        success: true,
-        status: res.status,
-        activated: [],
-        skipped: []
-      };
-    }
-  }
-  return {
-    success: false,
-    status: res.status,
-    error: await res.text().catch(() => res.statusText)
-  };
-}
 function equals32(a, b) {
   if (a === b) {
     return true;
@@ -27142,7 +27085,7 @@ function decodeBase64Url4(value) {
   }
   return Uint8Array.from(bytes22);
 }
-var import_ms, __defProp3, __typeError, __defNormalProp, __export3, __publicField, __accessCheck, __privateGet, __privateAdd, __privateSet, EnsDataSchema, SiweConfigSchema, ClientSessionSchema, objectHasOwn, base32_exports, empty3, src3, _brrp__multiformats_scope_baseX3, base_x_default3, Encoder3, Decoder3, ComposedDecoder3, Codec3, base323, base32upper3, base32pad3, base32padupper3, base32hex3, base32hexupper3, base32hexpad3, base32hexpadupper3, base32z3, base36_exports, base363, base36upper3, base58_exports, base58btc3, base58flickr3, encode_13, MSB3, REST3, MSBALL3, INT3, decode22, MSB$13, REST$13, N13, N23, N33, N43, N53, N63, N73, N83, N93, length3, varint3, _brrp_varint3, varint_default3, Digest3, cache3, _a, CID3, DAG_PB_CODE3, SHA_256_CODE3, cidSymbol3, textEncoder2, objectHasOwn2, CEILING_SERVICES, GRANTABLE_ACTIONS, base10_exports, base10, base16_exports, base16, base16upper, base2_exports, base22, base256emoji_exports, alphabet, alphabetBytesToChars, alphabetCharsToBytes, base256emoji, base64_exports, base642, base64pad2, base64url2, base64urlpad2, base8_exports, base8, identity_exports, identity, textEncoder22, textDecoder, identity_exports2, code22, name, encode42, identity2, sha2_browser_exports, DEFAULT_MIN_DIGEST_LENGTH, Hasher, sha25622, sha5122, bases, hashes, textEncoder3, objectHasOwn3, TRANSCRIPT_SHARE_BOOTSTRAP_SCHEMA, OWNER_NODE_ENDPOINT_SCHEMA, W3C_VC_CREDENTIAL_VERIFIER, objectHasOwn4, CompactHeaderSchema, CompactPayloadSchema, POLICY_ENGINE_CHALLENGE_RESPONSE_SCHEMA, POLICY_ENGINE_DENIAL_SCHEMA, POLICY_ENGINE_GRANT_PRESENTATION_DENIAL_CODES, JsonValueSchema, Rfc3339Schema, SignedRecordSchema, PolicyEngineSchema, OwnerNodeSchema, ResourceHintSchema, BootstrapSchema, SignatureSchema, ChallengeSchema, ChallengeResponseSchema, DenialSchema, ErrorEnvelopeDenialSchema, WireDelegationSchema, ResolveResponseSchema, DelegateReceiptSchema, SqlReadResponseSchema, KvReadResponseSchema, LISTEN_SQL_STATEMENT_CATALOG, LISTEN_SQL_STATEMENT_BY_NAME, JWKSchema, KeyTypeSchema, KeyInfoSchema, DelegationErrorSchema, DelegationSchema, DelegationStatusSchema, DelegationRevocationReceiptSchema, AccountDelegationResourceSchema, AccountDelegationDateSchema, AccountDelegationRecordSchema, AccountDelegationPageSchema, AccountDelegationQueryOptionsSchema, CapabilityEntrySchema, DelegationRecordSchema, CreateDelegationParamsSchema, DelegationChainSchema, DelegationChainV2Schema, DelegationDirectionSchema, DelegationFiltersSchema, SpaceOwnershipSchema, SpaceInfoSchema, ShareSchemaSchema, ShareLinkSchema, ShareLinkDataSchema, IngestOptionsSchema, GenerateShareParamsSchema, DelegationManagerConfigSchema, KeyProviderSchema, DelegationApiResponseSchema, DelegatedResourceSchema, CreateDelegationWasmParamsSchema, CreateDelegationWasmResultSchema, EPHEMERAL_MS, SIGNED_READ_URL_MS, SESSION_MS, SHARE_MS, APP_MS, MAX_MS, EXPIRY, DEFAULT_SIGNED_READ_URL_EXPIRY_MS2, EncodedShareDataSchema, ReceiveOptionsSchema, SharingServiceConfigSchema, SERVICE_SHORT_TO_LONG, SERVICE_LONG_TO_SHORT, DEFAULT_MAX_INLINE_BYTES, MAX_SHARE_CONTENT_BYTES, MAX_SEALED_SHARE_CONTENT_BYTES, MAX_SHARE_ARTIFACT_BYTES, PUBLISHED_AAD, ShareRecipientTargetSchema, ShareResourceSchema, ShareActionSchema, ShareRecipientPolicySchema, ShareRecipientClientOptionsSchema, ShareNativeActionSchema, ShareWireActionSchema, ShareContentSourceSchema, ShareAddressedRecipientSchema, ShareAddressedDelegationRequestV2Schema, ShareAddressedDelegationEnvelopeV2Schema, ShareAddressedDelegationResponseV2Schema, ShareNativeResponseEntrySchema, ShareNativeResponseBase, ShareNativeResponseSchema, ResourceSchema, PortableDelegationSchema, MAX_NATIVE_CURSOR_BYTES, DEFAULT_EXPIRY_MS2, MAX_CONTENT_BYTES2, ethereumAddressPattern, EnsDataSchema2, PersistedTinyCloudSessionSchema, PersistedSessionDataSchema, TinyCloudSessionSchema, SpaceConfigSchema, SpaceServiceConfigSchema, SpaceDelegationParamsSchema, ServerDelegationInfoSchema, ServerDelegationsResponseSchema, ServerOwnedSpaceSchema, ServerOwnedSpacesResponseSchema, ServerCreateSpaceResponseSchema, ServerSpaceInfoResponseSchema, inFlightActivations, AutoApproveSpaceCreationHandler, defaultSpaceCreationHandler, N122, N222, N322, N422, N522, N622, N722, MSB22, REST22, string, ascii, BASES, bases_default, InvalidMultiaddrError, ValidationError, InvalidParametersError, UnknownProtocolError, Parser, MAX_IPV6_LENGTH, MAX_IPV4_LENGTH, parser, CODE_IP4, CODE_TCP, CODE_UDP, CODE_DCCP, CODE_IP6, CODE_IP6ZONE, CODE_IPCIDR, CODE_DNS, CODE_DNS4, CODE_DNS6, CODE_DNSADDR, CODE_SCTP, CODE_UDT, CODE_UTP, CODE_UNIX, CODE_P2P, CODE_ONION, CODE_ONION3, CODE_GARLIC64, CODE_GARLIC32, CODE_TLS, CODE_SNI, CODE_NOISE, CODE_QUIC, CODE_QUIC_V1, CODE_WEBTRANSPORT, CODE_CERTHASH, CODE_HTTP, CODE_HTTP_PATH, CODE_HTTPS, CODE_WS, CODE_WSS, CODE_P2P_WEBSOCKET_STAR, CODE_P2P_STARDUST, CODE_P2P_WEBRTC_STAR, CODE_P2P_WEBRTC_DIRECT, CODE_WEBRTC_DIRECT, CODE_WEBRTC, CODE_P2P_CIRCUIT, CODE_MEMORY, ip4ToBytes, ip6ToBytes, ip4ToString, ip6ToString, decoders, anybaseDecoder, validatePort, V, Registry, registry, codecs, inspect, symbol, _a2, _components, _string, _bytes, _Multiaddr, Multiaddr, ASSUME_HTTP_CODES, interpreters, word, boundry, v4, v6segment, v6, v46Exact, v4exact, v6exact, ipRegex, toString3, DEFAULT_TINYCLOUD_LOCATION_REGISTRY_URL, LOCAL_LOOPBACK_PROBE_TIMEOUT_MS, LOCAL_LINK_PROBE_TIMEOUT_MS, LOCAL_LINK_HOST_SUFFIX, LocationRecordValidationError, defaultLocalNodeIdentityStore, DNS_LABEL_REGEX;
+var import_ms, __defProp3, __typeError, __defNormalProp, __export3, __publicField, __accessCheck, __privateGet, __privateAdd, __privateSet, EnsDataSchema, SiweConfigSchema, ClientSessionSchema, objectHasOwn, base32_exports, empty3, src3, _brrp__multiformats_scope_baseX3, base_x_default3, Encoder3, Decoder3, ComposedDecoder3, Codec3, base323, base32upper3, base32pad3, base32padupper3, base32hex3, base32hexupper3, base32hexpad3, base32hexpadupper3, base32z3, base36_exports, base363, base36upper3, base58_exports, base58btc3, base58flickr3, encode_13, MSB3, REST3, MSBALL3, INT3, decode22, MSB$13, REST$13, N13, N23, N33, N43, N53, N63, N73, N83, N93, length3, varint3, _brrp_varint3, varint_default3, Digest3, cache3, _a, CID3, DAG_PB_CODE3, SHA_256_CODE3, cidSymbol3, textEncoder2, objectHasOwn2, CEILING_SERVICES, GRANTABLE_ACTIONS, base10_exports, base10, base16_exports, base16, base16upper, base2_exports, base22, base256emoji_exports, alphabet, alphabetBytesToChars, alphabetCharsToBytes, base256emoji, base64_exports, base642, base64pad2, base64url2, base64urlpad2, base8_exports, base8, identity_exports, identity, textEncoder22, textDecoder, identity_exports2, code22, name, encode42, identity2, sha2_browser_exports, DEFAULT_MIN_DIGEST_LENGTH, Hasher, sha25622, sha5122, bases, hashes, textEncoder3, objectHasOwn3, TRANSCRIPT_SHARE_BOOTSTRAP_SCHEMA, OWNER_NODE_ENDPOINT_SCHEMA, W3C_VC_CREDENTIAL_VERIFIER, objectHasOwn4, CompactHeaderSchema, CompactPayloadSchema, POLICY_ENGINE_CHALLENGE_RESPONSE_SCHEMA, POLICY_ENGINE_DENIAL_SCHEMA, POLICY_ENGINE_GRANT_PRESENTATION_DENIAL_CODES, JsonValueSchema, Rfc3339Schema, SignedRecordSchema, PolicyEngineSchema, OwnerNodeSchema, ResourceHintSchema, BootstrapSchema, SignatureSchema, ChallengeSchema, ChallengeResponseSchema, DenialSchema, ErrorEnvelopeDenialSchema, WireDelegationSchema, ResolveResponseSchema, DelegateReceiptSchema, SqlReadResponseSchema, KvReadResponseSchema, LISTEN_SQL_STATEMENT_CATALOG, LISTEN_SQL_STATEMENT_BY_NAME, JWKSchema, KeyTypeSchema, KeyInfoSchema, DelegationErrorSchema, DelegationSchema, DelegationStatusSchema, DelegationRevocationReceiptSchema, AccountDelegationResourceSchema, AccountDelegationDateSchema, AccountDelegationRecordSchema, AccountDelegationPageSchema, AccountDelegationQueryOptionsSchema, CapabilityEntrySchema, DelegationRecordSchema, CreateDelegationParamsSchema, DelegationChainSchema, DelegationChainV2Schema, DelegationDirectionSchema, DelegationFiltersSchema, SpaceOwnershipSchema, SpaceInfoSchema, ShareSchemaSchema, ShareLinkSchema, ShareLinkDataSchema, IngestOptionsSchema, GenerateShareParamsSchema, DelegationManagerConfigSchema, KeyProviderSchema, DelegationApiResponseSchema, DelegatedResourceSchema, CreateDelegationWasmParamsSchema, CreateDelegationWasmResultSchema, EPHEMERAL_MS, SIGNED_READ_URL_MS, SESSION_MS, SHARE_MS, APP_MS, MAX_MS, EXPIRY, DEFAULT_SIGNED_READ_URL_EXPIRY_MS2, EncodedShareDataSchema, ReceiveOptionsSchema, SharingServiceConfigSchema, SERVICE_SHORT_TO_LONG, SERVICE_LONG_TO_SHORT, DEFAULT_MAX_INLINE_BYTES, MAX_SHARE_CONTENT_BYTES, MAX_SEALED_SHARE_CONTENT_BYTES, MAX_SHARE_ARTIFACT_BYTES, PUBLISHED_AAD, ShareRecipientTargetSchema, ShareResourceSchema, ShareActionSchema, ShareRecipientPolicySchema, ShareRecipientClientOptionsSchema, ShareNativeActionSchema, ShareWireActionSchema, ShareContentSourceSchema, ShareAddressedRecipientSchema, ShareAddressedDelegationRequestV2Schema, ShareAddressedDelegationEnvelopeV2Schema, ShareAddressedDelegationResponseV2Schema, ShareNativeResponseEntrySchema, ShareNativeResponseBase, ShareNativeResponseSchema, ResourceSchema, PortableDelegationSchema, MAX_NATIVE_CURSOR_BYTES, DEFAULT_EXPIRY_MS2, MAX_CONTENT_BYTES2, ethereumAddressPattern, EnsDataSchema2, PersistedTinyCloudSessionSchema, PersistedSessionDataSchema, TinyCloudSessionSchema, SpaceConfigSchema, SpaceServiceConfigSchema, SpaceDelegationParamsSchema, ServerDelegationInfoSchema, ServerDelegationsResponseSchema, ServerOwnedSpaceSchema, ServerOwnedSpacesResponseSchema, ServerCreateSpaceResponseSchema, ServerSpaceInfoResponseSchema, AutoApproveSpaceCreationHandler, defaultSpaceCreationHandler, N122, N222, N322, N422, N522, N622, N722, MSB22, REST22, string, ascii, BASES, bases_default, InvalidMultiaddrError, ValidationError, InvalidParametersError, UnknownProtocolError, Parser, MAX_IPV6_LENGTH, MAX_IPV4_LENGTH, parser, CODE_IP4, CODE_TCP, CODE_UDP, CODE_DCCP, CODE_IP6, CODE_IP6ZONE, CODE_IPCIDR, CODE_DNS, CODE_DNS4, CODE_DNS6, CODE_DNSADDR, CODE_SCTP, CODE_UDT, CODE_UTP, CODE_UNIX, CODE_P2P, CODE_ONION, CODE_ONION3, CODE_GARLIC64, CODE_GARLIC32, CODE_TLS, CODE_SNI, CODE_NOISE, CODE_QUIC, CODE_QUIC_V1, CODE_WEBTRANSPORT, CODE_CERTHASH, CODE_HTTP, CODE_HTTP_PATH, CODE_HTTPS, CODE_WS, CODE_WSS, CODE_P2P_WEBSOCKET_STAR, CODE_P2P_STARDUST, CODE_P2P_WEBRTC_STAR, CODE_P2P_WEBRTC_DIRECT, CODE_WEBRTC_DIRECT, CODE_WEBRTC, CODE_P2P_CIRCUIT, CODE_MEMORY, ip4ToBytes, ip6ToBytes, ip4ToString, ip6ToString, decoders, anybaseDecoder, validatePort, V, Registry, registry, codecs, inspect, symbol, _a2, _components, _string, _bytes, _Multiaddr, Multiaddr, ASSUME_HTTP_CODES, interpreters, word, boundry, v4, v6segment, v6, v46Exact, v4exact, v6exact, ipRegex, toString3, DEFAULT_TINYCLOUD_LOCATION_REGISTRY_URL, LOCAL_LOOPBACK_PROBE_TIMEOUT_MS, LOCAL_LINK_PROBE_TIMEOUT_MS, LOCAL_LINK_HOST_SUFFIX, LocationRecordValidationError, defaultLocalNodeIdentityStore, DNS_LABEL_REGEX;
 var init_dist4 = __esm({
   "../sdk-core/dist/index.js"() {
     "use strict";
@@ -28949,7 +28892,6 @@ var init_dist4 = __esm({
       /** Expiration for delegated access */
       expiresAt: external_exports.string().optional()
     });
-    inFlightActivations = /* @__PURE__ */ new Map();
     AutoApproveSpaceCreationHandler = class {
       /**
        * Always returns true to auto-approve space creation.
@@ -30442,385 +30384,6 @@ var init_sdk = __esm({
   }
 });
 
-// src/auth/local-key.ts
-import { TCWSessionManager, importKey, initPanicHook } from "@tinycloud/node-sdk-wasm";
-import { PrivateKeySigner } from "@tinycloud/node-sdk";
-import { randomBytes as randomBytes3 } from "crypto";
-function ensureWasm() {
-  if (!wasmInitialized) {
-    initPanicHook();
-    wasmInitialized = true;
-  }
-}
-function generateKey2() {
-  ensureWasm();
-  const mgr = new TCWSessionManager();
-  const keyId = mgr.createSessionKey("cli");
-  const jwkStr = mgr.jwk(keyId);
-  if (!jwkStr) throw new Error("Failed to generate key");
-  const jwk = JSON.parse(jwkStr);
-  const did = mgr.getDID(keyId);
-  return { jwk, did };
-}
-function keyToDID(jwk) {
-  ensureWasm();
-  const mgr = new TCWSessionManager();
-  const keyId = importKey(mgr, JSON.stringify(jwk), "imported");
-  return mgr.getDID(keyId);
-}
-var wasmInitialized;
-var init_local_key = __esm({
-  "src/auth/local-key.ts"() {
-    "use strict";
-    wasmInitialized = false;
-  }
-});
-
-// src/auth/browser-auth.ts
-import { createServer } from "http";
-import { createInterface } from "readline";
-function publicJwkForDelegation(jwk) {
-  const publicJwk = {};
-  for (const [key, value] of Object.entries(jwk)) {
-    if (!PRIVATE_JWK_FIELDS.has(key)) {
-      publicJwk[key] = value;
-    }
-  }
-  return publicJwk;
-}
-function validateDelegationCallbackPayload(value) {
-  if (!value || typeof value !== "object") return "expected an object";
-  const v = value;
-  if (!v.delegationHeader || typeof v.delegationHeader !== "object") {
-    return "delegationHeader must be an object";
-  }
-  const auth = v.delegationHeader.Authorization;
-  if (typeof auth !== "string" || !auth) {
-    return "delegationHeader.Authorization must be a non-empty string";
-  }
-  if (typeof v.delegationCid !== "string" || !v.delegationCid) {
-    return "delegationCid must be a non-empty string";
-  }
-  if (typeof v.spaceId !== "string" || !v.spaceId) {
-    return "spaceId must be a non-empty string";
-  }
-  if (v.permissions !== void 0) {
-    if (!Array.isArray(v.permissions)) {
-      return "permissions, when present, must be an array";
-    }
-    for (let i = 0; i < v.permissions.length; i++) {
-      const entry = v.permissions[i];
-      if (!entry || typeof entry !== "object") {
-        return `permissions[${i}] must be an object`;
-      }
-      const e = entry;
-      if (typeof e.service !== "string" || !e.service) {
-        return `permissions[${i}].service must be a non-empty string`;
-      }
-      if (typeof e.space !== "string") {
-        return `permissions[${i}].space must be a string`;
-      }
-      if (typeof e.path !== "string") {
-        return `permissions[${i}].path must be a string`;
-      }
-      if (!Array.isArray(e.actions) || e.actions.some((a) => typeof a !== "string" || !a)) {
-        return `permissions[${i}].actions must be a non-empty string[]`;
-      }
-    }
-  }
-  return null;
-}
-var PRIVATE_JWK_FIELDS;
-var init_browser_auth = __esm({
-  "src/auth/browser-auth.ts"() {
-    "use strict";
-    init_formatter();
-    init_constants();
-    PRIVATE_JWK_FIELDS = /* @__PURE__ */ new Set([
-      "d",
-      "p",
-      "q",
-      "dp",
-      "dq",
-      "qi",
-      "oth",
-      "k"
-    ]);
-  }
-});
-
-// src/auth/device-auth.ts
-var device_auth_exports = {};
-__export(device_auth_exports, {
-  SHARE_DEVICE_DELEGATION_SECONDS: () => SHARE_DEVICE_DELEGATION_SECONDS,
-  SHARE_DEVICE_PERMISSIONS: () => SHARE_DEVICE_PERMISSIONS,
-  acquireShareDeviceDelegation: () => acquireShareDeviceDelegation,
-  ensureShareDeviceAuthorization: () => ensureShareDeviceAuthorization,
-  mergePrivateJwkIntoSession: () => mergePrivateJwkIntoSession
-});
-import {
-  createDecipheriv,
-  createHash,
-  createHmac,
-  createPublicKey,
-  diffieHellman,
-  generateKeyPairSync,
-  randomBytes as randomBytes4
-} from "crypto";
-function digest2(value) {
-  return createHash("sha256").update(value).digest("base64url");
-}
-function canonicalOrigin(value, label) {
-  const url = new URL(value);
-  const loopback = url.hostname === "127.0.0.1" || url.hostname === "localhost";
-  if (url.origin !== value || url.protocol !== "https:" && !(loopback && url.protocol === "http:")) {
-    throw new Error(`${label} must be a canonical HTTPS origin`);
-  }
-  return value;
-}
-function jsonEqual(left, right) {
-  const canonical = (value) => Array.isArray(value) ? value.map(canonical) : value && typeof value === "object" ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, entry]) => [key, canonical(entry)])) : value;
-  return JSON.stringify(canonical(left)) === JSON.stringify(canonical(right));
-}
-function validateStart(value) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("OpenKey returned an invalid device authorization response");
-  const result = value;
-  if (typeof result.transactionId !== "string" || !/^[A-Za-z0-9_-]{20,}$/.test(result.transactionId) || typeof result.userCode !== "string" || !/^[A-Z2-9]{4}-[A-Z2-9]{4}$/.test(result.userCode) || typeof result.verificationUri !== "string" || typeof result.verificationUriComplete !== "string" || !Number.isSafeInteger(result.expiresIn) || Number(result.expiresIn) < 60 || !Number.isSafeInteger(result.interval) || Number(result.interval) < 1) throw new Error("OpenKey returned an invalid device authorization response");
-  canonicalOrigin(new URL(result.verificationUri).origin, "verification URI");
-  if (new URL(result.verificationUriComplete).origin !== new URL(result.verificationUri).origin) {
-    throw new Error("OpenKey returned an invalid verification URI");
-  }
-  return result;
-}
-async function responseJson(response) {
-  try {
-    return await response.json();
-  } catch {
-    throw new Error(`OpenKey device authorization failed (HTTP ${response.status})`);
-  }
-}
-function errorCode(value) {
-  return value && typeof value === "object" && typeof value.error === "string" ? value.error : void 0;
-}
-function publicSessionJwk(value) {
-  const publicJwk = publicJwkForDelegation(value);
-  const record2 = publicJwk;
-  if (record2.kty !== "OKP" || record2.crv !== "Ed25519" || typeof record2.x !== "string") {
-    throw new Error("CLI session key is not a public Ed25519 JWK");
-  }
-  return publicJwk;
-}
-function publicRelayJwk(value) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("OpenKey returned an invalid relay key");
-  const jwk = value;
-  if (jwk.kty !== "EC" || jwk.crv !== "P-256" || typeof jwk.x !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(jwk.x) || typeof jwk.y !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(jwk.y) || "d" in jwk) throw new Error("OpenKey returned an invalid relay key");
-  return { kty: "EC", crv: "P-256", x: jwk.x, y: jwk.y };
-}
-function decodeCanonicalBase64Url(value, label) {
-  if (typeof value !== "string" || !/^[A-Za-z0-9_-]+$/.test(value)) throw new Error(`OpenKey returned an invalid ${label}`);
-  const decoded = Buffer.from(value, "base64url");
-  if (decoded.toString("base64url") !== value) throw new Error(`OpenKey returned an invalid ${label}`);
-  return decoded;
-}
-function deriveRelayKey(sharedSecret, transactionId) {
-  const extracted = createHmac("sha256", Buffer.from(transactionId)).update(sharedSecret).digest();
-  return createHmac("sha256", extracted).update(Buffer.from("openkey-device-relay-v1")).update(Buffer.from([1])).digest();
-}
-function decryptRelayResult(envelope, transactionId, privateKey) {
-  if (!envelope || typeof envelope !== "object" || Array.isArray(envelope)) throw new Error("OpenKey returned an invalid encrypted relay result");
-  const relay = envelope;
-  if (relay.version !== 1 || relay.algorithm !== "ECDH-P256-A256GCM") throw new Error("OpenKey returned an unsupported encrypted relay result");
-  const peer = createPublicKey({ key: publicRelayJwk(relay.ephemeralPublicJwk), format: "jwk" });
-  const nonce = decodeCanonicalBase64Url(relay.nonce, "relay nonce");
-  const ciphertext = decodeCanonicalBase64Url(relay.ciphertext, "relay ciphertext");
-  if (nonce.length !== 12 || ciphertext.length <= 16) throw new Error("OpenKey returned an invalid encrypted relay result");
-  const sharedSecret = diffieHellman({ privateKey, publicKey: peer });
-  const key = deriveRelayKey(sharedSecret, transactionId);
-  const decipher = createDecipheriv("aes-256-gcm", key, nonce);
-  decipher.setAAD(Buffer.from(transactionId));
-  decipher.setAuthTag(ciphertext.subarray(ciphertext.length - 16));
-  let value;
-  try {
-    value = JSON.parse(Buffer.concat([decipher.update(ciphertext.subarray(0, -16)), decipher.final()]).toString("utf8"));
-  } catch {
-    throw new Error("OpenKey returned an unreadable encrypted relay result");
-  }
-  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("OpenKey returned an invalid encrypted relay result");
-  return value;
-}
-function assertShareDelegationPermissions(value) {
-  if (!Array.isArray(value) || value.length !== 1) throw new Error("OpenKey returned a delegation outside the requested Share scope");
-  const permission = value[0];
-  if (!permission || permission.service !== "tinycloud.capabilities" && permission.service !== "capabilities" || permission.space !== "applications" && !(typeof permission.space === "string" && permission.space.endsWith(":applications")) || permission.path !== "" || !Array.isArray(permission.actions) || permission.actions.length !== 1 || permission.actions[0] !== "tinycloud.capabilities/read") throw new Error("OpenKey returned a delegation outside the requested Share scope");
-}
-function assertApprovedBinding(input) {
-  if (input.binding.transactionId !== input.transactionId || input.binding.sessionDid !== input.sessionDid || input.binding.nodeOrigin !== input.nodeOrigin || input.binding.shareOrigin !== input.shareOrigin || !jsonEqual(input.binding.permissions, SHARE_DEVICE_PERMISSIONS)) throw new Error("OpenKey returned a delegation with the wrong device binding");
-  const expiresAt = Date.parse(input.binding.delegationExpiresAt);
-  if (!Number.isFinite(expiresAt) || expiresAt <= Date.now() || expiresAt > Date.now() + SHARE_DEVICE_DELEGATION_SECONDS * 1e3 + 3e4) {
-    throw new Error("OpenKey returned a delegation outside the requested expiry window");
-  }
-  if (input.delegation.verificationMethod !== input.sessionDid) {
-    throw new Error("OpenKey returned a delegation for a different CLI session DID");
-  }
-  assertShareDelegationPermissions(input.delegation.permissions);
-  const delegationExpiryValue = input.delegation.expiresAt ?? input.delegation.expirationTime ?? input.delegation.expiry;
-  const delegationExpiresAt = typeof delegationExpiryValue === "string" ? Date.parse(delegationExpiryValue) : Number.NaN;
-  if (!Number.isFinite(delegationExpiresAt) || delegationExpiresAt !== expiresAt) {
-    throw new Error("OpenKey returned a delegation outside the approved expiry window");
-  }
-  if (!input.delegation.jwk || typeof input.delegation.jwk !== "object" || !jsonEqual(publicSessionJwk(input.delegation.jwk), input.publicJwk)) {
-    throw new Error("OpenKey returned a delegation for a different CLI session key");
-  }
-  const invalid = validateDelegationCallbackPayload(input.delegation);
-  if (invalid) throw new Error(`OpenKey returned an invalid delegation: ${invalid}`);
-}
-async function acquireShareDeviceDelegation(input) {
-  const openkeyHost = canonicalOrigin(input.openkeyHost ?? DEFAULT_OPENKEY_DEVICE_API_HOST, "OpenKey host");
-  const nodeOrigin = canonicalOrigin(input.nodeOrigin, "TinyCloud node origin");
-  const shareOrigin = canonicalOrigin(input.shareOrigin, "Share origin");
-  const fetchFn = input.fetchFn ?? globalThis.fetch;
-  const deviceSecret = randomBytes4(32).toString("base64url");
-  const codeVerifier = randomBytes4(32).toString("base64url");
-  const relayKeys = generateKeyPairSync("ec", { namedCurve: "prime256v1" });
-  const relayPublicJwk = publicRelayJwk(relayKeys.publicKey.export({ format: "jwk" }));
-  const publicJwk = publicSessionJwk(input.jwk);
-  const startResponse = await fetchFn(`${openkeyHost}/api/device-authorizations`, {
-    method: "POST",
-    credentials: "omit",
-    redirect: "error",
-    referrerPolicy: "no-referrer",
-    headers: { accept: "application/json", "content-type": "application/json" },
-    body: JSON.stringify({
-      deviceSecretHash: digest2(deviceSecret),
-      codeChallenge: digest2(codeVerifier),
-      relayPublicJwk,
-      sessionDid: input.sessionDid,
-      publicJwk,
-      permissions: SHARE_DEVICE_PERMISSIONS,
-      nodeOrigin,
-      shareOrigin,
-      delegationTtlSeconds: SHARE_DEVICE_DELEGATION_SECONDS
-    })
-  });
-  const startValue = await responseJson(startResponse);
-  if (!startResponse.ok) throw new Error(`OpenKey device authorization failed: ${errorCode(startValue) ?? startResponse.status}`);
-  const started = validateStart(startValue);
-  (input.emitInstructions ?? ((value) => {
-    process.stderr.write(`OpenKey device authorization
-Visit: ${value.verificationUri}
-Code:  ${value.userCode}
-
-Waiting for approval\u2026
-`);
-  }))({ verificationUri: started.verificationUri, verificationUriComplete: started.verificationUriComplete, userCode: started.userCode });
-  const deadline = Date.now() + started.expiresIn * 1e3;
-  let interval = started.interval;
-  const wait = input.wait ?? ((milliseconds) => new Promise((resolve2) => setTimeout(resolve2, milliseconds)));
-  while (Date.now() < deadline) {
-    await wait(interval * 1e3);
-    const response = await fetchFn(`${openkeyHost}/api/device-authorizations/token`, {
-      method: "POST",
-      credentials: "omit",
-      redirect: "error",
-      referrerPolicy: "no-referrer",
-      headers: { accept: "application/json", "content-type": "application/json" },
-      body: JSON.stringify({ transactionId: started.transactionId, deviceSecret, codeVerifier })
-    });
-    const value = await responseJson(response);
-    const code4 = errorCode(value);
-    if (response.status === 429 && code4 === "slow_down") {
-      interval += 1;
-      continue;
-    }
-    if (!response.ok) throw new Error(`OpenKey device authorization failed: ${code4 ?? response.status}`);
-    const result = value;
-    if (result.status === "pending") {
-      interval = Math.max(interval, result.interval);
-      continue;
-    }
-    if (result.status !== "approved" || !result.relay || !result.binding) {
-      throw new Error("OpenKey returned an invalid device authorization result");
-    }
-    const delegation = decryptRelayResult(result.relay, started.transactionId, relayKeys.privateKey);
-    assertApprovedBinding({ binding: result.binding, transactionId: started.transactionId, sessionDid: input.sessionDid, nodeOrigin, shareOrigin, publicJwk, delegation });
-    return delegation;
-  }
-  throw new Error("OpenKey device authorization expired before approval");
-}
-function mergePrivateJwkIntoSession(session, key) {
-  const sessionJwk = session.jwk;
-  if (!sessionJwk || typeof sessionJwk !== "object") return session;
-  const sessionJwkRecord = sessionJwk;
-  if (typeof sessionJwkRecord.d === "string" && sessionJwkRecord.d.length > 0) return session;
-  const privateParameter = key.d;
-  if (typeof privateParameter !== "string" || privateParameter.length === 0) return session;
-  return { ...session, jwk: { ...sessionJwkRecord, d: privateParameter } };
-}
-async function ensureShareDeviceAuthorization(input) {
-  let profile = await ProfileManager.getProfile(input.profileName).catch(() => null);
-  if (profile?.authMethod === "local" && input.allowReplaceLocal !== true) {
-    throw new Error("This profile uses a local owner key. Run `tc auth login --device` explicitly to replace its authentication posture.");
-  }
-  let key = await ProfileManager.getKey(input.profileName);
-  if (!key) {
-    const generated = generateKey2();
-    key = generated.jwk;
-    await ProfileManager.setKey(input.profileName, key);
-  }
-  const sessionDid = keyToDID(key);
-  profile = {
-    ...profile,
-    name: input.profileName,
-    host: input.nodeOrigin,
-    chainId: profile?.chainId ?? DEFAULT_CHAIN_ID,
-    spaceName: profile?.spaceName ?? "applications",
-    did: sessionDid,
-    sessionDid,
-    createdAt: profile?.createdAt ?? (/* @__PURE__ */ new Date()).toISOString(),
-    posture: "owner-openkey",
-    operatorType: profile?.operatorType ?? "human",
-    authMethod: "openkey",
-    openkeyHost: input.openkeyHost ?? profile?.openkeyHost
-  };
-  await ProfileManager.setProfile(input.profileName, profile);
-  const delegation = await acquireShareDeviceDelegation({
-    sessionDid,
-    jwk: key,
-    nodeOrigin: input.nodeOrigin,
-    shareOrigin: input.shareOrigin,
-    openkeyHost: input.openkeyHost ?? profile.openkeyHost,
-    fetchFn: input.fetchFn,
-    emitInstructions: input.emitInstructions,
-    wait: input.wait
-  });
-  const session = mergePrivateJwkIntoSession(delegation, key);
-  await ProfileManager.setSession(input.profileName, session);
-  const updatedProfile = {
-    ...profile,
-    ownerDid: typeof session.ownerDid === "string" ? session.ownerDid : profile.ownerDid,
-    spaceId: typeof session.spaceId === "string" ? session.spaceId : profile.spaceId
-  };
-  await ProfileManager.setProfile(input.profileName, updatedProfile);
-  return { profile: updatedProfile, delegation: session };
-}
-var SHARE_DEVICE_DELEGATION_SECONDS, SHARE_DEVICE_PERMISSIONS;
-var init_device_auth = __esm({
-  "src/auth/device-auth.ts"() {
-    "use strict";
-    init_constants();
-    init_profiles();
-    init_local_key();
-    init_browser_auth();
-    SHARE_DEVICE_DELEGATION_SECONDS = 30 * 24 * 60 * 60;
-    SHARE_DEVICE_PERMISSIONS = [{
-      service: "tinycloud.capabilities",
-      space: "applications",
-      path: "",
-      actions: ["tinycloud.capabilities/read"]
-    }];
-  }
-});
-
 // src/index.ts
 init_errors();
 import { readFileSync as readFileSync2 } from "fs";
@@ -31452,7 +31015,7 @@ init_profiles();
 init_dist3();
 import { readFile as readFile5, writeFile as writeFile2 } from "fs/promises";
 import { join as join6 } from "path";
-import { createHash as createHash2 } from "crypto";
+import { createHash } from "crypto";
 
 // ../share-envelope/dist/index.js
 init_zod();
@@ -31933,25 +31496,25 @@ function encodeTo4(int, target, offset = 0) {
 function encodingLength4(int) {
   return varint_default4.encodingLength(int);
 }
-function create4(code23, digest3) {
-  const size2 = digest3.byteLength;
+function create4(code23, digest2) {
+  const size2 = digest2.byteLength;
   const sizeOffset = encodingLength4(code23);
   const digestOffset = sizeOffset + encodingLength4(size2);
   const bytes = new Uint8Array(digestOffset + size2);
   encodeTo4(code23, bytes, 0);
   encodeTo4(size2, bytes, sizeOffset);
-  bytes.set(digest3, digestOffset);
-  return new Digest4(code23, size2, digest3, bytes);
+  bytes.set(digest2, digestOffset);
+  return new Digest4(code23, size2, digest2, bytes);
 }
 function decode43(multihash) {
   const bytes = coerce5(multihash);
   const [code23, sizeOffset] = decode33(bytes);
   const [size2, digestOffset] = decode33(bytes.subarray(sizeOffset));
-  const digest3 = bytes.subarray(sizeOffset + digestOffset);
-  if (digest3.byteLength !== size2) {
+  const digest2 = bytes.subarray(sizeOffset + digestOffset);
+  if (digest2.byteLength !== size2) {
     throw new Error("Incorrect length");
   }
-  return new Digest4(code23, size2, digest3, bytes);
+  return new Digest4(code23, size2, digest2, bytes);
 }
 function equals23(a, b) {
   if (a === b) {
@@ -31969,10 +31532,10 @@ var Digest4 = class {
   /**
    * Creates a multihash digest.
    */
-  constructor(code23, size2, digest3, bytes) {
+  constructor(code23, size2, digest2, bytes) {
     this.code = code23;
     this.size = size2;
-    this.digest = digest3;
+    this.digest = digest2;
     this.bytes = bytes;
   }
 };
@@ -32053,8 +31616,8 @@ var CID4 = class _CID4 {
   toV1() {
     switch (this.version) {
       case 0: {
-        const { code: code23, digest: digest3 } = this.multihash;
-        const multihash = create4(code23, digest3);
+        const { code: code23, digest: digest2 } = this.multihash;
+        const multihash = create4(code23, digest2);
         return _CID4.createV1(this.code, multihash);
       }
       case 1: {
@@ -32108,8 +31671,8 @@ var CID4 = class _CID4 {
       return new _CID4(version3, code23, multihash, bytes ?? encodeCID4(version3, code23, multihash.bytes));
     } else if (value[cidSymbol4] === true) {
       const { version: version3, multihash, code: code23 } = value;
-      const digest3 = decode43(multihash);
-      return _CID4.create(version3, code23, digest3);
+      const digest2 = decode43(multihash);
+      return _CID4.create(version3, code23, digest2);
     } else {
       return null;
     }
@@ -32119,11 +31682,11 @@ var CID4 = class _CID4 {
    * @param code - Code of the codec content is encoded in, see https://github.com/multiformats/multicodec/blob/master/table.csv
    * @param digest - (Multi)hash of the of the content.
    */
-  static create(version3, code23, digest3) {
+  static create(version3, code23, digest2) {
     if (typeof code23 !== "number") {
       throw new Error("String codecs are no longer supported");
     }
-    if (!(digest3.bytes instanceof Uint8Array)) {
+    if (!(digest2.bytes instanceof Uint8Array)) {
       throw new Error("Invalid digest");
     }
     switch (version3) {
@@ -32131,12 +31694,12 @@ var CID4 = class _CID4 {
         if (code23 !== DAG_PB_CODE4) {
           throw new Error(`Version 0 CID must use dag-pb (code: ${DAG_PB_CODE4}) block encoding`);
         } else {
-          return new _CID4(version3, code23, digest3, digest3.bytes);
+          return new _CID4(version3, code23, digest2, digest2.bytes);
         }
       }
       case 1: {
-        const bytes = encodeCID4(version3, code23, digest3.bytes);
-        return new _CID4(version3, code23, digest3, bytes);
+        const bytes = encodeCID4(version3, code23, digest2.bytes);
+        return new _CID4(version3, code23, digest2, bytes);
       }
       default: {
         throw new Error("Invalid version");
@@ -32146,8 +31709,8 @@ var CID4 = class _CID4 {
   /**
    * Simplified version of `create` for CIDv0.
    */
-  static createV0(digest3) {
-    return _CID4.create(0, DAG_PB_CODE4, digest3);
+  static createV0(digest2) {
+    return _CID4.create(0, DAG_PB_CODE4, digest2);
   }
   /**
    * Simplified version of `create` for CIDv1.
@@ -32155,8 +31718,8 @@ var CID4 = class _CID4 {
    * @param code - Content encoding format code.
    * @param digest - Multihash of the content.
    */
-  static createV1(code23, digest3) {
-    return _CID4.create(1, code23, digest3);
+  static createV1(code23, digest2) {
+    return _CID4.create(1, code23, digest2);
   }
   /**
    * Decoded a CID from its binary representation. The byte array must contain
@@ -32189,8 +31752,8 @@ var CID4 = class _CID4 {
       throw new Error("Incorrect length");
     }
     const digestBytes3 = multihashBytes.subarray(specs.multihashSize - specs.digestSize);
-    const digest3 = new Digest4(specs.multihashCode, specs.digestSize, digestBytes3, multihashBytes);
-    const cid2 = specs.version === 0 ? _CID4.createV0(digest3) : _CID4.createV1(specs.codec, digest3);
+    const digest2 = new Digest4(specs.multihashCode, specs.digestSize, digestBytes3, multihashBytes);
+    const cid2 = specs.version === 0 ? _CID4.createV0(digest2) : _CID4.createV1(specs.codec, digest2);
     return [cid2, bytes.subarray(specs.size)];
   }
   /**
@@ -32809,8 +32372,6 @@ function canonicalize3(value) {
 var MAX_INLINE_BYTES2 = 256 * 1024;
 
 // src/share/adapters.ts
-init_dist4();
-init_constants();
 var DEFAULT_SHARE_ORIGIN = "https://share.tinycloud.xyz";
 var ShareAuthorityError = class extends Error {
   code;
@@ -32890,8 +32451,8 @@ function createEncryptedProfileHistory(profileName, sessionSigner) {
   const derive = async (salt, legacy = false) => {
     const secret = await profileSecret();
     if (legacy) {
-      const digest3 = await crypto.subtle.digest("SHA-256", secret);
-      return crypto.subtle.importKey("raw", digest3, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
+      const digest2 = await crypto.subtle.digest("SHA-256", secret);
+      return crypto.subtle.importKey("raw", digest2, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
     }
     const material = await crypto.subtle.importKey("raw", secret, "PBKDF2", false, ["deriveKey"]);
     return crypto.subtle.deriveKey({ name: "PBKDF2", salt, iterations: 1e5, hash: "SHA-256" }, material, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
@@ -32962,7 +32523,7 @@ function createEncryptedProfileHistory(profileName, sessionSigner) {
 function createShareAuthorityAdapters(input = {}) {
   const origin = input.origin ?? DEFAULT_SHARE_ORIGIN;
   const fetchFn = input.fetchFn ?? globalThis.fetch;
-  const canonicalOrigin2 = (value, label) => {
+  const canonicalOrigin = (value, label) => {
     if (typeof value !== "string") throw new Error(`share ${label} is unavailable`);
     const parsed = new URL(value);
     const loopback = parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost";
@@ -32987,17 +32548,17 @@ function createShareAuthorityAdapters(input = {}) {
       if (decoded.length !== 32 || Buffer.from(decoded).toString("base64url") !== key) throw new Error("share node receipt key is invalid");
       return decoded;
     };
-    const nodeOrigin = canonicalOrigin2(input.nodeOrigin ?? object3.nodeOrigin, "node origin");
+    const nodeOrigin = canonicalOrigin(input.nodeOrigin ?? object3.nodeOrigin, "node origin");
     const nodeAudience = typeof object3.nodeAudience === "string" ? object3.nodeAudience : "";
     const enforcerDid = typeof object3.enforcerDid === "string" ? object3.enforcerDid : nodeAudience;
     const nodeInvitationKid = typeof object3.nodeInvitationKid === "string" ? object3.nodeInvitationKid : "";
     if (!nodeAudience.startsWith("did:web:") || !nodeInvitationKid.startsWith(`${nodeAudience}#`) || !enforcerDid.startsWith("did:key:") && enforcerDid !== nodeAudience) throw new Error("share node trust binding is invalid");
     return {
-      shareOrigin: canonicalOrigin2(object3.shareOrigin, "origin"),
-      registryOrigin: canonicalOrigin2(object3.registryOrigin, "registry origin"),
+      shareOrigin: canonicalOrigin(object3.shareOrigin, "origin"),
+      registryOrigin: canonicalOrigin(object3.registryOrigin, "registry origin"),
       nodeOrigin,
-      emailOrigin: canonicalOrigin2(input.emailOrigin ?? object3.emailOrigin, "email origin"),
-      credentialsOrigin: canonicalOrigin2(object3.credentialsOrigin, "credentials origin"),
+      emailOrigin: canonicalOrigin(input.emailOrigin ?? object3.emailOrigin, "email origin"),
+      credentialsOrigin: canonicalOrigin(object3.credentialsOrigin, "credentials origin"),
       nodeAudience,
       enforcerDid,
       nodeInvitationKid,
@@ -33039,7 +32600,7 @@ function createShareAuthorityAdapters(input = {}) {
       encryptedSymmetricKeyDigestHex: encrypted.data.encryptedSymmetricKeyHash,
       keyVersion: encrypted.data.keyVersion,
       mode: "immutable",
-      initialCiphertextDigestHex: createHash2("sha256").update(storedBytes).digest("hex")
+      initialCiphertextDigestHex: createHash("sha256").update(storedBytes).digest("hex")
     };
     const actions = targetInput.actions === void 0 || targetInput.actions.length === 0 ? ["read"] : targetInput.actions;
     const policyActions = [...new Set(actions.flatMap((action) => action === "read" ? ["tinycloud.kv/get", "tinycloud.kv/metadata"] : action === "list" ? ["tinycloud.kv/list"] : ["tinycloud.kv/put"]))];
@@ -33188,21 +32749,17 @@ function createShareAuthorityAdapters(input = {}) {
   };
   const delivery = { deliver: input.deliver ?? (async (request) => {
     const record2 = request.record;
-    if (record2 === void 0 || record2.link === void 0 || record2.envelopeCid === void 0 || record2.shareCid === void 0 || record2.registrationCid === void 0 || record2.policyCid === void 0 || record2.ownerDelegationCid === void 0 || record2.enforcementDelegationCid === void 0) throw new Error("share delivery history is incomplete");
+    if (record2 === void 0 || record2.link === void 0 || record2.deliveryMaterial === void 0) throw new Error("share delivery history is incomplete");
     const [config, node] = await Promise.all([publicConfig(), authenticatedNode()]);
-    const receipt = await node.authorizeShareDelivery({
-      envelopeCid: record2.envelopeCid,
-      shareCid: record2.shareCid,
-      shareId: record2.shareId,
-      registrationCid: record2.registrationCid,
-      policyCid: record2.policyCid,
-      delegationCid: record2.ownerDelegationCid,
-      enforcementDelegationCid: record2.enforcementDelegationCid,
+    const receipt = await node.authorizeShareDeliveryV3({
+      envelope: record2.deliveryMaterial.envelope,
+      sealedEnvelope: record2.deliveryMaterial.sealedEnvelope,
+      envelopeKey: record2.deliveryMaterial.envelopeKey,
+      shareCid: record2.deliveryMaterial.shareCid,
       resourcePath: record2.resource.path,
       recipientEmail: request.recipient,
       shareUrl: record2.link,
       documentName: record2.filename ?? "share.md",
-      idempotencyKey: request.idempotencyKey ?? `tinycloud-share:${record2.shareId}`,
       expiresAt: new Date(Math.min(Date.parse(record2.expiresAt), Date.now() + 5 * 60 * 1e3)).toISOString(),
       nodeProof: { kid: config.nodeInvitationKid, publicKey: config.nodeInvitationPublicKey },
       credentialsAudience: config.credentialsOrigin
@@ -33260,132 +32817,21 @@ async function selectedProfileName() {
   const config = await ProfileManager.getConfig();
   return process.env.TC_PROFILE ?? config.defaultProfile;
 }
-function canonicalNodeOrigin(value) {
-  if (typeof value !== "string") throw new ShareAuthorityError("AUTH_REQUIRED", "share upload requires a configured Node host");
-  let parsed;
-  try {
-    parsed = new URL(value);
-  } catch {
-    throw new ShareAuthorityError("UNAVAILABLE", "configured Node host is invalid");
-  }
-  const loopback = parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost";
-  if (parsed.protocol !== "https:" && !(loopback && parsed.protocol === "http:") || parsed.origin !== value || parsed.username || parsed.password || parsed.search || parsed.hash) {
-    throw new ShareAuthorityError("UNAVAILABLE", "configured Node host is invalid");
-  }
-  return parsed.origin;
-}
-function canonicalNodeAudience(origin) {
-  return `did:web:${new URL(origin).hostname}`;
-}
 function base64UrlSha256(value) {
-  return createHash2("sha256").update(value).digest("base64url");
-}
-async function authenticatedNodeForProfile(profileName, host) {
-  const context = await ProfileManager.resolveContext({ profile: profileName, host });
-  const { ensureAuthenticated: ensureAuthenticated2 } = await Promise.resolve().then(() => (init_sdk(), sdk_exports));
-  return ensureAuthenticated2(context);
-}
-function strictUploadAttestation(value, upload, origin, sessionDid) {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) throw new ShareAuthorityError("UNAVAILABLE", "Node returned an invalid upload attestation");
-  const record2 = value;
-  const expectedKeys = ["type", "version", "issuer", "kid", "ownerDid", "sessionDid", "shareOrigin", "encryptedBlobCid", "encryptedBlobSha256", "byteLength", "deleteAfter", "retention", "issuedAt", "authorityExpiresAt", "expiresAt", "jti", "signature"];
-  if (Object.keys(record2).sort().join("\0") !== expectedKeys.sort().join("\0")) throw new ShareAuthorityError("UNAVAILABLE", "Node returned an invalid upload attestation");
-  const sessionPrincipal = sessionDid.split("#", 1)[0];
-  if (record2.type !== "TinyCloudShareUploadAttestation" || record2.version !== 1 || typeof record2.issuer !== "string" || !record2.issuer.startsWith("did:web:") || typeof record2.kid !== "string" || !record2.kid.startsWith(`${record2.issuer}#`) || typeof record2.ownerDid !== "string" || !record2.ownerDid.startsWith("did:") || record2.sessionDid !== sessionDid && record2.sessionDid !== sessionPrincipal || typeof record2.shareOrigin !== "string" || record2.shareOrigin !== origin || record2.encryptedBlobCid !== upload.cid || record2.encryptedBlobSha256 !== base64UrlSha256(upload.blob) || record2.byteLength !== upload.contentLength || record2.deleteAfter !== upload.deleteAfter || record2.retention === null || record2.retention === void 0 || typeof record2.issuedAt !== "string" || typeof record2.authorityExpiresAt !== "string" || typeof record2.expiresAt !== "string" || typeof record2.jti !== "string" || !/^[A-Za-z0-9_-]{16,}$/.test(record2.jti) || typeof record2.signature !== "string" || !/^[A-Za-z0-9_-]{86}$/.test(record2.signature)) throw new ShareAuthorityError("UNAVAILABLE", "Node returned an invalid upload attestation");
-  const issuedAt = Date.parse(record2.issuedAt);
-  const authorityExpiresAt = Date.parse(record2.authorityExpiresAt);
-  const expiresAt = Date.parse(record2.expiresAt);
-  const now = Date.now();
-  if (!Number.isFinite(issuedAt) || !Number.isFinite(authorityExpiresAt) || !Number.isFinite(expiresAt) || new Date(issuedAt).toISOString() !== record2.issuedAt || new Date(authorityExpiresAt).toISOString() !== record2.authorityExpiresAt || new Date(expiresAt).toISOString() !== record2.expiresAt || authorityExpiresAt < expiresAt || expiresAt <= now || expiresAt - issuedAt > 12e4 || issuedAt > now + 3e4) throw new ShareAuthorityError("UNAVAILABLE", "Node returned an expired upload attestation");
-  return record2;
-}
-async function openKeyUploadAuthorization(input) {
-  const profile = await ProfileManager.getProfile(input.profileName).catch(() => {
-    throw new ShareAuthorityError("AUTH_REQUIRED", "share upload requires an initialized profile");
-  });
-  if (profile.authMethod !== "openkey") throw new ShareAuthorityError("AUTH_REQUIRED", "share upload requires an OpenKey session");
-  const session = await ProfileManager.getSession(input.profileName);
-  const sessionDid = session?.verificationMethod;
-  if (session === null || typeof sessionDid !== "string" || !sessionDid.startsWith("did:key:") || typeof session.delegationHeader !== "object" || session.delegationHeader === null || typeof session.delegationHeader.Authorization !== "string" || typeof session.delegationCid !== "string" || typeof session.spaceId !== "string") {
-    throw new ShareAuthorityError("AUTH_REQUIRED", "share upload requires an active OpenKey session");
-  }
-  const requestWithoutDigest = {
-    shareOrigin: input.origin,
-    encryptedBlobCid: input.upload.cid,
-    encryptedBlobSha256: base64UrlSha256(input.upload.blob),
-    byteLength: input.upload.contentLength,
-    deleteAfter: input.upload.deleteAfter,
-    retention: "until-delete"
-  };
-  const requestBodyDigest = base64UrlSha256(new TextEncoder().encode(canonicalize3(requestWithoutDigest)));
-  const body = canonicalize3({ ...requestWithoutDigest, requestBodyDigest });
-  const entries = [{ spaceId: session.spaceId, service: "capabilities", action: "tinycloud.capabilities/read" }];
-  const nodeOrigin = canonicalNodeOrigin(profile.host);
-  const activation = await activateSessionWithHost(nodeOrigin, session.delegationHeader);
-  if (!activation.success) throw new ShareAuthorityError("AUTH_REQUIRED", "Node upload authorization was rejected");
-  const invocationHeaders = new Headers(input.node.invokeAny(entries, [{ requestBodyDigest }]));
-  const invocation = invocationHeaders.get("authorization");
-  if (invocation === null) throw new ShareAuthorityError("AUTH_REQUIRED", "Node upload authorization was rejected");
-  const authorization = await input.node.bindInvocationAudience(invocation, canonicalNodeAudience(nodeOrigin));
-  let response;
-  try {
-    const headers = new Headers({ authorization });
-    headers.set("accept", "application/json");
-    headers.set("content-type", "application/json");
-    response = await input.fetchFn(new URL("/share/upload/attestation", nodeOrigin), { method: "POST", credentials: "omit", redirect: "error", referrerPolicy: "no-referrer", headers, body });
-  } catch {
-    throw new ShareAuthorityError("UNAVAILABLE", "Node upload authorization is unavailable");
-  }
-  if (response.status === 401 || response.status === 403) throw new ShareAuthorityError("AUTH_REQUIRED", "Node upload authorization was rejected");
-  if (!response.ok) throw new ShareAuthorityError("UNAVAILABLE", "Node upload authorization is unavailable");
-  let value;
-  try {
-    value = await response.json();
-  } catch {
-    throw new ShareAuthorityError("UNAVAILABLE", "Node returned an invalid upload attestation");
-  }
-  const attestation = strictUploadAttestation(value, input.upload, input.origin, sessionDid);
-  return {
-    "x-tinycloud-upload-attestation": JSON.stringify(attestation),
-    "x-tinycloud-retention": canonicalize3(attestation.retention)
-  };
+  return createHash("sha256").update(value).digest("base64url");
 }
 function createProductionUploadAuthorizer(input = {}) {
   const origin = input.origin ?? DEFAULT_SHARE_ORIGIN;
   if (origin !== DEFAULT_SHARE_ORIGIN) throw new ShareAuthorityError("UNAVAILABLE", "share upload authorization is restricted to the canonical Share origin");
-  const fetchFn = input.fetchFn ?? globalThis.fetch;
   return async (upload) => {
     const profileName = await (input.profileName?.() ?? selectedProfileName());
     if (input.testOnly === true) {
       const suppliedSession = input.sessionAuthorization === void 0 ? void 0 : await input.sessionAuthorization();
       if (suppliedSession !== void 0) return suppliedSession;
-      const acquired2 = await input.acquireUploadAuthorization?.({ profileName, upload });
-      if (acquired2 !== void 0) return acquired2;
+      const acquired = await input.acquireUploadAuthorization?.({ profileName, upload });
+      if (acquired !== void 0) return acquired;
     }
-    const existing = await ProfileManager.getProfile(profileName).catch(() => null);
-    if (existing?.authMethod === "openkey") {
-      try {
-        return await openKeyUploadAuthorization({ fetchFn, origin, profileName, upload, node: await authenticatedNodeForProfile(profileName, existing.host) });
-      } catch (error) {
-        if (!(error instanceof ShareAuthorityError) || error.code !== "AUTH_REQUIRED") throw error;
-      }
-    }
-    const { ensureShareDeviceAuthorization: ensureShareDeviceAuthorization2 } = await Promise.resolve().then(() => (init_device_auth(), device_auth_exports));
-    const nodeOrigin = await (input.nodeOrigin?.() ?? Promise.resolve(existing?.host ?? process.env.TC_HOST ?? DEFAULT_HOST));
-    const acquired = await ensureShareDeviceAuthorization2({
-      profileName,
-      nodeOrigin,
-      shareOrigin: origin,
-      openkeyHost: process.env.TC_OPENKEY_HOST ?? existing?.openkeyHost,
-      fetchFn
-    });
-    return openKeyUploadAuthorization({
-      fetchFn,
-      origin,
-      profileName,
-      upload,
-      node: await authenticatedNodeForProfile(profileName, acquired.profile.host)
-    });
+    throw new ShareAuthorityError("UNAVAILABLE", "Node-specific registry upload authorization is retired; use an inline share");
   };
 }
 
@@ -33446,9 +32892,8 @@ program.hook("preAction", async (thisCommand) => {
 });
 configureShareCommandServices({
   fetchFn: globalThis.fetch,
-  // The CLI mints a body-bound Node upload attestation from the selected
-  // OpenKey session. The authorizer is lazy: public inspect/receive never
-  // touches profile state, and no secret is serialized into a publish result.
+  // Node-specific registry upload authorization is retired. The adapter keeps
+  // the explicit contract seam while production callers use inline links.
   authorizeUpload: createProductionUploadAuthorizer({
     fetchFn: globalThis.fetch,
     profileName: async () => selectedShareProfile() ?? (await ProfileManager.getConfig()).defaultProfile,

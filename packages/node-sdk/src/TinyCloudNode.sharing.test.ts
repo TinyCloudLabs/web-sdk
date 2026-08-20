@@ -706,4 +706,49 @@ describe("TinyCloudNode sharing", () => {
       attestedEnforcerBinding: binding,
     });
   });
+
+  test("delivery authorization uses only the embedded Policy/v3 route", async () => {
+    const calls: string[] = [];
+    globalThis.fetch = mock(async (input: string | URL | Request) => {
+      calls.push(String(input));
+      return new Response("{}", { status: 200, headers: { "content-type": "application/json" } });
+    }) as unknown as typeof fetch;
+    const wasmBindings = {
+      ...makeWasmBindings(),
+      invokeAny: () => ({ Authorization: "delivery-invocation" }),
+    } as unknown as IWasmBindings;
+    const node = new TinyCloudNode({ host: "https://node.example", wasmBindings });
+    (node as any)._restoredTcSession = { spaceId: SPACE };
+    (node as any)._serviceContext = { session: { spaceId: SPACE } };
+    const common = {
+      resourcePath: "shares/test/readme.md",
+      recipientEmail: "recipient@example.test",
+      shareUrl: "https://share.tinycloud.xyz/s/cid#k=secret",
+      documentName: "readme.md",
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      nodeProof: { kid: "did:web:node.example#key", publicKey: new Uint8Array(32) },
+      credentialsAudience: "https://witness.credentials.org",
+    };
+    await expect(node.authorizeShareDeliveryV3({
+      ...common,
+      envelope: { version: 3 },
+      sealedEnvelope: "sealed",
+      envelopeKey: "key",
+      shareCid: "cid",
+    })).rejects.toThrow();
+    expect(calls).toEqual(["https://node.example/policy/v3/deliveries/authorize"]);
+
+    await expect(node.authorizeShareDelivery({
+      ...common,
+      envelopeCid: "cid",
+      shareCid: "cid",
+      shareId: "share-id",
+      registrationCid: "registration",
+      policyCid: "policy",
+      delegationCid: "delegation",
+      enforcementDelegationCid: "enforcement",
+      idempotencyKey: "delivery-idempotency",
+    })).rejects.toThrow("Policy/v2 share delivery is retired");
+    expect(calls).toHaveLength(1);
+  });
 });
