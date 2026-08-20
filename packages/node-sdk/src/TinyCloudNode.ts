@@ -151,6 +151,7 @@ import {
   type RegisterPolicyV3Receipt,
   type ShareDeliveryAuthorizationReceipt,
   type ShareDeliveryAuthorizationV3Receipt,
+  CREDENTIAL_INVITATION_REQUEST_DOMAIN,
   validateShareDeliveryAuthorizationV3Bytes,
   verifyEip191MessageSignature,
   signCompactUcanRootAuthorization,
@@ -4377,11 +4378,24 @@ export class TinyCloudNode {
       body: canonicalizeEncryptionJson(request),
     });
     if (!response.ok) throw new Error(`V3 share delivery authorization failed: ${response.status}`);
-    return validateShareDeliveryAuthorizationV3Bytes(new Uint8Array(await response.arrayBuffer()), {
+    const verified = validateShareDeliveryAuthorizationV3Bytes(new Uint8Array(await response.arrayBuffer()), {
       request,
-      nodeProof: input.nodeProof,
+      senderKeyDid: this.sessionDid,
       credentialsAudience: input.credentialsAudience,
     });
+    void input.nodeProof;
+    const requestDigest = new Uint8Array(await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(`${CREDENTIAL_INVITATION_REQUEST_DOMAIN}${canonicalizeEncryptionJson(verified.request as any)}`),
+    ));
+    return {
+      ...verified,
+      proof: {
+        alg: "EdDSA",
+        kid: this.sessionDid,
+        signature: base64UrlEncode(await this.signSessionBytes(requestDigest)),
+      },
+    };
   }
 
   private async createRootDelegationForSharing(params: {

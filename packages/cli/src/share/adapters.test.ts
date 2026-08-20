@@ -61,14 +61,15 @@ describe("Share upload authority adapter", () => {
   it("posts the exact signed delivery receipt only to OpenCredentials", async () => {
     const credentialsOrigin = "https://credentials.example";
     const emailOrigin = "https://email.example";
-    const authorization = { type: "TinyCloudShareDeliveryAuthorization", version: 2 };
+    const request = { returnLink: "share-url-with-private-fragment" };
+    const admission = { schema: "xyz.tinycloud.policy/delivery-admission/v0" };
     const proof = { alg: "EdDSA", kid: "did:web:node.example#key", signature: "test-signature" };
     const shareUrl = "share-url-with-private-fragment";
     const calls: Array<{ readonly url: string; readonly init?: RequestInit }> = [];
 
     const response = await postAddressedShareDelivery({
       credentialsOrigin,
-      receipt: { authorization, proof },
+      receipt: { request, admission, proof },
       shareUrl,
       fetchFn: (async (input, init) => {
         calls.push({ url: String(input), init });
@@ -78,8 +79,8 @@ describe("Share upload authority adapter", () => {
 
     expect(response.status).toBe(202);
     expect(calls).toHaveLength(1);
-    expect(calls[0]?.url).toBe(`${credentialsOrigin}/share/v2`);
-    expect(calls[0]?.url).not.toBe(`${emailOrigin}/share/v2`);
+    expect(calls[0]?.url).toBe(`${credentialsOrigin}/v1/credential-invitations`);
+    expect(calls[0]?.url).not.toBe(`${emailOrigin}/v1/credential-invitations`);
     expect(calls[0]?.init).toMatchObject({
       method: "POST",
       credentials: "omit",
@@ -89,8 +90,8 @@ describe("Share upload authority adapter", () => {
     expect(calls[0]?.init).not.toHaveProperty("referrer");
     expect(calls[0]?.init?.headers).toEqual({ accept: "application/json", "content-type": "application/json" });
     const body = JSON.parse(String(calls[0]?.init?.body));
-    expect(body).toEqual({ authorization, proof, shareUrl });
-    expect(Object.keys(body).sort()).toEqual(["authorization", "proof", "shareUrl"]);
+    expect(body).toEqual({ request, admission, proof });
+    expect(Object.keys(body).sort()).toEqual(["admission", "proof", "request"]);
   });
 
   it("uses an explicit noninteractive acquisition hook without reading or persisting a private JWK", async () => {

@@ -32382,17 +32382,14 @@ var ShareAuthorityError = class extends Error {
   }
 };
 async function postAddressedShareDelivery(input) {
-  return input.fetchFn(`${input.credentialsOrigin}/share/v2`, {
+  if (input.receipt.request.returnLink !== input.shareUrl) throw new Error("credential invitation is not bound to the share link");
+  return input.fetchFn(`${input.credentialsOrigin}/v1/credential-invitations`, {
     method: "POST",
     credentials: "omit",
     redirect: "error",
     referrerPolicy: "no-referrer",
     headers: { accept: "application/json", "content-type": "application/json" },
-    body: JSON.stringify({
-      authorization: input.receipt.authorization,
-      proof: input.receipt.proof,
-      shareUrl: input.shareUrl
-    }),
+    body: JSON.stringify(input.receipt),
     signal: input.signal
   });
 }
