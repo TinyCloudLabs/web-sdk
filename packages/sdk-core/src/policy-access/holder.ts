@@ -49,11 +49,12 @@ export interface EphemeralHolderKey {
    * way the standalone Policy Engine verifies it. Returns base64url-no-pad.
    */
   signGrantPresentation(unsignedPresentation: unknown): string;
-  /** Public JWK for node invocation headers. */
+  /** Tab-local signing JWK consumed by the generic Node invocation builder. */
   readonly jwk: {
     readonly kty: "OKP";
     readonly crv: "Ed25519";
     readonly x: string;
+    readonly d: string;
   };
 }
 
@@ -100,7 +101,7 @@ export function createEphemeralHolderKey(
       const digest = grantPresentationDigest(unsignedPresentation);
       return toBase64Url(sign(digest));
     },
-    jwk: { kty: "OKP", crv: "Ed25519", x: toBase64Url(publicKey) },
+    jwk: { kty: "OKP", crv: "Ed25519", x: toBase64Url(publicKey), d: toBase64Url(seed) },
   };
 }
 
