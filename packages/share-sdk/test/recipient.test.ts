@@ -33,15 +33,6 @@ async function digestText(value: string): Promise<string> {
   return toBase64Url(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value))));
 }
 
-async function digestCanonical(value: unknown): Promise<string> {
-  return digestText(canonicalize(value));
-}
-
-function signedArtifact(key: "challenge" | "session", domain: string, artifact: Record<string, unknown>): Record<string, unknown> {
-  const signature = ed25519.sign(new TextEncoder().encode(`${domain}${canonicalize(artifact)}`), nodePrivateKey);
-  return { [key]: artifact, proof: { alg: "EdDSA", kid: nodeKid, signature: toBase64Url(signature) } };
-}
-
 async function responseFor(target: ShareEnvelopeV2, content = "right"): Promise<Record<string, unknown>> {
   const response = {
     type: "TinyCloudShareInvokeResponse",
@@ -137,51 +128,29 @@ describe("addressed recipient response binding", () => {
     await expect(adapter.verifyResult?.({ envelope: target, value, proof: value.proof })).resolves.toBe(false);
   });
 
-  it("uses the production v2 policy route fields", async () => {
+  it("refuses the retired Node /share/v2 policy challenge transport", async () => {
     const target = addressedTarget();
-    const body = {
-      shareCid: "share-cid", shareId: target.shareId, policyCid: "", delegationCid: target.delegationCid,
-      envelopeCid: "envelope-cid", registrationCid: "registration", enforcementDelegationCid: "enforcement-cid",
-      enforcementDelegation: { cid: "enforcement-cid" }, outerEnvelope: target.ownerAuthority?.outerEnvelope,
-      contentSource: target.contentSource, contentSourceDigest: target.contentSourceDigest, holderDid: "did:key:z6Mkholder",
-      targetOrigin: target.target.origin, nodeAudience: target.target.nodeAudience, action: "tinycloud.kv/get",
-      actions: ["tinycloud.kv/get"], resource: target.resource.path,
-    };
-    const challenge = { type: "TinyCloudSharePolicyChallenge", version: 2, challengeId: "challenge-0123456789", nonce: "nonce-0123456789", ...body, issuedAt: "2026-07-30T12:00:00.000Z", expiresAt: "2030-01-01T00:00:00.000Z", requestBodyDigest: await digestCanonical(body) };
     const calls: string[] = [];
-    const fetchFn = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const fetchFn = async (input: RequestInfo | URL): Promise<Response> => {
       calls.push(String(input));
-      const request = JSON.parse(String(init?.body)) as Record<string, unknown>;
-      expect(request).toHaveProperty("envelopeCid", "envelope-cid");
-      expect(request).toHaveProperty("registrationCid", "registration");
-      expect(request).toHaveProperty("enforcementDelegation");
-      return new Response(JSON.stringify(signedArtifact("challenge", "xyz.tinycloud.share/policy-challenge/v2\0", challenge)), { status: 200 });
+      throw new Error("retired Share transport was used");
     };
     const client = new ShareRecipientClient({ nodeOrigin: "https://node.example", trustedNode: { invitationKid: nodeKid, invitationPublicKey: nodePublicKey }, holderDid: "did:key:z6Mkholder", envelope: target, fetchFn });
-    await expect(client.beginChallenge(target)).resolves.toMatchObject({ version: 2, challengeId: challenge.challengeId });
-    expect(calls).toEqual(["https://node.example/share/v2/policy/challenges"]);
+    await expect(client.beginChallenge(target)).rejects.toThrow("v2 Share recipient transport has been removed");
+    expect(calls).toEqual([]);
   });
 
-  it("restores the presented holder proof before resuming the addressed read", async () => {
+  it("refuses the retired Node /share/v2 resume transport", async () => {
     const target = addressedTarget();
     const holderPrivateKey = new Uint8Array(32).fill(73);
     const holderDid = "did:key:z6Mkholder";
-    const session = {
-      type: "TinyCloudSharePolicySession", version: 2, sessionId: "session-resumed", shareCid: "share-cid", shareId: target.shareId,
-      registrationCid: "registration", envelopeCid: "envelope-cid", policyCid: "", delegationCid: target.delegationCid,
-      holderDid, targetOrigin: "https://node.example", nodeAudience: "did:web:node.example", action: "tinycloud.kv/get", actions: ["tinycloud.kv/get"],
-      contentSource: target.contentSource, contentSourceDigest: target.contentSourceDigest, resource: target.resource.path, expiresAt: "2030-01-01T00:00:00.000Z",
-    };
-    const content = new TextEncoder().encode("right");
-    const response = await responseFor(target);
+    const calls: string[] = [];
     const fetchFn = async (input: RequestInfo | URL): Promise<Response> => {
-      const url = String(input);
-      if (url.endsWith("/share/v2/policy/session")) return new Response(JSON.stringify(signedArtifact("session", "xyz.tinycloud.share/policy-session/v2\0", session)), { status: 200 });
-      if (url.endsWith("/share/v2/invoke")) return new Response(JSON.stringify(response), { status: 200 });
-      throw new Error(`unexpected ${url}`);
+      calls.push(String(input));
+      throw new Error("retired Share transport was used");
     };
     const client = new ShareRecipientClient({ nodeOrigin: "https://node.example", trustedNode: { invitationKid: nodeKid, invitationPublicKey: nodePublicKey }, holderDid, envelope: target, fetchFn, sign: async (bytes) => ed25519.sign(bytes, holderPrivateKey) });
-    const result = await client.resumeWithProof(target, "resume-token", { nonce: "nonce-resumed", credential: "credential", holderDid, holderBinding: { holderDid }, presentation: { type: "TinyCloudSharePolicyPresentation", version: 1 }, presentationProof: { alg: "EdDSA", kid: "holder-key", signature: "presented" } });
-    expect(result.bytes).toEqual(content);
+    await expect(client.resumeWithProof(target, "resume-token", { nonce: "nonce-resumed", credential: "credential", holderDid, holderBinding: { holderDid }, presentation: { type: "TinyCloudSharePolicyPresentation", version: 1 }, presentationProof: { alg: "EdDSA", kid: "holder-key", signature: "presented" } })).rejects.toThrow("v2 Share recipient transport has been removed");
+    expect(calls).toEqual([]);
   });
 });

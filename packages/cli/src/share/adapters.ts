@@ -257,16 +257,32 @@ export function createShareAuthorityAdapters(input: {
     const files = targetInput.files === undefined || targetInput.files.length === 0
       ? [{ bytes: targetInput.source, filename: targetInput.filename, mediaType: targetInput.mediaType }]
       : targetInput.files;
-    const resourceKind = targetInput.resourceKind ?? (files.length > 1 ? "prefix" : "exact");
-    const resourcePath = `shares/${shareId}${resourceKind === "exact" ? `/${targetInput.filename}` : ""}`;
-    const totalBytes = files.reduce((total, file) => total + file.bytes.byteLength, 0);
-    if (!Number.isSafeInteger(totalBytes) || totalBytes > 100 * 1024 * 1024) throw new Error("addressed publication exceeds the combined byte limit");
-    const kv = node.kvForSpace(node.spaceId);
-    for (const file of files) {
-      const path = resourceKind === "prefix" ? `${resourcePath}/${file.filename}` : resourcePath;
-      const stored = await kv.put(path, file.bytes, { contentType: file.mediaType ?? "application/octet-stream" });
-      if (!stored.ok) throw new Error("addressed source upload was rejected");
-    }
+    const resourceKind = targetInput.resourceKind ?? "exact";
+    // A v3 addressed share is bound to one wrapped content key, so the
+    // encrypted source is a single exact KV resource. Prefix fan-out would
+    // need a shared key the envelope does not carry.
+    if (resourceKind !== "exact" || files.length !== 1) throw new Error("addressed publication requires a single exact source file");
+    const file = files[0]!;
+    const resourcePath = `shares/${shareId}/${targetInput.filename}`;
+    const byteLength = file.bytes.byteLength;
+    if (!Number.isSafeInteger(byteLength) || byteLength > 100 * 1024 * 1024) throw new Error("addressed publication exceeds the combined byte limit");
+    const mediaType = targetInput.mediaType ?? file.mediaType ?? "application/octet-stream";
+    const encryptionNetwork = node.getEncryptionNetworkIdForSpace(node.spaceId);
+    const encrypted = await node.encryption.encryptToNetwork(encryptionNetwork, file.bytes, { metadata: { contentType: mediaType } });
+    if (!encrypted.ok) throw new Error("addressed source encryption was rejected");
+    const storedBytes = new TextEncoder().encode(canonicalize(encrypted.data as unknown as Record<string, unknown>));
+    const stored = await node.kvForSpace(node.spaceId).put(resourcePath, storedBytes, { contentType: "application/vnd.tinycloud.encrypted-envelope+json" });
+    if (!stored.ok) throw new Error("addressed source upload was rejected");
+    const contentSource = {
+      shareId,
+      kvResource: `${node.spaceId}/kv/${resourcePath}`,
+      selector: resourceKind,
+      encryptionNetwork: encrypted.data.networkId,
+      encryptedSymmetricKeyDigestHex: encrypted.data.encryptedSymmetricKeyHash,
+      keyVersion: encrypted.data.keyVersion,
+      mode: "immutable" as const,
+      initialCiphertextDigestHex: createHash("sha256").update(storedBytes).digest("hex"),
+    };
     const actions = targetInput.actions === undefined || targetInput.actions.length === 0 ? ["read"] as const : targetInput.actions;
     const policyActions = [...new Set(actions.flatMap((action) => action === "read" ? ["tinycloud.kv/get", "tinycloud.kv/metadata"] : action === "list" ? ["tinycloud.kv/list"] : ["tinycloud.kv/put"]))] as ("tinycloud.kv/get" | "tinycloud.kv/list" | "tinycloud.kv/metadata" | "tinycloud.kv/put")[];
     return publishAddressedShare({
@@ -280,19 +296,19 @@ export function createShareAuthorityAdapters(input: {
       resource: { kind: resourceKind, path: resourcePath },
       actions,
       policyActions,
-      contentSource: { kind: "kv", space: node.spaceId, path: resourcePath, action: "tinycloud.kv/get" },
+      contentSource,
       filename: targetInput.filename,
-      mediaType: targetInput.mediaType ?? files[0]?.mediaType ?? "application/octet-stream",
-      byteLength: files.reduce((total, file) => total + file.bytes.byteLength, 0),
+      mediaType,
+      byteLength,
       expiresAt: targetInput.expiresAt,
       inline: targetInput.inline,
+      // App-neutral owner authority: the Node SDK owns every Policy/v3
+      // transport hop, so the CLI supplies only owner signing material.
       authority: {
         ownerDid: node.did,
-        createOwnerDelegation: (request) => node.createOwnerDelegation(request),
-        registerOwnerSharePolicy: (request) => node.registerOwnerSharePolicy({
-          ...(request as Parameters<typeof node.registerOwnerSharePolicy>[0]),
-          nodeProof: { kid: config.nodeInvitationKid, publicKey: config.nodeInvitationPublicKey },
-        }),
+        createOwnerRoot: (request) => node.createUnifiedOwnerRoot(request),
+        sign: (bytes) => node.signSessionBytes(bytes),
+        registerPolicy: (request) => node.registerPolicy(request),
       },
       upload: targetInput.upload ?? {},
     });
