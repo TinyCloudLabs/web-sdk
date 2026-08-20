@@ -80,7 +80,7 @@ describe("TC-500 policy presentation v4", () => {
     expect(calls.some((url) => url.includes("/share/"))).toBe(false);
     await expect(requestPolicyChallengeV3({
       nodeOrigin: "https://node.example",
-      policyRuntimePath: "/share/v3/policy",
+      policyRuntimePath: "/policy/v3?legacy-alias",
       policyCid: "bafy-policy",
       recipientDid: "did:key:zHolder",
       requestedCapabilities: [],

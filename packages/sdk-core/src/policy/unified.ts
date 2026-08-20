@@ -182,7 +182,7 @@ export async function mintPolicySessionV3(input: {
   const challenge = input.challenge ?? await requestPolicyChallengeV3(input);
   if (challenge.policyCid !== input.policyCid || challenge.recipientDid !== input.recipientDid)
     throw new Error("policy challenge binding is invalid");
-  const response = await fetchFn(new URL("/share/v3/policy/delegations", input.nodeOrigin), {
+  const response = await fetchFn(new URL("/policy/v3/delegations", input.nodeOrigin), {
     method: "POST",
     redirect: "error",
     signal: input.signal,
@@ -290,7 +290,7 @@ export async function getPolicyRootStatusV3(input: {
   readonly fetch?: typeof fetch;
 }): Promise<PolicyRootStatusV3> {
   const fetchFn = input.fetch ?? globalThis.fetch.bind(globalThis);
-  const response = await fetchFn(new URL(`/share/v3/policy/status/${encodeURIComponent(input.rootCid)}`, input.nodeOrigin), {
+  const response = await fetchFn(new URL(`/policy/v3/status/${encodeURIComponent(input.rootCid)}`, input.nodeOrigin), {
     method: "GET",
     redirect: "error",
     headers: { accept: "application/json" },
@@ -379,7 +379,7 @@ export async function renewPolicyRootStatusV3(input: {
   };
   const signature = await input.sign(sha256(new TextEncoder().encode(ROOT_STATUS_RENEWAL_V1_DOMAIN + jcsCanonicalize(unsigned))));
   if (signature.length !== 64) throw new Error("policy root renewal signature must be Ed25519");
-  const response = await fetchFn(new URL("/share/v3/policy/status", input.nodeOrigin), {
+  const response = await fetchFn(new URL("/policy/v3/status", input.nodeOrigin), {
     method: "POST",
     redirect: "error",
     headers: { accept: "application/json", "content-type": "application/json" },

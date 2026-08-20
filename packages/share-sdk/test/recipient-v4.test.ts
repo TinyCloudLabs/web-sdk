@@ -104,8 +104,8 @@ describe("TC-500 accountless v4 recipient", () => {
     let decryptBody: Record<string, unknown> | undefined;
     const fetchFn: typeof fetch = async (input, init) => {
       const path = new URL(String(input)).pathname;
-      if (path === "/share/v3/policy/challenges") return Response.json({ challengeId: "challenge-500", nonce: "nonce-500", policyCid, recipientDid: receiverDid, nodeAudience: nodeDid, expiresAt: new Date((now + 60) * 1000).toISOString() });
-      if (path === "/share/v3/policy/delegations") {
+      if (path === "/policy/v3/challenges") return Response.json({ challengeId: "challenge-500", nonce: "nonce-500", policyCid, recipientDid: receiverDid, nodeAudience: nodeDid, expiresAt: new Date((now + 60) * 1000).toISOString() });
+      if (path === "/policy/v3/delegations") {
         delegationRequest = JSON.parse(String(init?.body));
         return Response.json({ admitted: true, sessionCid: session.cid, authorization: session.authorization });
       }
@@ -262,8 +262,8 @@ describe("TC-500 accountless v4 recipient", () => {
         envelope,
         fetchFn: async (input) => {
           const path = new URL(String(input)).pathname;
-          if (path === "/share/v3/policy/challenges") return Response.json({ challengeId: "challenge-security", nonce: "nonce-security", policyCid, recipientDid: receiverDid, nodeAudience: nodeDid, expiresAt: new Date((now + 60) * 1000).toISOString() });
-          if (path === "/share/v3/policy/delegations") return Response.json({ admitted: true, sessionCid: session.cid, authorization: session.authorization });
+          if (path === "/policy/v3/challenges") return Response.json({ challengeId: "challenge-security", nonce: "nonce-security", policyCid, recipientDid: receiverDid, nodeAudience: nodeDid, expiresAt: new Date((now + 60) * 1000).toISOString() });
+          if (path === "/policy/v3/delegations") return Response.json({ admitted: true, sessionCid: session.cid, authorization: session.authorization });
           if (path === "/delegate") { imports += 1; return new Response(null, { status: 204 }); }
           throw new Error(`unexpected request ${path}`);
         },
