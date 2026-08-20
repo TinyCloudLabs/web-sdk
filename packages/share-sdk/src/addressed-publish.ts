@@ -280,7 +280,11 @@ export async function publishAddressedShare(options: AddressedSharePublishOption
   try {
     const sealed = await seal(textEncoder.encode(canonicalize(envelope)), envelopeKey);
     let url: string;
-    let retention = expiry;
+    // The signed policy/envelope schema uses canonical whole-second RFC 3339,
+    // while the existing registry upload contract requires millisecond form.
+    // Keep those wire formats independent instead of leaking the policy format
+    // into the registry transport.
+    let retention = options.expiresAt.toISOString();
     if (options.inline === true) url = await encodeInlineShareUrl({ origin: options.shareOrigin, ciphertext: sealed.blob, key32: envelopeKey });
     else {
       const uploaded = await uploadShareBlob({ source: new Uint8Array([1]), filename: options.filename, origin: options.shareOrigin, ...options.upload }, { blob: sealed.blob, cid: sealed.cid, deleteAfter: retention, contentLength: sealed.blob.byteLength });
