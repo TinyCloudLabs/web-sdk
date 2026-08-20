@@ -202,8 +202,16 @@ export {
   MemorySenderShareKeyStorage,
   SenderShareStore,
 } from "./delegations";
-export { delegatePortablePolicySession, importPortableDelegation, parsePortableDelegation, serializePortableDelegation } from "./delegations";
-export type { SharePortableDelegation, PortableDelegationImportReceipt } from "./delegations";
+export {
+  delegatePortablePolicySession,
+  importPortableDelegation,
+  parsePortableDelegation,
+  serializePortableDelegation,
+} from "./delegations";
+export type {
+  SharePortableDelegation,
+  PortableDelegationImportReceipt,
+} from "./delegations";
 
 export {
   ATTESTED_ENFORCER_BINDING_V2_SCHEMA,
@@ -540,12 +548,15 @@ export {
   SecretsService,
   SECRET_NAME_RE,
   canonicalizeSecretScope,
+  parseSecretCatalogKey,
   resolveSecretListPrefix,
   resolveSecretPath,
   type ISecretsService,
+  type SecretCatalogEntry,
   type SecretPayload,
   type SecretsError,
   type ResolvedSecretPath,
+  type ParsedSecretCatalogKey,
   type SecretScopeOptions,
   // Encryption Service (network-scoped)
   EncryptionService,

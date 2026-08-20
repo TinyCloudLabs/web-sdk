@@ -18,6 +18,13 @@ function makeBaseSecrets(): ISecretsService {
     put: mock(async () => ({ ok: true, data: undefined })),
     delete: mock(async () => ({ ok: true, data: undefined })),
     list: mock(async () => ({ ok: true, data: ["ANTHROPIC_API_KEY"] })),
+    listAll: mock(async () => ({
+      ok: true,
+      data: [
+        { name: "ANTHROPIC_API_KEY" },
+        { name: "API_KEY", scope: "fireflies" },
+      ],
+    })),
   };
 }
 
@@ -33,6 +40,36 @@ function readOnlyManifest(): Manifest {
 }
 
 describe("NodeSecretsService", () => {
+  it("requests root list permission before reading the full catalog", async () => {
+    const base = makeBaseSecrets();
+    const grantPermissions = mock(async () => {});
+    const secrets = new NodeSecretsService({
+      getService: () => base,
+      getManifest: () => undefined,
+      grantPermissions,
+      canEscalate: () => true,
+    });
+
+    const result = await secrets.listAll();
+
+    expect(result).toEqual({
+      ok: true,
+      data: [
+        { name: "ANTHROPIC_API_KEY" },
+        { name: "API_KEY", scope: "fireflies" },
+      ],
+    });
+    expect(grantPermissions).toHaveBeenCalledWith([
+      {
+        service: "tinycloud.kv",
+        space: "secrets",
+        path: "vault/secrets/",
+        actions: ["list"],
+        skipPrefix: true,
+      },
+    ] satisfies PermissionEntry[]);
+  });
+
   it("requests read and decrypt permissions before getting a secret", async () => {
     const base = makeBaseSecrets();
     const grantPermissions = mock(async () => {});
@@ -95,7 +132,8 @@ describe("NodeSecretsService", () => {
     const grantPermissions = mock(async () => {});
     const secrets = new NodeSecretsService({
       getService: () => base,
-      space: "tinycloud:pkh:eip155:1:0x0000000000000000000000000000000000000001:other",
+      space:
+        "tinycloud:pkh:eip155:1:0x0000000000000000000000000000000000000001:other",
       getManifest: () => undefined,
       grantPermissions,
       canEscalate: () => true,
@@ -107,7 +145,8 @@ describe("NodeSecretsService", () => {
     expect(grantPermissions).toHaveBeenCalledWith([
       {
         service: "tinycloud.kv",
-        space: "tinycloud:pkh:eip155:1:0x0000000000000000000000000000000000000001:other",
+        space:
+          "tinycloud:pkh:eip155:1:0x0000000000000000000000000000000000000001:other",
         path: "vault/secrets/ANTHROPIC_API_KEY",
         actions: ["put"],
         skipPrefix: true,
@@ -120,7 +159,8 @@ describe("NodeSecretsService", () => {
     const grantPermissions = mock(async () => {});
     const secrets = new NodeSecretsService({
       getService: () => base,
-      space: "tinycloud:pkh:eip155:1:0x0000000000000000000000000000000000000001:other",
+      space:
+        "tinycloud:pkh:eip155:1:0x0000000000000000000000000000000000000001:other",
       getManifest: () => ({
         app_id: "com.food.app",
         name: "Food",
@@ -138,9 +178,10 @@ describe("NodeSecretsService", () => {
       }),
       grantPermissions,
       canEscalate: () => true,
-      resolveSpace: (space) => space.startsWith("tinycloud:")
-        ? space
-        : `tinycloud:pkh:eip155:1:0x0000000000000000000000000000000000000001:${space}`,
+      resolveSpace: (space) =>
+        space.startsWith("tinycloud:")
+          ? space
+          : `tinycloud:pkh:eip155:1:0x0000000000000000000000000000000000000001:${space}`,
     });
 
     const result = await secrets.put("ANTHROPIC_API_KEY", "secret");
@@ -155,7 +196,8 @@ describe("NodeSecretsService", () => {
     const grantPermissions = mock(async () => {});
     const secrets = new NodeSecretsService({
       getService: () => base,
-      space: "tinycloud:pkh:eip155:1:0x0000000000000000000000000000000000000002:other",
+      space:
+        "tinycloud:pkh:eip155:1:0x0000000000000000000000000000000000000002:other",
       getManifest: () => ({
         app_id: "com.food.app",
         name: "Food",
@@ -173,9 +215,10 @@ describe("NodeSecretsService", () => {
       }),
       grantPermissions,
       canEscalate: () => true,
-      resolveSpace: (space) => space.startsWith("tinycloud:")
-        ? space
-        : `tinycloud:pkh:eip155:1:0x0000000000000000000000000000000000000001:${space}`,
+      resolveSpace: (space) =>
+        space.startsWith("tinycloud:")
+          ? space
+          : `tinycloud:pkh:eip155:1:0x0000000000000000000000000000000000000001:${space}`,
     });
 
     const result = await secrets.put("ANTHROPIC_API_KEY", "secret");
@@ -184,7 +227,8 @@ describe("NodeSecretsService", () => {
     expect(grantPermissions).toHaveBeenCalledWith([
       {
         service: "tinycloud.kv",
-        space: "tinycloud:pkh:eip155:1:0x0000000000000000000000000000000000000002:other",
+        space:
+          "tinycloud:pkh:eip155:1:0x0000000000000000000000000000000000000002:other",
         path: "vault/secrets/ANTHROPIC_API_KEY",
         actions: ["put"],
         skipPrefix: true,
@@ -202,11 +246,9 @@ describe("NodeSecretsService", () => {
       canEscalate: () => true,
     });
 
-    const result = await secrets.put(
-      "ANTHROPIC_API_KEY",
-      "secret",
-      { scope: "Food Tracker" },
-    );
+    const result = await secrets.put("ANTHROPIC_API_KEY", "secret", {
+      scope: "Food Tracker",
+    });
 
     expect(result.ok).toBe(true);
     expect(grantPermissions).toHaveBeenCalledWith([
@@ -218,11 +260,9 @@ describe("NodeSecretsService", () => {
         skipPrefix: true,
       },
     ] satisfies PermissionEntry[]);
-    expect(base.put).toHaveBeenCalledWith(
-      "ANTHROPIC_API_KEY",
-      "secret",
-      { scope: "Food Tracker" },
-    );
+    expect(base.put).toHaveBeenCalledWith("ANTHROPIC_API_KEY", "secret", {
+      scope: "Food Tracker",
+    });
   });
 
   it("skips autosign when the manifest already includes the mutation action", async () => {
@@ -294,17 +334,15 @@ describe("NodeSecretsService", () => {
       canEscalate: () => true,
     });
 
-    const result = await secrets.delete(
-      "ANTHROPIC_API_KEY",
-      { scope: "food-tracker" },
-    );
+    const result = await secrets.delete("ANTHROPIC_API_KEY", {
+      scope: "food-tracker",
+    });
 
     expect(result.ok).toBe(true);
     expect(grantPermissions).not.toHaveBeenCalled();
-    expect(base.delete).toHaveBeenCalledWith(
-      "ANTHROPIC_API_KEY",
-      { scope: "food-tracker" },
-    );
+    expect(base.delete).toHaveBeenCalledWith("ANTHROPIC_API_KEY", {
+      scope: "food-tracker",
+    });
   });
 
   it("requests list permission before listing scoped secrets", async () => {

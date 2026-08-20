@@ -1,18 +1,15 @@
-import {
-  ErrorCodes,
-  err,
-  type Result,
-  type ServiceError,
-} from "../types";
+import { ErrorCodes, err, type Result, type ServiceError } from "../types";
 import type { IDataVaultService } from "../vault/IDataVaultService";
 import type { VaultError } from "../vault/types";
 import type {
   ISecretsService,
+  SecretCatalogEntry,
   SecretPayload,
   SecretsError,
 } from "./ISecretsService";
 import {
   canonicalizeSecretScope,
+  parseSecretCatalogKey,
   resolveSecretPath,
   SECRET_NAME_RE,
   type ResolvedSecretPath,
@@ -34,7 +31,9 @@ function resolveSecretPathResult(
   try {
     return resolveSecretPath(name, options);
   } catch (error) {
-    return invalidSecretInput(error instanceof Error ? error.message : String(error));
+    return invalidSecretInput(
+      error instanceof Error ? error.message : String(error),
+    );
   }
 }
 
@@ -101,13 +100,17 @@ export class SecretsService implements ISecretsService {
     return this.vault.delete(secretPath.vaultKey);
   }
 
-  async list(options?: SecretScopeOptions): Promise<Result<string[], SecretsError>> {
+  async list(
+    options?: SecretScopeOptions,
+  ): Promise<Result<string[], SecretsError>> {
     let prefix: string;
     try {
       const scope = canonicalizeSecretScope(options?.scope);
       prefix = scope === undefined ? "secrets/" : `secrets/scoped/${scope}/`;
     } catch (error) {
-      return invalidSecretInput(error instanceof Error ? error.message : String(error));
+      return invalidSecretInput(
+        error instanceof Error ? error.message : String(error),
+      );
     }
 
     const result = await this.vault.list({
@@ -120,6 +123,45 @@ export class SecretsService implements ISecretsService {
     return {
       ok: true,
       data: result.data.filter((name) => SECRET_NAME_RE.test(name)),
+    };
+  }
+
+  async listAll(): Promise<Result<SecretCatalogEntry[], SecretsError>> {
+    const entries = new Map<string, SecretCatalogEntry>();
+    let cursor: string | undefined;
+
+    do {
+      const result = await this.vault.listPage({
+        prefix: "secrets/",
+        removePrefix: true,
+        limit: 1000,
+        ...(cursor === undefined ? {} : { cursor }),
+      });
+      if (!result.ok) {
+        return result;
+      }
+
+      for (const key of result.data.keys) {
+        const entry = parseSecretCatalogKey(key);
+        if (!entry) continue;
+        entries.set(`${entry.scope ?? ""}\u0000${entry.name}`, entry);
+      }
+
+      cursor = result.data.truncated ? result.data.nextCursor : undefined;
+      if (result.data.truncated && cursor === undefined) {
+        return invalidSecretInput(
+          "Secret catalog listing was truncated without a continuation cursor.",
+        );
+      }
+    } while (cursor !== undefined);
+
+    return {
+      ok: true,
+      data: [...entries.values()].sort(
+        (a, b) =>
+          (a.scope ?? "").localeCompare(b.scope ?? "") ||
+          a.name.localeCompare(b.name),
+      ),
     };
   }
 }

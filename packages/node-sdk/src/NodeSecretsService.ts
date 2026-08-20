@@ -50,7 +50,9 @@ function displayActionUrn(action: SecretAction): string {
   }
 }
 
-function secretActionName(action: SecretAction): "get" | "put" | "del" | "list" {
+function secretActionName(
+  action: SecretAction,
+): "get" | "put" | "del" | "list" {
   return action;
 }
 
@@ -87,7 +89,10 @@ function secretPermissionEntries(
   return entries;
 }
 
-function normalizeSpace(space: string | undefined, resolveSpace?: (space: string) => string): string | undefined {
+function normalizeSpace(
+  space: string | undefined,
+  resolveSpace?: (space: string) => string,
+): string | undefined {
   if (!space) return undefined;
   if (space.startsWith("tinycloud:")) return space;
   return resolveSpace?.(space) ?? space;
@@ -99,7 +104,10 @@ function spaceMatches(
   resolveSpace?: (space: string) => string,
 ): boolean {
   if (!granted || !requested) return false;
-  return normalizeSpace(granted, resolveSpace) === normalizeSpace(requested, resolveSpace);
+  return (
+    normalizeSpace(granted, resolveSpace) ===
+    normalizeSpace(requested, resolveSpace)
+  );
 }
 
 export interface NodeSecretsServiceConfig {
@@ -149,7 +157,10 @@ export class NodeSecretsService implements ISecretsService {
     this.service.lock();
   }
 
-  async get(name: string, options?: SecretScopeOptions): ReturnType<ISecretsService["get"]> {
+  async get(
+    name: string,
+    options?: SecretScopeOptions,
+  ): ReturnType<ISecretsService["get"]> {
     const permission = await this.ensurePermission(name, options, "get");
     if (!permission.ok) return permission;
     return options === undefined
@@ -180,12 +191,20 @@ export class NodeSecretsService implements ISecretsService {
       : this.service.delete(name, options);
   }
 
-  async list(options?: SecretScopeOptions): ReturnType<ISecretsService["list"]> {
+  async list(
+    options?: SecretScopeOptions,
+  ): ReturnType<ISecretsService["list"]> {
     const permission = await this.ensurePermission("", options, "list");
     if (!permission.ok) return permission;
     return options === undefined
       ? this.service.list()
       : this.service.list(options);
+  }
+
+  async listAll(): ReturnType<ISecretsService["listAll"]> {
+    const permission = await this.ensurePermission("", undefined, "list");
+    if (!permission.ok) return permission;
+    return this.service.listAll();
   }
 
   private get service(): ISecretsService {
@@ -249,9 +268,7 @@ export class NodeSecretsService implements ISecretsService {
     return this.service.unlock(this.unlockSigner);
   }
 
-  private hasPermission(
-    permissionEntries: PermissionEntry[],
-  ): boolean {
+  private hasPermission(permissionEntries: PermissionEntry[]): boolean {
     if (this.config.hasPermissions?.(permissionEntries)) {
       return true;
     }
@@ -269,12 +286,15 @@ export class NodeSecretsService implements ISecretsService {
         return resolved.resources.some(
           (resource) =>
             resource.service === entry.service &&
-            spaceMatches(resource.space, entry.space, this.config.resolveSpace) &&
+            spaceMatches(
+              resource.space,
+              entry.space,
+              this.config.resolveSpace,
+            ) &&
             resource.path === entry.path &&
             entry.actions.every((action) => resource.actions.includes(action)),
         );
       }),
     );
   }
-
 }
