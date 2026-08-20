@@ -68,6 +68,16 @@ export interface AddressedPolicyRegistrationReceipt {
   };
 }
 
+export interface AddressedPublishedBinding {
+  readonly version: 3;
+  readonly shareCid: string;
+  readonly shareId: string;
+  readonly policyCid: string;
+  readonly policyRootCid: string;
+  readonly enforcementRootCid: string;
+  readonly contentSourceDigestHex: string;
+}
+
 /** App-neutral owner authority. Node SDK owns all Policy/v3 transport. */
 export interface AddressedPublishAuthority {
   readonly ownerDid: string;
@@ -103,6 +113,8 @@ export interface AddressedSharePublishOptions {
     readonly envelopeKey: string;
     readonly shareCid: string;
   }) => void;
+  /** App-owned persistence for the public, non-secret envelope binding. */
+  readonly publishBinding?: (input: AddressedPublishedBinding) => Promise<void>;
   readonly authority: AddressedPublishAuthority;
   readonly upload: Pick<SharePublishOptions, "registryBaseUrl" | "fetchFn" | "authorizeUpload" | "authorizationOrigin" | "credentials" | "allowInsecureRegistry" | "uploadBlob">;
 }
@@ -291,6 +303,15 @@ export async function publishAddressedShare(options: AddressedSharePublishOption
       retention = uploaded.deleteAfter;
       url = encodeShareUrl({ origin: options.shareOrigin, ciphertextCid: uploaded.cid, key32: envelopeKey });
     }
+    await options.publishBinding?.({
+      version: 3,
+      shareCid: sealed.cid,
+      shareId: options.shareId,
+      policyCid: created.policyCid,
+      policyRootCid: policyRoot.cid,
+      enforcementRootCid: enforcementRoot.cid,
+      contentSourceDigestHex,
+    });
     options.onDeliveryMaterial?.({ envelope, sealedEnvelope: toBase64Url(sealed.blob), envelopeKey: toBase64Url(envelopeKey), shareCid: sealed.cid });
     return publicationResult({ options, url, envelopeCid: sealed.cid, matcher, policyCid: created.policyCid, policyRootCid: policyRoot.cid, enforcementRootCid: enforcementRoot.cid, enforcerDid: registration.attestedEnforcerBinding.enforcerDid, expiry, retention });
   } finally {

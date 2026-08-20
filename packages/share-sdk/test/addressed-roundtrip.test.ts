@@ -11,6 +11,7 @@ const nodeDid = `did:key:${base58btc.encode(Uint8Array.from([0xed, 0x01, ...ed25
 async function fixture(inline = true) {
   let registration: AddressedPolicyRegistrationInput | undefined;
   let uploadDeleteAfter: string | undefined;
+  let publishedBinding: Record<string, unknown> | undefined;
   const published = await publishAddressedShare({
     shareId: "addressedroundtrip0001",
     shareOrigin: "https://share.tinycloud.xyz",
@@ -69,8 +70,9 @@ async function fixture(inline = true) {
         return { cid: input.cid, deleteAfter: input.deleteAfter };
       },
     },
+    publishBinding: async (input) => { publishedBinding = input; },
   });
-  return { published, registration, uploadDeleteAfter };
+  return { published, registration, uploadDeleteAfter, publishedBinding };
 }
 
 describe("canonical addressed publication", () => {
@@ -92,5 +94,18 @@ describe("canonical addressed publication", () => {
     expect(published.metadata.expiresAt).toBe("2030-01-01T00:00:00Z");
     expect(uploadDeleteAfter).toBe("2030-01-01T00:00:00.000Z");
     expect(published.registryDeleteAfter).toBe(uploadDeleteAfter);
+  });
+
+  it("publishes the exact public v3 binding after sealing the envelope", async () => {
+    const { published, registration, publishedBinding } = await fixture(false);
+    expect(publishedBinding).toEqual({
+      version: 3,
+      shareCid: published.link.cid,
+      shareId: "addressedroundtrip0001",
+      policyCid: registration?.policyCid,
+      policyRootCid: "bafy-policy-root",
+      enforcementRootCid: "bafy-enforcement-root",
+      contentSourceDigestHex: registration?.contentSourceDigestHex,
+    });
   });
 });
