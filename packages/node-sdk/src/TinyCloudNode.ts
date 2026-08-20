@@ -4367,7 +4367,7 @@ export class TinyCloudNode {
       shareUrl: input.shareUrl,
       documentName: input.documentName,
       jti: base64UrlEncode(crypto.getRandomValues(new Uint8Array(16))),
-      expiresAt: input.expiresAt,
+      expiresAt: new Date(input.expiresAt).toISOString().replace(/\.\d{3}Z$/, "Z"),
     };
     const requestBodyDigest = base64UrlEncode(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonicalizeEncryptionJson(body)))));
     const request = { ...body, requestBodyDigest };
