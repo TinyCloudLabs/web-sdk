@@ -204,6 +204,7 @@ function publicationResult(input: {
   readonly policyRootCid: string;
   readonly enforcementRootCid: string;
   readonly enforcerDid: string;
+  readonly expiry: string;
   readonly retention: string;
 }): PublishedShare {
   const result = {
@@ -213,7 +214,7 @@ function publicationResult(input: {
       protocol: "tinycloud-share" as const, version: 1 as const, shareId: input.options.shareId,
       origin: input.options.shareOrigin,
       target: { kind: targetKind(input.options.target), origin: input.options.nodeOrigin, nodeAudience: input.enforcerDid, spaceId: input.options.spaceId },
-      resource: { ...input.options.resource }, actions: [...input.options.actions], expiresAt: input.options.expiresAt.toISOString(),
+      resource: { ...input.options.resource }, actions: [...input.options.actions], expiresAt: input.expiry,
       display: { filename: input.options.filename }, recipientMatcher: { ...input.matcher }, policyCid: input.policyCid,
       ownerDelegationCid: input.policyRootCid, enforcementDelegationCid: input.enforcementRootCid,
       ownerDid: input.options.authority.ownerDid, enforcerDid: input.enforcerDid, envelopeCid: input.envelopeCid, shareCid: input.envelopeCid,
@@ -230,6 +231,7 @@ export async function publishAddressedShare(options: AddressedSharePublishOption
   assertSafeInput(options);
   const target = normalizeShareTarget(options.target);
   if (target.kind === "bearer") throw new TypeError("addressed target is required");
+  const expiry = rfc3339Seconds(options.expiresAt);
   const matcher = targetMatcher(target);
   const capabilities = sortCanonical<UnifiedPolicyCapability>([
     { kind: "kv", resource: options.contentSource.kvResource, selector: options.resource.kind, actions: [...options.policyActions] },
@@ -242,7 +244,7 @@ export async function publishAddressedShare(options: AddressedSharePublishOption
   const commonRoot = {
     ownerDid: options.authority.ownerDid, policyId: created.policy.policyId, policyDigestHex: created.policyDigestHex,
     policyCid: created.policyCid, contentSourceDigestHex, capabilityCeilingHashHex, nativeProjectionHashHex,
-    notBefore: new Date(created.policy.createdAt), expiresAt: options.expiresAt, nodeAudience: options.nodeAudience, capabilities,
+    notBefore: new Date(created.policy.createdAt), expiresAt: new Date(expiry), nodeAudience: options.nodeAudience, capabilities,
   };
   const policyRootReceipt = await options.authority.createOwnerRoot({ ...commonRoot, role: "policy-authority", audienceDid: `did:tinycloud:policy:${created.policyDigestHex}` });
   const enforcementRootReceipt = await options.authority.createOwnerRoot({ ...commonRoot, role: "policy-enforcement", audienceDid: options.enforcerDid });
@@ -250,7 +252,7 @@ export async function publishAddressedShare(options: AddressedSharePublishOption
   const enforcementRoot: UnifiedRoot = { cid: enforcementRootReceipt.cid, authorization: enforcementRootReceipt.delegationHeader.Authorization.replace(/^Bearer\s+/i, ""), role: "policy-enforcement" };
   const registration = await options.authority.registerPolicy({
     policyCid: created.policyCid, policy: created.policy, policyRoot, enforcementRoot, contentSourceDigestHex,
-    nativeProjectionHashHex, rootExpiresAt: rfc3339Seconds(options.expiresAt), enforcerDid: options.enforcerDid,
+    nativeProjectionHashHex, rootExpiresAt: expiry, enforcerDid: options.enforcerDid,
     expectedNodeAudience: options.nodeAudience,
   });
   if (registration.policyCid !== created.policyCid || registration.policyRootCid !== policyRoot.cid || registration.enforcementRootCid !== enforcementRoot.cid) throw new Error("Policy/v3 registration receipt is not bound to the published roots");
@@ -261,7 +263,7 @@ export async function publishAddressedShare(options: AddressedSharePublishOption
     target: { origin: options.nodeOrigin, nodeAudience: registration.attestedEnforcerBinding.enforcerDid, spaceId: options.spaceId },
     policy: created.policy, policyCid: created.policyCid, policyRoot, enforcementRoot,
     attestedEnforcerBinding: registration.attestedEnforcerBinding, contentSource: options.contentSource,
-    contentSourceDigestHex, encryptionNetwork: options.contentSource.encryptionNetwork, expiry: options.expiresAt.toISOString(),
+    contentSourceDigestHex, encryptionNetwork: options.contentSource.encryptionNetwork, expiry,
     display: { filename: options.filename }, encrypted: true as const,
     metadata: {
       mediaType: options.mediaType, byteLength: options.byteLength, filename: options.filename,
@@ -278,7 +280,7 @@ export async function publishAddressedShare(options: AddressedSharePublishOption
   try {
     const sealed = await seal(textEncoder.encode(canonicalize(envelope)), envelopeKey);
     let url: string;
-    let retention = options.expiresAt.toISOString();
+    let retention = expiry;
     if (options.inline === true) url = await encodeInlineShareUrl({ origin: options.shareOrigin, ciphertext: sealed.blob, key32: envelopeKey });
     else {
       const uploaded = await uploadShareBlob({ source: new Uint8Array([1]), filename: options.filename, origin: options.shareOrigin, ...options.upload }, { blob: sealed.blob, cid: sealed.cid, deleteAfter: retention, contentLength: sealed.blob.byteLength });
@@ -286,7 +288,7 @@ export async function publishAddressedShare(options: AddressedSharePublishOption
       url = encodeShareUrl({ origin: options.shareOrigin, ciphertextCid: uploaded.cid, key32: envelopeKey });
     }
     options.onDeliveryMaterial?.({ envelope, sealedEnvelope: toBase64Url(sealed.blob), envelopeKey: toBase64Url(envelopeKey), shareCid: sealed.cid });
-    return publicationResult({ options, url, envelopeCid: sealed.cid, matcher, policyCid: created.policyCid, policyRootCid: policyRoot.cid, enforcementRootCid: enforcementRoot.cid, enforcerDid: registration.attestedEnforcerBinding.enforcerDid, retention });
+    return publicationResult({ options, url, envelopeCid: sealed.cid, matcher, policyCid: created.policyCid, policyRootCid: policyRoot.cid, enforcementRootCid: enforcementRoot.cid, enforcerDid: registration.attestedEnforcerBinding.enforcerDid, expiry, retention });
   } finally {
     envelopeKey.fill(0);
   }
