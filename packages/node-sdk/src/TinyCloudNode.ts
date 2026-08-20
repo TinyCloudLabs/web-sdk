@@ -4380,7 +4380,7 @@ export class TinyCloudNode {
     if (!response.ok) throw new Error(`V3 share delivery authorization failed: ${response.status}`);
     const verified = validateShareDeliveryAuthorizationV3Bytes(new Uint8Array(await response.arrayBuffer()), {
       request,
-      senderKeyDid: this.sessionDid,
+      senderKeyDid: this.credentialHolderDid,
       credentialsAudience: input.credentialsAudience,
     });
     void input.nodeProof;
@@ -4392,7 +4392,7 @@ export class TinyCloudNode {
       ...verified,
       proof: {
         alg: "EdDSA",
-        kid: this.sessionDid,
+        kid: this.credentialHolderDid,
         signature: base64UrlEncode(await this.signSessionBytes(requestDigest)),
       },
     };
