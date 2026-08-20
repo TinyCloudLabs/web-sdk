@@ -111,6 +111,7 @@ export function validateShareDeliveryAuthorizationV3Bytes(
   const envelope = object(expected.request.envelope, "v3 share envelope");
   const policy = object(envelope.policy, "v3 share policy");
   const requirement = object(policy.credentialRequirement, "v3 credential requirement");
+  const credentialType = object(requirement.credentialType, "v3 credential type");
   const contentSource = object(envelope.contentSource, "v3 content source");
   const envelopeSignature = object(envelope.signature, "v3 envelope signature");
   const target = object(envelope.target, "v3 target");
@@ -122,7 +123,7 @@ export function validateShareDeliveryAuthorizationV3Bytes(
     || request.policyId !== policy.policyId
     || request.recipient !== expected.request.recipientEmail
     || request.resource !== contentSource.kvResource
-    || request.credentialType !== requirement.credentialType
+    || request.credentialType !== credentialType.id
     || request.credentialType !== "opencredentials.email/v1"
     || request.returnLink !== expected.request.shareUrl
     || request.envelopeRef !== expected.request.shareCid
