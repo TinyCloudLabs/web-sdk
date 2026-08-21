@@ -1,45 +1,89 @@
+import { sha256 } from "@noble/hashes/sha256";
 import {
-  canonicalize,
-  computeCid,
-  encodeInlineShareUrl,
-  encodeShareUrl,
-  fromBase64Url,
-  generateKey,
-  seal,
-  shareEnvelopeV2Schema,
-  toBase64Url,
-  unsignedShareEnvelopeV2Schema,
-  type ContentSource,
-  type ShareAction,
+  canonicalize, computeCid, encodeInlineShareUrl, encodeShareUrl, generateKey,
+  seal, shareEnvelopeV3Schema, toBase64Url, unsignedShareEnvelopeV3Schema,
+  type PolicyCredentialRequirementV1, type ShareAction, type UnifiedContentSource,
+  type UnifiedPolicy, type UnifiedPolicyCapability, type UnifiedRoot,
 } from "@tinycloud/share-envelope";
 import {
-  canonicalOwnerSharePolicy,
-  createDelegatedShareKey,
-  createPolicyEnforcementDelegation,
-  type CreateOwnerDelegationParams,
-  type OwnerDelegationReceipt,
-  type OwnerShareAction,
-  type OwnerShareDecryption,
-  type OwnerShareMatcher,
-  type OwnerSharePolicyRegistrationReceipt,
-  type RegisterOwnerSharePolicyParams,
-} from "./owner-policy.js";
-import {
-  SHARE_CONTENT_LIMIT,
-  SHARE_PUBLISH_RESULT_VERSION,
-  redactPublishedShare,
-  uploadShareBlob,
-  type PublishedShare,
-  type SharePublishOptions,
+  SHARE_CONTENT_LIMIT, SHARE_PUBLISH_RESULT_VERSION, redactPublishedShare,
+  uploadShareBlob, type PublishedShare, type PublishedShareDeliveryMaterial, type SharePublishOptions,
 } from "./publish.js";
 import { normalizeShareTarget, type ShareTarget } from "./targets.js";
+import type { OwnerShareAction, OwnerShareMatcher } from "./owner-policy.js";
 
-const ENVELOPE_DOMAIN = "xyz.tinycloud.share/envelope/v2\0";
+const POLICY_V1_DOMAIN = "xyz.tinycloud.policy/policy/v1\0";
+const POLICY_V2_DOMAIN = "xyz.tinycloud.policy/policy/v2\0";
+const POLICY_CAPABILITY_V1_DOMAIN = "xyz.tinycloud.policy/PolicyCapability/v1\0";
+const CONTENT_SOURCE_V1_DOMAIN = "xyz.tinycloud.policy/ContentSource/v1\0";
+const NATIVE_PROJECTION_V1_DOMAIN = "xyz.tinycloud.policy/NativeProjection/v1\0";
+const ENVELOPE_V3_DOMAIN = "xyz.tinycloud.share/envelope/v3\0";
+const textEncoder = new TextEncoder();
 
+export interface AddressedOwnerRootInput {
+  readonly ownerDid: string;
+  readonly role: "policy-authority" | "policy-enforcement";
+  readonly audienceDid: string;
+  readonly policyId: string;
+  readonly policyDigestHex: string;
+  readonly policyCid: string;
+  readonly contentSourceDigestHex: string;
+  readonly capabilityCeilingHashHex: string;
+  readonly nativeProjectionHashHex: string;
+  readonly notBefore: Date;
+  readonly expiresAt: Date;
+  readonly nodeAudience: string;
+  readonly capabilities: readonly UnifiedPolicyCapability[];
+}
+
+export interface AddressedOwnerRootReceipt {
+  readonly cid: string;
+  readonly delegationHeader: { readonly Authorization: string };
+}
+
+export interface AddressedPolicyRegistrationInput {
+  readonly policyCid: string;
+  readonly policy: Readonly<Record<string, unknown>>;
+  readonly policyRoot: { readonly cid: string; readonly authorization: string };
+  readonly enforcementRoot: { readonly cid: string; readonly authorization: string };
+  readonly contentSourceDigestHex: string;
+  readonly nativeProjectionHashHex: string;
+  readonly rootExpiresAt: string;
+  readonly enforcerDid: string;
+  readonly expectedNodeAudience: string;
+}
+
+export interface AddressedPolicyRegistrationReceipt {
+  readonly policyCid: string;
+  readonly policyRootCid: string;
+  readonly enforcementRootCid: string;
+  readonly attestedEnforcerBinding: {
+    readonly schema: "xyz.tinycloud.policy/attested-enforcer/v2";
+    readonly enforcerDid: string;
+    readonly nodeAudience: string;
+    readonly attestationBindingDigestHex: string;
+    readonly issuedAt: string;
+    readonly expiresAt: string;
+    readonly signature: { readonly suite: "Ed25519"; readonly signerDid: string; readonly value: string };
+  };
+}
+
+export interface AddressedPublishedBinding {
+  readonly version: 3;
+  readonly shareCid: string;
+  readonly shareId: string;
+  readonly policyCid: string;
+  readonly policyRootCid: string;
+  readonly enforcementRootCid: string;
+  readonly contentSourceDigestHex: string;
+}
+
+/** App-neutral owner authority. Node SDK owns all Policy/v3 transport. */
 export interface AddressedPublishAuthority {
   readonly ownerDid: string;
-  createOwnerDelegation(input: CreateOwnerDelegationParams): Promise<OwnerDelegationReceipt>;
-  registerOwnerSharePolicy(input: RegisterOwnerSharePolicyParams): Promise<OwnerSharePolicyRegistrationReceipt>;
+  createOwnerRoot(input: AddressedOwnerRootInput): Promise<AddressedOwnerRootReceipt>;
+  sign(bytes: Uint8Array): Promise<Uint8Array>;
+  registerPolicy(input: AddressedPolicyRegistrationInput): Promise<AddressedPolicyRegistrationReceipt>;
 }
 
 export interface AddressedSharePublishOptions {
@@ -53,16 +97,24 @@ export interface AddressedSharePublishOptions {
   readonly resource: { readonly kind: "exact" | "prefix"; readonly path: string };
   readonly actions: readonly ShareAction[];
   readonly policyActions: readonly OwnerShareAction[];
-  readonly contentSource: ContentSource;
-  readonly contentSourceDigest?: string;
+  readonly contentSource: UnifiedContentSource;
+  readonly credentialRequirement?: PolicyCredentialRequirementV1;
   readonly filename: string;
   readonly mediaType: string;
   readonly byteLength: number;
   readonly artifact?: "html";
   readonly deliveryEmail?: string;
   readonly expiresAt: Date;
-  readonly decryption?: OwnerShareDecryption;
   readonly inline?: boolean;
+  /** Ephemeral sender-only material required by Node's Policy/v3 delivery authorization. */
+  readonly onDeliveryMaterial?: (input: {
+    readonly envelope: Readonly<Record<string, unknown>>;
+    readonly sealedEnvelope: string;
+    readonly envelopeKey: string;
+    readonly shareCid: string;
+  }) => void;
+  /** App-owned persistence for the public, non-secret envelope binding. */
+  readonly publishBinding?: (input: AddressedPublishedBinding) => Promise<void>;
   readonly authority: AddressedPublishAuthority;
   readonly upload: Pick<SharePublishOptions, "registryBaseUrl" | "fetchFn" | "authorizeUpload" | "authorizationOrigin" | "credentials" | "allowInsecureRegistry" | "uploadBlob">;
 }
@@ -82,240 +134,190 @@ function assertSafeInput(input: AddressedSharePublishOptions): void {
   if (input.filename.length === 0 || input.filename === "." || input.filename === ".." || /[/\\\u0000-\u001f\u007f]/.test(input.filename)) throw new TypeError("addressed filename is invalid");
   if (!Number.isSafeInteger(input.byteLength) || input.byteLength < 0 || input.byteLength > SHARE_CONTENT_LIMIT) throw new TypeError("addressed content length is invalid");
   if (input.actions.length === 0 || input.policyActions.length === 0) throw new TypeError("addressed share actions are empty");
-  const expiry = input.expiresAt.getTime();
-  if (!Number.isFinite(expiry) || expiry <= Date.now()) throw new TypeError("addressed share expiry must be in the future");
+  if (!Number.isFinite(input.expiresAt.getTime()) || input.expiresAt.getTime() <= Date.now()) throw new TypeError("addressed share expiry must be in the future");
   if (input.artifact === "html" && (input.resource.kind !== "prefix" || !input.actions.includes("read") || !input.actions.includes("list"))) throw new TypeError("html artifacts require a readable prefix");
-  if (input.contentSource.kind !== "kv") throw new TypeError("addressed policy publication requires a KV content source");
+  if (input.contentSource.shareId !== input.shareId || input.contentSource.selector !== input.resource.kind) throw new TypeError("addressed content source is not bound to the share");
 }
 
-async function sha256(value: Uint8Array): Promise<string> {
-  return toBase64Url(new Uint8Array(await crypto.subtle.digest("SHA-256", value)));
+function hex(bytes: Uint8Array): string {
+  return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function digestHex(value: unknown, domain: string): string {
+  return hex(sha256(textEncoder.encode(`${domain}${canonicalize(value)}`)));
+}
+
+function sortCanonical<T>(values: readonly T[]): readonly T[] {
+  return [...values].sort((left, right) => canonicalize(left).localeCompare(canonicalize(right)));
+}
+
+function base32Lower(bytes: Uint8Array): string {
+  const alphabet = "abcdefghijklmnopqrstuvwxyz234567";
+  let output = "";
+  let buffer = 0;
+  let bits = 0;
+  for (const byte of bytes) {
+    buffer = (buffer << 8) | byte;
+    bits += 8;
+    while (bits >= 5) {
+      output += alphabet[(buffer >>> (bits - 5)) & 31];
+      bits -= 5;
+    }
+  }
+  if (bits > 0) output += alphabet[(buffer << (5 - bits)) & 31];
+  return output;
+}
+
+function rfc3339Seconds(value: Date): string {
+  return new Date(Math.floor(value.getTime() / 1000) * 1000).toISOString().replace(".000Z", "Z");
+}
+
+function nativeProjection(capabilities: readonly UnifiedPolicyCapability[]): readonly Record<string, unknown>[] {
+  return sortCanonical(capabilities.map((capability) => capability.kind === "encryption"
+    ? { service: "tinycloud.encryption", space: capability.resource, path: capability.resource, actions: [capability.action] }
+    : {
+        service: "tinycloud.kv",
+        space: capability.resource.slice(0, capability.resource.indexOf("/kv/")),
+        path: capability.resource.slice(capability.resource.indexOf("/kv/") + 4),
+        actions: [...capability.actions],
+        caveat: { type: "xyz.tinycloud.resource/selector", kind: capability.selector, value: capability.resource },
+      }));
+}
+
+async function createPolicy(options: AddressedSharePublishOptions, capabilities: readonly UnifiedPolicyCapability[]): Promise<{ readonly policy: UnifiedPolicy; readonly policyCid: string; readonly policyDigestHex: string }> {
+  const fields = {
+    ownerDid: options.authority.ownerDid,
+    createdAt: rfc3339Seconds(new Date()),
+    expiresAt: rfc3339Seconds(options.expiresAt),
+    contentSource: options.contentSource,
+    capabilityCeiling: [...capabilities],
+  };
+  const unsigned = options.credentialRequirement === undefined
+    ? { schema: "xyz.tinycloud.policy/policy/v1" as const, ...fields }
+    : { schema: "xyz.tinycloud.policy/policy/v2" as const, ...fields, credentialRequirement: options.credentialRequirement };
+  const domain = options.credentialRequirement === undefined ? POLICY_V1_DOMAIN : POLICY_V2_DOMAIN;
+  const policyDigestHex = digestHex(unsigned, domain);
+  const signature = await options.authority.sign(sha256(textEncoder.encode(`${domain}${canonicalize(unsigned)}`)));
+  if (signature.byteLength !== 64) throw new TypeError("policy signature must be Ed25519");
+  const policy = {
+    ...unsigned,
+    policyId: `pol_${base32Lower(Uint8Array.from(policyDigestHex.match(/../g)!, (byte) => Number.parseInt(byte, 16)))}`,
+    signature: { suite: "Ed25519" as const, signerDid: options.authority.ownerDid, value: toBase64Url(signature) },
+  } satisfies UnifiedPolicy;
+  return { policy, policyCid: await computeCid(textEncoder.encode(canonicalize(policy))), policyDigestHex };
 }
 
 function publicationResult(input: {
   readonly options: AddressedSharePublishOptions;
   readonly url: string;
   readonly envelopeCid: string;
-  readonly shareCid: string;
   readonly matcher: OwnerShareMatcher;
-  readonly registration: OwnerSharePolicyRegistrationReceipt["registration"];
   readonly policyCid: string;
-  readonly enforcementDelegationCid: string;
-  readonly shareKeyDid: string;
+  readonly policyRootCid: string;
+  readonly enforcementRootCid: string;
+  readonly enforcerDid: string;
+  readonly expiry: string;
   readonly retention: string;
+  readonly deliveryMaterial: PublishedShareDeliveryMaterial;
 }): PublishedShare {
   const result = {
-    protocol: "tinycloud-share",
-    version: SHARE_PUBLISH_RESULT_VERSION,
-    url: input.url,
+    protocol: "tinycloud-share", version: SHARE_PUBLISH_RESULT_VERSION, url: input.url,
     link: { kind: input.options.inline === true ? "inline" as const : "compact" as const, cid: input.envelopeCid },
     metadata: {
-      protocol: "tinycloud-share" as const,
-      version: 1 as const,
-      shareId: input.options.shareId,
+      protocol: "tinycloud-share" as const, version: 1 as const, shareId: input.options.shareId,
       origin: input.options.shareOrigin,
-      target: {
-        kind: targetKind(input.options.target),
-        origin: input.options.nodeOrigin,
-        nodeAudience: input.options.nodeAudience,
-        spaceId: input.options.spaceId,
-      },
-      resource: { ...input.options.resource },
-      actions: [...input.options.actions],
-      expiresAt: input.options.expiresAt.toISOString(),
-      display: { filename: input.options.filename },
-      recipientMatcher: { ...input.matcher },
-      registrationCid: input.registration.registrationCid,
-      policyCid: input.policyCid,
-      ownerDelegationCid: input.registration.ownerDelegationCid,
-      enforcementDelegationCid: input.enforcementDelegationCid,
-      ownerDid: input.registration.ownerDid,
-      shareKeyDid: input.shareKeyDid,
-      enforcerDid: input.registration.enforcerDid,
-      envelopeCid: input.envelopeCid,
-      shareCid: input.shareCid,
+      target: { kind: targetKind(input.options.target), origin: input.options.nodeOrigin, nodeAudience: input.enforcerDid, spaceId: input.options.spaceId },
+      resource: { ...input.options.resource }, actions: [...input.options.actions], expiresAt: input.expiry,
+      display: { filename: input.options.filename }, recipientMatcher: { ...input.matcher }, policyCid: input.policyCid,
+      ownerDelegationCid: input.policyRootCid, enforcementDelegationCid: input.enforcementRootCid,
+      ownerDid: input.options.authority.ownerDid, enforcerDid: input.enforcerDid, envelopeCid: input.envelopeCid, shareCid: input.envelopeCid,
     },
     registryDeleteAfter: input.retention,
   } satisfies PublishedShare;
   Object.defineProperty(result, "toJSON", { enumerable: false, value: () => redactPublishedShare(result) });
   Object.defineProperty(result, "url", { enumerable: false, value: input.url });
+  Object.defineProperty(result, "deliveryMaterial", { enumerable: false, value: input.deliveryMaterial });
   return result;
 }
 
-/**
- * Canonical addressed publisher shared by browser and CLI.
- *
- * Callers own authenticated KV writes and transport. This function alone owns
- * the policy, delegation, outer-authority, signed-envelope, encryption, and
- * link bytes.
- */
+/** Canonical application-neutral Policy/v3 addressed publisher shared by browser and CLI. */
 export async function publishAddressedShare(options: AddressedSharePublishOptions): Promise<PublishedShare> {
   assertSafeInput(options);
   const target = normalizeShareTarget(options.target);
   if (target.kind === "bearer") throw new TypeError("addressed target is required");
-  if (options.contentSource.kind !== "kv") throw new TypeError("addressed policy publication requires a KV content source");
-  const contentSource = options.contentSource;
+  const expiry = rfc3339Seconds(options.expiresAt);
   const matcher = targetMatcher(target);
-  const expiresAt = options.expiresAt.toISOString();
-  const contentSourceDigest = options.contentSourceDigest ?? await sha256(new TextEncoder().encode(canonicalize(contentSource)));
-  const shareKey = await createDelegatedShareKey({ extractable: false });
-  let envelopeKey: Uint8Array | undefined;
+  const capabilities = sortCanonical<UnifiedPolicyCapability>([
+    { kind: "kv", resource: options.contentSource.kvResource, selector: options.resource.kind, actions: [...options.policyActions] },
+    { kind: "encryption", resource: options.contentSource.encryptionNetwork, action: "tinycloud.encryption/decrypt" },
+  ]);
+  const created = await createPolicy(options, capabilities);
+  const contentSourceDigestHex = digestHex(options.contentSource, CONTENT_SOURCE_V1_DOMAIN);
+  const capabilityCeilingHashHex = digestHex(capabilities, POLICY_CAPABILITY_V1_DOMAIN);
+  const nativeProjectionHashHex = digestHex(nativeProjection(capabilities), NATIVE_PROJECTION_V1_DOMAIN);
+  const commonRoot = {
+    ownerDid: options.authority.ownerDid, policyId: created.policy.policyId, policyDigestHex: created.policyDigestHex,
+    policyCid: created.policyCid, contentSourceDigestHex, capabilityCeilingHashHex, nativeProjectionHashHex,
+    notBefore: new Date(created.policy.createdAt), expiresAt: new Date(expiry), nodeAudience: options.nodeAudience, capabilities,
+  };
+  const policyRootReceipt = await options.authority.createOwnerRoot({ ...commonRoot, role: "policy-authority", audienceDid: `did:tinycloud:policy:${created.policyDigestHex}` });
+  const enforcementRootReceipt = await options.authority.createOwnerRoot({ ...commonRoot, role: "policy-enforcement", audienceDid: options.enforcerDid });
+  const policyRoot: UnifiedRoot = { cid: policyRootReceipt.cid, authorization: policyRootReceipt.delegationHeader.Authorization.replace(/^Bearer\s+/i, ""), role: "policy-authority" };
+  const enforcementRoot: UnifiedRoot = { cid: enforcementRootReceipt.cid, authorization: enforcementRootReceipt.delegationHeader.Authorization.replace(/^Bearer\s+/i, ""), role: "policy-enforcement" };
+  const registration = await options.authority.registerPolicy({
+    policyCid: created.policyCid, policy: created.policy, policyRoot, enforcementRoot, contentSourceDigestHex,
+    nativeProjectionHashHex, rootExpiresAt: expiry, enforcerDid: options.enforcerDid,
+    expectedNodeAudience: options.nodeAudience,
+  });
+  if (registration.policyCid !== created.policyCid || registration.policyRootCid !== policyRoot.cid || registration.enforcementRootCid !== enforcementRoot.cid) throw new Error("Policy/v3 registration receipt is not bound to the published roots");
+  const unsigned = {
+    version: 3 as const, shareId: options.shareId, recipientMatcher: matcher,
+    ...(options.deliveryEmail === undefined ? {} : { deliveryEmail: options.deliveryEmail }),
+    actions: [...options.actions], resource: { ...options.resource },
+    target: { origin: options.nodeOrigin, nodeAudience: registration.attestedEnforcerBinding.enforcerDid, spaceId: options.spaceId },
+    policy: created.policy, policyCid: created.policyCid, policyRoot, enforcementRoot,
+    attestedEnforcerBinding: registration.attestedEnforcerBinding, contentSource: options.contentSource,
+    contentSourceDigestHex, encryptionNetwork: options.contentSource.encryptionNetwork, expiry,
+    display: { filename: options.filename }, encrypted: true as const,
+    metadata: {
+      mediaType: options.mediaType, byteLength: options.byteLength, filename: options.filename,
+      ...(options.mediaType.startsWith("text/") ? { encoding: "utf-8" as const } : {}),
+      ...(options.artifact === undefined ? {} : { artifact: options.artifact }),
+    },
+  };
+  unsignedShareEnvelopeV3Schema.parse(unsigned);
+  const envelopeSignature = await options.authority.sign(sha256(textEncoder.encode(`${ENVELOPE_V3_DOMAIN}${canonicalize(unsigned)}`)));
+  if (envelopeSignature.byteLength !== 64) throw new TypeError("v3 envelope signature must be Ed25519");
+  const envelope = { ...unsigned, signature: { signerDid: options.authority.ownerDid, algorithm: "Ed25519" as const, value: toBase64Url(envelopeSignature) } };
+  shareEnvelopeV3Schema.parse(envelope);
+  const envelopeKey = generateKey();
   try {
-    const permissions = [
-      {
-        service: "tinycloud.kv",
-        path: options.resource.kind === "prefix" ? `${options.resource.path.replace(/\/+$/, "")}/` : options.resource.path,
-        actions: [...options.policyActions],
-      },
-      ...(options.decryption === undefined ? [] : [{
-        service: "tinycloud.encryption",
-        path: options.decryption.networkId,
-        actions: [options.decryption.action],
-      }]),
-    ];
-    const ownerDelegation = await options.authority.createOwnerDelegation({
-      delegateDid: shareKey.did,
-      spaceId: options.spaceId,
-      permissions,
-      expiresAt: options.expiresAt,
-    });
-    const policy = {
-      type: "TinyCloudSharePolicy" as const,
-      version: 2 as const,
-      shareId: options.shareId,
-      ownerDid: options.authority.ownerDid,
-      shareKeyDid: shareKey.did,
-      recipientMatcher: matcher,
-      target: {
-        origin: options.nodeOrigin,
-        nodeAudience: options.nodeAudience,
-        enforcerDid: options.enforcerDid,
-        spaceId: options.spaceId,
-      },
-      resource: { ...options.resource },
-      actions: [...options.policyActions],
-      ...(options.decryption === undefined ? {} : { decryption: options.decryption }),
-      contentSource,
-      contentSourceDigest,
-      ownerDelegationCid: ownerDelegation.delegationCid,
-      expiresAt,
-    };
-    const canonicalPolicy = await canonicalOwnerSharePolicy(policy);
-    const policyProof = toBase64Url(await shareKey.sign(canonicalPolicy.bytes));
-    const enforcementDelegation = await createPolicyEnforcementDelegation({
-      ownerDelegation,
-      shareKey,
-      enforcerDid: options.enforcerDid,
-      policyCid: canonicalPolicy.cid,
-      shareId: options.shareId,
-      spaceId: options.spaceId,
-      nodeAudience: options.nodeAudience,
-      path: options.resource.path,
-      actions: options.policyActions,
-      contentSourceDigest,
-      expiresAt,
-    });
-    const registration = await options.authority.registerOwnerSharePolicy({
-      policy: { bytes: canonicalPolicy.bytes, cid: canonicalPolicy.cid, proof: policyProof },
-      ownerDelegation,
-      enforcementDelegation,
-      contentSourceDigest,
-    });
-    const authorityMaterialDigest = await sha256(fromBase64Url(enforcementDelegation.dagCbor));
-    const authorityTarget = {
-      origin: options.nodeOrigin,
-      nodeAudience: options.nodeAudience,
-      enforcerDid: options.enforcerDid,
-      spaceId: options.spaceId,
-    };
-    const envelopeIdentity = {
-      schema: "xyz.tinycloud.share/envelope/v2",
-      version: 2,
-      shareId: options.shareId,
-      delegationCid: ownerDelegation.delegationCid,
-      policyCid: canonicalPolicy.cid,
-      target: authorityTarget,
-      resource: options.resource,
-      actions: options.policyActions,
-      ...(options.decryption === undefined ? {} : { decryption: options.decryption }),
-      contentSource,
-      contentSourceDigest,
-      expiresAt,
-    };
-    const envelopeCid = await computeCid(new TextEncoder().encode(canonicalize(envelopeIdentity)));
-    const shareCid = await computeCid(new TextEncoder().encode(canonicalize({ version: 2, shareId: options.shareId, policyCid: canonicalPolicy.cid, envelopeCid })));
-    const outerUnsigned = { ...envelopeIdentity, envelopeCid, shareCid };
-    const outerSignature = toBase64Url(await shareKey.sign(new TextEncoder().encode(`${ENVELOPE_DOMAIN}${canonicalize(outerUnsigned)}`)));
-    const unsigned = {
-      version: 2 as const,
-      shareId: options.shareId,
-      recipientMatcher: matcher,
-      ...(options.deliveryEmail === undefined ? {} : { deliveryEmail: options.deliveryEmail }),
-      actions: [...options.actions],
-      resource: { ...options.resource },
-      target: { origin: options.nodeOrigin, nodeAudience: options.nodeAudience, spaceId: options.spaceId },
-      delegationCid: ownerDelegation.delegationCid,
-      authorityMaterialHandle: registration.registration.registrationCid,
-      authorityMaterialDigest,
-      contentSource,
-      contentSourceDigest,
-      authorizationTarget: { kind: "policy" as const, policyCid: canonicalPolicy.cid, policyBytes: toBase64Url(canonicalPolicy.bytes) },
-      display: { filename: options.filename },
-      expiry: expiresAt,
-      encrypted: true,
-      metadata: {
-        mediaType: options.mediaType,
-        byteLength: options.byteLength,
-        filename: options.filename,
-        ...(options.mediaType.startsWith("text/") ? { encoding: "utf-8" as const } : {}),
-        ...(options.artifact === undefined ? {} : { artifact: options.artifact }),
-      },
-      ownerAuthority: {
-        registrationCid: registration.registration.registrationCid,
-        shareCid,
-        envelopeCid,
-        enforcementDelegation,
-        registrationReceipt: registration,
-        outerEnvelope: {
-          ...outerUnsigned,
-          signature: { signerDid: shareKey.did, algorithm: "Ed25519" as const, value: outerSignature },
-        },
-      },
-    };
-    unsignedShareEnvelopeV2Schema.parse(unsigned);
-    const envelopeSignature = toBase64Url(await shareKey.sign(new TextEncoder().encode(`${ENVELOPE_DOMAIN}${canonicalize(unsigned)}`)));
-    const envelope = { ...unsigned, signature: { signerDid: shareKey.did, algorithm: "Ed25519" as const, value: envelopeSignature } };
-    shareEnvelopeV2Schema.parse(envelope);
-    envelopeKey = generateKey();
-    const sealed = await seal(new TextEncoder().encode(canonicalize(envelope)), envelopeKey);
+    const sealed = await seal(textEncoder.encode(canonicalize(envelope)), envelopeKey);
     let url: string;
-    let retention = expiresAt;
-    if (options.inline === true) {
-      url = await encodeInlineShareUrl({ origin: options.shareOrigin, ciphertext: sealed.blob, key32: envelopeKey });
-    } else {
-      const uploaded = await uploadShareBlob({
-        source: new Uint8Array([1]),
-        filename: options.filename,
-        origin: options.shareOrigin,
-        ...options.upload,
-      }, { blob: sealed.blob, cid: sealed.cid, deleteAfter: expiresAt, contentLength: sealed.blob.byteLength });
+    // The signed policy/envelope schema uses canonical whole-second RFC 3339,
+    // while the existing registry upload contract requires millisecond form.
+    // Keep those wire formats independent instead of leaking the policy format
+    // into the registry transport.
+    let retention = options.expiresAt.toISOString();
+    if (options.inline === true) url = await encodeInlineShareUrl({ origin: options.shareOrigin, ciphertext: sealed.blob, key32: envelopeKey });
+    else {
+      const uploaded = await uploadShareBlob({ source: new Uint8Array([1]), filename: options.filename, origin: options.shareOrigin, ...options.upload }, { blob: sealed.blob, cid: sealed.cid, deleteAfter: retention, contentLength: sealed.blob.byteLength });
       retention = uploaded.deleteAfter;
       url = encodeShareUrl({ origin: options.shareOrigin, ciphertextCid: uploaded.cid, key32: envelopeKey });
     }
-    return publicationResult({
-      options,
-      url,
-      envelopeCid: sealed.cid,
-      shareCid,
-      matcher,
-      registration: registration.registration,
-      policyCid: canonicalPolicy.cid,
-      enforcementDelegationCid: enforcementDelegation.cid,
-      shareKeyDid: shareKey.did,
-      retention,
+    await options.publishBinding?.({
+      version: 3,
+      shareCid: sealed.cid,
+      shareId: options.shareId,
+      policyCid: created.policyCid,
+      policyRootCid: policyRoot.cid,
+      enforcementRootCid: enforcementRoot.cid,
+      contentSourceDigestHex,
     });
+    const deliveryMaterial = { envelope, sealedEnvelope: toBase64Url(sealed.blob), envelopeKey: toBase64Url(envelopeKey), shareCid: sealed.cid };
+    options.onDeliveryMaterial?.(deliveryMaterial);
+    return publicationResult({ options, url, envelopeCid: sealed.cid, matcher, policyCid: created.policyCid, policyRootCid: policyRoot.cid, enforcementRootCid: enforcementRoot.cid, enforcerDid: registration.attestedEnforcerBinding.enforcerDid, expiry, retention, deliveryMaterial });
   } finally {
-    shareKey.clear();
-    envelopeKey?.fill(0);
+    envelopeKey.fill(0);
   }
 }

@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
-import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { ProfileManager } from "../config/profiles.js";
 import { NodeWasmBindings } from "../../../node-sdk/src/NodeWasmBindings.js";
@@ -36,20 +35,6 @@ const session = await (async () => {
   const complete = wasm.completeSessionSetup({ ...prepared, signature: await signer.signMessage(prepared.siwe) });
   return { ...complete, jwk, verificationMethod: profile.sessionDid };
 })();
-const sha256 = (bytes: Uint8Array): string => createHash("sha256").update(bytes).digest("base64url");
-const exactNodeResponse = JSON.parse(await readFile(new URL("./upload-attestation-node-response.json", import.meta.url), "utf8")) as Record<string, unknown>;
-const nodeResponse = (): Record<string, unknown> => ({
-  ...exactNodeResponse,
-  sessionDid: profile.sessionDid,
-  shareOrigin: "https://share.tinycloud.xyz",
-  encryptedBlobCid: upload.cid,
-  encryptedBlobSha256: sha256(upload.blob),
-  byteLength: upload.contentLength,
-  deleteAfter: upload.deleteAfter,
-  issuedAt: new Date().toISOString(),
-  authorityExpiresAt: new Date(Date.now() + 120_000).toISOString(),
-  expiresAt: new Date(Date.now() + 60_000).toISOString(),
-});
 const restore: Array<{ mockRestore: () => void }> = [];
 
 beforeEach(() => {
@@ -66,17 +51,25 @@ afterEach(() => {
 });
 
 describe("Share upload authority adapter", () => {
+  it("routes addressed delivery through Policy/v3 with no retired Node delivery fallback", async () => {
+    const source = await readFile(new URL("./adapters.ts", import.meta.url), "utf8");
+    expect(source).toContain("node.authorizeShareDeliveryV3({");
+    expect(source).not.toContain("node.authorizeShareDelivery({");
+    expect(source).not.toContain("/share/v2/deliveries/authorize");
+  });
+
   it("posts the exact signed delivery receipt only to OpenCredentials", async () => {
     const credentialsOrigin = "https://credentials.example";
     const emailOrigin = "https://email.example";
-    const authorization = { type: "TinyCloudShareDeliveryAuthorization", version: 2 };
+    const request = { returnLink: "share-url-with-private-fragment" };
+    const admission = { schema: "xyz.tinycloud.policy/delivery-admission/v0" };
     const proof = { alg: "EdDSA", kid: "did:web:node.example#key", signature: "test-signature" };
     const shareUrl = "share-url-with-private-fragment";
     const calls: Array<{ readonly url: string; readonly init?: RequestInit }> = [];
 
     const response = await postAddressedShareDelivery({
       credentialsOrigin,
-      receipt: { authorization, proof },
+      receipt: { request, admission, proof },
       shareUrl,
       fetchFn: (async (input, init) => {
         calls.push({ url: String(input), init });
@@ -86,8 +79,8 @@ describe("Share upload authority adapter", () => {
 
     expect(response.status).toBe(202);
     expect(calls).toHaveLength(1);
-    expect(calls[0]?.url).toBe(`${credentialsOrigin}/share/v2`);
-    expect(calls[0]?.url).not.toBe(`${emailOrigin}/share/v2`);
+    expect(calls[0]?.url).toBe(`${credentialsOrigin}/v1/credential-invitations`);
+    expect(calls[0]?.url).not.toBe(`${emailOrigin}/v1/credential-invitations`);
     expect(calls[0]?.init).toMatchObject({
       method: "POST",
       credentials: "omit",
@@ -97,8 +90,8 @@ describe("Share upload authority adapter", () => {
     expect(calls[0]?.init).not.toHaveProperty("referrer");
     expect(calls[0]?.init?.headers).toEqual({ accept: "application/json", "content-type": "application/json" });
     const body = JSON.parse(String(calls[0]?.init?.body));
-    expect(body).toEqual({ authorization, proof, shareUrl });
-    expect(Object.keys(body).sort()).toEqual(["authorization", "proof", "shareUrl"]);
+    expect(body).toEqual({ request, admission, proof });
+    expect(Object.keys(body).sort()).toEqual(["admission", "proof", "request"]);
   });
 
   it("uses an explicit noninteractive acquisition hook without reading or persisting a private JWK", async () => {
@@ -126,117 +119,15 @@ describe("Share upload authority adapter", () => {
     await expect(authorize(upload)).resolves.toEqual({ cookie: "share_session_opaque" });
   });
 
-  it("uses the real OpenKey session signer and Node attestation route in production wiring", async () => {
-    restore.push(spyOn(ProfileManager, "getProfile").mockResolvedValue(profile));
-    restore.push(spyOn(ProfileManager, "getSession").mockResolvedValue(session));
-    const requests: Array<{ readonly url: string; readonly init?: RequestInit }> = [];
+  it("retires production Node upload authorization without a network fallback", async () => {
+    const requests: string[] = [];
     const authorize = createProductionUploadAuthorizer({
       origin: "https://share.tinycloud.xyz",
       profileName: async () => profile.name,
-      fetchFn: (async (input, init) => {
-        requests.push({ url: String(input), init });
-        return new Response(JSON.stringify(nodeResponse()), { status: 200, headers: { "content-type": "application/json" } });
-      }) as typeof globalThis.fetch,
-    });
-
-    const authorization = await authorize(upload);
-    expect(new Headers(authorization).has("x-tinycloud-upload-attestation")).toBe(true);
-    expect(new Headers(authorization).get("x-tinycloud-retention")).toBe('"until-delete"');
-    expect(requests).toHaveLength(1);
-    expect(requests[0]?.url).toBe("https://node.example/share/upload/attestation");
-    expect(requests[0]?.init?.redirect).toBe("error");
-    expect(new Headers(requests[0]?.init?.headers).has("authorization")).toBe(true);
-    const invocation = new Headers(requests[0]?.init?.headers).get("authorization");
-    const payload = JSON.parse(Buffer.from(invocation!.split(".")[1]!, "base64url")) as { aud?: string };
-    expect(payload.aud).toBe("did:web:node.example");
-    expect(requests[0]?.init?.body).toContain('"requestBodyDigest"');
-  });
-
-  it("matches a Node attestation to the persisted session DID principal", async () => {
-    restore.push(spyOn(ProfileManager, "getProfile").mockResolvedValue(profile));
-    const persistedVerificationMethod = session.verificationMethod.includes("#")
-      ? session.verificationMethod
-      : `${session.verificationMethod}#${session.verificationMethod.slice("did:key:".length)}`;
-    const persisted = { ...session, verificationMethod: persistedVerificationMethod };
-    restore.push(spyOn(ProfileManager, "getSession").mockResolvedValue(persisted));
-    const response = nodeResponse();
-    response.sessionDid = persisted.verificationMethod.split("#", 1)[0];
-    const authorize = createProductionUploadAuthorizer({
-      origin: "https://share.tinycloud.xyz",
-      profileName: async () => profile.name,
-      fetchFn: (async () => new Response(JSON.stringify(response), { status: 200, headers: { "content-type": "application/json" } })) as typeof globalThis.fetch,
-    });
-    await expect(authorize(upload)).resolves.toEqual(expect.objectContaining({
-      "x-tinycloud-retention": '"until-delete"',
-    }));
-  });
-
-  it("activates a complete OpenKey session before the packed invocation reaches Node", async () => {
-    restore.push(spyOn(ProfileManager, "getProfile").mockResolvedValue(profile));
-    restore.push(spyOn(ProfileManager, "getSession").mockResolvedValue(session));
-    let activated = false;
-    const activationFetch = spyOn(globalThis, "fetch").mockImplementation(async (input) => {
-      expect(String(input)).toBe("https://node.example/delegate");
-      activated = true;
-      return new Response(JSON.stringify({ activated: ["redacted-space"] }), { status: 200 });
-    });
-    restore.push(activationFetch);
-    const authorize = createProductionUploadAuthorizer({
-      origin: "https://share.tinycloud.xyz",
-      profileName: async () => profile.name,
-      fetchFn: (async () => {
-        if (!activated) return new Response("upload delegation missing", { status: 403 });
-        return new Response(JSON.stringify(nodeResponse()), { status: 200, headers: { "content-type": "application/json" } });
-      }) as typeof globalThis.fetch,
-    });
-
-    await expect(authorize(upload)).resolves.toEqual(expect.objectContaining({
-      "x-tinycloud-retention": '"until-delete"',
-    }));
-    expect(activationFetch).toHaveBeenCalledTimes(1);
-  });
-
-  it("requires Node's authority expiry and retains it in the Share authorization", async () => {
-    restore.push(spyOn(ProfileManager, "getProfile").mockResolvedValue(profile));
-    restore.push(spyOn(ProfileManager, "getSession").mockResolvedValue(session));
-    const response = nodeResponse();
-    const authorize = createProductionUploadAuthorizer({
-      origin: "https://share.tinycloud.xyz",
-      profileName: async () => profile.name,
-      fetchFn: (async () => new Response(JSON.stringify(response), { status: 200 })) as typeof globalThis.fetch,
-    });
-    const authorization = await authorize(upload);
-    const attestation = JSON.parse(new Headers(authorization).get("x-tinycloud-upload-attestation")!);
-    expect(attestation.authorityExpiresAt).toBe(response.authorityExpiresAt);
-  });
-
-  it("rejects a Node response missing authorityExpiresAt or using a noncanonical authority expiry", async () => {
-    restore.push(spyOn(ProfileManager, "getProfile").mockResolvedValue(profile));
-    restore.push(spyOn(ProfileManager, "getSession").mockResolvedValue(session));
-    for (const authorityExpiresAt of [undefined, "2026-08-01T00:02:00Z"]) {
-      const response = nodeResponse();
-      if (authorityExpiresAt === undefined) delete response.authorityExpiresAt;
-      else response.authorityExpiresAt = authorityExpiresAt;
-      const authorize = createProductionUploadAuthorizer({
-        origin: "https://share.tinycloud.xyz",
-        profileName: async () => profile.name,
-        fetchFn: (async () => new Response(JSON.stringify(response), { status: 200 })) as typeof globalThis.fetch,
-      });
-      await expect(authorize(upload)).rejects.toThrow();
-    }
-  });
-
-  it("rejects malformed Node attestations without invoking test-only acquisition seams", async () => {
-    restore.push(spyOn(ProfileManager, "getProfile").mockResolvedValue(profile));
-    restore.push(spyOn(ProfileManager, "getSession").mockResolvedValue(session));
-    let acquired = false;
-    const authorize = createProductionUploadAuthorizer({
-      profileName: async () => profile.name,
-      acquireUploadAuthorization: async () => { acquired = true; return { cookie: "should-not-be-used" }; },
-      fetchFn: (async () => new Response("{}", { status: 200 })) as unknown as typeof globalThis.fetch,
+      fetchFn: (async (input) => { requests.push(String(input)); throw new Error("unexpected network request"); }) as typeof globalThis.fetch,
     });
     await expect(authorize(upload)).rejects.toThrow();
-    expect(acquired).toBe(false);
+    expect(requests).toEqual([]);
   });
 
   it("uses the persisted recipient DID and rejects a wrong-DID envelope before the Node ceremony", async () => {

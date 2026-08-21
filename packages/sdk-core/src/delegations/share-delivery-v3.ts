@@ -1,7 +1,10 @@
 import { ed25519 } from "@noble/curves/ed25519";
+import { sha256 } from "@noble/hashes/sha256";
+import { base58btc } from "multiformats/bases/base58";
 import { canonicalizeSignedObjectUnsigned as canonicalize } from "../policy/signed-object.js";
 
-export const SHARE_DELIVERY_AUTHORIZATION_V3_DOMAIN = "xyz.tinycloud.share/delivery-authorization/v3\0";
+export const CREDENTIAL_INVITATION_REQUEST_DOMAIN = "xyz.tinycloud.credentials/invitation-request/v1\0";
+export const DELIVERY_ADMISSION_DOMAIN = "xyz.tinycloud.policy/delivery-admission/v0\0";
 
 export interface ShareDeliveryAuthorizationV3Request {
   readonly envelope: Record<string, unknown>;
@@ -16,53 +19,50 @@ export interface ShareDeliveryAuthorizationV3Request {
   readonly requestBodyDigest: string;
 }
 
-export interface ShareDeliveryAuthorizationV3 {
-  readonly type: "TinyCloudShareDeliveryAuthorization";
-  readonly version: 3;
-  readonly jti: string;
-  readonly shareCid: string;
-  readonly shareId: string;
-  readonly policyCid: string;
-  readonly policyRootCid: string;
-  readonly enforcementRootCid: string;
-  readonly nodeAudience: string;
-  readonly enforcerDid: string;
-  readonly targetOrigin: string;
-  readonly openCredentialsAudience: string;
-  readonly holder: string;
-  readonly recipientMatcher: unknown;
-  readonly deliveryEmail: string;
-  readonly shareUrl: string;
-  readonly returnOrigin: string;
-  readonly documentName: string;
-  readonly senderDid: string;
-  readonly senderTrust: string;
-  readonly contentSource: unknown;
-  readonly contentSourceDigestHex: string;
-  readonly shareExpiresAt: string;
-  readonly issuedAt: string;
-  readonly reportAbuseToken: string;
-  readonly actions: readonly string[];
+export interface CredentialInvitationRequest {
+  readonly schema: "xyz.tinycloud.credentials/invitation-request/v1";
+  readonly policyId: string;
+  readonly recipient: string;
   readonly resource: string;
-  readonly requestBodyDigest: string;
-  readonly idempotencyKey: string;
+  readonly credentialType: string;
+  readonly returnLink: string;
+  readonly envelopeRef: string;
+  readonly audience: string;
+  readonly issuedAt: string;
   readonly expiresAt: string;
-  readonly dataAuthority: false;
+  readonly nonce: string;
+}
+
+export interface DeliveryAdmission {
+  readonly schema: "xyz.tinycloud.policy/delivery-admission/v0";
+  readonly policyId: string;
+  readonly ownerDid: string;
+  readonly recipient: string;
+  readonly resource: string;
+  readonly actions: readonly ["tinycloud.kv/get"];
+  readonly credentialType: string;
+  readonly returnLink: string;
+  readonly envelopeRef: string;
+  readonly senderKeyDid: string;
+  readonly audience: string;
+  readonly issuedAt: string;
+  readonly expiresAt: string;
+  readonly nonce: string;
+  readonly signature: {
+    readonly suite: "eddsa-ed25519-sha256-jcs-v1";
+    readonly signerDid: string;
+    readonly value: string;
+  };
 }
 
 export interface ShareDeliveryAuthorizationV3Receipt {
-  readonly authorization: ShareDeliveryAuthorizationV3;
+  readonly request: CredentialInvitationRequest;
+  readonly admission: DeliveryAdmission;
   readonly proof: { readonly alg: "EdDSA"; readonly kid: string; readonly signature: string };
 }
 
-const AUTHORIZATION_KEYS = [
-  "type", "version", "jti", "shareCid", "shareId", "policyCid", "policyRootCid",
-  "enforcementRootCid", "nodeAudience", "enforcerDid", "targetOrigin",
-  "openCredentialsAudience", "holder", "recipientMatcher", "deliveryEmail", "shareUrl",
-  "returnOrigin", "documentName", "senderDid", "senderTrust", "contentSource",
-  "contentSourceDigestHex", "shareExpiresAt", "issuedAt", "reportAbuseToken", "actions",
-  "resource", "requestBodyDigest", "idempotencyKey", "expiresAt", "dataAuthority",
-] as const;
+const REQUEST_KEYS = ["schema", "policyId", "recipient", "resource", "credentialType", "returnLink", "envelopeRef", "audience", "issuedAt", "expiresAt", "nonce"] as const;
+const ADMISSION_KEYS = ["schema", "policyId", "ownerDid", "recipient", "resource", "actions", "credentialType", "returnLink", "envelopeRef", "senderKeyDid", "audience", "issuedAt", "expiresAt", "nonce", "signature"] as const;
 
 function exactObject(value: unknown, keys: readonly string[], label: string): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) throw new Error(`${label} is invalid`);
@@ -86,86 +86,62 @@ function object(value: unknown, label: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
+function didKeyBytes(did: string): Uint8Array {
+  if (!did.startsWith("did:key:z") || /[#/?]/.test(did.slice("did:key:".length))) throw new Error("v3 delivery admission signer is invalid");
+  const decoded = base58btc.decode(did.slice("did:key:".length));
+  if (decoded.length !== 34 || decoded[0] !== 0xed || decoded[1] !== 0x01) throw new Error("v3 delivery admission signer is invalid");
+  return decoded.slice(2);
+}
+
 export function validateShareDeliveryAuthorizationV3Bytes(
   bytes: Uint8Array,
   expected: {
     readonly request: ShareDeliveryAuthorizationV3Request;
-    readonly nodeProof: { readonly kid: string; readonly publicKey: Uint8Array };
+    readonly senderKeyDid: string;
     readonly credentialsAudience: string;
   },
-): ShareDeliveryAuthorizationV3Receipt {
+): Omit<ShareDeliveryAuthorizationV3Receipt, "proof"> {
   let parsed: unknown;
-  try {
-    parsed = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
-  } catch {
-    throw new Error("v3 share delivery response is not valid UTF-8 JSON");
-  }
-  const root = exactObject(parsed, ["authorization", "proof"], "v3 share delivery response");
-  const authorization = exactObject(root.authorization, AUTHORIZATION_KEYS, "v3 share delivery authorization");
-  const proof = exactObject(root.proof, ["alg", "kid", "signature"], "v3 share delivery proof");
+  try { parsed = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)); }
+  catch { throw new Error("v3 share delivery response is not valid UTF-8 JSON"); }
+  const root = exactObject(parsed, ["request", "admission"], "v3 share delivery response");
+  const request = exactObject(root.request, REQUEST_KEYS, "credential invitation request");
+  const admission = exactObject(root.admission, ADMISSION_KEYS, "delivery admission");
+  const signature = exactObject(admission.signature, ["suite", "signerDid", "value"], "delivery admission signature");
   const envelope = object(expected.request.envelope, "v3 share envelope");
-  const policyRoot = object(envelope.policyRoot, "v3 policy root");
-  const enforcementRoot = object(envelope.enforcementRoot, "v3 enforcement root");
-  const target = object(envelope.target, "v3 target");
-  const display = object(envelope.display, "v3 display");
-  const resource = object(envelope.resource, "v3 resource");
+  const policy = object(envelope.policy, "v3 share policy");
+  const requirement = object(policy.credentialRequirement, "v3 credential requirement");
+  const credentialType = object(requirement.credentialType, "v3 credential type");
+  const contentSource = object(envelope.contentSource, "v3 content source");
   const envelopeSignature = object(envelope.signature, "v3 envelope signature");
-  const shareUrl = new URL(expected.request.shareUrl);
-  const targetOrigin = String(target.origin);
-  const targetUrl = new URL(targetOrigin);
-  const targetHost = targetUrl.hostname;
-  const expectedNodeAudience = `did:web:${targetHost}`;
+  const target = object(envelope.target, "v3 target");
+  const fields = ["policyId", "recipient", "resource", "credentialType", "returnLink", "envelopeRef", "audience", "issuedAt", "expiresAt", "nonce"];
   if (
-    authorization.type !== "TinyCloudShareDeliveryAuthorization"
-    || authorization.version !== 3
-    || authorization.dataAuthority !== false
-    || authorization.jti !== expected.request.jti
-    || authorization.shareCid !== expected.request.shareCid
-    || authorization.shareId !== envelope.shareId
-    || authorization.policyCid !== envelope.policyCid
-    || authorization.policyRootCid !== policyRoot.cid
-    || authorization.enforcementRootCid !== enforcementRoot.cid
-    || authorization.enforcerDid !== target.nodeAudience
-    || authorization.targetOrigin !== target.origin
-    || authorization.nodeAudience !== expectedNodeAudience
-    || expected.nodeProof.kid.split("#", 1)[0] !== expectedNodeAudience
-    || authorization.recipientMatcher === undefined
-    || canonicalize(authorization.recipientMatcher) !== canonicalize(envelope.recipientMatcher)
-    || canonicalize(authorization.contentSource) !== canonicalize(envelope.contentSource)
-    || authorization.contentSourceDigestHex !== envelope.contentSourceDigestHex
-    || authorization.deliveryEmail !== expected.request.recipientEmail
-    || authorization.shareUrl !== expected.request.shareUrl
-    || authorization.documentName !== expected.request.documentName
-    || authorization.documentName !== display.filename
-    || authorization.senderDid !== envelopeSignature.signerDid
-    || authorization.senderTrust !== "verified"
-    || canonicalize(authorization.actions) !== canonicalize(envelope.actions)
-    || authorization.resource !== resource.path
-    || authorization.shareExpiresAt !== envelope.expiry
-    || authorization.requestBodyDigest !== expected.request.requestBodyDigest
-    || authorization.expiresAt !== expected.request.expiresAt
-    || authorization.idempotencyKey !== expected.request.jti
-    || authorization.reportAbuseToken !== expected.request.jti
-    || authorization.returnOrigin !== shareUrl.origin
-    || shareUrl.pathname !== `/s/${authorization.shareCid}`
-    || shareUrl.hash !== `#k=${expected.request.envelopeKey}`
-    || targetUrl.protocol !== "https:"
-    || shareUrl.protocol !== "https:"
+    request.schema !== "xyz.tinycloud.credentials/invitation-request/v1"
+    || admission.schema !== "xyz.tinycloud.policy/delivery-admission/v0"
+    || fields.some((field) => request[field] !== admission[field])
+    || request.policyId !== envelope.policyCid
+    || request.recipient !== expected.request.recipientEmail
+    || request.resource !== contentSource.kvResource
+    || request.credentialType !== credentialType.id
+    || request.credentialType !== "opencredentials.email/v1"
+    || request.returnLink !== expected.request.shareUrl
+    || request.envelopeRef !== expected.request.shareCid
+    || request.audience !== expected.credentialsAudience
+    || request.expiresAt !== expected.request.expiresAt
+    || request.nonce !== expected.request.jti
+    || admission.ownerDid !== envelopeSignature.signerDid
+    || admission.senderKeyDid !== expected.senderKeyDid
+    || canonicalize(admission.actions) !== canonicalize(["tinycloud.kv/get"])
+    || signature.suite !== "eddsa-ed25519-sha256-jcs-v1"
+    || signature.signerDid !== target.nodeAudience
   ) throw new Error("v3 share delivery authorization is not bound to the submitted request");
-  if (
-    typeof authorization.openCredentialsAudience !== "string"
-    || authorization.openCredentialsAudience !== expected.credentialsAudience
-    || authorization.openCredentialsAudience === authorization.nodeAudience
-    || authorization.openCredentialsAudience === authorization.returnOrigin
-  ) throw new Error("v3 share delivery credentials audience is untrusted");
-  if (proof.alg !== "EdDSA" || proof.kid !== expected.nodeProof.kid || typeof proof.signature !== "string") throw new Error("v3 share delivery proof is invalid");
-  const issuedAt = Date.parse(String(authorization.issuedAt));
-  const expiresAt = Date.parse(String(authorization.expiresAt));
-  const shareExpiresAt = Date.parse(String(authorization.shareExpiresAt));
-  if (!Number.isFinite(issuedAt) || !Number.isFinite(expiresAt) || !Number.isFinite(shareExpiresAt) || expiresAt <= issuedAt || expiresAt - issuedAt > 5 * 60_000 || shareExpiresAt <= issuedAt || typeof authorization.holder !== "string" || !authorization.holder.startsWith("did:")) throw new Error("v3 share delivery authorization time or holder is invalid");
-  const publicKey = expected.nodeProof.publicKey.length === 34 ? expected.nodeProof.publicKey.slice(2) : expected.nodeProof.publicKey;
-  const signature = decodeBase64Url(proof.signature);
-  const signed = new TextEncoder().encode(`${SHARE_DELIVERY_AUTHORIZATION_V3_DOMAIN}${canonicalize(authorization)}`);
-  if (publicKey.length !== 32 || signature.length !== 64 || !ed25519.verify(signature, signed, publicKey)) throw new Error("v3 share delivery proof signature is invalid");
-  return { authorization: authorization as unknown as ShareDeliveryAuthorizationV3, proof: proof as unknown as ShareDeliveryAuthorizationV3Receipt["proof"] };
+  const issuedAt = Date.parse(String(request.issuedAt));
+  const expiresAt = Date.parse(String(request.expiresAt));
+  if (!Number.isFinite(issuedAt) || !Number.isFinite(expiresAt) || expiresAt <= issuedAt || expiresAt - issuedAt > 15 * 60_000) throw new Error("v3 share delivery authorization time is invalid");
+  const admissionSignature = decodeBase64Url(signature.value);
+  const { signature: _signature, ...unsignedAdmission } = admission;
+  const digest = sha256(new TextEncoder().encode(`${DELIVERY_ADMISSION_DOMAIN}${canonicalize(unsignedAdmission)}`));
+  if (admissionSignature.length !== 64 || !ed25519.verify(admissionSignature, digest, didKeyBytes(String(signature.signerDid)))) throw new Error("v3 share delivery admission signature is invalid");
+  return { request: request as unknown as CredentialInvitationRequest, admission: admission as unknown as DeliveryAdmission };
 }

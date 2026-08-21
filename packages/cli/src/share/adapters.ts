@@ -23,8 +23,6 @@ import {
   type LegacyShareReader,
 } from "@tinycloud/share-sdk";
 import { canonicalize, fromBase64Url, toBase64Url } from "@tinycloud/share-envelope";
-import { activateSessionWithHost } from "@tinycloud/sdk-core";
-import { DEFAULT_HOST } from "../config/constants.js";
 
 const DEFAULT_SHARE_ORIGIN = "https://share.tinycloud.xyz";
 
@@ -51,22 +49,19 @@ interface SharePublicConfig {
 
 export async function postAddressedShareDelivery(input: {
   readonly credentialsOrigin: string;
-  readonly receipt: { readonly authorization: unknown; readonly proof: unknown };
+  readonly receipt: { readonly request: { readonly returnLink: string }; readonly admission: unknown; readonly proof: unknown };
   readonly shareUrl: string;
   readonly fetchFn: typeof globalThis.fetch;
   readonly signal?: AbortSignal;
 }): Promise<Response> {
-  return input.fetchFn(`${input.credentialsOrigin}/share/v2`, {
+  if (input.receipt.request.returnLink !== input.shareUrl) throw new Error("credential invitation is not bound to the share link");
+  return input.fetchFn(`${input.credentialsOrigin}/v1/credential-invitations`, {
     method: "POST",
     credentials: "omit",
     redirect: "error",
     referrerPolicy: "no-referrer",
     headers: { accept: "application/json", "content-type": "application/json" },
-    body: JSON.stringify({
-      authorization: input.receipt.authorization,
-      proof: input.receipt.proof,
-      shareUrl: input.shareUrl,
-    }),
+    body: JSON.stringify(input.receipt),
     signal: input.signal,
   });
 }
@@ -257,16 +252,32 @@ export function createShareAuthorityAdapters(input: {
     const files = targetInput.files === undefined || targetInput.files.length === 0
       ? [{ bytes: targetInput.source, filename: targetInput.filename, mediaType: targetInput.mediaType }]
       : targetInput.files;
-    const resourceKind = targetInput.resourceKind ?? (files.length > 1 ? "prefix" : "exact");
-    const resourcePath = `shares/${shareId}${resourceKind === "exact" ? `/${targetInput.filename}` : ""}`;
-    const totalBytes = files.reduce((total, file) => total + file.bytes.byteLength, 0);
-    if (!Number.isSafeInteger(totalBytes) || totalBytes > 100 * 1024 * 1024) throw new Error("addressed publication exceeds the combined byte limit");
-    const kv = node.kvForSpace(node.spaceId);
-    for (const file of files) {
-      const path = resourceKind === "prefix" ? `${resourcePath}/${file.filename}` : resourcePath;
-      const stored = await kv.put(path, file.bytes, { contentType: file.mediaType ?? "application/octet-stream" });
-      if (!stored.ok) throw new Error("addressed source upload was rejected");
-    }
+    const resourceKind = targetInput.resourceKind ?? "exact";
+    // A v3 addressed share is bound to one wrapped content key, so the
+    // encrypted source is a single exact KV resource. Prefix fan-out would
+    // need a shared key the envelope does not carry.
+    if (resourceKind !== "exact" || files.length !== 1) throw new Error("addressed publication requires a single exact source file");
+    const file = files[0]!;
+    const resourcePath = `shares/${shareId}/${targetInput.filename}`;
+    const byteLength = file.bytes.byteLength;
+    if (!Number.isSafeInteger(byteLength) || byteLength > 100 * 1024 * 1024) throw new Error("addressed publication exceeds the combined byte limit");
+    const mediaType = targetInput.mediaType ?? file.mediaType ?? "application/octet-stream";
+    const encryptionNetwork = node.getEncryptionNetworkIdForSpace(node.spaceId);
+    const encrypted = await node.encryption.encryptToNetwork(encryptionNetwork, file.bytes, { metadata: { contentType: mediaType } });
+    if (!encrypted.ok) throw new Error("addressed source encryption was rejected");
+    const storedBytes = new TextEncoder().encode(canonicalize(encrypted.data as unknown as Record<string, unknown>));
+    const stored = await node.kvForSpace(node.spaceId).put(resourcePath, storedBytes, { contentType: "application/vnd.tinycloud.encrypted-envelope+json" });
+    if (!stored.ok) throw new Error("addressed source upload was rejected");
+    const contentSource = {
+      shareId,
+      kvResource: `${node.spaceId}/kv/${resourcePath}`,
+      selector: resourceKind,
+      encryptionNetwork: encrypted.data.networkId,
+      encryptedSymmetricKeyDigestHex: encrypted.data.encryptedSymmetricKeyHash,
+      keyVersion: encrypted.data.keyVersion,
+      mode: "immutable" as const,
+      initialCiphertextDigestHex: createHash("sha256").update(storedBytes).digest("hex"),
+    };
     const actions = targetInput.actions === undefined || targetInput.actions.length === 0 ? ["read"] as const : targetInput.actions;
     const policyActions = [...new Set(actions.flatMap((action) => action === "read" ? ["tinycloud.kv/get", "tinycloud.kv/metadata"] : action === "list" ? ["tinycloud.kv/list"] : ["tinycloud.kv/put"]))] as ("tinycloud.kv/get" | "tinycloud.kv/list" | "tinycloud.kv/metadata" | "tinycloud.kv/put")[];
     return publishAddressedShare({
@@ -280,19 +291,19 @@ export function createShareAuthorityAdapters(input: {
       resource: { kind: resourceKind, path: resourcePath },
       actions,
       policyActions,
-      contentSource: { kind: "kv", space: node.spaceId, path: resourcePath, action: "tinycloud.kv/get" },
+      contentSource,
       filename: targetInput.filename,
-      mediaType: targetInput.mediaType ?? files[0]?.mediaType ?? "application/octet-stream",
-      byteLength: files.reduce((total, file) => total + file.bytes.byteLength, 0),
+      mediaType,
+      byteLength,
       expiresAt: targetInput.expiresAt,
       inline: targetInput.inline,
+      // App-neutral owner authority: the Node SDK owns every Policy/v3
+      // transport hop, so the CLI supplies only owner signing material.
       authority: {
         ownerDid: node.did,
-        createOwnerDelegation: (request) => node.createOwnerDelegation(request),
-        registerOwnerSharePolicy: (request) => node.registerOwnerSharePolicy({
-          ...(request as Parameters<typeof node.registerOwnerSharePolicy>[0]),
-          nodeProof: { kid: config.nodeInvitationKid, publicKey: config.nodeInvitationPublicKey },
-        }),
+        createOwnerRoot: (request) => node.createUnifiedOwnerRoot(request),
+        sign: (bytes) => node.signSessionBytes(bytes),
+        registerPolicy: (request) => node.registerPolicy(request),
       },
       upload: targetInput.upload ?? {},
     });
@@ -391,27 +402,18 @@ export function createShareAuthorityAdapters(input: {
     if (
       record === undefined
       || record.link === undefined
-      || record.envelopeCid === undefined
-      || record.shareCid === undefined
-      || record.registrationCid === undefined
-      || record.policyCid === undefined
-      || record.ownerDelegationCid === undefined
-      || record.enforcementDelegationCid === undefined
+      || record.deliveryMaterial === undefined
     ) throw new Error("share delivery history is incomplete");
     const [config, node] = await Promise.all([publicConfig(), authenticatedNode()]);
-    const receipt = await node.authorizeShareDelivery({
-      envelopeCid: record.envelopeCid,
-      shareCid: record.shareCid,
-      shareId: record.shareId,
-      registrationCid: record.registrationCid,
-      policyCid: record.policyCid,
-      delegationCid: record.ownerDelegationCid,
-      enforcementDelegationCid: record.enforcementDelegationCid,
+    const receipt = await node.authorizeShareDeliveryV3({
+      envelope: record.deliveryMaterial.envelope as Parameters<typeof node.authorizeShareDeliveryV3>[0]["envelope"],
+      sealedEnvelope: record.deliveryMaterial.sealedEnvelope,
+      envelopeKey: record.deliveryMaterial.envelopeKey,
+      shareCid: record.deliveryMaterial.shareCid,
       resourcePath: record.resource.path,
       recipientEmail: request.recipient,
       shareUrl: record.link,
       documentName: record.filename ?? "share.md",
-      idempotencyKey: request.idempotencyKey ?? `tinycloud-share:${record.shareId}`,
       expiresAt: new Date(Math.min(Date.parse(record.expiresAt), Date.now() + 5 * 60 * 1000)).toISOString(),
       nodeProof: { kid: config.nodeInvitationKid, publicKey: config.nodeInvitationPublicKey },
       credentialsAudience: config.credentialsOrigin,
@@ -477,98 +479,14 @@ async function selectedProfileName(): Promise<string> {
   return process.env.TC_PROFILE ?? config.defaultProfile;
 }
 
-function canonicalNodeOrigin(value: unknown): string {
-  if (typeof value !== "string") throw new ShareAuthorityError("AUTH_REQUIRED", "share upload requires a configured Node host");
-  let parsed: URL;
-  try { parsed = new URL(value); } catch { throw new ShareAuthorityError("UNAVAILABLE", "configured Node host is invalid"); }
-  const loopback = parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost";
-  if ((parsed.protocol !== "https:" && !(loopback && parsed.protocol === "http:")) || parsed.origin !== value || parsed.username || parsed.password || parsed.search || parsed.hash) {
-    throw new ShareAuthorityError("UNAVAILABLE", "configured Node host is invalid");
-  }
-  return parsed.origin;
-}
-
-function canonicalNodeAudience(origin: string): string {
-  return `did:web:${new URL(origin).hostname}`;
-}
-
 function base64UrlSha256(value: Uint8Array): string {
   return createHash("sha256").update(value).digest("base64url");
 }
 
-async function authenticatedNodeForProfile(profileName: string, host: string): Promise<import("@tinycloud/node-sdk").TinyCloudNode> {
-  const context = await ProfileManager.resolveContext({ profile: profileName, host });
-  const { ensureAuthenticated } = await import("../lib/sdk.js");
-  return ensureAuthenticated(context);
-}
-
-function strictUploadAttestation(value: unknown, upload: ShareUploadInput, origin: string, sessionDid: string): Record<string, unknown> {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) throw new ShareAuthorityError("UNAVAILABLE", "Node returned an invalid upload attestation");
-  const record = value as Record<string, unknown>;
-  const expectedKeys = ["type", "version", "issuer", "kid", "ownerDid", "sessionDid", "shareOrigin", "encryptedBlobCid", "encryptedBlobSha256", "byteLength", "deleteAfter", "retention", "issuedAt", "authorityExpiresAt", "expiresAt", "jti", "signature"];
-  if (Object.keys(record).sort().join("\0") !== expectedKeys.sort().join("\0")) throw new ShareAuthorityError("UNAVAILABLE", "Node returned an invalid upload attestation");
-  const sessionPrincipal = sessionDid.split("#", 1)[0];
-  if (record.type !== "TinyCloudShareUploadAttestation" || record.version !== 1 || typeof record.issuer !== "string" || !record.issuer.startsWith("did:web:") || typeof record.kid !== "string" || !record.kid.startsWith(`${record.issuer}#`) || typeof record.ownerDid !== "string" || !record.ownerDid.startsWith("did:") || (record.sessionDid !== sessionDid && record.sessionDid !== sessionPrincipal) || typeof record.shareOrigin !== "string" || record.shareOrigin !== origin || record.encryptedBlobCid !== upload.cid || record.encryptedBlobSha256 !== base64UrlSha256(upload.blob) || record.byteLength !== upload.contentLength || record.deleteAfter !== upload.deleteAfter || record.retention === null || record.retention === undefined || typeof record.issuedAt !== "string" || typeof record.authorityExpiresAt !== "string" || typeof record.expiresAt !== "string" || typeof record.jti !== "string" || !/^[A-Za-z0-9_-]{16,}$/.test(record.jti) || typeof record.signature !== "string" || !/^[A-Za-z0-9_-]{86}$/.test(record.signature)) throw new ShareAuthorityError("UNAVAILABLE", "Node returned an invalid upload attestation");
-  const issuedAt = Date.parse(record.issuedAt);
-  const authorityExpiresAt = Date.parse(record.authorityExpiresAt);
-  const expiresAt = Date.parse(record.expiresAt);
-  const now = Date.now();
-  if (!Number.isFinite(issuedAt) || !Number.isFinite(authorityExpiresAt) || !Number.isFinite(expiresAt) || new Date(issuedAt).toISOString() !== record.issuedAt || new Date(authorityExpiresAt).toISOString() !== record.authorityExpiresAt || new Date(expiresAt).toISOString() !== record.expiresAt || authorityExpiresAt < expiresAt || expiresAt <= now || expiresAt - issuedAt > 120_000 || issuedAt > now + 30_000) throw new ShareAuthorityError("UNAVAILABLE", "Node returned an expired upload attestation");
-  return record;
-}
-
-async function openKeyUploadAuthorization(input: { readonly fetchFn: typeof fetch; readonly origin: string; readonly profileName: string; readonly upload: ShareUploadInput; readonly node: import("@tinycloud/node-sdk").TinyCloudNode }): Promise<ShareUploadAuthorization> {
-  const profile = await ProfileManager.getProfile(input.profileName).catch(() => {
-    throw new ShareAuthorityError("AUTH_REQUIRED", "share upload requires an initialized profile");
-  });
-  if (profile.authMethod !== "openkey") throw new ShareAuthorityError("AUTH_REQUIRED", "share upload requires an OpenKey session");
-  const session = await ProfileManager.getSession(input.profileName) as Record<string, unknown> | null;
-  const sessionDid = session?.verificationMethod;
-  if (session === null || typeof sessionDid !== "string" || !sessionDid.startsWith("did:key:") || typeof session.delegationHeader !== "object" || session.delegationHeader === null || typeof (session.delegationHeader as Record<string, unknown>).Authorization !== "string" || typeof session.delegationCid !== "string" || typeof session.spaceId !== "string") {
-    throw new ShareAuthorityError("AUTH_REQUIRED", "share upload requires an active OpenKey session");
-  }
-  const requestWithoutDigest = {
-    shareOrigin: input.origin,
-    encryptedBlobCid: input.upload.cid,
-    encryptedBlobSha256: base64UrlSha256(input.upload.blob),
-    byteLength: input.upload.contentLength,
-    deleteAfter: input.upload.deleteAfter,
-    retention: "until-delete",
-  };
-  const requestBodyDigest = base64UrlSha256(new TextEncoder().encode(canonicalize(requestWithoutDigest)));
-  const body = canonicalize({ ...requestWithoutDigest, requestBodyDigest });
-  const entries = [{ spaceId: session.spaceId, service: "capabilities", action: "tinycloud.capabilities/read" }] as unknown as Parameters<import("@tinycloud/node-sdk").TinyCloudNode["invokeAny"]>[0];
-  const nodeOrigin = canonicalNodeOrigin(profile.host);
-  const activation = await activateSessionWithHost(nodeOrigin, session.delegationHeader as { Authorization: string });
-  if (!activation.success) throw new ShareAuthorityError("AUTH_REQUIRED", "Node upload authorization was rejected");
-  const invocationHeaders = new Headers(input.node.invokeAny(entries, [{ requestBodyDigest }]) as any);
-  const invocation = invocationHeaders.get("authorization");
-  if (invocation === null) throw new ShareAuthorityError("AUTH_REQUIRED", "Node upload authorization was rejected");
-  const authorization = await input.node.bindInvocationAudience(invocation, canonicalNodeAudience(nodeOrigin));
-  let response: Response;
-  try {
-    const headers = new Headers({ authorization });
-    headers.set("accept", "application/json");
-    headers.set("content-type", "application/json");
-    response = await input.fetchFn(new URL("/share/upload/attestation", nodeOrigin), { method: "POST", credentials: "omit", redirect: "error", referrerPolicy: "no-referrer", headers, body });
-  } catch {
-    throw new ShareAuthorityError("UNAVAILABLE", "Node upload authorization is unavailable");
-  }
-  if (response.status === 401 || response.status === 403) throw new ShareAuthorityError("AUTH_REQUIRED", "Node upload authorization was rejected");
-  if (!response.ok) throw new ShareAuthorityError("UNAVAILABLE", "Node upload authorization is unavailable");
-  let value: unknown;
-  try { value = await response.json(); } catch { throw new ShareAuthorityError("UNAVAILABLE", "Node returned an invalid upload attestation"); }
-  const attestation = strictUploadAttestation(value, input.upload, input.origin, sessionDid);
-  return {
-    "x-tinycloud-upload-attestation": JSON.stringify(attestation),
-    "x-tinycloud-retention": canonicalize(attestation.retention),
-  };
-}
-
 /**
- * Mints a one-shot Node upload attestation and returns only the canonical
- * Share authorization header. The session JWK and invocation header remain
- * in memory for the duration of this call.
+ * Keeps the explicit test injection seam used by the CLI contract suite.
+ * Production Node-specific upload authorization is retired; callers can use
+ * inline links without introducing a Node `/share/*` transport.
  */
 export function createProductionUploadAuthorizer(input: {
   readonly origin?: string;
@@ -588,7 +506,6 @@ export function createProductionUploadAuthorizer(input: {
 } = {}): (upload: ShareUploadInput) => Promise<ShareUploadAuthorization> {
   const origin = input.origin ?? DEFAULT_SHARE_ORIGIN;
   if (origin !== DEFAULT_SHARE_ORIGIN) throw new ShareAuthorityError("UNAVAILABLE", "share upload authorization is restricted to the canonical Share origin");
-  const fetchFn = input.fetchFn ?? globalThis.fetch;
   return async (upload) => {
     const profileName = await (input.profileName?.() ?? selectedProfileName());
     if (input.testOnly === true) {
@@ -597,29 +514,6 @@ export function createProductionUploadAuthorizer(input: {
       const acquired = await input.acquireUploadAuthorization?.({ profileName, upload });
       if (acquired !== undefined) return acquired;
     }
-    const existing = await ProfileManager.getProfile(profileName).catch(() => null);
-    if (existing?.authMethod === "openkey") {
-      try {
-        return await openKeyUploadAuthorization({ fetchFn, origin, profileName, upload, node: await authenticatedNodeForProfile(profileName, existing.host) });
-      } catch (error) {
-        if (!(error instanceof ShareAuthorityError) || error.code !== "AUTH_REQUIRED") throw error;
-      }
-    }
-    const { ensureShareDeviceAuthorization } = await import("../auth/device-auth.js");
-    const nodeOrigin = await (input.nodeOrigin?.() ?? Promise.resolve(existing?.host ?? process.env.TC_HOST ?? DEFAULT_HOST));
-    const acquired = await ensureShareDeviceAuthorization({
-      profileName,
-      nodeOrigin,
-      shareOrigin: origin,
-      openkeyHost: process.env.TC_OPENKEY_HOST ?? existing?.openkeyHost,
-      fetchFn,
-    });
-    return openKeyUploadAuthorization({
-      fetchFn,
-      origin,
-      profileName,
-      upload,
-      node: await authenticatedNodeForProfile(profileName, acquired.profile.host),
-    });
+    throw new ShareAuthorityError("UNAVAILABLE", "Node-specific registry upload authorization is retired; use an inline share");
   };
 }

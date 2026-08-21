@@ -1,138 +1,120 @@
 import { describe, expect, it } from "bun:test";
 import { ed25519 } from "@noble/curves/ed25519";
-import { canonicalize, fromBase64Url, toBase64Url } from "@tinycloud/share-envelope";
-import {
-  OWNER_SHARE_REGISTRATION_DOMAIN,
-  computeOwnerShareRegistrationCid,
-  createRegisteredPolicyAuthority,
-  publishAddressedShare,
-  receiveShare,
-  type OwnerSharePolicyRegistration,
-  type RegisterOwnerSharePolicyParams,
-} from "../src/index.js";
+import { base58btc } from "multiformats/bases/base58";
+import { historyRecordForPublishedShare, publishAddressedShare, type AddressedPolicyRegistrationInput } from "../src/index.js";
 
-const nodeSeed = Uint8Array.from({ length: 32 }, (_, index) => index + 1);
-const nodePublicKey = ed25519.getPublicKey(nodeSeed);
-const nodeKid = "did:web:node.example#share-receipt-1";
-const target = {
-  origin: "https://node.example",
-  nodeAudience: "did:web:node.example",
-  enforcerDid: "did:web:node.example",
-};
+const ownerSeed = Uint8Array.from({ length: 32 }, (_, index) => index + 1);
+const ownerDid = `did:key:${base58btc.encode(Uint8Array.from([0xed, 0x01, ...ed25519.getPublicKey(ownerSeed)]))}`;
+const nodeSeed = Uint8Array.from({ length: 32 }, (_, index) => index + 33);
+const nodeDid = `did:key:${base58btc.encode(Uint8Array.from([0xed, 0x01, ...ed25519.getPublicKey(nodeSeed)]))}`;
 
-function registrationFor(input: RegisterOwnerSharePolicyParams): OwnerSharePolicyRegistration {
-  const decoded = JSON.parse(new TextDecoder().decode(input.policy.bytes)) as {
-    readonly policy: {
-      readonly ownerDid: string;
-      readonly shareKeyDid: string;
-      readonly shareId: string;
-      readonly recipientMatcher: OwnerSharePolicyRegistration["recipientMatcher"];
-      readonly target: OwnerSharePolicyRegistration["target"] & { readonly enforcerDid: string };
-      readonly resource: OwnerSharePolicyRegistration["resource"];
-      readonly actions: OwnerSharePolicyRegistration["actions"];
-      readonly contentSource: OwnerSharePolicyRegistration["contentSource"];
-      readonly contentSourceDigest: string;
-      readonly expiresAt: string;
-    };
-  };
-  const policy = decoded.policy;
-  const core = {
-    policyCid: input.policy.cid,
-    ownerDelegationCid: input.ownerDelegation.delegationCid,
-    enforcementDelegationCid: input.enforcementDelegation.cid,
-    ownerDid: policy.ownerDid,
-    shareKeyDid: policy.shareKeyDid,
-    enforcerDid: policy.target.enforcerDid,
-    shareId: policy.shareId,
-    recipientMatcher: policy.recipientMatcher,
-    target: { origin: policy.target.origin, nodeAudience: policy.target.nodeAudience, spaceId: policy.target.spaceId },
-    resource: policy.resource,
-    actions: policy.actions,
-    contentSource: policy.contentSource,
-    contentSourceDigest: policy.contentSourceDigest,
-    registeredAt: "2026-07-30T12:00:00.000Z",
-    expiresAt: policy.expiresAt,
-  };
-  return { registrationCid: computeOwnerShareRegistrationCid(core), ...core };
-}
-
-async function fixture() {
-  let sealed = new Uint8Array();
+async function fixture(inline = true) {
+  let registration: AddressedPolicyRegistrationInput | undefined;
+  let uploadDeleteAfter: string | undefined;
+  let publishedBinding: Record<string, unknown> | undefined;
   const published = await publishAddressedShare({
     shareId: "addressedroundtrip0001",
     shareOrigin: "https://share.tinycloud.xyz",
-    nodeOrigin: target.origin,
-    nodeAudience: target.nodeAudience,
-    enforcerDid: target.enforcerDid,
-    spaceId: "tinycloud:test:space",
+    nodeOrigin: "https://node.example",
+    nodeAudience: nodeDid,
+    enforcerDid: nodeDid,
+    spaceId: "tinycloud:test-space",
     target: { kind: "email", address: "alice@example.com" },
     resource: { kind: "exact", path: "shares/addressedroundtrip0001/readme.md" },
     actions: ["read"],
     policyActions: ["tinycloud.kv/get", "tinycloud.kv/metadata"],
-    contentSource: { kind: "kv", space: "tinycloud:test:space", path: "shares/addressedroundtrip0001/readme.md", action: "tinycloud.kv/get" },
+    contentSource: {
+      shareId: "addressedroundtrip0001",
+      kvResource: "tinycloud:test-space/kv/shares/addressedroundtrip0001/readme.md",
+      selector: "exact",
+      encryptionNetwork: `urn:tinycloud:encryption:${ownerDid}:default`,
+      encryptedSymmetricKeyDigestHex: "1".repeat(64),
+      keyVersion: 1,
+      mode: "immutable",
+      initialCiphertextDigestHex: "2".repeat(64),
+    },
     filename: "readme.md",
     mediaType: "text/markdown",
     byteLength: 8,
     expiresAt: new Date("2030-01-01T00:00:00.000Z"),
     authority: {
-      ownerDid: "did:key:z6Mkowner",
-      async createOwnerDelegation(request) {
+      ownerDid,
+      async createOwnerRoot(input) {
+        return { cid: input.role === "policy-authority" ? "bafy-policy-root" : "bafy-enforcement-root", delegationHeader: { Authorization: input.role === "policy-authority" ? "a.b.c" : "d.e.f" } };
+      },
+      async sign(bytes) {
+        return ed25519.sign(bytes, ownerSeed);
+      },
+      async registerPolicy(input) {
+        registration = input;
         return {
-          delegationCid: "bafy-owner-delegation",
-          signedDagCbor: Uint8Array.of(1, 2, 3),
-          permissions: request.permissions,
-          delegation: {
-            delegateDID: request.delegateDid,
-            spaceId: request.spaceId,
-            path: request.permissions[0]!.path,
-            actions: request.permissions[0]!.actions,
-            expiry: request.expiresAt,
+          policyCid: input.policyCid,
+          policyRootCid: input.policyRoot.cid,
+          enforcementRootCid: input.enforcementRoot.cid,
+          attestedEnforcerBinding: {
+            schema: "xyz.tinycloud.policy/attested-enforcer/v2",
+            enforcerDid: nodeDid,
+            nodeAudience: nodeDid,
+            attestationBindingDigestHex: "3".repeat(64),
+            issuedAt: "2026-01-01T00:00:00.000Z",
+            expiresAt: "2030-01-01T00:00:00.000Z",
+            signature: { suite: "Ed25519", signerDid: nodeDid, value: "AQ" },
           },
         };
       },
-      async registerOwnerSharePolicy(input) {
-        const registration = registrationFor(input);
-        const { registrationCid: _registrationCid, ...core } = registration;
-        const signature = ed25519.sign(new TextEncoder().encode(`${OWNER_SHARE_REGISTRATION_DOMAIN}${canonicalize(core)}`), nodeSeed);
-        return { registration, proof: { alg: "EdDSA", kid: nodeKid, signature: toBase64Url(signature) } };
-      },
     },
-    inline: true,
-    upload: {
-      async uploadBlob(input) {
-        sealed = input.blob.slice();
+    inline,
+    upload: inline ? {} : {
+      uploadBlob: async (input) => {
+        uploadDeleteAfter = input.deleteAfter;
         return { cid: input.cid, deleteAfter: input.deleteAfter };
       },
     },
+    publishBinding: async (input) => { publishedBinding = input; },
   });
-  return { published, sealed };
+  return { published, registration, uploadDeleteAfter, publishedBinding };
 }
 
 describe("canonical addressed publication", () => {
-  it("round-trips through node-receipt policy verification", async () => {
-    const { published } = await fixture();
-    const result = await receiveShare(published.url, {
-      expectedOrigin: "https://share.tinycloud.xyz",
-      now: () => Date.parse("2026-07-30T12:00:00.000Z"),
-      trustedPolicyAuthority: createRegisteredPolicyAuthority({
-        nodeProof: { kid: nodeKid, publicKey: nodePublicKey },
-        expectedTarget: target,
-      }),
+  it("builds a signed Policy/v3 envelope from an app-neutral registration callback", async () => {
+    const { published, registration } = await fixture();
+    expect(registration).toMatchObject({
+      policyRoot: { cid: "bafy-policy-root", authorization: "a.b.c" },
+      enforcementRoot: { cid: "bafy-enforcement-root", authorization: "d.e.f" },
+      enforcerDid: nodeDid,
+      expectedNodeAudience: nodeDid,
     });
-    expect(result).toEqual({ state: "authorization-required", method: "email-claim" });
+    expect(published.metadata.policyCid).toBe(registration?.policyCid);
     expect(JSON.stringify(published)).not.toContain(published.url);
-    expect(JSON.stringify(published)).not.toContain("policyBytes");
+    expect(JSON.stringify(published)).not.toContain(published.deliveryMaterial?.envelopeKey);
+    expect(JSON.stringify(registration)).not.toContain("/share/");
   });
 
-  it("rejects the same self-consistent envelope without the enrolled node key", async () => {
+  it("retains the v3 envelope and binding material in encrypted sender history", async () => {
     const { published } = await fixture();
-    await expect(receiveShare(published.url, {
-      expectedOrigin: "https://share.tinycloud.xyz",
-      now: () => Date.parse("2026-07-30T12:00:00.000Z"),
-      trustedPolicyAuthority: createRegisteredPolicyAuthority({
-        nodeProof: { kid: nodeKid, publicKey: ed25519.getPublicKey(Uint8Array.from({ length: 32 }, (_, index) => index + 2)) },
-        expectedTarget: target,
-      }),
-    })).rejects.toMatchObject({ code: "capability-invalid" });
+    const record = historyRecordForPublishedShare(published);
+    expect(record.deliveryMaterial).toEqual(published.deliveryMaterial);
+    expect(record.deliveryMaterial?.shareCid).toBe(published.link.cid);
+    expect(record.deliveryMaterial?.envelope).toMatchObject({ version: 3, policyCid: published.metadata.policyCid });
+  });
+
+  it("preserves the registry's millisecond retention contract independently of policy expiry", async () => {
+    const { published, uploadDeleteAfter } = await fixture(false);
+    expect(published.metadata.expiresAt).toBe("2030-01-01T00:00:00Z");
+    expect(uploadDeleteAfter).toBe("2030-01-01T00:00:00.000Z");
+    expect(published.registryDeleteAfter).toBe(uploadDeleteAfter);
+  });
+
+  it("publishes the exact public v3 binding after sealing the envelope", async () => {
+    const { published, registration, publishedBinding } = await fixture(false);
+    expect(publishedBinding).toEqual({
+      version: 3,
+      shareCid: published.link.cid,
+      shareId: "addressedroundtrip0001",
+      policyCid: registration?.policyCid,
+      policyRootCid: "bafy-policy-root",
+      enforcementRootCid: "bafy-enforcement-root",
+      contentSourceDigestHex: registration?.contentSourceDigestHex,
+    });
   });
 });

@@ -27,6 +27,8 @@ export type {
 export type {
   UnifiedOwnerRootInput,
   UnifiedOwnerRootReceipt,
+  RegisterPolicyV3Input,
+  RegisterPolicyV3Receipt,
 } from "@tinycloud/node-sdk/core";
 export type {
   CreateOwnerDelegationParams,

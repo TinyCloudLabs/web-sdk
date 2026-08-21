@@ -255,7 +255,7 @@ describe("TC-470 credential policy admission", () => {
       const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
       requests.push({ url, body, signal: init?.signal });
       expect(url).not.toContain(values.credential.credential);
-      if (url.endsWith("/share/v3/policy/challenges")) {
+      if (url.endsWith("/policy/v3/challenges")) {
         expect(JSON.stringify(body)).not.toContain(values.credential.credential);
         return new Response(
           JSON.stringify({
