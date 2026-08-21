@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { mkdtemp, readFile, rm, unlink, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
@@ -10,11 +10,29 @@ import test from "node:test";
 
 const script = new URL("./check-beta-release-plan.mjs", import.meta.url);
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
-const tc500Correction = join(
-  repositoryRoot,
-  ".changeset",
-  "tc-500-share-release-correction.md",
-);
+const changesetDirectory = join(repositoryRoot, ".changeset");
+const tc500CorrectionId = "tc-500-share-release-correction";
+const tc500Correction = join(changesetDirectory, `${tc500CorrectionId}.md`);
+
+// This assertion only means anything while the TC-500 correction is still a
+// pending beta changeset. Pre mode does not delete a consumed changeset; it
+// records the id in pre.json and leaves the file on disk until
+// `changeset pre exit`, so keying on existence alone would leave the test
+// asserting a plan the beta release has already shipped. Mirror
+// check-beta-release-plan.mjs and treat an admitted changeset as consumed;
+// outside pre mode there is no beta plan to pin at all.
+function tc500CorrectionPending() {
+  if (!existsSync(tc500Correction)) return false;
+  try {
+    const pre = JSON.parse(
+      readFileSync(join(changesetDirectory, "pre.json"), "utf8"),
+    );
+    return !pre.changesets?.includes(tc500CorrectionId);
+  } catch (error) {
+    if (error?.code === "ENOENT") return false;
+    throw error;
+  }
+}
 const major = `---\n"@tinycloud/web-sdk": major\n---\n\nBreaking change.\n`;
 
 async function fixture(preChangesets, extraChangesets = {}) {
@@ -63,7 +81,7 @@ test("still rejects a newly introduced major changeset", async () => {
 test(
   "TC-500 release plan includes all five corrected beta versions",
   {
-    skip: !existsSync(tc500Correction),
+    skip: !tc500CorrectionPending(),
   },
   async () => {
     const outputName = `.changeset/.tc-500-release-plan-${process.pid}.json`;
