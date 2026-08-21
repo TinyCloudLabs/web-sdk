@@ -320,6 +320,7 @@ export {
   SecretsService,
   SECRET_NAME_RE,
   canonicalizeSecretScope,
+  parseSecretCatalogKey,
   resolveSecretListPrefix,
   resolveSecretPath,
 } from "@tinycloud/sdk-core";
@@ -338,9 +339,11 @@ export type {
   VaultNetworkReadResult,
   VaultError,
   ISecretsService,
+  SecretCatalogEntry,
   SecretPayload,
   SecretsError,
   ResolvedSecretPath,
+  ParsedSecretCatalogKey,
   SecretScopeOptions,
 } from "@tinycloud/sdk-core";
 

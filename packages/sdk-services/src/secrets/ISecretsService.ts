@@ -9,6 +9,13 @@ export interface SecretPayload {
   updatedAt: string;
 }
 
+/** One discoverable secret location. Secret values are never included. */
+export interface SecretCatalogEntry {
+  name: string;
+  /** Omitted for the global secret namespace. */
+  scope?: string;
+}
+
 export type SecretsError = VaultError | ServiceError;
 
 export interface ISecretsService {
@@ -16,8 +23,20 @@ export interface ISecretsService {
   unlock(signer?: unknown): Promise<Result<void, VaultError>>;
   lock(): void;
   readonly isUnlocked: boolean;
-  get(name: string, options?: SecretScopeOptions): Promise<Result<string, SecretsError>>;
-  put(name: string, value: string, options?: SecretScopeOptions): Promise<Result<void, SecretsError>>;
-  delete(name: string, options?: SecretScopeOptions): Promise<Result<void, SecretsError>>;
+  get(
+    name: string,
+    options?: SecretScopeOptions,
+  ): Promise<Result<string, SecretsError>>;
+  put(
+    name: string,
+    value: string,
+    options?: SecretScopeOptions,
+  ): Promise<Result<void, SecretsError>>;
+  delete(
+    name: string,
+    options?: SecretScopeOptions,
+  ): Promise<Result<void, SecretsError>>;
   list(options?: SecretScopeOptions): Promise<Result<string[], SecretsError>>;
+  /** List global and scoped secrets without decrypting their values. */
+  listAll(): Promise<Result<SecretCatalogEntry[], SecretsError>>;
 }

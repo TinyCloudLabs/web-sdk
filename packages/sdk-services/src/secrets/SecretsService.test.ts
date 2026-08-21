@@ -55,17 +55,24 @@ class MockVault implements IDataVaultService {
     }),
   );
   list = mock(
-    async (_options?: VaultListOptions): Promise<Result<string[], VaultError>> => ({
+    async (
+      _options?: VaultListOptions,
+    ): Promise<Result<string[], VaultError>> => ({
       ok: true,
       data: ["ANTHROPIC_API_KEY", "invalid-name"],
     }),
   );
-  listPage = mock(async () => ({ ok: true as const, data: { keys: [], truncated: false } }));
-  readNetworkEncrypted = mock(async () => ({ status: "not_found" as const }));
-  head = mock(async (): Promise<Result<Record<string, string>, VaultError>> => ({
-    ok: true,
-    data: {},
+  listPage = mock(async () => ({
+    ok: true as const,
+    data: { keys: [], truncated: false },
   }));
+  readNetworkEncrypted = mock(async () => ({ status: "not_found" as const }));
+  head = mock(
+    async (): Promise<Result<Record<string, string>, VaultError>> => ({
+      ok: true,
+      data: {},
+    }),
+  );
   putMany = mock(async () => []);
   getMany = mock(async () => []);
   grant = mock(
@@ -77,10 +84,12 @@ class MockVault implements IDataVaultService {
   );
   reencrypt = this.grant;
   revoke = this.grant;
-  listGrants = mock(async (): Promise<Result<string[], VaultError>> => ({
-    ok: true,
-    data: [],
-  }));
+  listGrants = mock(
+    async (): Promise<Result<string[], VaultError>> => ({
+      ok: true,
+      data: [],
+    }),
+  );
   getShared = mock(
     async <T = unknown>(
       _grantorDID: string,
@@ -193,6 +202,60 @@ describe("SecretsService", () => {
     expect(vault.list).toHaveBeenCalledWith({
       prefix: "secrets/scoped/food-tracker/",
       removePrefix: true,
+    });
+  });
+
+  it("lists a canonical catalog across global and scoped vault keys", async () => {
+    const vault = new MockVault();
+    vault.listPage = mock(async (options?: VaultListOptions) => {
+      if (options?.cursor === undefined) {
+        return {
+          ok: true as const,
+          data: {
+            keys: [
+              "MODEL_API_KEY",
+              "scoped/fireflies/API_KEY",
+              "scoped/invalid scope/IGNORED_KEY",
+              "not-a-secret",
+            ],
+            truncated: true,
+            nextCursor: "page-2",
+          },
+        };
+      }
+      return {
+        ok: true as const,
+        data: {
+          keys: [
+            "scoped/google-meet/REFRESH_TOKEN",
+            "scoped/fireflies/API_KEY",
+          ],
+          truncated: false,
+        },
+      };
+    });
+    const secrets = new SecretsService(vault);
+
+    const result = await secrets.listAll();
+
+    expect(result).toEqual({
+      ok: true,
+      data: [
+        { name: "MODEL_API_KEY" },
+        { name: "API_KEY", scope: "fireflies" },
+        { name: "REFRESH_TOKEN", scope: "google-meet" },
+      ],
+    });
+    expect(vault.listPage).toHaveBeenNthCalledWith(1, {
+      prefix: "secrets/",
+      removePrefix: true,
+      limit: 1000,
+    });
+    expect(vault.listPage).toHaveBeenNthCalledWith(2, {
+      prefix: "secrets/",
+      removePrefix: true,
+      limit: 1000,
+      cursor: "page-2",
     });
   });
 

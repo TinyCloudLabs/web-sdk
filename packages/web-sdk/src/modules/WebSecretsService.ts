@@ -64,7 +64,10 @@ function secretPermissionEntries(
   ];
 }
 
-function normalizeSpace(space: string | undefined, resolveSpace?: (space: string) => string): string | undefined {
+function normalizeSpace(
+  space: string | undefined,
+  resolveSpace?: (space: string) => string,
+): string | undefined {
   if (!space) return undefined;
   if (space.startsWith("tinycloud:")) return space;
   return resolveSpace?.(space) ?? space;
@@ -76,7 +79,10 @@ function spaceMatches(
   resolveSpace?: (space: string) => string,
 ): boolean {
   if (!granted || !requested) return false;
-  return normalizeSpace(granted, resolveSpace) === normalizeSpace(requested, resolveSpace);
+  return (
+    normalizeSpace(granted, resolveSpace) ===
+    normalizeSpace(requested, resolveSpace)
+  );
 }
 
 export interface WebSecretsServiceConfig {
@@ -123,7 +129,10 @@ export class WebSecretsService implements ISecretsService {
     this.service.lock();
   }
 
-  get(name: string, options?: SecretScopeOptions): ReturnType<ISecretsService["get"]> {
+  get(
+    name: string,
+    options?: SecretScopeOptions,
+  ): ReturnType<ISecretsService["get"]> {
     return options === undefined
       ? this.service.get(name)
       : this.service.get(name, options);
@@ -134,7 +143,11 @@ export class WebSecretsService implements ISecretsService {
     value: string,
     options?: SecretScopeOptions,
   ): ReturnType<ISecretsService["put"]> {
-    const permission = await this.ensureMutationPermission(name, options, "put");
+    const permission = await this.ensureMutationPermission(
+      name,
+      options,
+      "put",
+    );
     if (!permission.ok) return permission;
     return options === undefined
       ? this.service.put(name, value)
@@ -145,7 +158,11 @@ export class WebSecretsService implements ISecretsService {
     name: string,
     options?: SecretScopeOptions,
   ): ReturnType<ISecretsService["delete"]> {
-    const permission = await this.ensureMutationPermission(name, options, "del");
+    const permission = await this.ensureMutationPermission(
+      name,
+      options,
+      "del",
+    );
     if (!permission.ok) return permission;
     return options === undefined
       ? this.service.delete(name)
@@ -156,6 +173,10 @@ export class WebSecretsService implements ISecretsService {
     return options === undefined
       ? this.service.list()
       : this.service.list(options);
+  }
+
+  listAll(): ReturnType<ISecretsService["listAll"]> {
+    return this.service.listAll();
   }
 
   private get service(): ISecretsService {
@@ -169,7 +190,12 @@ export class WebSecretsService implements ISecretsService {
   ): Promise<Result<void, ServiceError | VaultError>> {
     let permissionEntries: PermissionEntry[];
     try {
-      permissionEntries = secretPermissionEntries(name, options, action, this.space);
+      permissionEntries = secretPermissionEntries(
+        name,
+        options,
+        action,
+        this.space,
+      );
     } catch (error) {
       return secretsError(
         ErrorCodes.INVALID_INPUT,
@@ -183,9 +209,7 @@ export class WebSecretsService implements ISecretsService {
     }
 
     try {
-      const result = await this.config.requestPermissions(
-        permissionEntries,
-      );
+      const result = await this.config.requestPermissions(permissionEntries);
       if (!result.approved) {
         return secretsError(
           ErrorCodes.PERMISSION_DENIED,

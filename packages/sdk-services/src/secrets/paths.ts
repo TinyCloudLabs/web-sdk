@@ -22,14 +22,23 @@ export interface ResolvedSecretPath {
   };
 }
 
-export function canonicalizeSecretScope(scope: string | undefined): string | undefined {
+export interface ParsedSecretCatalogKey {
+  name: string;
+  scope?: string;
+}
+
+export function canonicalizeSecretScope(
+  scope: string | undefined,
+): string | undefined {
   if (scope === undefined) {
     return undefined;
   }
 
   const trimmed = scope.trim();
   if (trimmed === "") {
-    throw new Error("Secret scope must be non-empty; omit scope for global secrets.");
+    throw new Error(
+      "Secret scope must be non-empty; omit scope for global secrets.",
+    );
   }
 
   const canonical = trimmed
@@ -62,9 +71,10 @@ export function resolveSecretPath(
   }
 
   const scope = canonicalizeSecretScope(options.scope);
-  const vaultKey = scope === undefined
-    ? `${SECRET_PREFIX}${normalizedName}`
-    : `${SCOPED_SECRET_PREFIX}${scope}/${normalizedName}`;
+  const vaultKey =
+    scope === undefined
+      ? `${SECRET_PREFIX}${normalizedName}`
+      : `${SCOPED_SECRET_PREFIX}${scope}/${normalizedName}`;
 
   return {
     name: normalizedName,
@@ -83,4 +93,33 @@ export function resolveSecretListPrefix(
   return scope === undefined
     ? "vault/secrets/"
     : `vault/secrets/scoped/${scope}/`;
+}
+
+/** Parse a key relative to `secrets/` into its canonical catalog identity. */
+export function parseSecretCatalogKey(
+  key: string,
+): ParsedSecretCatalogKey | undefined {
+  if (SECRET_NAME_RE.test(key)) {
+    return { name: key };
+  }
+
+  const parts = key.split("/");
+  if (parts.length !== 3 || parts[0] !== "scoped") {
+    return undefined;
+  }
+
+  const [, rawScope, name] = parts;
+  if (!name || !SECRET_NAME_RE.test(name)) {
+    return undefined;
+  }
+
+  try {
+    const scope = canonicalizeSecretScope(rawScope);
+    if (scope === undefined || scope !== rawScope) {
+      return undefined;
+    }
+    return { name, scope };
+  } catch {
+    return undefined;
+  }
 }

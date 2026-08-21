@@ -18,6 +18,13 @@ function makeBaseSecrets(): ISecretsService {
     put: mock(async () => ({ ok: true, data: undefined })),
     delete: mock(async () => ({ ok: true, data: undefined })),
     list: mock(async () => ({ ok: true, data: ["ANTHROPIC_API_KEY"] })),
+    listAll: mock(async () => ({
+      ok: true,
+      data: [
+        { name: "ANTHROPIC_API_KEY" },
+        { name: "REFRESH_TOKEN", scope: "google-meet" },
+      ],
+    })),
   };
 }
 
@@ -33,6 +40,30 @@ function readOnlyManifest(): Manifest {
 }
 
 describe("WebSecretsService", () => {
+  it("forwards full catalog reads without mutation escalation", async () => {
+    const base = makeBaseSecrets();
+    const requested: PermissionEntry[][] = [];
+    const secrets = new WebSecretsService({
+      getService: () => base,
+      getManifest: readOnlyManifest,
+      requestPermissions: async (additional) => {
+        requested.push(additional);
+        return { approved: true };
+      },
+    });
+
+    const result = await secrets.listAll();
+
+    expect(result).toEqual({
+      ok: true,
+      data: [
+        { name: "ANTHROPIC_API_KEY" },
+        { name: "REFRESH_TOKEN", scope: "google-meet" },
+      ],
+    });
+    expect(requested).toEqual([]);
+  });
+
   it("does not escalate reads", async () => {
     const base = makeBaseSecrets();
     const requested: PermissionEntry[][] = [];
@@ -92,11 +123,9 @@ describe("WebSecretsService", () => {
       },
     });
 
-    const result = await secrets.put(
-      "ANTHROPIC_API_KEY",
-      "secret",
-      { scope: "Food Tracker" },
-    );
+    const result = await secrets.put("ANTHROPIC_API_KEY", "secret", {
+      scope: "Food Tracker",
+    });
 
     expect(result.ok).toBe(true);
     expect(requested).toEqual([
@@ -110,11 +139,9 @@ describe("WebSecretsService", () => {
         },
       ],
     ]);
-    expect(base.put).toHaveBeenCalledWith(
-      "ANTHROPIC_API_KEY",
-      "secret",
-      { scope: "Food Tracker" },
-    );
+    expect(base.put).toHaveBeenCalledWith("ANTHROPIC_API_KEY", "secret", {
+      scope: "Food Tracker",
+    });
   });
 
   it("skips escalation when the manifest already includes the mutation action", async () => {
@@ -143,7 +170,8 @@ describe("WebSecretsService", () => {
     const requestPermissions = mock(async () => ({ approved: true }));
     const secrets = new WebSecretsService({
       getService: () => base,
-      space: "tinycloud:pkh:eip155:1:0x0000000000000000000000000000000000000002:secrets",
+      space:
+        "tinycloud:pkh:eip155:1:0x0000000000000000000000000000000000000002:secrets",
       getManifest: () => ({
         ...readOnlyManifest(),
         permissions: [
@@ -157,9 +185,10 @@ describe("WebSecretsService", () => {
         ],
       }),
       requestPermissions,
-      resolveSpace: (space) => space.startsWith("tinycloud:")
-        ? space
-        : `tinycloud:pkh:eip155:1:0x0000000000000000000000000000000000000001:${space}`,
+      resolveSpace: (space) =>
+        space.startsWith("tinycloud:")
+          ? space
+          : `tinycloud:pkh:eip155:1:0x0000000000000000000000000000000000000001:${space}`,
     });
 
     const result = await secrets.put("ANTHROPIC_API_KEY", "secret");
@@ -168,7 +197,8 @@ describe("WebSecretsService", () => {
     expect(requestPermissions).toHaveBeenCalledWith([
       {
         service: "tinycloud.kv",
-        space: "tinycloud:pkh:eip155:1:0x0000000000000000000000000000000000000002:secrets",
+        space:
+          "tinycloud:pkh:eip155:1:0x0000000000000000000000000000000000000002:secrets",
         path: "vault/secrets/ANTHROPIC_API_KEY",
         actions: ["put"],
         skipPrefix: true,
@@ -194,19 +224,15 @@ describe("WebSecretsService", () => {
       requestPermissions,
     });
 
-    const result = await secrets.put(
-      "ANTHROPIC_API_KEY",
-      "secret",
-      { scope: "food-tracker" },
-    );
+    const result = await secrets.put("ANTHROPIC_API_KEY", "secret", {
+      scope: "food-tracker",
+    });
 
     expect(result.ok).toBe(true);
     expect(requestPermissions).not.toHaveBeenCalled();
-    expect(base.put).toHaveBeenCalledWith(
-      "ANTHROPIC_API_KEY",
-      "secret",
-      { scope: "food-tracker" },
-    );
+    expect(base.put).toHaveBeenCalledWith("ANTHROPIC_API_KEY", "secret", {
+      scope: "food-tracker",
+    });
   });
 
   it("re-unlocks after approved escalation when already unlocked", async () => {

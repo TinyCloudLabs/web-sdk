@@ -19,7 +19,11 @@ export {
 } from "./manage-key-session";
 export * from "./credentials";
 export * from "./share";
-export type { SecretReadInput, SecretReadResult, BootstrapWarning } from "@tinycloud/node-sdk";
+export type {
+  SecretReadInput,
+  SecretReadResult,
+  BootstrapWarning,
+} from "@tinycloud/node-sdk";
 export type {
   UnifiedOwnerRootInput,
   UnifiedOwnerRootReceipt,
@@ -289,6 +293,7 @@ export {
   SecretsService,
   SECRET_NAME_RE,
   canonicalizeSecretScope,
+  parseSecretCatalogKey,
   resolveSecretListPrefix,
   resolveSecretPath,
   type WasmVaultFunctions,
@@ -304,9 +309,11 @@ export {
   type VaultNetworkReadResult,
   type VaultError,
   type ISecretsService,
+  type SecretCatalogEntry,
   type SecretPayload,
   type SecretsError,
   type ResolvedSecretPath,
+  type ParsedSecretCatalogKey,
   type SecretScopeOptions,
 } from "@tinycloud/sdk-core";
 

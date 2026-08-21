@@ -284,13 +284,16 @@ export {
   SecretsService,
   SECRET_NAME_RE,
   canonicalizeSecretScope,
+  parseSecretCatalogKey,
   resolveSecretListPrefix,
   resolveSecretPath,
 } from "./secrets";
 export type {
   ISecretsService,
+  SecretCatalogEntry,
   SecretPayload,
   SecretsError,
+  ParsedSecretCatalogKey,
   ResolvedSecretPath,
   SecretScopeOptions,
 } from "./secrets";
