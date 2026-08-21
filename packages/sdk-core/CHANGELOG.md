@@ -1,5 +1,14 @@
 # @tinycloudlabs/sdk-core
 
+## 3.0.0-beta.8
+
+### Patch Changes
+
+- 46c83a7: Add `secrets.listAll()` to discover global and scoped secret names across the
+  canonical vault keyset without decrypting secret values.
+- Updated dependencies [46c83a7]
+  - @tinycloud/sdk-services@3.0.0-beta.8
+
 ## 3.0.0-beta.7
 
 ### Minor Changes

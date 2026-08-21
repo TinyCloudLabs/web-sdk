@@ -11809,7 +11809,9 @@ function canonicalizeSecretScope(scope) {
   }
   const trimmed = scope.trim();
   if (trimmed === "") {
-    throw new Error("Secret scope must be non-empty; omit scope for global secrets.");
+    throw new Error(
+      "Secret scope must be non-empty; omit scope for global secrets."
+    );
   }
   const canonical = trimmed.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
   if (canonical === "") {
