@@ -174,12 +174,14 @@ export {
 } from "./share-delivery";
 
 export {
-  SHARE_DELIVERY_AUTHORIZATION_V3_DOMAIN,
+  CREDENTIAL_INVITATION_REQUEST_DOMAIN,
+  DELIVERY_ADMISSION_DOMAIN,
   validateShareDeliveryAuthorizationV3Bytes,
 } from "./share-delivery-v3";
 export type {
   ShareDeliveryAuthorizationV3Request,
-  ShareDeliveryAuthorizationV3,
+  CredentialInvitationRequest,
+  DeliveryAdmission,
   ShareDeliveryAuthorizationV3Receipt,
 } from "./share-delivery-v3";
 export type {

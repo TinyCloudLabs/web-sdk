@@ -1,8 +1,8 @@
 export { DEFAULT_MAX_CONTENT_BLOB_BYTES, DEFAULT_MAX_SEALED_BLOB_BYTES, SHARE_RESULT_VERSION, inspectShare, receiveShare, ShareReceiveError, toShareErrorInfo, verifyBearerEnvelope, type ShareReceiveAuthorizationRequired, type ShareErrorCode, type ShareErrorInfo, type ShareFetchOptions, type ShareInspection, type ShareMetadata, type ShareReceiveOutcome, type ShareReceiveResult, type VerifyBearerEnvelopeOptions, type SharePolicyAuthority, type SharePolicyEvidence } from "./receive.js";
-export { DEFAULT_SHARE_LIFETIME_MS, SHARE_CONTENT_LIMIT, SHARE_PUBLISH_RESULT_VERSION, SHARE_SEALED_OVERHEAD, publishShare, redactPublishedShare, SharePublishError, type PublishedShare, type PublishedShareMetadata, type SharePublishErrorCode, type SharePublishOptions, type SharePublishTarget, type ShareUpload, type ShareUploadAuthorization, type ShareUploadInput, type ShareUploadResult } from "./publish.js";
+export { DEFAULT_SHARE_LIFETIME_MS, SHARE_CONTENT_LIMIT, SHARE_PUBLISH_RESULT_VERSION, SHARE_SEALED_OVERHEAD, publishShare, redactPublishedShare, SharePublishError, type PublishedShare, type PublishedShareDeliveryMaterial, type PublishedShareMetadata, type SharePublishErrorCode, type SharePublishOptions, type SharePublishTarget, type ShareUpload, type ShareUploadAuthorization, type ShareUploadInput, type ShareUploadResult } from "./publish.js";
 export { parseAddressedEnvelope, type ParsedAddressedEnvelope } from "./addressed.js";
 export { publishAddressedShare } from "./addressed-publish.js";
-export type { AddressedPublishAuthority, AddressedSharePublishOptions } from "./addressed-publish.js";
+export type { AddressedOwnerRootInput, AddressedOwnerRootReceipt, AddressedPolicyRegistrationInput, AddressedPolicyRegistrationReceipt, AddressedPublishAuthority, AddressedSharePublishOptions } from "./addressed-publish.js";
 export { createRegisteredPolicyAuthority } from "./policy-authority.js";
 export type { RegisteredPolicyAuthorityOptions } from "./policy-authority.js";
 export { checkBearerDelegation, resourceUriCovers, requiredResourceUri, type CheckBearerDelegationOptions, type DelegationCheckResult } from "@tinycloud/share-envelope";

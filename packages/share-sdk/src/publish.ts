@@ -101,6 +101,14 @@ export interface PublishedShareMetadata {
   readonly shareCid?: string;
 }
 
+/** Sender-only Policy/v3 material retained in encrypted history for delivery retries. */
+export interface PublishedShareDeliveryMaterial {
+  readonly envelope: Readonly<Record<string, unknown>>;
+  readonly sealedEnvelope: string;
+  readonly envelopeKey: string;
+  readonly shareCid: string;
+}
+
 export interface PublishedShare {
   readonly protocol: "tinycloud-share";
   readonly version: typeof SHARE_PUBLISH_RESULT_VERSION;
@@ -109,6 +117,8 @@ export interface PublishedShare {
   readonly link: { readonly kind: "compact" | "inline"; readonly cid: string };
   readonly metadata: PublishedShareMetadata;
   readonly registryDeleteAfter: string;
+  /** Non-enumerable authority material; never included in command or JSON output. */
+  readonly deliveryMaterial?: PublishedShareDeliveryMaterial;
 }
 
 /** Machine-readable output omits the complete bearer capability. */

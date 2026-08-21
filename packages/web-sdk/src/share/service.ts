@@ -1,9 +1,8 @@
 import {
-  buildPolicyCredentialPresentationV4,
+  admitPolicyCredentialV4,
   credentialRequirementDigest,
   createEmailCredentialRequirement,
   encodeBase64Url,
-  issuedCredentialEnvelopeFromVerified,
   type CredentialRequirement,
   type UnifiedPolicyV2,
 } from "@tinycloud/sdk-core";
@@ -204,31 +203,28 @@ export class ReceivedShareImpl implements ReceivedShare {
       this.options.onProgress?.({ state: "delegation-import", status: "completed" });
       client = new ShareRecipientClient({ ...common, policyAuthorization: { authorization: admitted.session.authorization, cid: admitted.session.cid } });
     } else {
+      const admitted = await admitPolicyCredentialV4({
+        policy,
+        policyCid: this.envelope.policyCid,
+        policyRootCid: this.envelope.policyRoot.cid,
+        enforcementRootCid: this.envelope.enforcementRoot.cid,
+        expectedNodeAudience: this.envelope.target.nodeAudience,
+        expectedEnforcerDid: this.envelope.attestedEnforcerBinding.enforcerDid,
+        requirement,
+        credential: ensured.credential,
+        requestedCapabilities: policy.capabilityCeiling,
+        sign: this.sign,
+        nodeOrigin: this.envelope.target.origin,
+        fetch: this.fetchFn,
+        signal: this.options.signal,
+      });
       client = new ShareRecipientClient({
         ...common,
-        buildPresentation: async ({ challenge }) => {
-          const presentation = await buildPolicyCredentialPresentationV4({
-            policy,
-            policyCid: this.envelope.policyCid,
-            challenge: challenge as any,
-            requirement,
-            credential: ensured.credential,
-            requestedCapabilities: policy.capabilityCeiling,
-            sign: this.sign,
-          });
-          return {
-            holderDid: this.identity.holderDid,
-            credential: ensured.credential.credential,
-            holderBinding: {},
-            proof: {},
-            sign: this.sign,
-            presentation: presentation as unknown as Record<string, unknown>,
-            credentialEnvelope: { ...issuedCredentialEnvelopeFromVerified(ensured.credential) },
-            requirement: { ...requirement },
-          };
+        policyAuthorization: {
+          authorization: admitted.session.authorization,
+          cid: admitted.session.cid,
         },
       });
-      await client.establishPolicySession();
     }
     const response = await client.nativeInvoke({ action: "get", resource: this.envelope.resource });
     if (!response.ok) throw new Error(`share invocation rejected (${response.status})`);

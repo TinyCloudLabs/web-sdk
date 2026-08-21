@@ -17471,25 +17471,25 @@ function encodeTo(int, target, offset = 0) {
 function encodingLength(int) {
   return varint_default.encodingLength(int);
 }
-function create(code22, digest4) {
-  const size2 = digest4.byteLength;
+function create(code22, digest3) {
+  const size2 = digest3.byteLength;
   const sizeOffset = encodingLength(code22);
   const digestOffset = sizeOffset + encodingLength(size2);
   const bytes3 = new Uint8Array(digestOffset + size2);
   encodeTo(code22, bytes3, 0);
   encodeTo(size2, bytes3, sizeOffset);
-  bytes3.set(digest4, digestOffset);
-  return new Digest(code22, size2, digest4, bytes3);
+  bytes3.set(digest3, digestOffset);
+  return new Digest(code22, size2, digest3, bytes3);
 }
 function decode4(multihash) {
   const bytes3 = coerce22(multihash);
   const [code22, sizeOffset] = decode3(bytes3);
   const [size2, digestOffset] = decode3(bytes3.subarray(sizeOffset));
-  const digest4 = bytes3.subarray(sizeOffset + digestOffset);
-  if (digest4.byteLength !== size2) {
+  const digest3 = bytes3.subarray(sizeOffset + digestOffset);
+  if (digest3.byteLength !== size2) {
     throw new Error("Incorrect length");
   }
-  return new Digest(code22, size2, digest4, bytes3);
+  return new Digest(code22, size2, digest3, bytes3);
 }
 function equals2(a, b) {
   if (a === b) {
@@ -17582,8 +17582,8 @@ function encodeCID(version2, code22, multihash) {
   return bytes3;
 }
 async function computeCid(bytes3) {
-  const digest4 = create(SHA256_CODE, sha256(new Uint8Array(bytes3)));
-  return CID.create(1, code, digest4).toString();
+  const digest3 = create(SHA256_CODE, sha256(new Uint8Array(bytes3)));
+  return CID.create(1, code, digest3).toString();
 }
 function isCanonicalRawCid(cidString) {
   let cid2;
@@ -18179,8 +18179,8 @@ async function verifyEnvelopeV3(envelope, options) {
   if (hex(sourceDigest) !== parsed.contentSourceDigestHex) return false;
   const sortedCapabilities = [...policy.capabilityCeiling].sort((left, right) => canonicalize2(left).localeCompare(canonicalize2(right)));
   const capabilityCeilingHashHex = hex(sha2562(new TextEncoder().encode(`${POLICY_CAPABILITY_V1_DOMAIN}${canonicalize2(sortedCapabilities)}`)));
-  const nativeProjection = sortedCapabilities.map((capability) => capability.kind === "encryption" ? { service: "tinycloud.encryption", space: capability.resource, path: capability.resource, actions: [capability.action] } : { service: "tinycloud.kv", space: capability.resource.slice(0, capability.resource.indexOf("/kv/")), path: capability.resource.split("/kv/")[1], actions: [...capability.actions], caveat: { type: "xyz.tinycloud.resource/selector", kind: capability.selector, value: capability.resource } }).sort((left, right) => canonicalize2(left).localeCompare(canonicalize2(right)));
-  const nativeProjectionHashHex = hex(sha2562(new TextEncoder().encode(`${NATIVE_PROJECTION_V1_DOMAIN}${canonicalize2(nativeProjection)}`)));
+  const nativeProjection2 = sortedCapabilities.map((capability) => capability.kind === "encryption" ? { service: "tinycloud.encryption", space: capability.resource, path: capability.resource, actions: [capability.action] } : { service: "tinycloud.kv", space: capability.resource.slice(0, capability.resource.indexOf("/kv/")), path: capability.resource.split("/kv/")[1], actions: [...capability.actions], caveat: { type: "xyz.tinycloud.resource/selector", kind: capability.selector, value: capability.resource } }).sort((left, right) => canonicalize2(left).localeCompare(canonicalize2(right)));
+  const nativeProjectionHashHex = hex(sha2562(new TextEncoder().encode(`${NATIVE_PROJECTION_V1_DOMAIN}${canonicalize2(nativeProjection2)}`)));
   const expectedAttenuation = Object.fromEntries(sortedCapabilities.map((capability) => capability.kind === "encryption" ? [capability.resource, { [capability.action]: [{}] }] : [capability.resource, Object.fromEntries(capability.actions.map((action) => [action, [{ kind: capability.selector, type: "xyz.tinycloud.resource/selector", value: capability.resource }]]))]));
   const kv = policy.capabilityCeiling.find((capability) => capability.kind === "kv");
   const expectedKvActions = parsed.actions.flatMap((action) => action === "read" ? ["tinycloud.kv/get", "tinycloud.kv/metadata"] : action === "list" ? ["tinycloud.kv/list"] : ["tinycloud.kv/put"]);
@@ -18193,8 +18193,8 @@ async function verifyEnvelopeV3(envelope, options) {
   const expectedBindingDigestHex = hex(sha2562(new TextEncoder().encode(canonicalize2({ enforcerDid: binding.enforcerDid, nodeAudience: binding.nodeAudience }))));
   if (binding.enforcerDid !== parsed.target.nodeAudience || binding.attestationBindingDigestHex !== expectedBindingDigestHex || bindingSignature.signerDid !== binding.nodeAudience || bindingSignature.suite !== "Ed25519" || Date.parse(binding.issuedAt) > Date.now() || Date.parse(binding.expiresAt) <= Date.now() || Date.parse(binding.expiresAt) < Date.parse(parsed.expiry)) return false;
   try {
-    const digest4 = sha2562(new TextEncoder().encode(`${ATTESTED_ENFORCER_V2_DOMAIN}${canonicalize2(unsignedBinding)}`));
-    if (!ed25519.verify(fromBase64Url(bindingSignature.value), digest4, ed25519PublicKeyFromDidKey(binding.nodeAudience), ED25519_VERIFY_OPTS2)) return false;
+    const digest3 = sha2562(new TextEncoder().encode(`${ATTESTED_ENFORCER_V2_DOMAIN}${canonicalize2(unsignedBinding)}`));
+    if (!ed25519.verify(fromBase64Url(bindingSignature.value), digest3, ed25519PublicKeyFromDidKey(binding.nodeAudience), ED25519_VERIFY_OPTS2)) return false;
   } catch {
     return false;
   }
@@ -18918,6 +18918,12 @@ async function publishShare(options) {
     envelopeKey?.fill(0);
   }
 }
+function authorizationMethodForTarget(target) {
+  if (target.kind === "recipientDid") return "openkey-device";
+  if (target.kind === "email") return "email-claim";
+  if (target.kind === "emailDomain") return "email-claim";
+  return void 0;
+}
 function equals3(aa, bb) {
   if (aa === bb) {
     return true;
@@ -19163,163 +19169,6 @@ function rfc46482({ name: name2, prefix, bitsPerChar, alphabet: alphabet2 }) {
     }
   });
 }
-function encode4(num2, out, offset) {
-  out = out || [];
-  offset = offset || 0;
-  var oldOffset = offset;
-  while (num2 >= INT2) {
-    out[offset++] = num2 & 255 | MSB2;
-    num2 /= 128;
-  }
-  while (num2 & MSBALL2) {
-    out[offset++] = num2 & 255 | MSB2;
-    num2 >>>= 7;
-  }
-  out[offset] = num2 | 0;
-  encode4.bytes = offset - oldOffset + 1;
-  return out;
-}
-function read22(buf, offset) {
-  var res = 0, offset = offset || 0, shift = 0, counter = offset, b, l = buf.length;
-  do {
-    if (counter >= l) {
-      read22.bytes = 0;
-      throw new RangeError("Could not decode varint");
-    }
-    b = buf[counter++];
-    res += shift < 28 ? (b & REST$12) << shift : (b & REST$12) * Math.pow(2, shift);
-    shift += 7;
-  } while (b >= MSB$12);
-  read22.bytes = counter - offset;
-  return res;
-}
-function decode7(data, offset = 0) {
-  const code3 = varint_default2.decode(data, offset);
-  return [code3, varint_default2.decode.bytes];
-}
-function encodeTo2(int, target, offset = 0) {
-  varint_default2.encode(int, target, offset);
-  return target;
-}
-function encodingLength2(int) {
-  return varint_default2.encodingLength(int);
-}
-function create2(code3, digest4) {
-  const size2 = digest4.byteLength;
-  const sizeOffset = encodingLength2(code3);
-  const digestOffset = sizeOffset + encodingLength2(size2);
-  const bytes3 = new Uint8Array(digestOffset + size2);
-  encodeTo2(code3, bytes3, 0);
-  encodeTo2(size2, bytes3, sizeOffset);
-  bytes3.set(digest4, digestOffset);
-  return new Digest2(code3, size2, digest4, bytes3);
-}
-function decode8(multihash) {
-  const bytes3 = coerce3(multihash);
-  const [code3, sizeOffset] = decode7(bytes3);
-  const [size2, digestOffset] = decode7(bytes3.subarray(sizeOffset));
-  const digest4 = bytes3.subarray(sizeOffset + digestOffset);
-  if (digest4.byteLength !== size2) {
-    throw new Error("Incorrect length");
-  }
-  return new Digest2(code3, size2, digest4, bytes3);
-}
-function equals4(a, b) {
-  if (a === b) {
-    return true;
-  } else {
-    const data = b;
-    return a.code === data.code && a.size === data.size && data.bytes instanceof Uint8Array && equals3(a.bytes, data.bytes);
-  }
-}
-function format2(link2, base33) {
-  const { bytes: bytes3, version: version2 } = link2;
-  switch (version2) {
-    case 0:
-      return toStringV02(bytes3, baseCache2(link2), base33 ?? base58btc2.encoder);
-    default:
-      return toStringV12(bytes3, baseCache2(link2), base33 ?? base322.encoder);
-  }
-}
-function baseCache2(cid2) {
-  const baseCache32 = cache2.get(cid2);
-  if (baseCache32 == null) {
-    const baseCache4 = /* @__PURE__ */ new Map();
-    cache2.set(cid2, baseCache4);
-    return baseCache4;
-  }
-  return baseCache32;
-}
-function parseCIDtoBytes2(source, base33) {
-  switch (source[0]) {
-    // CIDv0 is parsed differently
-    case "Q": {
-      const decoder = base33 ?? base58btc2;
-      return [
-        base58btc2.prefix,
-        decoder.decode(`${base58btc2.prefix}${source}`)
-      ];
-    }
-    case base58btc2.prefix: {
-      const decoder = base33 ?? base58btc2;
-      return [base58btc2.prefix, decoder.decode(source)];
-    }
-    case base322.prefix: {
-      const decoder = base33 ?? base322;
-      return [base322.prefix, decoder.decode(source)];
-    }
-    case base362.prefix: {
-      const decoder = base33 ?? base362;
-      return [base362.prefix, decoder.decode(source)];
-    }
-    default: {
-      if (base33 == null) {
-        throw Error("To parse non base32, base36 or base58btc encoded CID multibase decoder must be provided");
-      }
-      return [source[0], base33.decode(source)];
-    }
-  }
-}
-function toStringV02(bytes3, cache32, base33) {
-  const { prefix } = base33;
-  if (prefix !== base58btc2.prefix) {
-    throw Error(`Cannot string encode V0 in ${base33.name} encoding`);
-  }
-  const cid2 = cache32.get(prefix);
-  if (cid2 == null) {
-    const cid3 = base33.encode(bytes3).slice(1);
-    cache32.set(prefix, cid3);
-    return cid3;
-  } else {
-    return cid2;
-  }
-}
-function toStringV12(bytes3, cache32, base33) {
-  const { prefix } = base33;
-  const cid2 = cache32.get(prefix);
-  if (cid2 == null) {
-    const cid3 = base33.encode(bytes3);
-    cache32.set(prefix, cid3);
-    return cid3;
-  } else {
-    return cid2;
-  }
-}
-function encodeCID2(version2, code3, multihash) {
-  const codeOffset = encodingLength2(version2);
-  const hashOffset = codeOffset + encodingLength2(code3);
-  const bytes3 = new Uint8Array(hashOffset + multihash.byteLength);
-  encodeTo2(version2, bytes3, 0);
-  encodeTo2(code3, bytes3, codeOffset);
-  bytes3.set(multihash, hashOffset);
-  return bytes3;
-}
-function authorizationMethodForTarget(target) {
-  if (target.kind === "recipientDid") return "openkey-device";
-  if (target.kind === "email") return "email-claim";
-  if (target.kind === "emailDomain") return "email-claim";
-  return void 0;
-}
 function validEmail(value) {
   return /^[^@\s]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$/i.test(value);
 }
@@ -19423,6 +19272,157 @@ async function publishTargetShare(input) {
     ...input.notify === void 0 ? {} : { notify: input.notify }
   });
 }
+function encode4(num2, out, offset) {
+  out = out || [];
+  offset = offset || 0;
+  var oldOffset = offset;
+  while (num2 >= INT2) {
+    out[offset++] = num2 & 255 | MSB2;
+    num2 /= 128;
+  }
+  while (num2 & MSBALL2) {
+    out[offset++] = num2 & 255 | MSB2;
+    num2 >>>= 7;
+  }
+  out[offset] = num2 | 0;
+  encode4.bytes = offset - oldOffset + 1;
+  return out;
+}
+function read22(buf, offset) {
+  var res = 0, offset = offset || 0, shift = 0, counter = offset, b, l = buf.length;
+  do {
+    if (counter >= l) {
+      read22.bytes = 0;
+      throw new RangeError("Could not decode varint");
+    }
+    b = buf[counter++];
+    res += shift < 28 ? (b & REST$12) << shift : (b & REST$12) * Math.pow(2, shift);
+    shift += 7;
+  } while (b >= MSB$12);
+  read22.bytes = counter - offset;
+  return res;
+}
+function decode7(data, offset = 0) {
+  const code3 = varint_default2.decode(data, offset);
+  return [code3, varint_default2.decode.bytes];
+}
+function encodeTo2(int, target, offset = 0) {
+  varint_default2.encode(int, target, offset);
+  return target;
+}
+function encodingLength2(int) {
+  return varint_default2.encodingLength(int);
+}
+function create2(code3, digest3) {
+  const size2 = digest3.byteLength;
+  const sizeOffset = encodingLength2(code3);
+  const digestOffset = sizeOffset + encodingLength2(size2);
+  const bytes3 = new Uint8Array(digestOffset + size2);
+  encodeTo2(code3, bytes3, 0);
+  encodeTo2(size2, bytes3, sizeOffset);
+  bytes3.set(digest3, digestOffset);
+  return new Digest2(code3, size2, digest3, bytes3);
+}
+function decode8(multihash) {
+  const bytes3 = coerce3(multihash);
+  const [code3, sizeOffset] = decode7(bytes3);
+  const [size2, digestOffset] = decode7(bytes3.subarray(sizeOffset));
+  const digest3 = bytes3.subarray(sizeOffset + digestOffset);
+  if (digest3.byteLength !== size2) {
+    throw new Error("Incorrect length");
+  }
+  return new Digest2(code3, size2, digest3, bytes3);
+}
+function equals4(a, b) {
+  if (a === b) {
+    return true;
+  } else {
+    const data = b;
+    return a.code === data.code && a.size === data.size && data.bytes instanceof Uint8Array && equals3(a.bytes, data.bytes);
+  }
+}
+function format2(link2, base33) {
+  const { bytes: bytes3, version: version2 } = link2;
+  switch (version2) {
+    case 0:
+      return toStringV02(bytes3, baseCache2(link2), base33 ?? base58btc2.encoder);
+    default:
+      return toStringV12(bytes3, baseCache2(link2), base33 ?? base322.encoder);
+  }
+}
+function baseCache2(cid2) {
+  const baseCache32 = cache2.get(cid2);
+  if (baseCache32 == null) {
+    const baseCache4 = /* @__PURE__ */ new Map();
+    cache2.set(cid2, baseCache4);
+    return baseCache4;
+  }
+  return baseCache32;
+}
+function parseCIDtoBytes2(source, base33) {
+  switch (source[0]) {
+    // CIDv0 is parsed differently
+    case "Q": {
+      const decoder = base33 ?? base58btc2;
+      return [
+        base58btc2.prefix,
+        decoder.decode(`${base58btc2.prefix}${source}`)
+      ];
+    }
+    case base58btc2.prefix: {
+      const decoder = base33 ?? base58btc2;
+      return [base58btc2.prefix, decoder.decode(source)];
+    }
+    case base322.prefix: {
+      const decoder = base33 ?? base322;
+      return [base322.prefix, decoder.decode(source)];
+    }
+    case base362.prefix: {
+      const decoder = base33 ?? base362;
+      return [base362.prefix, decoder.decode(source)];
+    }
+    default: {
+      if (base33 == null) {
+        throw Error("To parse non base32, base36 or base58btc encoded CID multibase decoder must be provided");
+      }
+      return [source[0], base33.decode(source)];
+    }
+  }
+}
+function toStringV02(bytes3, cache32, base33) {
+  const { prefix } = base33;
+  if (prefix !== base58btc2.prefix) {
+    throw Error(`Cannot string encode V0 in ${base33.name} encoding`);
+  }
+  const cid2 = cache32.get(prefix);
+  if (cid2 == null) {
+    const cid3 = base33.encode(bytes3).slice(1);
+    cache32.set(prefix, cid3);
+    return cid3;
+  } else {
+    return cid2;
+  }
+}
+function toStringV12(bytes3, cache32, base33) {
+  const { prefix } = base33;
+  const cid2 = cache32.get(prefix);
+  if (cid2 == null) {
+    const cid3 = base33.encode(bytes3);
+    cache32.set(prefix, cid3);
+    return cid3;
+  } else {
+    return cid2;
+  }
+}
+function encodeCID2(version2, code3, multihash) {
+  const codeOffset = encodingLength2(version2);
+  const hashOffset = codeOffset + encodingLength2(code3);
+  const bytes3 = new Uint8Array(hashOffset + multihash.byteLength);
+  encodeTo2(version2, bytes3, 0);
+  encodeTo2(code3, bytes3, codeOffset);
+  bytes3.set(multihash, hashOffset);
+  return bytes3;
+}
 function historyRecordForPublishedShare(result, now = /* @__PURE__ */ new Date()) {
   const target = result.metadata.target.kind;
   const supplied = result.metadata.recipientMatcher;
@@ -19453,6 +19453,7 @@ function historyRecordForPublishedShare(result, now = /* @__PURE__ */ new Date()
     registeredAt: now.toISOString(),
     expiresAt: result.metadata.expiresAt,
     link: result.url,
+    ...result.deliveryMaterial === void 0 ? {} : { deliveryMaterial: result.deliveryMaterial },
     ...result.metadata.display.filename === void 0 ? {} : { filename: result.metadata.display.filename }
   };
 }
@@ -19488,11 +19489,11 @@ async function notifyShare(input) {
 }
 async function defaultIdempotencyKey(shareId, recipient) {
   const canonicalRecipient = canonicalize2(recipient.trim().toLowerCase());
-  const digest4 = new Uint8Array(await crypto.subtle.digest(
+  const digest3 = new Uint8Array(await crypto.subtle.digest(
     "SHA-256",
     new TextEncoder().encode(canonicalRecipient)
   ));
-  return `tinycloud-share:${shareId}:${toBase64Url(digest4)}`;
+  return `tinycloud-share:${shareId}:${toBase64Url(digest3)}`;
 }
 function targetKind2(record2) {
   if (record2.targetKind !== void 0) return record2.targetKind;
@@ -19542,7 +19543,7 @@ async function migrateShare(input) {
   const value = await receiveLegacyShare(input.link, input.reader);
   return { protocol: "tinycloud-share", version: 1, legacy: true, value, migrated: await input.publish(value) };
 }
-var __defProp2, __export2, external_exports2, util2, objectUtil2, ZodParsedType2, getParsedType2, ZodIssueCode2, quotelessJson2, ZodError2, errorMap2, en_default2, overrideErrorMap2, makeIssue2, EMPTY_PATH2, ParseStatus2, INVALID2, DIRTY2, OK2, isAborted2, isDirty2, isValid2, isAsync2, errorUtil2, ParseInputLazyPath2, handleResult2, ZodType2, cuidRegex2, cuid2Regex2, ulidRegex2, uuidRegex2, nanoidRegex2, jwtRegex2, durationRegex2, emailRegex2, _emojiRegex2, emojiRegex2, ipv4Regex2, ipv4CidrRegex2, ipv6Regex2, ipv6CidrRegex2, base64Regex2, base64urlRegex2, dateRegexSource2, dateRegex2, ZodString2, ZodNumber2, ZodBigInt2, ZodBoolean2, ZodDate2, ZodSymbol2, ZodUndefined2, ZodNull2, ZodAny2, ZodUnknown2, ZodNever2, ZodVoid2, ZodArray2, ZodObject2, ZodUnion2, getDiscriminator2, ZodDiscriminatedUnion2, ZodIntersection2, ZodTuple2, ZodRecord2, ZodMap2, ZodSet2, ZodFunction2, ZodLazy2, ZodLiteral2, ZodEnum2, ZodNativeEnum2, ZodPromise2, ZodEffects2, ZodOptional2, ZodNullable2, ZodDefault2, ZodCatch2, ZodNaN2, BRAND2, ZodBranded2, ZodPipeline2, ZodReadonly2, late2, ZodFirstPartyTypeKind2, instanceOfType2, stringType2, numberType2, nanType2, bigIntType2, booleanType2, dateType2, symbolType2, undefinedType2, nullType2, anyType2, unknownType2, neverType2, voidType2, arrayType2, objectType2, strictObjectType2, unionType2, discriminatedUnionType2, intersectionType2, tupleType2, recordType2, mapType2, setType2, functionType2, lazyType2, literalType2, enumType2, nativeEnumType2, promiseType2, effectsType2, optionalType2, nullableType2, preprocessType2, pipelineType2, ostring2, onumber2, oboolean2, coerce2, NEVER2, empty, src, _brrp__multiformats_scope_baseX, base_x_default, Encoder, Decoder, ComposedDecoder, Codec, base32, base32upper, base32pad, base32padupper, base32hex, base32hexupper, base32hexpad, base32hexpadupper, base32z, base36, base36upper, base58btc, base58flickr, encode_1, MSB, REST, MSBALL, INT, decode2, MSB$1, REST$1, N1, N2, N3, N4, N5, N6, N7, N8, N9, length, varint, _brrp_varint, varint_default, Digest, cache, CID, DAG_PB_CODE, SHA_256_CODE, cidSymbol, code, SHA256_CODE, base64, base64pad, base64url, base64urlpad, ED25519_MULTICODEC_PREFIX, PUBLIC_KEY_LENGTH, base64UrlString, sessionJwkCommonFields, okpPrivateJwkSchema, ecPrivateJwkSchema, sessionJwkSchema, policyTargetSchema, bearerKeyTargetSchema, recipientDidTargetSchema, authorizationTargetSchema, resourceSelectorSchema, targetSchema, displaySchema, contentPointerSchema, signatureSchema, unsignedShareEnvelopeSchema, shareEnvelopeSchema, recipientMatcherSchema, shareActionSchema, kvContentSourceSchema, sqlContentSourceSchema, contentSourceSchema, v2TargetSchema, shareDecryptionSchema, ownerAuthoritySchema, contentMetadataSchema, unsignedShareEnvelopeV2BaseSchema, unsignedShareEnvelopeV2Schema, shareEnvelopeV2Schema, unifiedResourceSchema, unifiedEncryptionNetworkSchema, unifiedKvCapabilitySchema, unifiedEncryptionCapabilitySchema, unifiedCapabilitySchema, unifiedContentSourceSchema, unifiedPolicyV1Schema, policyCredentialRequirementV1Schema, unifiedPolicyV2Schema, unifiedPolicySchema, unifiedRootSchema, attestedEnforcerBindingV2Schema, v3TargetSchema, unsignedShareEnvelopeV3BaseSchema, unsignedShareEnvelopeV3Schema, shareEnvelopeV3Schema, BEARER_READ_ABILITY, READ_ABILITIES, ED25519_VERIFY_OPTS, ENVELOPE_AAD_LABEL, SEALED_BLOB_VERSION, AAD, KEY_LENGTH, NONCE_LENGTH, TAG_LENGTH, HEADER_LENGTH, ED25519_VERIFY_OPTS2, ENVELOPE_SIGNATURE_DOMAIN, ENVELOPE_V2_SIGNATURE_DOMAIN, ENVELOPE_V3_SIGNATURE_DOMAIN, POLICY_V1_SIGNATURE_DOMAIN, POLICY_V2_SIGNATURE_DOMAIN, CONTENT_SOURCE_V1_DOMAIN, POLICY_CAPABILITY_V1_DOMAIN, NATIVE_PROJECTION_V1_DOMAIN, ATTESTED_ENFORCER_V2_DOMAIN, KEY_LENGTH2, INLINE_PREFIX, MAX_INLINE_BYTES, SHARE_RESULT_VERSION, DEFAULT_MAX_SEALED_BLOB_BYTES, DEFAULT_MAX_CONTENT_BLOB_BYTES, CONTENT_SEALED_OVERHEAD, ShareReceiveError, SHARE_CONTENT_LIMIT, SHARE_SEALED_OVERHEAD, SHARE_PUBLISH_RESULT_VERSION, DEFAULT_SHARE_LIFETIME_MS, SharePublishError, empty2, src2, _brrp__multiformats_scope_baseX2, base_x_default2, Encoder2, Decoder2, ComposedDecoder2, Codec2, base322, base32upper2, base32pad2, base32padupper2, base32hex2, base32hexupper2, base32hexpad2, base32hexpadupper2, base32z2, base362, base36upper2, base58btc2, base58flickr2, encode_12, MSB2, REST2, MSBALL2, INT2, decode6, MSB$12, REST$12, N12, N22, N32, N42, N52, N62, N72, N82, N92, length2, varint2, _brrp_varint2, varint_default2, Digest2, cache2, CID2, DAG_PB_CODE2, SHA_256_CODE2, cidSymbol2, MAX_CONTENT_BYTES, ShareNotifyError, SHARE_V2_PROTOCOL, DOMAIN, PRESENTATION_DOMAIN, SESSION_DOMAIN, INVOCATION_DOMAIN;
+var __defProp2, __export2, external_exports2, util2, objectUtil2, ZodParsedType2, getParsedType2, ZodIssueCode2, quotelessJson2, ZodError2, errorMap2, en_default2, overrideErrorMap2, makeIssue2, EMPTY_PATH2, ParseStatus2, INVALID2, DIRTY2, OK2, isAborted2, isDirty2, isValid2, isAsync2, errorUtil2, ParseInputLazyPath2, handleResult2, ZodType2, cuidRegex2, cuid2Regex2, ulidRegex2, uuidRegex2, nanoidRegex2, jwtRegex2, durationRegex2, emailRegex2, _emojiRegex2, emojiRegex2, ipv4Regex2, ipv4CidrRegex2, ipv6Regex2, ipv6CidrRegex2, base64Regex2, base64urlRegex2, dateRegexSource2, dateRegex2, ZodString2, ZodNumber2, ZodBigInt2, ZodBoolean2, ZodDate2, ZodSymbol2, ZodUndefined2, ZodNull2, ZodAny2, ZodUnknown2, ZodNever2, ZodVoid2, ZodArray2, ZodObject2, ZodUnion2, getDiscriminator2, ZodDiscriminatedUnion2, ZodIntersection2, ZodTuple2, ZodRecord2, ZodMap2, ZodSet2, ZodFunction2, ZodLazy2, ZodLiteral2, ZodEnum2, ZodNativeEnum2, ZodPromise2, ZodEffects2, ZodOptional2, ZodNullable2, ZodDefault2, ZodCatch2, ZodNaN2, BRAND2, ZodBranded2, ZodPipeline2, ZodReadonly2, late2, ZodFirstPartyTypeKind2, instanceOfType2, stringType2, numberType2, nanType2, bigIntType2, booleanType2, dateType2, symbolType2, undefinedType2, nullType2, anyType2, unknownType2, neverType2, voidType2, arrayType2, objectType2, strictObjectType2, unionType2, discriminatedUnionType2, intersectionType2, tupleType2, recordType2, mapType2, setType2, functionType2, lazyType2, literalType2, enumType2, nativeEnumType2, promiseType2, effectsType2, optionalType2, nullableType2, preprocessType2, pipelineType2, ostring2, onumber2, oboolean2, coerce2, NEVER2, empty, src, _brrp__multiformats_scope_baseX, base_x_default, Encoder, Decoder, ComposedDecoder, Codec, base32, base32upper, base32pad, base32padupper, base32hex, base32hexupper, base32hexpad, base32hexpadupper, base32z, base36, base36upper, base58btc, base58flickr, encode_1, MSB, REST, MSBALL, INT, decode2, MSB$1, REST$1, N1, N2, N3, N4, N5, N6, N7, N8, N9, length, varint, _brrp_varint, varint_default, Digest, cache, CID, DAG_PB_CODE, SHA_256_CODE, cidSymbol, code, SHA256_CODE, base64, base64pad, base64url, base64urlpad, ED25519_MULTICODEC_PREFIX, PUBLIC_KEY_LENGTH, base64UrlString, sessionJwkCommonFields, okpPrivateJwkSchema, ecPrivateJwkSchema, sessionJwkSchema, policyTargetSchema, bearerKeyTargetSchema, recipientDidTargetSchema, authorizationTargetSchema, resourceSelectorSchema, targetSchema, displaySchema, contentPointerSchema, signatureSchema, unsignedShareEnvelopeSchema, shareEnvelopeSchema, recipientMatcherSchema, shareActionSchema, kvContentSourceSchema, sqlContentSourceSchema, contentSourceSchema, v2TargetSchema, shareDecryptionSchema, ownerAuthoritySchema, contentMetadataSchema, unsignedShareEnvelopeV2BaseSchema, unsignedShareEnvelopeV2Schema, shareEnvelopeV2Schema, unifiedResourceSchema, unifiedEncryptionNetworkSchema, unifiedKvCapabilitySchema, unifiedEncryptionCapabilitySchema, unifiedCapabilitySchema, unifiedContentSourceSchema, unifiedPolicyV1Schema, policyCredentialRequirementV1Schema, unifiedPolicyV2Schema, unifiedPolicySchema, unifiedRootSchema, attestedEnforcerBindingV2Schema, v3TargetSchema, unsignedShareEnvelopeV3BaseSchema, unsignedShareEnvelopeV3Schema, shareEnvelopeV3Schema, BEARER_READ_ABILITY, READ_ABILITIES, ED25519_VERIFY_OPTS, ENVELOPE_AAD_LABEL, SEALED_BLOB_VERSION, AAD, KEY_LENGTH, NONCE_LENGTH, TAG_LENGTH, HEADER_LENGTH, ED25519_VERIFY_OPTS2, ENVELOPE_SIGNATURE_DOMAIN, ENVELOPE_V2_SIGNATURE_DOMAIN, ENVELOPE_V3_SIGNATURE_DOMAIN, POLICY_V1_SIGNATURE_DOMAIN, POLICY_V2_SIGNATURE_DOMAIN, CONTENT_SOURCE_V1_DOMAIN, POLICY_CAPABILITY_V1_DOMAIN, NATIVE_PROJECTION_V1_DOMAIN, ATTESTED_ENFORCER_V2_DOMAIN, KEY_LENGTH2, INLINE_PREFIX, MAX_INLINE_BYTES, SHARE_RESULT_VERSION, DEFAULT_MAX_SEALED_BLOB_BYTES, DEFAULT_MAX_CONTENT_BLOB_BYTES, CONTENT_SEALED_OVERHEAD, ShareReceiveError, SHARE_CONTENT_LIMIT, SHARE_SEALED_OVERHEAD, SHARE_PUBLISH_RESULT_VERSION, DEFAULT_SHARE_LIFETIME_MS, SharePublishError, empty2, src2, _brrp__multiformats_scope_baseX2, base_x_default2, Encoder2, Decoder2, ComposedDecoder2, Codec2, base58btc2, base58flickr2, textEncoder, base322, base32upper2, base32pad2, base32padupper2, base32hex2, base32hexupper2, base32hexpad2, base32hexpadupper2, base32z2, base362, base36upper2, encode_12, MSB2, REST2, MSBALL2, INT2, decode6, MSB$12, REST$12, N12, N22, N32, N42, N52, N62, N72, N82, N92, length2, varint2, _brrp_varint2, varint_default2, Digest2, cache2, CID2, DAG_PB_CODE2, SHA_256_CODE2, cidSymbol2, MAX_CONTENT_BYTES, ShareNotifyError, SHARE_V2_PROTOCOL, DOMAIN, PRESENTATION_DOMAIN, SESSION_DOMAIN, INVOCATION_DOMAIN;
 var init_dist3 = __esm({
   "../share-sdk/dist/index.js"() {
     "use strict";
@@ -23561,10 +23562,10 @@ var init_dist3 = __esm({
       /**
        * Creates a multihash digest.
        */
-      constructor(code22, size2, digest4, bytes3) {
+      constructor(code22, size2, digest3, bytes3) {
         this.code = code22;
         this.size = size2;
-        this.digest = digest4;
+        this.digest = digest3;
         this.bytes = bytes3;
       }
     };
@@ -23627,8 +23628,8 @@ var init_dist3 = __esm({
       toV1() {
         switch (this.version) {
           case 0: {
-            const { code: code22, digest: digest4 } = this.multihash;
-            const multihash = create(code22, digest4);
+            const { code: code22, digest: digest3 } = this.multihash;
+            const multihash = create(code22, digest3);
             return _CID.createV1(this.code, multihash);
           }
           case 1: {
@@ -23682,8 +23683,8 @@ var init_dist3 = __esm({
           return new _CID(version2, code22, multihash, bytes3 ?? encodeCID(version2, code22, multihash.bytes));
         } else if (value[cidSymbol] === true) {
           const { version: version2, multihash, code: code22 } = value;
-          const digest4 = decode4(multihash);
-          return _CID.create(version2, code22, digest4);
+          const digest3 = decode4(multihash);
+          return _CID.create(version2, code22, digest3);
         } else {
           return null;
         }
@@ -23693,11 +23694,11 @@ var init_dist3 = __esm({
        * @param code - Code of the codec content is encoded in, see https://github.com/multiformats/multicodec/blob/master/table.csv
        * @param digest - (Multi)hash of the of the content.
        */
-      static create(version2, code22, digest4) {
+      static create(version2, code22, digest3) {
         if (typeof code22 !== "number") {
           throw new Error("String codecs are no longer supported");
         }
-        if (!(digest4.bytes instanceof Uint8Array)) {
+        if (!(digest3.bytes instanceof Uint8Array)) {
           throw new Error("Invalid digest");
         }
         switch (version2) {
@@ -23705,12 +23706,12 @@ var init_dist3 = __esm({
             if (code22 !== DAG_PB_CODE) {
               throw new Error(`Version 0 CID must use dag-pb (code: ${DAG_PB_CODE}) block encoding`);
             } else {
-              return new _CID(version2, code22, digest4, digest4.bytes);
+              return new _CID(version2, code22, digest3, digest3.bytes);
             }
           }
           case 1: {
-            const bytes3 = encodeCID(version2, code22, digest4.bytes);
-            return new _CID(version2, code22, digest4, bytes3);
+            const bytes3 = encodeCID(version2, code22, digest3.bytes);
+            return new _CID(version2, code22, digest3, bytes3);
           }
           default: {
             throw new Error("Invalid version");
@@ -23720,8 +23721,8 @@ var init_dist3 = __esm({
       /**
        * Simplified version of `create` for CIDv0.
        */
-      static createV0(digest4) {
-        return _CID.create(0, DAG_PB_CODE, digest4);
+      static createV0(digest3) {
+        return _CID.create(0, DAG_PB_CODE, digest3);
       }
       /**
        * Simplified version of `create` for CIDv1.
@@ -23729,8 +23730,8 @@ var init_dist3 = __esm({
        * @param code - Content encoding format code.
        * @param digest - Multihash of the content.
        */
-      static createV1(code22, digest4) {
-        return _CID.create(1, code22, digest4);
+      static createV1(code22, digest3) {
+        return _CID.create(1, code22, digest3);
       }
       /**
        * Decoded a CID from its binary representation. The byte array must contain
@@ -23763,8 +23764,8 @@ var init_dist3 = __esm({
           throw new Error("Incorrect length");
         }
         const digestBytes3 = multihashBytes.subarray(specs.multihashSize - specs.digestSize);
-        const digest4 = new Digest(specs.multihashCode, specs.digestSize, digestBytes3, multihashBytes);
-        const cid2 = specs.version === 0 ? _CID.createV0(digest4) : _CID.createV1(specs.codec, digest4);
+        const digest3 = new Digest(specs.multihashCode, specs.digestSize, digestBytes3, multihashBytes);
+        const cid2 = specs.version === 0 ? _CID.createV0(digest3) : _CID.createV1(specs.codec, digest3);
         return [cid2, bytes3.subarray(specs.size)];
       }
       /**
@@ -24302,6 +24303,17 @@ var init_dist3 = __esm({
         return this.decoder.decode(input);
       }
     };
+    base58btc2 = baseX2({
+      name: "base58btc",
+      prefix: "z",
+      alphabet: "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+    });
+    base58flickr2 = baseX2({
+      name: "base58flickr",
+      prefix: "Z",
+      alphabet: "123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ"
+    });
+    textEncoder = new TextEncoder();
     base322 = rfc46482({
       prefix: "b",
       name: "base32",
@@ -24366,16 +24378,6 @@ var init_dist3 = __esm({
       name: "base36upper",
       alphabet: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     });
-    base58btc2 = baseX2({
-      name: "base58btc",
-      prefix: "z",
-      alphabet: "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
-    });
-    base58flickr2 = baseX2({
-      name: "base58flickr",
-      prefix: "Z",
-      alphabet: "123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ"
-    });
     encode_12 = encode4;
     MSB2 = 128;
     REST2 = 127;
@@ -24411,10 +24413,10 @@ var init_dist3 = __esm({
       /**
        * Creates a multihash digest.
        */
-      constructor(code3, size2, digest4, bytes3) {
+      constructor(code3, size2, digest3, bytes3) {
         this.code = code3;
         this.size = size2;
-        this.digest = digest4;
+        this.digest = digest3;
         this.bytes = bytes3;
       }
     };
@@ -24477,8 +24479,8 @@ var init_dist3 = __esm({
       toV1() {
         switch (this.version) {
           case 0: {
-            const { code: code3, digest: digest4 } = this.multihash;
-            const multihash = create2(code3, digest4);
+            const { code: code3, digest: digest3 } = this.multihash;
+            const multihash = create2(code3, digest3);
             return _CID2.createV1(this.code, multihash);
           }
           case 1: {
@@ -24532,8 +24534,8 @@ var init_dist3 = __esm({
           return new _CID2(version2, code3, multihash, bytes3 ?? encodeCID2(version2, code3, multihash.bytes));
         } else if (value[cidSymbol2] === true) {
           const { version: version2, multihash, code: code3 } = value;
-          const digest4 = decode8(multihash);
-          return _CID2.create(version2, code3, digest4);
+          const digest3 = decode8(multihash);
+          return _CID2.create(version2, code3, digest3);
         } else {
           return null;
         }
@@ -24543,11 +24545,11 @@ var init_dist3 = __esm({
        * @param code - Code of the codec content is encoded in, see https://github.com/multiformats/multicodec/blob/master/table.csv
        * @param digest - (Multi)hash of the of the content.
        */
-      static create(version2, code3, digest4) {
+      static create(version2, code3, digest3) {
         if (typeof code3 !== "number") {
           throw new Error("String codecs are no longer supported");
         }
-        if (!(digest4.bytes instanceof Uint8Array)) {
+        if (!(digest3.bytes instanceof Uint8Array)) {
           throw new Error("Invalid digest");
         }
         switch (version2) {
@@ -24555,12 +24557,12 @@ var init_dist3 = __esm({
             if (code3 !== DAG_PB_CODE2) {
               throw new Error(`Version 0 CID must use dag-pb (code: ${DAG_PB_CODE2}) block encoding`);
             } else {
-              return new _CID2(version2, code3, digest4, digest4.bytes);
+              return new _CID2(version2, code3, digest3, digest3.bytes);
             }
           }
           case 1: {
-            const bytes3 = encodeCID2(version2, code3, digest4.bytes);
-            return new _CID2(version2, code3, digest4, bytes3);
+            const bytes3 = encodeCID2(version2, code3, digest3.bytes);
+            return new _CID2(version2, code3, digest3, bytes3);
           }
           default: {
             throw new Error("Invalid version");
@@ -24570,8 +24572,8 @@ var init_dist3 = __esm({
       /**
        * Simplified version of `create` for CIDv0.
        */
-      static createV0(digest4) {
-        return _CID2.create(0, DAG_PB_CODE2, digest4);
+      static createV0(digest3) {
+        return _CID2.create(0, DAG_PB_CODE2, digest3);
       }
       /**
        * Simplified version of `create` for CIDv1.
@@ -24579,8 +24581,8 @@ var init_dist3 = __esm({
        * @param code - Content encoding format code.
        * @param digest - Multihash of the content.
        */
-      static createV1(code3, digest4) {
-        return _CID2.create(1, code3, digest4);
+      static createV1(code3, digest3) {
+        return _CID2.create(1, code3, digest3);
       }
       /**
        * Decoded a CID from its binary representation. The byte array must contain
@@ -24613,8 +24615,8 @@ var init_dist3 = __esm({
           throw new Error("Incorrect length");
         }
         const digestBytes3 = multihashBytes.subarray(specs.multihashSize - specs.digestSize);
-        const digest4 = new Digest2(specs.multihashCode, specs.digestSize, digestBytes3, multihashBytes);
-        const cid2 = specs.version === 0 ? _CID2.createV0(digest4) : _CID2.createV1(specs.codec, digest4);
+        const digest3 = new Digest2(specs.multihashCode, specs.digestSize, digestBytes3, multihashBytes);
+        const cid2 = specs.version === 0 ? _CID2.createV0(digest3) : _CID2.createV1(specs.codec, digest3);
         return [cid2, bytes3.subarray(specs.size)];
       }
       /**
@@ -26127,7 +26129,7 @@ function decodeBase64Url4(value) {
   }
   return Uint8Array.from(bytes2);
 }
-var import_ms, __defProp3, __typeError, __defNormalProp, __export3, __publicField, __accessCheck, __privateGet, __privateAdd, __privateSet, EnsDataSchema, SiweConfigSchema, ClientSessionSchema, objectHasOwn, base32_exports, empty3, src3, _brrp__multiformats_scope_baseX3, base_x_default3, Encoder3, Decoder3, ComposedDecoder3, Codec3, base323, base32upper3, base32pad3, base32padupper3, base32hex3, base32hexupper3, base32hexpad3, base32hexpadupper3, base32z3, base36_exports, base363, base36upper3, base58_exports, base58btc3, base58flickr3, encode_13, MSB3, REST3, MSBALL3, INT3, decode22, MSB$13, REST$13, N13, N23, N33, N43, N53, N63, N73, N83, N93, length3, varint3, _brrp_varint3, varint_default3, Digest3, cache3, _a, CID3, DAG_PB_CODE3, SHA_256_CODE3, cidSymbol3, textEncoder, objectHasOwn2, CEILING_SERVICES, GRANTABLE_ACTIONS, base10_exports, base10, base16_exports, base16, base16upper, base2_exports, base22, base256emoji_exports, alphabet, alphabetBytesToChars, alphabetCharsToBytes, base256emoji, base64_exports, base642, base64pad2, base64url2, base64urlpad2, base8_exports, base8, identity_exports, identity, textEncoder2, textDecoder, identity_exports2, code2, name, encode42, identity2, sha2_browser_exports, DEFAULT_MIN_DIGEST_LENGTH, Hasher, sha25622, sha5122, bases, hashes, textEncoder3, objectHasOwn3, TRANSCRIPT_SHARE_BOOTSTRAP_SCHEMA, OWNER_NODE_ENDPOINT_SCHEMA, W3C_VC_CREDENTIAL_VERIFIER, objectHasOwn4, CompactHeaderSchema, CompactPayloadSchema, POLICY_ENGINE_CHALLENGE_RESPONSE_SCHEMA, POLICY_ENGINE_DENIAL_SCHEMA, POLICY_ENGINE_GRANT_PRESENTATION_DENIAL_CODES, JsonValueSchema, Rfc3339Schema, SignedRecordSchema, PolicyEngineSchema, OwnerNodeSchema, ResourceHintSchema, BootstrapSchema, SignatureSchema, ChallengeSchema, ChallengeResponseSchema, DenialSchema, ErrorEnvelopeDenialSchema, WireDelegationSchema, ResolveResponseSchema, DelegateReceiptSchema, SqlReadResponseSchema, KvReadResponseSchema, LISTEN_SQL_STATEMENT_CATALOG, LISTEN_SQL_STATEMENT_BY_NAME, JWKSchema, KeyTypeSchema, KeyInfoSchema, DelegationErrorSchema, DelegationSchema, DelegationStatusSchema, DelegationRevocationReceiptSchema, AccountDelegationResourceSchema, AccountDelegationDateSchema, AccountDelegationRecordSchema, AccountDelegationPageSchema, AccountDelegationQueryOptionsSchema, CapabilityEntrySchema, DelegationRecordSchema, CreateDelegationParamsSchema, DelegationChainSchema, DelegationChainV2Schema, DelegationDirectionSchema, DelegationFiltersSchema, SpaceOwnershipSchema, SpaceInfoSchema, ShareSchemaSchema, ShareLinkSchema, ShareLinkDataSchema, IngestOptionsSchema, GenerateShareParamsSchema, DelegationManagerConfigSchema, KeyProviderSchema, DelegationApiResponseSchema, DelegatedResourceSchema, CreateDelegationWasmParamsSchema, CreateDelegationWasmResultSchema, EPHEMERAL_MS, SIGNED_READ_URL_MS, SESSION_MS, SHARE_MS, APP_MS, MAX_MS, EXPIRY, DEFAULT_SIGNED_READ_URL_EXPIRY_MS2, EncodedShareDataSchema, ReceiveOptionsSchema, SharingServiceConfigSchema, DEFAULT_KNOWLEDGE_ROOT, ManifestValidationError, SERVICE_SHORT_TO_LONG, SERVICE_LONG_TO_SHORT, DEFAULT_MAX_INLINE_BYTES, MAX_SHARE_CONTENT_BYTES, MAX_SEALED_SHARE_CONTENT_BYTES, MAX_SHARE_ARTIFACT_BYTES, PUBLISHED_AAD, ShareRecipientTargetSchema, ShareResourceSchema, ShareActionSchema, ShareRecipientPolicySchema, ShareRecipientClientOptionsSchema, ShareNativeActionSchema, ShareWireActionSchema, ShareContentSourceSchema, ShareAddressedRecipientSchema, ShareAddressedDelegationRequestV2Schema, ShareAddressedDelegationEnvelopeV2Schema, ShareAddressedDelegationResponseV2Schema, ShareNativeResponseEntrySchema, ShareNativeResponseBase, ShareNativeResponseSchema, ResourceSchema, PortableDelegationSchema, MAX_NATIVE_CURSOR_BYTES, DEFAULT_EXPIRY_MS2, MAX_CONTENT_BYTES2, ethereumAddressPattern, EnsDataSchema2, PersistedTinyCloudSessionSchema, PersistedSessionDataSchema, TinyCloudSessionSchema, SpaceConfigSchema, SpaceServiceConfigSchema, SpaceDelegationParamsSchema, ServerDelegationInfoSchema, ServerDelegationsResponseSchema, ServerOwnedSpaceSchema, ServerOwnedSpacesResponseSchema, ServerCreateSpaceResponseSchema, ServerSpaceInfoResponseSchema, AutoApproveSpaceCreationHandler, defaultSpaceCreationHandler, N122, N222, N322, N422, N522, N622, N722, MSB22, REST22, string, ascii, BASES, bases_default, InvalidMultiaddrError, ValidationError, InvalidParametersError, UnknownProtocolError, Parser, MAX_IPV6_LENGTH, MAX_IPV4_LENGTH, parser, CODE_IP4, CODE_TCP, CODE_UDP, CODE_DCCP, CODE_IP6, CODE_IP6ZONE, CODE_IPCIDR, CODE_DNS, CODE_DNS4, CODE_DNS6, CODE_DNSADDR, CODE_SCTP, CODE_UDT, CODE_UTP, CODE_UNIX, CODE_P2P, CODE_ONION, CODE_ONION3, CODE_GARLIC64, CODE_GARLIC32, CODE_TLS, CODE_SNI, CODE_NOISE, CODE_QUIC, CODE_QUIC_V1, CODE_WEBTRANSPORT, CODE_CERTHASH, CODE_HTTP, CODE_HTTP_PATH, CODE_HTTPS, CODE_WS, CODE_WSS, CODE_P2P_WEBSOCKET_STAR, CODE_P2P_STARDUST, CODE_P2P_WEBRTC_STAR, CODE_P2P_WEBRTC_DIRECT, CODE_WEBRTC_DIRECT, CODE_WEBRTC, CODE_P2P_CIRCUIT, CODE_MEMORY, ip4ToBytes, ip6ToBytes, ip4ToString, ip6ToString, decoders, anybaseDecoder, validatePort, V, Registry, registry, codecs, inspect, symbol, _a2, _components, _string, _bytes, _Multiaddr, Multiaddr, ASSUME_HTTP_CODES, interpreters, word, boundry, v4, v6segment, v6, v46Exact, v4exact, v6exact, ipRegex, toString3, DEFAULT_TINYCLOUD_LOCATION_REGISTRY_URL, LOCAL_LOOPBACK_PROBE_TIMEOUT_MS, LOCAL_LINK_PROBE_TIMEOUT_MS, LOCAL_LINK_HOST_SUFFIX, LocationRecordValidationError, defaultLocalNodeIdentityStore, DNS_LABEL_REGEX;
+var import_ms, __defProp3, __typeError, __defNormalProp, __export3, __publicField, __accessCheck, __privateGet, __privateAdd, __privateSet, EnsDataSchema, SiweConfigSchema, ClientSessionSchema, objectHasOwn, base32_exports, empty3, src3, _brrp__multiformats_scope_baseX3, base_x_default3, Encoder3, Decoder3, ComposedDecoder3, Codec3, base323, base32upper3, base32pad3, base32padupper3, base32hex3, base32hexupper3, base32hexpad3, base32hexpadupper3, base32z3, base36_exports, base363, base36upper3, base58_exports, base58btc3, base58flickr3, encode_13, MSB3, REST3, MSBALL3, INT3, decode22, MSB$13, REST$13, N13, N23, N33, N43, N53, N63, N73, N83, N93, length3, varint3, _brrp_varint3, varint_default3, Digest3, cache3, _a, CID3, DAG_PB_CODE3, SHA_256_CODE3, cidSymbol3, textEncoder2, objectHasOwn2, CEILING_SERVICES, GRANTABLE_ACTIONS, base10_exports, base10, base16_exports, base16, base16upper, base2_exports, base22, base256emoji_exports, alphabet, alphabetBytesToChars, alphabetCharsToBytes, base256emoji, base64_exports, base642, base64pad2, base64url2, base64urlpad2, base8_exports, base8, identity_exports, identity, textEncoder22, textDecoder, identity_exports2, code2, name, encode42, identity2, sha2_browser_exports, DEFAULT_MIN_DIGEST_LENGTH, Hasher, sha25622, sha5122, bases, hashes, textEncoder3, objectHasOwn3, TRANSCRIPT_SHARE_BOOTSTRAP_SCHEMA, OWNER_NODE_ENDPOINT_SCHEMA, W3C_VC_CREDENTIAL_VERIFIER, objectHasOwn4, CompactHeaderSchema, CompactPayloadSchema, POLICY_ENGINE_CHALLENGE_RESPONSE_SCHEMA, POLICY_ENGINE_DENIAL_SCHEMA, POLICY_ENGINE_GRANT_PRESENTATION_DENIAL_CODES, JsonValueSchema, Rfc3339Schema, SignedRecordSchema, PolicyEngineSchema, OwnerNodeSchema, ResourceHintSchema, BootstrapSchema, SignatureSchema, ChallengeSchema, ChallengeResponseSchema, DenialSchema, ErrorEnvelopeDenialSchema, WireDelegationSchema, ResolveResponseSchema, DelegateReceiptSchema, SqlReadResponseSchema, KvReadResponseSchema, LISTEN_SQL_STATEMENT_CATALOG, LISTEN_SQL_STATEMENT_BY_NAME, JWKSchema, KeyTypeSchema, KeyInfoSchema, DelegationErrorSchema, DelegationSchema, DelegationStatusSchema, DelegationRevocationReceiptSchema, AccountDelegationResourceSchema, AccountDelegationDateSchema, AccountDelegationRecordSchema, AccountDelegationPageSchema, AccountDelegationQueryOptionsSchema, CapabilityEntrySchema, DelegationRecordSchema, CreateDelegationParamsSchema, DelegationChainSchema, DelegationChainV2Schema, DelegationDirectionSchema, DelegationFiltersSchema, SpaceOwnershipSchema, SpaceInfoSchema, ShareSchemaSchema, ShareLinkSchema, ShareLinkDataSchema, IngestOptionsSchema, GenerateShareParamsSchema, DelegationManagerConfigSchema, KeyProviderSchema, DelegationApiResponseSchema, DelegatedResourceSchema, CreateDelegationWasmParamsSchema, CreateDelegationWasmResultSchema, EPHEMERAL_MS, SIGNED_READ_URL_MS, SESSION_MS, SHARE_MS, APP_MS, MAX_MS, EXPIRY, DEFAULT_SIGNED_READ_URL_EXPIRY_MS2, EncodedShareDataSchema, ReceiveOptionsSchema, SharingServiceConfigSchema, DEFAULT_KNOWLEDGE_ROOT, ManifestValidationError, SERVICE_SHORT_TO_LONG, SERVICE_LONG_TO_SHORT, DEFAULT_MAX_INLINE_BYTES, MAX_SHARE_CONTENT_BYTES, MAX_SEALED_SHARE_CONTENT_BYTES, MAX_SHARE_ARTIFACT_BYTES, PUBLISHED_AAD, ShareRecipientTargetSchema, ShareResourceSchema, ShareActionSchema, ShareRecipientPolicySchema, ShareRecipientClientOptionsSchema, ShareNativeActionSchema, ShareWireActionSchema, ShareContentSourceSchema, ShareAddressedRecipientSchema, ShareAddressedDelegationRequestV2Schema, ShareAddressedDelegationEnvelopeV2Schema, ShareAddressedDelegationResponseV2Schema, ShareNativeResponseEntrySchema, ShareNativeResponseBase, ShareNativeResponseSchema, ResourceSchema, PortableDelegationSchema, MAX_NATIVE_CURSOR_BYTES, DEFAULT_EXPIRY_MS2, MAX_CONTENT_BYTES2, ethereumAddressPattern, EnsDataSchema2, PersistedTinyCloudSessionSchema, PersistedSessionDataSchema, TinyCloudSessionSchema, SpaceConfigSchema, SpaceServiceConfigSchema, SpaceDelegationParamsSchema, ServerDelegationInfoSchema, ServerDelegationsResponseSchema, ServerOwnedSpaceSchema, ServerOwnedSpacesResponseSchema, ServerCreateSpaceResponseSchema, ServerSpaceInfoResponseSchema, AutoApproveSpaceCreationHandler, defaultSpaceCreationHandler, N122, N222, N322, N422, N522, N622, N722, MSB22, REST22, string, ascii, BASES, bases_default, InvalidMultiaddrError, ValidationError, InvalidParametersError, UnknownProtocolError, Parser, MAX_IPV6_LENGTH, MAX_IPV4_LENGTH, parser, CODE_IP4, CODE_TCP, CODE_UDP, CODE_DCCP, CODE_IP6, CODE_IP6ZONE, CODE_IPCIDR, CODE_DNS, CODE_DNS4, CODE_DNS6, CODE_DNSADDR, CODE_SCTP, CODE_UDT, CODE_UTP, CODE_UNIX, CODE_P2P, CODE_ONION, CODE_ONION3, CODE_GARLIC64, CODE_GARLIC32, CODE_TLS, CODE_SNI, CODE_NOISE, CODE_QUIC, CODE_QUIC_V1, CODE_WEBTRANSPORT, CODE_CERTHASH, CODE_HTTP, CODE_HTTP_PATH, CODE_HTTPS, CODE_WS, CODE_WSS, CODE_P2P_WEBSOCKET_STAR, CODE_P2P_STARDUST, CODE_P2P_WEBRTC_STAR, CODE_P2P_WEBRTC_DIRECT, CODE_WEBRTC_DIRECT, CODE_WEBRTC, CODE_P2P_CIRCUIT, CODE_MEMORY, ip4ToBytes, ip6ToBytes, ip4ToString, ip6ToString, decoders, anybaseDecoder, validatePort, V, Registry, registry, codecs, inspect, symbol, _a2, _components, _string, _bytes, _Multiaddr, Multiaddr, ASSUME_HTTP_CODES, interpreters, word, boundry, v4, v6segment, v6, v46Exact, v4exact, v6exact, ipRegex, toString3, DEFAULT_TINYCLOUD_LOCATION_REGISTRY_URL, LOCAL_LOOPBACK_PROBE_TIMEOUT_MS, LOCAL_LINK_PROBE_TIMEOUT_MS, LOCAL_LINK_HOST_SUFFIX, LocationRecordValidationError, defaultLocalNodeIdentityStore, DNS_LABEL_REGEX;
 var init_dist4 = __esm({
   "../sdk-core/dist/index.js"() {
     "use strict";
@@ -26673,7 +26675,7 @@ var init_dist4 = __esm({
     DAG_PB_CODE3 = 112;
     SHA_256_CODE3 = 18;
     cidSymbol3 = /* @__PURE__ */ Symbol.for("@ipld/js-cid/CID");
-    textEncoder = new TextEncoder();
+    textEncoder2 = new TextEncoder();
     objectHasOwn2 = Object.hasOwn ?? Object.prototype.hasOwnProperty.call.bind(
       Object.prototype.hasOwnProperty
     );
@@ -26803,7 +26805,7 @@ var init_dist4 = __esm({
       encode: (buf) => toString(buf),
       decode: (str) => fromString(str)
     });
-    textEncoder2 = new TextEncoder();
+    textEncoder22 = new TextEncoder();
     textDecoder = new TextDecoder();
     identity_exports2 = {};
     __export3(identity_exports2, {

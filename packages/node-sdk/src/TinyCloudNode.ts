@@ -143,15 +143,15 @@ import {
   type DecryptTransport,
   type EncryptionCrypto,
   type NetworkDescriptor,
-  type RegisterOwnerSharePolicyParams,
   type CreateOwnerDelegationParams as CoreCreateOwnerDelegationParams,
   type OwnerDelegationPermission,
   type OwnerDelegationReceipt as CoreOwnerDelegationReceipt,
-  type OwnerSharePolicyRegistrationReceipt,
-  validateOwnerSharePolicyRegistrationBytes,
+  registerPolicyV3,
+  type RegisterPolicyV3Input,
+  type RegisterPolicyV3Receipt,
   type ShareDeliveryAuthorizationReceipt,
-  validateShareDeliveryAuthorizationBytes,
   type ShareDeliveryAuthorizationV3Receipt,
+  CREDENTIAL_INVITATION_REQUEST_DOMAIN,
   validateShareDeliveryAuthorizationV3Bytes,
   verifyEip191MessageSignature,
   signCompactUcanRootAuthorization,
@@ -177,8 +177,8 @@ import {
 import { NodeSecretsService } from "./NodeSecretsService";
 
 export type {
-  RegisterOwnerSharePolicyParams,
-  OwnerSharePolicyRegistrationReceipt,
+  RegisterPolicyV3Input,
+  RegisterPolicyV3Receipt,
   ShareDeliveryAuthorizationReceipt,
   ShareDeliveryAuthorizationV3Receipt,
 } from "@tinycloud/sdk-core";
@@ -4305,37 +4305,19 @@ export class TinyCloudNode {
     };
   }
 
-  /** Register a policy that is already bound to an activated owner delegation. */
-  async registerOwnerSharePolicy(
-    params: RegisterOwnerSharePolicyParams,
-  ): Promise<OwnerSharePolicyRegistrationReceipt> {
+  /** Register a signed policy and sibling roots with this Node's Policy/v3 runtime. */
+  async registerPolicy(
+    params: Omit<RegisterPolicyV3Input, "nodeOrigin" | "fetch">,
+  ): Promise<RegisterPolicyV3Receipt> {
     this._serviceGraph.assertActive();
-    if (params.policy.bytes.byteLength > 2 * 1024 * 1024) throw new Error("Owner share policy is too large");
-    const response = await fetch(`${this.config.host!}/share/v2/policies`, {
-      method: "POST",
-      headers: { "content-type": "application/json", accept: "application/json" },
-      body: JSON.stringify({
-        policy: { bytes: base64UrlEncode(params.policy.bytes), cid: params.policy.cid, proof: params.policy.proof },
-        ownerDelegation: { cid: params.ownerDelegation.delegationCid, dagCbor: base64UrlEncode(params.ownerDelegation.signedDagCbor) },
-        enforcementDelegation: params.enforcementDelegation,
-        contentSourceDigest: params.contentSourceDigest,
-      }),
+    return registerPolicyV3({
+      ...params,
+      nodeOrigin: this.config.host!,
+      fetch: globalThis.fetch.bind(globalThis),
     });
-    if (!response.ok) {
-      let code = "";
-      try {
-        const body = await response.clone().json() as { readonly error?: { readonly code?: unknown } };
-        if (typeof body.error?.code === "string") code = ` ${body.error.code}`;
-      } catch {
-        // Keep the stable HTTP failure when the server did not return JSON.
-      }
-      throw new Error(`Owner share policy registration failed: ${response.status}${code}`);
-    }
-    const responseBytes = new Uint8Array(await response.arrayBuffer());
-    return validateOwnerSharePolicyRegistrationBytes(responseBytes, params);
   }
 
-  /** Authorize a short-lived, one-use v2 delivery using the authenticated invocation chain. */
+  /** @deprecated Policy/v2 delivery transport is retired. Use authorizeShareDeliveryV3. */
   async authorizeShareDelivery(input: {
     readonly envelopeCid: string;
     readonly shareCid: string;
@@ -4355,35 +4337,8 @@ export class TinyCloudNode {
     /** The trusted OpenCredentials witness origin from the same trust bundle as `nodeProof`. */
     readonly credentialsAudience: string;
   }): Promise<ShareDeliveryAuthorizationReceipt> {
-    const session = this.currentTinyCloudSession();
-    const serviceSession = this._serviceContext?.session;
-    if (!session || !serviceSession) throw new Error("Share delivery requires an authenticated session");
-    const body = {
-      envelopeCid: input.envelopeCid,
-      shareCid: input.shareCid,
-      shareId: input.shareId,
-      registrationCid: input.registrationCid,
-      policyCid: input.policyCid,
-      delegationCid: input.delegationCid,
-      enforcementDelegationCid: input.enforcementDelegationCid,
-      recipientEmail: input.recipientEmail,
-      shareUrl: input.shareUrl,
-      documentName: input.documentName,
-      jti: base64UrlEncode(crypto.getRandomValues(new Uint8Array(16))),
-      idempotencyKey: input.idempotencyKey,
-      expiresAt: input.expiresAt,
-    };
-    const requestBodyDigest = base64UrlEncode(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonicalizeEncryptionJson(body)))));
-    const request = { ...body, requestBodyDigest };
-    const authorization = authorizationHeader(this.invokeAnyWithRuntimePermissions(serviceSession, [{ spaceId: session.spaceId, service: "kv", path: input.resourcePath, action: "tinycloud.kv/get" }]));
-    const response = await fetch(`${this.config.host!}/share/v2/deliveries/authorize`, {
-      method: "POST",
-      headers: { accept: "application/json", "content-type": "application/json", authorization },
-      body: canonicalizeEncryptionJson(request),
-    });
-    if (!response.ok) throw new Error(`Share delivery authorization failed: ${response.status}`);
-    const responseBytes = new Uint8Array(await response.arrayBuffer());
-    return validateShareDeliveryAuthorizationBytes(responseBytes, { request, nodeProof: input.nodeProof, credentialsAudience: input.credentialsAudience });
+    void input;
+    throw new Error("Policy/v2 share delivery is retired; use authorizeShareDeliveryV3");
   }
 
   /** Authorize one short-lived v3 delivery against the signed v3 envelope and registered roots. */
@@ -4412,22 +4367,35 @@ export class TinyCloudNode {
       shareUrl: input.shareUrl,
       documentName: input.documentName,
       jti: base64UrlEncode(crypto.getRandomValues(new Uint8Array(16))),
-      expiresAt: input.expiresAt,
+      expiresAt: new Date(input.expiresAt).toISOString().replace(/\.\d{3}Z$/, "Z"),
     };
     const requestBodyDigest = base64UrlEncode(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonicalizeEncryptionJson(body)))));
     const request = { ...body, requestBodyDigest };
     const authorization = authorizationHeader(this.invokeAnyWithRuntimePermissions(serviceSession, [{ spaceId: session.spaceId, service: "kv", path: input.resourcePath, action: "tinycloud.kv/get" }]));
-    const response = await fetch(`${this.config.host!}/share/v3/deliveries/authorize`, {
+    const response = await fetch(`${this.config.host!}/policy/v3/deliveries/authorize`, {
       method: "POST",
       headers: { accept: "application/json", "content-type": "application/json", authorization },
       body: canonicalizeEncryptionJson(request),
     });
     if (!response.ok) throw new Error(`V3 share delivery authorization failed: ${response.status}`);
-    return validateShareDeliveryAuthorizationV3Bytes(new Uint8Array(await response.arrayBuffer()), {
+    const verified = validateShareDeliveryAuthorizationV3Bytes(new Uint8Array(await response.arrayBuffer()), {
       request,
-      nodeProof: input.nodeProof,
+      senderKeyDid: this.credentialHolderDid,
       credentialsAudience: input.credentialsAudience,
     });
+    void input.nodeProof;
+    const requestDigest = new Uint8Array(await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(`${CREDENTIAL_INVITATION_REQUEST_DOMAIN}${canonicalizeEncryptionJson(verified.request as any)}`),
+    ));
+    return {
+      ...verified,
+      proof: {
+        alg: "EdDSA",
+        kid: this.credentialHolderDid,
+        signature: base64UrlEncode(await this.signSessionBytes(requestDigest)),
+      },
+    };
   }
 
   private async createRootDelegationForSharing(params: {

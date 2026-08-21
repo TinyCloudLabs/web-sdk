@@ -96,6 +96,47 @@ export interface UnifiedPolicyV1 {
   };
 }
 
+export interface PolicyRootV3 {
+  readonly cid: string;
+  readonly authorization: string;
+}
+
+export interface RegisterPolicyV3Input {
+  readonly nodeOrigin: string;
+  readonly policyCid: string;
+  readonly policy: Readonly<Record<string, unknown>>;
+  readonly policyRoot: PolicyRootV3;
+  readonly enforcementRoot: PolicyRootV3;
+  readonly contentSourceDigestHex: string;
+  readonly nativeProjectionHashHex: string;
+  readonly rootExpiresAt: string;
+  readonly enforcerDid: string;
+  readonly expectedNodeAudience: string;
+  readonly fetch?: typeof fetch;
+  readonly signal?: AbortSignal;
+}
+
+export interface AttestedEnforcerBindingV2 {
+  readonly schema: "xyz.tinycloud.policy/attested-enforcer/v2";
+  readonly enforcerDid: string;
+  readonly nodeAudience: string;
+  readonly attestationBindingDigestHex: string;
+  readonly issuedAt: string;
+  readonly expiresAt: string;
+  readonly signature: {
+    readonly suite: "Ed25519";
+    readonly signerDid: string;
+    readonly value: string;
+  };
+}
+
+export interface RegisterPolicyV3Receipt {
+  readonly policyCid: string;
+  readonly policyRootCid: string;
+  readonly enforcementRootCid: string;
+  readonly attestedEnforcerBinding: AttestedEnforcerBindingV2;
+}
+
 export type PolicySessionUcanFactV1 = Readonly<Record<string, unknown>> & {
   /** Present only on accountless PolicyCredentialPresentation/v4 admissions. */
   readonly credentialIdAuditDigestHex?: string;
@@ -128,6 +169,12 @@ export interface PolicyChallengeV3 {
 
 export async function requestPolicyChallengeV3(input: {
   readonly nodeOrigin: string;
+  /**
+   * Policy control routes are part of the recipient's TinyCloud Node.  This is
+   * deliberately a path, not a second origin: applications must not send a
+   * credential presentation to a separately discovered policy service.
+   */
+  readonly policyRuntimePath?: string;
   readonly policyCid: string;
   readonly recipientDid: string;
   readonly requestedCapabilities: readonly UnifiedPolicyCapability[];
@@ -135,7 +182,8 @@ export async function requestPolicyChallengeV3(input: {
   readonly signal?: AbortSignal;
 }): Promise<PolicyChallengeV3> {
   const fetchFn = input.fetch ?? globalThis.fetch.bind(globalThis);
-  const response = await fetchFn(new URL("/share/v3/policy/challenges", input.nodeOrigin), {
+  const policyRuntimePath = policyRuntimeBasePath(input.policyRuntimePath);
+  const response = await fetchFn(new URL(`${policyRuntimePath}/challenges`, input.nodeOrigin), {
     method: "POST",
     redirect: "error",
     signal: input.signal,
@@ -147,6 +195,14 @@ export async function requestPolicyChallengeV3(input: {
   if (typeof value.challengeId !== "string" || typeof value.nonce !== "string" || value.policyCid !== input.policyCid || value.recipientDid !== input.recipientDid)
     throw new Error("policy challenge binding is invalid");
   return value;
+}
+
+function policyRuntimeBasePath(value: string | undefined): string {
+  const path = value ?? "/policy/v3";
+  if (!/^\/policy(?:\/[a-z0-9-]+)*$/.test(path)) {
+    throw new Error("policy runtime path is invalid");
+  }
+  return path;
 }
 
 export async function mintPolicySessionV3(input: {
@@ -167,7 +223,7 @@ export async function mintPolicySessionV3(input: {
   const challenge = input.challenge ?? await requestPolicyChallengeV3(input);
   if (challenge.policyCid !== input.policyCid || challenge.recipientDid !== input.recipientDid)
     throw new Error("policy challenge binding is invalid");
-  const response = await fetchFn(new URL("/share/v3/policy/delegations", input.nodeOrigin), {
+  const response = await fetchFn(new URL("/policy/v3/delegations", input.nodeOrigin), {
     method: "POST",
     redirect: "error",
     signal: input.signal,
@@ -275,7 +331,7 @@ export async function getPolicyRootStatusV3(input: {
   readonly fetch?: typeof fetch;
 }): Promise<PolicyRootStatusV3> {
   const fetchFn = input.fetch ?? globalThis.fetch.bind(globalThis);
-  const response = await fetchFn(new URL(`/share/v3/policy/status/${encodeURIComponent(input.rootCid)}`, input.nodeOrigin), {
+  const response = await fetchFn(new URL(`/policy/v3/status/${encodeURIComponent(input.rootCid)}`, input.nodeOrigin), {
     method: "GET",
     redirect: "error",
     headers: { accept: "application/json" },
@@ -364,7 +420,7 @@ export async function renewPolicyRootStatusV3(input: {
   };
   const signature = await input.sign(sha256(new TextEncoder().encode(ROOT_STATUS_RENEWAL_V1_DOMAIN + jcsCanonicalize(unsigned))));
   if (signature.length !== 64) throw new Error("policy root renewal signature must be Ed25519");
-  const response = await fetchFn(new URL("/share/v3/policy/status", input.nodeOrigin), {
+  const response = await fetchFn(new URL("/policy/v3/status", input.nodeOrigin), {
     method: "POST",
     redirect: "error",
     headers: { accept: "application/json", "content-type": "application/json" },
@@ -709,6 +765,174 @@ export function contentSourceDigestHex(input: UnifiedContentSource): string {
       ),
     ),
   );
+}
+
+function exactObject(
+  value: unknown,
+  keys: readonly string[],
+  label: string,
+): Record<string, unknown> {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${label} is invalid`);
+  }
+  const record = value as Record<string, unknown>;
+  if (
+    Object.keys(record).length !== keys.length ||
+    keys.some((key) => !Object.prototype.hasOwnProperty.call(record, key))
+  ) {
+    throw new Error(`${label} is invalid`);
+  }
+  return record;
+}
+
+function didKeyEd25519PublicKey(value: string): Uint8Array {
+  const principal = value.split("#", 1)[0]!;
+  if (!principal.startsWith("did:key:")) {
+    throw new Error("policy enforcer binding signer is invalid");
+  }
+  const material = base58btc.decode(principal.slice("did:key:".length));
+  if (material.length !== 34 || material[0] !== 0xed || material[1] !== 0x01) {
+    throw new Error("policy enforcer binding signer is invalid");
+  }
+  return material.slice(2);
+}
+
+/**
+ * Register a signed policy and its sibling roots with the embedded Node
+ * Policy/v3 runtime. This is intentionally application-neutral: callers
+ * supply policy material, while Node owns both transport endpoints.
+ */
+export async function registerPolicyV3(
+  input: RegisterPolicyV3Input,
+): Promise<RegisterPolicyV3Receipt> {
+  const fetchFn = input.fetch ?? globalThis.fetch.bind(globalThis);
+  const rootExpiresAt = new Date(input.rootExpiresAt);
+  const canonicalRootExpiresAt = new Date(
+    Math.floor(rootExpiresAt.getTime() / 1000) * 1000,
+  )
+    .toISOString()
+    .replace(/\.000Z$/, "Z");
+  if (
+    !Number.isFinite(rootExpiresAt.getTime()) ||
+    canonicalRootExpiresAt !== input.rootExpiresAt ||
+    rootExpiresAt.getTime() <= Date.now()
+  ) {
+    throw new Error("policy root expiry is invalid");
+  }
+  const bindingResponse = await fetchFn(
+    new URL("/policy/v3/enforcer-bindings", input.nodeOrigin),
+    {
+      method: "POST",
+      redirect: "error",
+      signal: input.signal,
+      headers: { accept: "application/json", "content-type": "application/json" },
+      body: JSON.stringify({
+        rootExpiresAt: input.rootExpiresAt,
+        enforcerDid: input.enforcerDid,
+      }),
+    },
+  );
+  if (!bindingResponse.ok) {
+    throw new Error(`policy enforcer binding rejected (${bindingResponse.status})`);
+  }
+  const binding = exactObject(
+    await bindingResponse.json(),
+    [
+      "schema",
+      "enforcerDid",
+      "nodeAudience",
+      "attestationBindingDigestHex",
+      "issuedAt",
+      "expiresAt",
+      "signature",
+    ],
+    "policy enforcer binding",
+  );
+  const signature = exactObject(
+    binding.signature,
+    ["suite", "signerDid", "value"],
+    "policy enforcer binding signature",
+  );
+  const expectedBindingDigestHex = hex(
+    sha256(
+      new TextEncoder().encode(
+        jcsCanonicalize({
+          enforcerDid: input.enforcerDid,
+          nodeAudience: input.expectedNodeAudience,
+        }),
+      ),
+    ),
+  );
+  if (
+    binding.schema !== ATTESTED_ENFORCER_BINDING_V2_SCHEMA ||
+    binding.enforcerDid !== input.enforcerDid ||
+    binding.nodeAudience !== input.expectedNodeAudience ||
+    binding.attestationBindingDigestHex !== expectedBindingDigestHex ||
+    binding.expiresAt !== input.rootExpiresAt ||
+    typeof binding.issuedAt !== "string" ||
+    Date.parse(binding.issuedAt) > Date.now() ||
+    signature.suite !== "Ed25519" ||
+    signature.signerDid !== input.expectedNodeAudience ||
+    typeof signature.value !== "string"
+  ) {
+    throw new Error("policy enforcer binding is invalid");
+  }
+  const { signature: _signature, ...unsignedBinding } = binding;
+  const signedBinding = sha256(
+    new TextEncoder().encode(
+      `xyz.tinycloud.policy/AttestedEnforcerBinding/v2\0${jcsCanonicalize(unsignedBinding)}`,
+    ),
+  );
+  if (
+    !ed25519.verify(
+      decodeBase64Url(signature.value),
+      signedBinding,
+      didKeyEd25519PublicKey(input.expectedNodeAudience),
+      { zip215: false },
+    )
+  ) {
+    throw new Error("policy enforcer binding signature is invalid");
+  }
+
+  const response = await fetchFn(
+    new URL("/policy/v3/policies", input.nodeOrigin),
+    {
+      method: "POST",
+      redirect: "error",
+      signal: input.signal,
+      headers: { accept: "application/json", "content-type": "application/json" },
+      body: JSON.stringify({
+        policyCid: input.policyCid,
+        policy: input.policy,
+        policyRoot: input.policyRoot.authorization.replace(/^Bearer\s+/i, ""),
+        enforcementRoot: input.enforcementRoot.authorization.replace(/^Bearer\s+/i, ""),
+        contentSourceDigestHex: input.contentSourceDigestHex,
+        nativeProjectionHashHex: input.nativeProjectionHashHex,
+        attestedEnforcerBinding: binding,
+      }),
+    },
+  );
+  if (!response.ok) {
+    throw new Error(`policy registration rejected (${response.status})`);
+  }
+  const receipt = exactObject(
+    await response.json(),
+    ["policyCid", "policyRootCid", "enforcementRootCid"],
+    "policy registration response",
+  );
+  if (
+    receipt.policyCid !== input.policyCid ||
+    receipt.policyRootCid !== input.policyRoot.cid ||
+    receipt.enforcementRootCid !== input.enforcementRoot.cid
+  ) {
+    throw new Error("policy registration response binding is invalid");
+  }
+  return {
+    policyCid: input.policyCid,
+    policyRootCid: input.policyRoot.cid,
+    enforcementRootCid: input.enforcementRoot.cid,
+    attestedEnforcerBinding: binding as unknown as AttestedEnforcerBindingV2,
+  };
 }
 
 export function policyDigestHex(

@@ -357,58 +357,13 @@ export class ShareRecipientClient {
   }
 
   async beginChallenge(envelope: ShareEnvelopeV2): Promise<SharePolicyChallenge> {
-    const authority = envelope.ownerAuthority;
-    if (authority === undefined) throw new Error("addressed owner authority is required");
-    const outer = object(authority.outerEnvelope, "owner authority outer envelope");
-    const enforcement = object(authority.enforcementDelegation, "owner authority enforcement delegation");
-    const target = object(outer.target, "owner authority target");
-    const outerResource = object(outer.resource, "owner authority resource");
-    const source = object(outer.contentSource, "owner authority content source");
-    if (!Array.isArray(outer.actions) || outer.actions.length === 0 || outer.actions.some((value) => typeof value !== "string")) throw new Error("owner authority outer envelope actions are invalid");
-    const actions = [...outer.actions] as string[];
-    const action = selectedAction(envelope);
-    const challengeBody = { envelopeCid: authority.envelopeCid, shareCid: authority.shareCid, shareId: envelope.shareId, registrationCid: authority.registrationCid, delegationCid: envelope.delegationCid, policyCid: envelope.authorizationTarget.kind === "policy" ? envelope.authorizationTarget.policyCid : "", enforcementDelegationCid: String(enforcement.cid), enforcementDelegation: enforcement, outerEnvelope: outer, contentSource: source, contentSourceDigest: String(outer.contentSourceDigest), holderDid: this.options.holderDid, targetOrigin: String(target.origin), nodeAudience: String(target.nodeAudience), action, actions, resource: String(outerResource.path) };
-    const requestBodyDigest = await digest(challengeBody);
-    const challenge = await verifyWrapped(await post(this.fetchFn, this.options.nodeOrigin, "/share/v2/policy/challenges", { ...challengeBody, requestBodyDigest }), "challenge", DOMAIN, this.options.trustedNode) as unknown as SharePolicyChallenge;
-    if (challenge.type !== "TinyCloudSharePolicyChallenge" || challenge.version !== 2 || challenge.challengeId.length < 16 || challenge.nonce.length < 16 || challenge.shareCid !== authority.shareCid || challenge.shareId !== envelope.shareId || challenge.registrationCid !== authority.registrationCid || challenge.envelopeCid !== authority.envelopeCid || challenge.policyCid !== challengeBody.policyCid || challenge.delegationCid !== envelope.delegationCid || challenge.enforcementDelegationCid !== enforcement.cid || canonicalize(challenge.contentSource) !== canonicalize(source) || challenge.contentSourceDigest !== challengeBody.contentSourceDigest || challenge.requestBodyDigest !== requestBodyDigest || challenge.holderDid !== this.options.holderDid || challenge.targetOrigin !== challengeBody.targetOrigin || challenge.nodeAudience !== challengeBody.nodeAudience || challenge.action !== action || canonicalize(challenge.actions) !== canonicalize(actions) || challenge.resource !== challengeBody.resource || !Number.isFinite(Date.parse(challenge.expiresAt)) || Date.parse(challenge.expiresAt) <= Date.now()) throw new Error("share authority returned an unbound challenge");
-    return challenge;
+    void envelope;
+    throw new Error("v2 Share recipient transport has been removed; use the embedded policy v3 envelope");
   }
 
   private async establish(envelope: ShareEnvelopeV2): Promise<SharePolicySession> {
-    const authority = envelope.ownerAuthority;
-    if (authority === undefined) throw new Error("addressed owner authority is required");
-    const outer = object(authority.outerEnvelope, "owner authority outer envelope");
-    const enforcement = object(authority.enforcementDelegation, "owner authority enforcement delegation");
-    const target = object(outer.target, "owner authority target");
-    const outerResource = object(outer.resource, "owner authority resource");
-    const source = object(outer.contentSource, "owner authority content source");
-    if (!Array.isArray(outer.actions) || outer.actions.length === 0 || outer.actions.some((value) => typeof value !== "string")) throw new Error("owner authority outer envelope actions are invalid");
-    const actions = [...outer.actions] as string[];
-    const action = selectedAction(envelope);
-    const challengeBody = { envelopeCid: authority.envelopeCid, shareCid: authority.shareCid, shareId: envelope.shareId, registrationCid: authority.registrationCid, delegationCid: envelope.delegationCid, policyCid: envelope.authorizationTarget.kind === "policy" ? envelope.authorizationTarget.policyCid : "", enforcementDelegationCid: String(enforcement.cid), enforcementDelegation: enforcement, outerEnvelope: outer, contentSource: source, contentSourceDigest: String(outer.contentSourceDigest), holderDid: this.options.holderDid, targetOrigin: String(target.origin), nodeAudience: String(target.nodeAudience), action, actions, resource: String(outerResource.path) };
-    const requestBodyDigest = await digest(challengeBody);
-    const challenge = await verifyWrapped(await post(this.fetchFn, this.options.nodeOrigin, "/share/v2/policy/challenges", { ...challengeBody, requestBodyDigest }), "challenge", DOMAIN, this.options.trustedNode) as unknown as SharePolicyChallenge;
-    if (challenge.type !== "TinyCloudSharePolicyChallenge" || challenge.version !== 2 || challenge.challengeId === undefined || challenge.nonce === undefined || challenge.shareCid !== authority.shareCid || challenge.shareId !== envelope.shareId || challenge.registrationCid !== authority.registrationCid || challenge.envelopeCid !== authority.envelopeCid || challenge.policyCid !== challengeBody.policyCid || challenge.delegationCid !== envelope.delegationCid || challenge.enforcementDelegationCid !== enforcement.cid || challenge.requestBodyDigest !== requestBodyDigest || canonicalize(challenge.contentSource) !== canonicalize(source) || challenge.contentSourceDigest !== challengeBody.contentSourceDigest || challenge.holderDid !== this.options.holderDid || challenge.targetOrigin !== challengeBody.targetOrigin || challenge.nodeAudience !== challengeBody.nodeAudience || challenge.action !== action || canonicalize(challenge.actions) !== canonicalize(actions) || challenge.resource !== challengeBody.resource || !Number.isFinite(Date.parse(challenge.expiresAt)) || Date.parse(challenge.expiresAt) <= Date.now()) throw new Error("share authority returned an unbound challenge");
-    if (this.options.buildPresentation === undefined) throw new Error("share presentation builder is required");
-    const material = await this.options.buildPresentation({ challenge, envelope, policy: {} });
-    this.holderProof = material.proof;
-    this.signer = material.sign;
-    this.nativeSigner = material.sign;
-    if (this.signer === undefined) throw new Error("share holder signer is required");
-    const presentation = {
-      type: "TinyCloudSharePolicyPresentation", version: 2, challengeId: challenge.challengeId, nonce: challenge.nonce,
-      shareCid: authority.shareCid, shareId: envelope.shareId, delegationCid: envelope.delegationCid,
-      policyCid: challengeBody.policyCid, contentSource: source, contentSourceDigest: challengeBody.contentSourceDigest,
-      holderDid: material.holderDid, targetOrigin: challengeBody.targetOrigin, nodeAudience: challengeBody.nodeAudience,
-      ...(challenge.enforcerDid === undefined ? {} : { enforcerDid: challenge.enforcerDid }), credentialDigest: material.credentialDigest ?? await digestText(material.credential),
-      action, actions, resource: challengeBody.resource, requestBodyDigest,
-      issuedAt: new Date().toISOString(), expiresAt: challenge.expiresAt, jti: toBase64Url(crypto.getRandomValues(new Uint8Array(16))),
-    };
-    const presentationProof = { alg: "EdDSA", kid: `${material.holderDid}#${material.holderDid.slice("did:key:".length)}`, signature: toBase64Url(await this.signer(new TextEncoder().encode(`${PRESENTATION_DOMAIN}${canonicalize(presentation)}`))) };
-    const session = await verifyWrapped(await post(this.fetchFn, this.options.nodeOrigin, "/share/v2/policy/session", { challengeId: challenge.challengeId, nonce: challenge.nonce, presentation, credential: material.credential, proof: presentationProof, holderBinding: material.holderBinding, readSignerDid: material.holderDid }), "session", SESSION_DOMAIN, this.options.trustedNode);
-    if (session.type !== "TinyCloudSharePolicySession" || session.version !== 2 || typeof session.sessionId !== "string" || session.shareCid !== authority.shareCid || session.shareId !== envelope.shareId || session.registrationCid !== authority.registrationCid || session.envelopeCid !== authority.envelopeCid || session.policyCid !== challengeBody.policyCid || session.delegationCid !== envelope.delegationCid || session.holderDid !== this.options.holderDid || session.targetOrigin !== challengeBody.targetOrigin || session.nodeAudience !== challengeBody.nodeAudience || session.action !== action || canonicalize(session.actions) !== canonicalize(actions) || canonicalize(session.contentSource) !== canonicalize(source) || session.contentSourceDigest !== challengeBody.contentSourceDigest || session.resource !== challengeBody.resource || typeof session.expiresAt !== "string" || !Number.isFinite(Date.parse(session.expiresAt)) || Date.parse(session.expiresAt) <= Date.now()) throw new Error("share authority returned an unbound session");
-    this.session = { sessionId: session.sessionId, expiresAt: session.expiresAt, actions: actions.map(uiAction), resource: { kind: envelope.resource.kind, path: String(session.resource) } };
-    return this.session;
+    void envelope;
+    throw new Error("v2 Share recipient transport has been removed; use the embedded policy v3 envelope");
   }
 
   async authorize(envelope: ShareEnvelopeV2): Promise<ShareAuthorizedContent> {
@@ -444,7 +399,7 @@ export class ShareRecipientClient {
     const attestedEnforcer = object(envelope.attestedEnforcerBinding, "v3 attested enforcer binding");
     if (attestedEnforcer.enforcerDid !== envelope.target.nodeAudience || typeof attestedEnforcer.nodeAudience !== "string") throw new Error("v3 attested enforcer binding mismatch");
     try { ed25519PublicKeyFromDidKey(attestedEnforcer.nodeAudience); } catch { throw new Error("v3 attested Node audience is invalid"); }
-    const challengeResponse = await this.fetchFn(new URL("/share/v3/policy/challenges", this.options.nodeOrigin), {
+    const challengeResponse = await this.fetchFn(new URL("/policy/v3/challenges", this.options.nodeOrigin), {
       method: "POST",
       redirect: "error",
       headers: { accept: "application/json", "content-type": "application/json" },
@@ -475,7 +430,7 @@ export class ShareRecipientClient {
       throw new Error(accountless ? "v4 ceremony requires a verified credential and requirement" : "v3 ceremony requires a claim");
     }
     this.options.onStage?.("policy-admission");
-    const delegationResponse = await this.fetchFn(new URL("/share/v3/policy/delegations", this.options.nodeOrigin), {
+    const delegationResponse = await this.fetchFn(new URL("/policy/v3/delegations", this.options.nodeOrigin), {
       method: "POST",
       redirect: "error",
       headers: { accept: "application/json", "content-type": "application/json" },
@@ -563,59 +518,17 @@ export class ShareRecipientClient {
   }
 
   async resumeWithProof(envelope: ShareEnvelopeV2, resumeToken: string, proof: unknown): Promise<ShareAuthorizedContent> {
-    const material = object(proof, "share authorization proof");
-    const presentation = object(material.presentation, "share presentation");
-    const presentationProof = object(material.presentationProof, "share presentation proof");
-    const nonce = material.nonce;
-    const credential = material.credential;
-    const holderDid = material.holderDid;
-    const holderBinding = material.holderBinding;
-    if (typeof nonce !== "string" || typeof credential !== "string" || typeof holderDid !== "string" || holderDid !== this.options.holderDid || typeof holderBinding !== "object" || holderBinding === null || presentationProof.alg !== "EdDSA" || typeof presentationProof.signature !== "string") throw new Error("share authorization proof is incomplete");
-    const value = object(await post(this.fetchFn, this.options.nodeOrigin, "/share/v2/policy/session", { challengeId: resumeToken, nonce, presentation, credential, proof: presentationProof, holderBinding, readSignerDid: holderDid }), "share policy session");
-    const session = await verifyWrapped(value, "session", SESSION_DOMAIN, this.options.trustedNode);
-    const authority = envelope.ownerAuthority;
-    if (authority === undefined || session.type !== "TinyCloudSharePolicySession" || session.version !== 2 || typeof session.sessionId !== "string" || session.shareCid !== authority.shareCid || session.shareId !== envelope.shareId || session.registrationCid !== authority.registrationCid || session.envelopeCid !== authority.envelopeCid || session.delegationCid !== envelope.delegationCid || typeof session.resource !== "string" || typeof session.expiresAt !== "string") throw new Error("share authority returned an unbound session");
-    const policyCid = envelope.authorizationTarget.kind === "policy" ? envelope.authorizationTarget.policyCid : "";
-    const actions = [...new Set(envelope.actions.map(nativeAction))].sort();
-    if (
-      session.policyCid !== policyCid ||
-      session.holderDid !== this.options.holderDid ||
-      session.targetOrigin !== envelope.target.origin ||
-      session.nodeAudience !== envelope.target.nodeAudience ||
-      session.action !== selectedAction(envelope) ||
-      canonicalize(session.actions) !== canonicalize(actions) ||
-      canonicalize(session.contentSource) !== canonicalize(envelope.contentSource) ||
-      session.contentSourceDigest !== envelope.contentSourceDigest ||
-      !Number.isFinite(Date.parse(session.expiresAt)) ||
-      Date.parse(session.expiresAt) <= Date.now()
-    ) throw new Error("share authority returned an unbound session");
-    this.session = { sessionId: session.sessionId, expiresAt: session.expiresAt, actions: actions.map(uiAction), resource: { kind: envelope.resource.kind, path: String(session.resource) } };
-    this.holderProof = presentationProof;
-    this.signer ??= this.options.sign;
-    return this.authorize(envelope);
+    void envelope;
+    void resumeToken;
+    void proof;
+    throw new Error("v2 Share recipient transport has been removed; use the embedded policy v3 envelope");
   }
 
   async nativeInvoke(request: { readonly action: string; readonly resource?: Record<string, unknown>; readonly body?: number[]; readonly bodyDigest?: number[]; readonly ifMatch?: string; readonly contentType?: string }): Promise<Response> {
     if (this.session === undefined) throw new Error("share policy session is required");
     const envelope = this.options.envelope;
     if (envelope.version === 3) return this.nativeInvokeV3(request, envelope);
-    if (envelope.ownerAuthority === undefined || this.signer === undefined || this.holderProof === undefined) throw new Error("share holder signer is required");
-    const authority = envelope.ownerAuthority;
-    const action = request.action === "list" ? "tinycloud.kv/list" : request.action === "put" ? "tinycloud.kv/put" : request.action === "metadata" ? "tinycloud.kv/metadata" : "tinycloud.kv/get";
-    const resource = typeof request.resource?.path === "string" ? request.resource.path : this.session.resource.path;
-    const actions = [...new Set(this.session.actions.map(nativeAction).concat(action === "tinycloud.kv/metadata" ? [action] : []))].sort();
-    const bodyBytes = request.body === undefined ? undefined : Uint8Array.from(request.body);
-    const bodyDigest = bodyBytes === undefined ? undefined : toBase64Url(new Uint8Array(await crypto.subtle.digest("SHA-256", bodyBytes)));
-    const outer = object(authority.outerEnvelope, "owner authority outer envelope");
-    const enforcement = object(authority.enforcementDelegation, "owner authority enforcement delegation");
-    const invocationBase = { type: "TinyCloudShareReadInvocation", version: 2, sessionId: this.session.sessionId, envelopeCid: authority.envelopeCid, shareCid: authority.shareCid, shareId: envelope.shareId, registrationCid: authority.registrationCid, delegationCid: envelope.delegationCid, policyCid: envelope.authorizationTarget.kind === "policy" ? envelope.authorizationTarget.policyCid : "", enforcementDelegationCid: String(enforcement.cid), contentSource: outer.contentSource, contentSourceDigest: String(outer.contentSourceDigest), holderDid: this.options.holderDid, targetOrigin: String(object(outer.target, "owner authority target").origin), nodeAudience: String(object(outer.target, "owner authority target").nodeAudience), action, actions, resource, ...(action === "tinycloud.kv/list" ? { limit: 100 } : {}), ...(bodyDigest === undefined ? {} : { bodyDigest, ifMatch: request.ifMatch, contentType: request.contentType }), issuedAt: new Date().toISOString(), expiresAt: new Date(Math.min(Date.now() + 60_000, Date.parse(this.session.expiresAt))).toISOString(), jti: toBase64Url(crypto.getRandomValues(new Uint8Array(16))) };
-    const requestBodyDigest = await digest(invocationBase);
-    const invocation = { ...invocationBase, requestBodyDigest };
-    const proof = { ...this.holderProof, signature: toBase64Url(await this.signer(new TextEncoder().encode(`${INVOCATION_DOMAIN}${canonicalize(invocation)}`))) };
-    const signedRequest = { sessionId: this.session.sessionId, envelopeCid: authority.envelopeCid, shareCid: authority.shareCid, shareId: envelope.shareId, registrationCid: authority.registrationCid, delegationCid: envelope.delegationCid, policyCid: envelope.authorizationTarget.kind === "policy" ? envelope.authorizationTarget.policyCid : "", enforcementDelegationCid: String(enforcement.cid), contentSource: outer.contentSource, contentSourceDigest: String(outer.contentSourceDigest), holderDid: this.options.holderDid, nodeAudience: String(object(outer.target, "owner authority target").nodeAudience), action, actions, resource, requestBodyDigest, invocation, proof };
-    const response = await this.fetchFn(new URL("/share/v2/invoke", this.options.nodeOrigin), { method: "POST", redirect: "error", headers: { accept: "application/vnd.tinycloud.share+json", "content-type": "application/vnd.tinycloud.share+json" }, body: JSON.stringify({ request: signedRequest, ...(action === "tinycloud.kv/list" ? { limit: 100 } : {}), ...(bodyBytes === undefined ? {} : { body: toBase64Url(bodyBytes), bodyDigest, ifMatch: request.ifMatch, contentType: request.contentType }) }) });
-    if (response.ok) await verifyDetachedResponse(response, this.options.trustedNode);
-    return response;
+    throw new Error("v2 Share invocation transport has been removed; use the embedded policy v3 envelope");
   }
 
   private async nativeInvokeV3(request: { readonly action: string; readonly resource?: Record<string, unknown>; readonly body?: number[]; readonly ifMatch?: string; readonly contentType?: string }, envelope: ShareEnvelopeV3): Promise<Response> {

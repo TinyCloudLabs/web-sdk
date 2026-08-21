@@ -20,7 +20,12 @@ export {
 export * from "./credentials";
 export * from "./share";
 export type { SecretReadInput, SecretReadResult, BootstrapWarning } from "@tinycloud/node-sdk";
-export type { UnifiedOwnerRootInput, UnifiedOwnerRootReceipt } from "@tinycloud/node-sdk/core";
+export type {
+  UnifiedOwnerRootInput,
+  UnifiedOwnerRootReceipt,
+  RegisterPolicyV3Input,
+  RegisterPolicyV3Receipt,
+} from "@tinycloud/node-sdk/core";
 export type {
   CreateOwnerDelegationParams,
   OwnerDelegationPermission,

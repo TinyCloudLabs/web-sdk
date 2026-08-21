@@ -600,6 +600,8 @@ export interface AdmitPolicyCredentialV3Input
   readonly policyRootCid: string;
   readonly enforcementRootCid: string;
   readonly nodeOrigin: string;
+  /** Path to the embedded Node policy runtime. Defaults to `/policy/v3`. */
+  readonly policyRuntimePath?: string;
   /** Root authorization CID of the recipient's active TinyCloud account session. */
   readonly accountAuthorizationCid: string;
   /** Recipient-owned `credentials` space covered by the account authorization. */
@@ -634,6 +636,7 @@ export async function admitPolicyCredentialV3(
   const fetchFn = input.fetch ?? globalThis.fetch.bind(globalThis);
   const challenge = await requestPolicyChallengeV3({
     nodeOrigin,
+    policyRuntimePath: input.policyRuntimePath,
     policyCid: input.policyCid,
     recipientDid: input.credential.holderDid,
     requestedCapabilities: input.requestedCapabilities,
@@ -646,7 +649,7 @@ export async function admitPolicyCredentialV3(
     challenge,
   });
   const response = await fetchFn(
-    new URL("/share/v3/policy/delegations", nodeOrigin),
+    new URL(`${policyRuntimeBasePath(input.policyRuntimePath)}/delegations`, nodeOrigin),
     {
       method: "POST",
       redirect: "error",
@@ -702,6 +705,8 @@ export interface AdmitPolicyCredentialV4Input
   readonly expectedNodeAudience: string;
   readonly expectedEnforcerDid: string;
   readonly nodeOrigin: string;
+  /** Path to the embedded Node policy runtime. Defaults to `/policy/v3`. */
+  readonly policyRuntimePath?: string;
   readonly fetch?: typeof fetch;
   readonly signal?: AbortSignal;
 }
@@ -710,6 +715,8 @@ export interface PolicyCredentialAdmissionV4 {
   readonly challenge: PolicyChallengeV3;
   readonly presentation: PolicyCredentialPresentationV4;
   readonly session: PolicySessionUcanV1;
+  /** The ordinary delegation has been activated using Node's generic `/delegate`. */
+  readonly delegationImported: true;
 }
 
 /** @internal */
@@ -731,6 +738,7 @@ export async function admitPolicyCredentialV4(
   const fetchFn = input.fetch ?? globalThis.fetch.bind(globalThis);
   const challenge = await requestPolicyChallengeV3({
     nodeOrigin,
+    policyRuntimePath: input.policyRuntimePath,
     policyCid: input.policyCid,
     recipientDid: input.credential.holderDid,
     requestedCapabilities: input.requestedCapabilities,
@@ -742,7 +750,7 @@ export async function admitPolicyCredentialV4(
     policy,
     challenge,
   });
-  const response = await fetchFn(new URL("/share/v3/policy/delegations", nodeOrigin), {
+  const response = await fetchFn(new URL(`${policyRuntimeBasePath(input.policyRuntimePath)}/delegations`, nodeOrigin), {
     method: "POST",
     redirect: "error",
     signal: input.signal,
@@ -781,6 +789,21 @@ export async function admitPolicyCredentialV4(
     session.fact.enforcementDelegationCid !== input.enforcementRootCid ||
     jcsCanonicalize(session.att) !== jcsCanonicalize(expectedAttenuation)
   ) throw new Error("policy delegation signed binding is invalid");
+  const importResponse = await fetchFn(new URL("/delegate", nodeOrigin), {
+    method: "POST",
+    redirect: "error",
+    signal: input.signal,
+    headers: { Authorization: session.authorization },
+  });
+  if (!importResponse.ok) throw new Error(`delegation import rejected (${importResponse.status})`);
   input.signal?.throwIfAborted();
-  return Object.freeze({ challenge, presentation, session });
+  return Object.freeze({ challenge, presentation, session, delegationImported: true as const });
+}
+
+function policyRuntimeBasePath(value: string | undefined): string {
+  const path = value ?? "/policy/v3";
+  if (!/^\/policy(?:\/[a-z0-9-]+)*$/.test(path)) {
+    throw new Error("policy runtime path is invalid");
+  }
+  return path;
 }
