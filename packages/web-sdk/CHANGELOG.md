@@ -1,5 +1,22 @@
 # @tinycloudlabs/web-sdk
 
+## 3.0.0-beta.7
+
+### Minor Changes
+
+- 657c1ff: Route accountless credential policy admission to the embedded TinyCloud Node
+  runtime and activate the ordinary result through generic `/delegate`, with no
+  Share data-plane request.
+
+### Patch Changes
+
+- Updated dependencies [657c1ff]
+- Updated dependencies [026bf15]
+  - @tinycloud/sdk-core@3.0.0-beta.7
+  - @tinycloud/share-sdk@0.3.0-beta.2
+  - @tinycloud/share-envelope@0.2.1-beta.2
+  - @tinycloud/node-sdk@3.0.0-beta.7
+
 ## 3.0.0-beta.6
 
 ### Patch Changes

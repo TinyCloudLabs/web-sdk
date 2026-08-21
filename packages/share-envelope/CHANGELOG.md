@@ -1,5 +1,11 @@
 # @tinycloud/share-envelope
 
+## 0.2.1-beta.2
+
+### Patch Changes
+
+- 026bf15: Ship browser-safe compact-UCAN verification and canonical embedded-policy delivery/receive with holder-bound delegation through generic `/delegate` and `/invoke`, without Node `/share/*`.
+
 ## 0.2.1-beta.1
 
 ### Patch Changes
