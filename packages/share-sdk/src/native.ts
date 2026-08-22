@@ -26,8 +26,15 @@ export interface NativeShareRecipient {
   }>;
 }
 
+/** Reconstitutes the ephemeral receiver from the fragment-only key material. */
+export interface NativeShareRecipientFactory {
+  fromSessionKey(sessionKey: object): Pick<NativeShareRecipient, "useDelegation">;
+}
+
 export interface NativeShareLink {
   readonly version: 1;
+  /** The exact key covered by the bounded ordinary delegation. */
+  readonly path: string;
   readonly delegation: unknown;
   readonly recipientSessionKey: object;
 }
@@ -65,7 +72,12 @@ export async function createNativeShare(
     disableSubDelegation: true,
     includePublicSpace: false,
   });
-  return { version: 1, delegation, recipientSessionKey: recipient.exportSessionKey() };
+  return {
+    version: 1,
+    path: input.path,
+    delegation,
+    recipientSessionKey: recipient.exportSessionKey(),
+  };
 }
 
 /** Compose a viewer URL without ever putting the receiver key on the wire. */
@@ -88,19 +100,33 @@ export function parseNativeShareUrl(value: string): NativeShareLink {
   try { parsed = JSON.parse(new TextDecoder().decode(fromBase64Url(encoded))); } catch { throw new TypeError("invalid native share fragment"); }
   if (!parsed || typeof parsed !== "object") throw new TypeError("invalid native share payload");
   const payload = parsed as Record<string, unknown>;
-  if (payload.version !== 1 || !("delegation" in payload) || !payload.recipientSessionKey || typeof payload.recipientSessionKey !== "object") {
+  if (
+    payload.version !== 1 ||
+    typeof payload.path !== "string" ||
+    !("delegation" in payload) ||
+    !payload.recipientSessionKey ||
+    typeof payload.recipientSessionKey !== "object"
+  ) {
     throw new TypeError("invalid native share payload");
   }
-  return { version: 1, delegation: payload.delegation, recipientSessionKey: payload.recipientSessionKey as object };
+  assertPath(payload.path);
+  return {
+    version: 1,
+    path: payload.path,
+    delegation: payload.delegation,
+    recipientSessionKey: payload.recipientSessionKey as object,
+  };
 }
 
 /** Read through the recipient's normal TinyCloud invocation path. */
 export async function openNativeShare(
-  recipient: Pick<NativeShareRecipient, "useDelegation">,
+  recipientFactory: NativeShareRecipientFactory,
   link: NativeShareLink,
 ): Promise<Uint8Array> {
+  assertPath(link.path);
+  const recipient = recipientFactory.fromSessionKey(link.recipientSessionKey);
   const access = await recipient.useDelegation(link.delegation);
-  const read = await access.kv.get("");
+  const read = await access.kv.get(link.path);
   if (!read.ok || !(read.data?.data instanceof Uint8Array)) {
     throw new Error("owner node denied the shared read");
   }

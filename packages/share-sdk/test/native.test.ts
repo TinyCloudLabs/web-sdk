@@ -16,6 +16,12 @@ describe("TinyCloud-native share", () => {
         } } };
       },
     };
+    const recipientFactory = {
+      fromSessionKey: (sessionKey: object) => {
+        calls.push(`restore:${JSON.stringify(sessionKey)}`);
+        return recipient;
+      },
+    };
     const owner = {
       kv: { put: async (path: string, value: Uint8Array) => {
         calls.push(`put:${path}:${Array.from(value).join(",")}`);
@@ -31,12 +37,25 @@ describe("TinyCloud-native share", () => {
     expect(url).not.toContain("private");
     expect(new URL(url).hash).toContain("tc-share=");
     const parsed = parseNativeShareUrl(url);
-    expect(await openNativeShare(recipient, parsed)).toEqual(bytes);
+    expect(await openNativeShare(recipientFactory, parsed)).toEqual(bytes);
     expect(calls).toEqual([
       "put:shares/demo.bin:0,1,2,255",
       'delegate:{"path":"shares/demo.bin","actions":["tinycloud.kv/get"],"delegateDID":"did:key:zRecipient","expiryMs":60000,"disableSubDelegation":true,"includePublicSpace":false}',
+      'restore:{"kty":"OKP","d":"private"}',
       'invoke:{"cid":"ordinary-delegation"}',
-      "get:",
+      "get:shares/demo.bin",
     ]);
+  });
+
+  it("rejects a fragment whose path is not a canonical owner-node key", () => {
+    const payload = btoa(JSON.stringify({
+      version: 1,
+      path: "../outside",
+      delegation: { cid: "ordinary-delegation" },
+      recipientSessionKey: { kty: "OKP" },
+    })).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    expect(() => parseNativeShareUrl(`https://unrelated.example/#tc-share=${payload}`)).toThrow(
+      "native share path",
+    );
   });
 });
