@@ -39,11 +39,11 @@ export interface ShareReceiverServiceOptions {
 export function validateShareReceiverServiceTrust(
   envelope: Pick<ShareEnvelopeV3, "target" | "attestedEnforcerBinding">,
 ): void {
-  if (envelope.target.nodeAudience !== envelope.attestedEnforcerBinding.enforcerDid) throw new Error("share enforcer DID does not match the signed target");
+  if (envelope.target.nodeAudience !== envelope.attestedEnforcerBinding.nodeAudience) throw new Error("share Node DID does not match the signed target");
   try {
     if (ed25519PublicKeyFromDidKey(envelope.target.nodeAudience).length !== 32
       || ed25519PublicKeyFromDidKey(envelope.attestedEnforcerBinding.nodeAudience).length !== 32) throw new Error("invalid key length");
-  } catch { throw new Error("share enforcer DID must be a canonical Ed25519 did:key"); }
+  } catch { throw new Error("share Node DID must be a canonical Ed25519 did:key"); }
 }
 
 /** @internal */

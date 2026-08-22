@@ -128,14 +128,14 @@ test("Share trust is carried by the envelope's attested Node binding, not deploy
   const enforcerDid = didKeyFromEd25519PublicKey(ed25519.getPublicKey(new Uint8Array(32).fill(7)));
   const nodeDid = didKeyFromEd25519PublicKey(ed25519.getPublicKey(new Uint8Array(32).fill(9)));
   expect(validateShareReceiverServiceTrust({
-    target: { nodeAudience: enforcerDid },
+    target: { nodeAudience: nodeDid },
     attestedEnforcerBinding: { enforcerDid, nodeAudience: nodeDid },
   } as any)).toBeUndefined();
   expect(() => validateShareReceiverServiceTrust(
-    { target: { nodeAudience: enforcerDid }, attestedEnforcerBinding: { enforcerDid: nodeDid, nodeAudience: nodeDid } } as any,
-  )).toThrow("enforcer DID");
+    { target: { nodeAudience: enforcerDid }, attestedEnforcerBinding: { enforcerDid, nodeAudience: nodeDid } } as any,
+  )).toThrow("Node DID");
   expect(() => validateShareReceiverServiceTrust(
-    { target: { nodeAudience: "did:web:node.example" }, attestedEnforcerBinding: { enforcerDid: "did:web:node.example", nodeAudience: nodeDid } } as any,
+    { target: { nodeAudience: "did:web:node.example" }, attestedEnforcerBinding: { enforcerDid, nodeAudience: "did:web:node.example" } } as any,
   )).toThrow("did:key");
 });
 

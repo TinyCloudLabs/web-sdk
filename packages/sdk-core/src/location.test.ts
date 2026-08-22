@@ -14,6 +14,7 @@ import {
   httpUrlToMultiaddr,
   locationPayloadForRecord,
   multiaddrToHttpUrl,
+  publishLocationRecord,
   resolveCloudLocation,
   resolveTinyCloudHosts,
   signLocationRecord,
@@ -183,6 +184,89 @@ describe("location records", () => {
       nodeDid: NODE_DID,
       fetch: fetchFn,
     })).rejects.toThrow("not in the owner's signed location record");
+  });
+
+  it("ignores non-HTTP transports when an exact published HTTPS node matches", async () => {
+    const privateKey = new Uint8Array(32).fill(12);
+    const ownerDid = `did:key:${bases.base58btc.encode(
+      Uint8Array.of(0xed, 0x01, ...ed25519.getPublicKey(privateKey)),
+    )}`;
+    const record = await signLocationRecord({
+      version: 1,
+      subject: ownerDid,
+      multiaddrs: [
+        "/ip4/1.2.3.4/tcp/4001",
+        httpUrlToMultiaddr("https://owner-node.example"),
+      ],
+      updated_at: "2026-04-28T16:00:00.000Z",
+      sequence: 1,
+    }, { type: "did:key", signBytes: async (bytes) => ed25519.sign(bytes, privateKey) });
+    const fetchFn = (async (input: string | URL | Request) => String(input).includes("/v1/locations/")
+      ? Response.json({ record })
+      : Response.json({ nodeId: NODE_DID })) as typeof fetch;
+
+    await expect(verifyOwnerNodeBinding({
+      registryUrl: "https://registry.example",
+      ownerDid,
+      nodeOrigin: "https://owner-node.example",
+      nodeDid: NODE_DID,
+      fetch: fetchFn,
+    })).resolves.toMatchObject({ nodeOrigin: "https://owner-node.example" });
+  });
+
+  it("publishes an idempotent session-signed active node record", async () => {
+    const privateKey = new Uint8Array(32).fill(13);
+    const ownerDid = `did:key:${bases.base58btc.encode(
+      Uint8Array.of(0xed, 0x01, ...ed25519.getPublicKey(privateKey)),
+    )}`;
+    let stored: unknown;
+    const requests: Array<{ url: string; method: string }> = [];
+    const fetchFn = (async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+      requests.push({ url, method });
+      if (method === "GET") return new Response("{}", { status: 404 });
+      expect(method).toBe("PUT");
+      expect(init?.redirect).toBe("error");
+      stored = JSON.parse(String(init?.body));
+      return Response.json({ record: stored }, { status: 201 });
+    }) as typeof fetch;
+
+    const published = await publishLocationRecord({
+      registryUrl: "https://registry.example",
+      subject: ownerDid,
+      nodeOrigin: "https://owner-node.example",
+      signer: { type: "did:key", signBytes: async (bytes) => ed25519.sign(bytes, privateKey) },
+      fetch: fetchFn,
+      now: () => new Date("2026-08-22T10:00:00.000Z"),
+    });
+
+    expect(published).toEqual(stored);
+    expect(published).toMatchObject({
+      subject: ownerDid,
+      multiaddrs: [httpUrlToMultiaddr("https://owner-node.example")],
+      updated_at: "2026-08-22T10:00:00.000Z",
+      sequence: 0,
+    });
+    expect(await verifyLocationRecord(published)).toBe(true);
+    expect(requests).toEqual([
+      { url: `https://registry.example/v1/locations/${encodeURIComponent(ownerDid)}`, method: "GET" },
+      { url: `https://registry.example/v1/locations/${encodeURIComponent(ownerDid)}`, method: "PUT" },
+    ]);
+
+    let signedAgain = false;
+    const unchanged = await publishLocationRecord({
+      registryUrl: "https://registry.example",
+      subject: ownerDid,
+      nodeOrigin: "https://owner-node.example",
+      signer: { type: "did:key", signBytes: async () => { signedAgain = true; return new Uint8Array(64); } },
+      fetch: (async (_input: string | URL | Request, init?: RequestInit) => {
+        expect(init?.method).toBeUndefined();
+        return Response.json({ record: published });
+      }) as typeof fetch,
+    });
+    expect(unchanged).toEqual(published);
+    expect(signedAgain).toBe(false);
   });
 
   it("rejects a registry-bound target when the live node DID does not match", async () => {

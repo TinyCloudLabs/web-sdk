@@ -548,6 +548,13 @@ export class TinyCloudWeb {
   async activeNodeIdentity(): Promise<{ readonly origin: string; readonly nodeDid: string }> {
     return (await this.ensureNode()).activeNodeIdentity();
   }
+  /** Publish the active owner Node as a session-signed registry record. */
+  async publishActiveNodeLocation(registryUrl: string, fetchFn?: typeof fetch) {
+    const node = await this.ensureNode();
+    return fetchFn === undefined
+      ? node.publishActiveNodeLocation(registryUrl)
+      : node.publishActiveNodeLocation(registryUrl, fetchFn);
+  }
   get sessionRestoreStatus(): SessionRestoreStatus { return this._sessionRestoreStatus; }
 
   /** Holder-bound OpenCredentials issuance using the active TinyCloud session. */

@@ -132,6 +132,7 @@ import {
   canonicalizeAddress,
   pkhDid,
   resolveTinyCloudHosts,
+  publishLocationRecord,
   type LocalNodeIdentityStore,
   principalDidEquals,
   parseNetworkId,
@@ -1429,6 +1430,21 @@ export class TinyCloudNode {
     const nodeDid = await this.fetchNodeId();
     if (!nodeDid.startsWith("did:key:z")) throw new Error("TinyCloud node identity is not a did:key");
     return Object.freeze({ origin: parsed.origin, nodeDid });
+  }
+
+  /** Publish the active owner Node as a session-signed registry record. */
+  async publishActiveNodeLocation(
+    registryUrl: string,
+    fetchFn: typeof fetch = globalThis.fetch.bind(globalThis),
+  ) {
+    const node = await this.activeNodeIdentity();
+    return publishLocationRecord({
+      registryUrl,
+      subject: this.credentialHolderDid,
+      nodeOrigin: node.origin,
+      signer: { type: "did:key", signBytes: (bytes) => this.signSessionBytes(bytes) },
+      fetch: fetchFn,
+    });
   }
 
   /**

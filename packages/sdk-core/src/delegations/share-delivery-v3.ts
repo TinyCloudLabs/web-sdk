@@ -139,7 +139,7 @@ export function validateShareDeliveryAuthorizationV3Bytes(
     || admission.senderKeyDid !== expected.senderKeyDid
     || canonicalize(admission.actions) !== canonicalize(["tinycloud.kv/get"])
     || signature.suite !== "eddsa-ed25519-sha256-jcs-v1"
-    || target.nodeAudience !== binding.enforcerDid
+    || target.nodeAudience !== binding.nodeAudience
     || signature.signerDid !== binding.nodeAudience
   ) throw new Error("v3 share delivery authorization is not bound to the submitted request");
   const issuedAt = Date.parse(String(request.issuedAt));
