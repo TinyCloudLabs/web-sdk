@@ -76,8 +76,12 @@ describe("Share lifecycle and authorization parity", () => {
     await expect(notifyShare({ shareId: exact.shareId, recipient: "Mallory@example.com", record: exact, adapter: { async deliver() { throw new Error("must not deliver"); } } })).rejects.toThrow(/stored share target/);
   });
 
-  it("never reports bearer deletion as cryptographic revocation", async () => {
-    await expect(revokeShare({ record })).resolves.toEqual({ state: "retention-only", target: "bearer", reason: "bearer-capability-cannot-be-revoked" });
+  it("revokes the exact native bearer delegation", async () => {
+    const calls: string[] = [];
+    await expect(revokeShare({ record, adapter: { async revokeDelegation(input) { calls.push(`${input.delegationCid}:${input.scope}`); } } })).resolves.toMatchObject({
+      state: "revoked", target: "bearer", delegationCid: "bafy-enforcement",
+    });
+    expect(calls).toEqual(["bafy-enforcement:direct"]);
   });
 
   it("classifies a missing addressed revocation authority as unsupported target", async () => {

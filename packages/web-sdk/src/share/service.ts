@@ -30,38 +30,17 @@ export interface ShareReceiverServiceOptions {
   readonly credentialDiscoveryUrl?: string;
   /** Out-of-band Share application origin allowed to supply invitation URLs. */
   readonly expectedShareOrigin: string;
-  /** Explicit share blob registry. Never inferred from the viewer URL. */
-  readonly registryBaseUrl: string;
-  /** Pinned Node identity used by recipient response verification. */
-  readonly trustedNode: { readonly invitationKid: string; readonly invitationPublicKey: Uint8Array };
-  /** Exact Ed25519 enforcer DID committed as the signed envelope target. */
-  readonly expectedEnforcerDid: string;
   readonly fetch?: typeof fetch;
 }
 
 export function validateShareReceiverServiceTrust(
-  envelope: Pick<ShareEnvelopeV3, "target">,
-  config: ShareReceiverServiceOptions,
-): { readonly invitationKid: string; readonly invitationPublicKey: Uint8Array } {
-  if (typeof config.expectedEnforcerDid !== "string" || envelope.target.nodeAudience !== config.expectedEnforcerDid) throw new Error("share enforcer DID does not match the signed target");
+  envelope: Pick<ShareEnvelopeV3, "target" | "attestedEnforcerBinding">,
+): void {
+  if (envelope.target.nodeAudience !== envelope.attestedEnforcerBinding.enforcerDid) throw new Error("share enforcer DID does not match the signed target");
   try {
-    if (ed25519PublicKeyFromDidKey(config.expectedEnforcerDid).length !== 32) throw new Error("invalid key length");
+    if (ed25519PublicKeyFromDidKey(envelope.target.nodeAudience).length !== 32
+      || ed25519PublicKeyFromDidKey(envelope.attestedEnforcerBinding.nodeAudience).length !== 32) throw new Error("invalid key length");
   } catch { throw new Error("share enforcer DID must be a canonical Ed25519 did:key"); }
-  if (config.trustedNode === undefined
-    || typeof config.trustedNode.invitationKid !== "string"
-    || !/^did:[a-z0-9]+:[^#\s]+#[^#\s]+$/.test(config.trustedNode.invitationKid)
-    || !(config.trustedNode.invitationPublicKey instanceof Uint8Array)
-    || config.trustedNode.invitationPublicKey.length !== 32) throw new Error("share receiver requires pinned Node invitation verification material");
-  return config.trustedNode;
-}
-
-/** @internal */
-export function validateShareReceiverRegistryBaseUrl(value: string): string {
-  const registry = new URL(value);
-  const loopbackHttp = registry.protocol === "http:"
-    && (registry.hostname === "127.0.0.1" || registry.hostname === "localhost");
-  if ((registry.protocol !== "https:" && !loopbackHttp) || registry.username || registry.password || registry.search || registry.hash) throw new Error("share registry URL is invalid");
-  return registry.toString().replace(/\/$/, "");
 }
 
 /** @internal */
@@ -137,7 +116,6 @@ export class ReceivedShareImpl implements ReceivedShare {
     private readonly options: ShareReceiveOptions,
     private readonly fetchFn: typeof fetch,
     private readonly credentialDiscoveryUrl: string,
-    private readonly trustedNode: { readonly invitationKid: string; readonly invitationPublicKey: Uint8Array },
   ) {}
 
   get shareId(): string { return this.metadata.shareId; }
@@ -173,7 +151,6 @@ export class ReceivedShareImpl implements ReceivedShare {
       nodeOrigin: this.envelope.target.origin,
       envelope: this.envelope,
       holderDid: this.identity.holderDid,
-      trustedNode: this.trustedNode,
       fetchFn: this.fetchFn,
       signal: this.options.signal,
       sign: this.sign,
@@ -308,17 +285,14 @@ export class ShareReceiverService {
     options.onProgress?.({ state: "identity-selection", status: "started" });
     let envelope: ShareEnvelopeV3 | undefined;
     const expectedShareOrigin = validateShareReceiverExpectedOrigin(shareUrl, this.config.expectedShareOrigin);
-    const registryBaseUrl = validateShareReceiverRegistryBaseUrl(this.config.registryBaseUrl);
     const inspection = await inspectShare(shareUrl, {
-      registryBaseUrl,
       expectedOrigin: expectedShareOrigin,
-      fetchFn: this.fetchFn,
       signal: options.signal,
       onResolvedAddressedEnvelope: (value) => { if (value.version === 3) envelope = value; },
     });
     aborted(options.signal);
     if (envelope === undefined) throw new Error("accountless receive requires a verified v3 share");
-    const trustedNode = validateShareReceiverServiceTrust(envelope, this.config);
+    validateShareReceiverServiceTrust(envelope);
     const account = await selectShareReceiverAccountSession(this.client, options.identity);
     let identity: ShareReceiverIdentity;
     let credentials: CredentialsService;
@@ -336,6 +310,6 @@ export class ShareReceiverService {
       sign = (bytes) => receiver.sign(bytes);
     }
     options.onProgress?.({ state: "identity-selection", status: "completed", identity });
-    return new ReceivedShareImpl(identity, inspection.metadata, envelope, credentials, sign, options, this.fetchFn, this.config.credentialDiscoveryUrl ?? DEFAULT_CREDENTIAL_DISCOVERY, trustedNode);
+    return new ReceivedShareImpl(identity, inspection.metadata, envelope, credentials, sign, options, this.fetchFn, this.config.credentialDiscoveryUrl ?? DEFAULT_CREDENTIAL_DISCOVERY);
   }
 }
