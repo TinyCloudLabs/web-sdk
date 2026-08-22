@@ -36,6 +36,8 @@ export interface VerifyOwnerNodeBindingOptions {
   /** Custom fetch implementation. Defaults to globalThis.fetch. */
   fetch?: typeof fetch;
   signal?: AbortSignal;
+  /** Total registry + Node identity lookup budget. Defaults to 5 seconds. */
+  timeoutMs?: number;
 }
 
 export interface VerifiedOwnerNodeBinding {
@@ -86,6 +88,8 @@ export const LOCAL_LOOPBACK_PROBE_TIMEOUT_MS = 250;
 export const LOCAL_LINK_PROBE_TIMEOUT_MS = 750;
 /** Hostname suffix identifying a local-link tunnel candidate. */
 export const LOCAL_LINK_HOST_SUFFIX = ".local.tinycloud.link";
+/** Total network budget for an owner registry record plus live Node identity. */
+export const OWNER_NODE_BINDING_TIMEOUT_MS = 5_000;
 
 export interface LocationCandidate {
   source: LocationSource;
@@ -423,11 +427,13 @@ export async function fetchLocationRecord(
   registryUrl: string,
   subject: string,
   fetchFn: typeof fetch = globalThis.fetch,
+  signal?: AbortSignal,
 ): Promise<LocationRecord | null> {
   const url = `${registryUrl.replace(/\/$/, "")}/v1/locations/${encodeURIComponent(subject)}`;
   const response = await fetchFn(url, {
     redirect: "error",
     headers: { accept: "application/json" },
+    ...(signal === undefined ? {} : { signal }),
   });
   if (response.status === 404) {
     return null;
@@ -919,11 +925,50 @@ async function boundedResponseText(
   if (declaredLength !== null && (!/^\d+$/.test(declaredLength) || Number(declaredLength) > maxBytes)) {
     throw new LocationRecordValidationError(`${label} response is too large`);
   }
-  const text = await response.text();
-  if (new TextEncoder().encode(text).byteLength > maxBytes) {
-    throw new LocationRecordValidationError(`${label} response is too large`);
+  if (response.body === null) return "";
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value === undefined) continue;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel().catch(() => undefined);
+        throw new LocationRecordValidationError(`${label} response is too large`);
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
   }
-  return text;
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+}
+
+function boundedSignal(parent: AbortSignal | undefined, timeoutMs: number): { readonly signal: AbortSignal; dispose(): void } {
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    throw new LocationRecordValidationError("owner-node binding timeout must be positive");
+  }
+  const controller = new AbortController();
+  const abortFromParent = (): void => controller.abort(parent?.reason);
+  if (parent?.aborted) abortFromParent();
+  else parent?.addEventListener("abort", abortFromParent, { once: true });
+  const timer = setTimeout(() => controller.abort(new DOMException("owner-node binding timed out", "TimeoutError")), timeoutMs);
+  return {
+    signal: controller.signal,
+    dispose(): void {
+      clearTimeout(timer);
+      parent?.removeEventListener("abort", abortFromParent);
+    },
+  };
 }
 
 /**
@@ -942,38 +987,43 @@ export async function verifyOwnerNodeBinding(
   const registryUrl = exactHttpOrigin(options.registryUrl, "registry URL");
   const nodeOrigin = exactHttpOrigin(options.nodeOrigin, "node origin");
   const fetchFn = options.fetch ?? globalThis.fetch.bind(globalThis);
-  const record = await fetchLocationRecord(registryUrl, options.ownerDid, fetchFn);
-  if (record === null) {
-    throw new LocationRecordValidationError("owner has no published location record");
-  }
-  if (record.subject !== options.ownerDid || !(await verifyLocationRecord(record))) {
-    throw new LocationRecordValidationError("owner location record signature is invalid");
-  }
-  const publishedOrigins = publishedHttpOrigins(record);
-  if (!publishedOrigins.includes(nodeOrigin)) {
-    throw new LocationRecordValidationError("share target is not in the owner's signed location record");
-  }
-
-  const response = await fetchFn(new URL("/info", nodeOrigin), {
-    redirect: "error",
-    headers: { accept: "application/json" },
-    ...(options.signal === undefined ? {} : { signal: options.signal }),
-  });
-  if (!response.ok) {
-    throw new LocationRecordValidationError(`target node /info returned HTTP ${response.status}`);
-  }
-  const text = await boundedResponseText(response, "target node /info", 16 * 1024);
-  let body: unknown;
+  const lookup = boundedSignal(options.signal, options.timeoutMs ?? OWNER_NODE_BINDING_TIMEOUT_MS);
   try {
-    body = JSON.parse(text) as unknown;
-  } catch {
-    throw new LocationRecordValidationError("target node /info response is not JSON");
+    const record = await fetchLocationRecord(registryUrl, options.ownerDid, fetchFn, lookup.signal);
+    if (record === null) {
+      throw new LocationRecordValidationError("owner has no published location record");
+    }
+    if (record.subject !== options.ownerDid || !(await verifyLocationRecord(record))) {
+      throw new LocationRecordValidationError("owner location record signature is invalid");
+    }
+    const publishedOrigins = publishedHttpOrigins(record);
+    if (!publishedOrigins.includes(nodeOrigin)) {
+      throw new LocationRecordValidationError("share target is not in the owner's signed location record");
+    }
+
+    const response = await fetchFn(new URL("/info", nodeOrigin), {
+      redirect: "error",
+      headers: { accept: "application/json" },
+      signal: lookup.signal,
+    });
+    if (!response.ok) {
+      throw new LocationRecordValidationError(`target node /info returned HTTP ${response.status}`);
+    }
+    const text = await boundedResponseText(response, "target node /info", 16 * 1024);
+    let body: unknown;
+    try {
+      body = JSON.parse(text) as unknown;
+    } catch {
+      throw new LocationRecordValidationError("target node /info response is not JSON");
+    }
+    if (body === null || typeof body !== "object" || Array.isArray(body)
+      || (body as { nodeId?: unknown }).nodeId !== options.nodeDid) {
+      throw new LocationRecordValidationError("target node identity does not match the share attestation");
+    }
+    return Object.freeze({ record, nodeOrigin, nodeDid: options.nodeDid });
+  } finally {
+    lookup.dispose();
   }
-  if (body === null || typeof body !== "object" || Array.isArray(body)
-    || (body as { nodeId?: unknown }).nodeId !== options.nodeDid) {
-    throw new LocationRecordValidationError("target node identity does not match the share attestation");
-  }
-  return Object.freeze({ record, nodeOrigin, nodeDid: options.nodeDid });
 }
 
 export function httpUrlToMultiaddr(input: string): string {

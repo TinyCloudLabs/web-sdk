@@ -907,6 +907,7 @@ export {
   LOCAL_LINK_HOST_SUFFIX,
   LOCAL_LINK_PROBE_TIMEOUT_MS,
   LOCAL_LOOPBACK_PROBE_TIMEOUT_MS,
+  OWNER_NODE_BINDING_TIMEOUT_MS,
   LocationRecordValidationError,
   canonicalLocationPayload,
   createInMemoryLocalNodeIdentityStore,

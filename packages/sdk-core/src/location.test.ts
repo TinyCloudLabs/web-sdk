@@ -214,6 +214,51 @@ describe("location records", () => {
     })).resolves.toMatchObject({ nodeOrigin: "https://owner-node.example" });
   });
 
+  it("cancels a chunked Node identity response as soon as the byte bound is crossed", async () => {
+    const privateKey = new Uint8Array(32).fill(13);
+    const ownerDid = `did:key:${bases.base58btc.encode(
+      Uint8Array.of(0xed, 0x01, ...ed25519.getPublicKey(privateKey)),
+    )}`;
+    const record = await signLocationRecord({
+      version: 1,
+      subject: ownerDid,
+      multiaddrs: [httpUrlToMultiaddr("https://owner-node.example")],
+      updated_at: "2026-04-28T16:00:00.000Z",
+      sequence: 1,
+    }, {
+      type: "did:key",
+      signBytes: async (bytes) => ed25519.sign(bytes, privateKey),
+    });
+    let cancelled = false;
+    let chunks = 0;
+    const fetchFn = (async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      if (url.startsWith("https://registry.example/v1/locations/")) return Response.json({ record });
+      if (url === "https://owner-node.example/info") {
+        expect(init?.signal).toBeDefined();
+        return new Response(new ReadableStream<Uint8Array>({
+          pull(controller) {
+            chunks += 1;
+            controller.enqueue(new Uint8Array(10 * 1024));
+          },
+          cancel() { cancelled = true; },
+        }));
+      }
+      return new Response(null, { status: 404 });
+    }) as typeof fetch;
+
+    await expect(verifyOwnerNodeBinding({
+      registryUrl: "https://registry.example",
+      ownerDid,
+      nodeOrigin: "https://owner-node.example",
+      nodeDid: NODE_DID,
+      fetch: fetchFn,
+    })).rejects.toThrow("target node /info response is too large");
+    expect(chunks).toBeGreaterThanOrEqual(2);
+    expect(chunks).toBeLessThanOrEqual(3);
+    expect(cancelled).toBe(true);
+  });
+
   it("publishes an idempotent session-signed active node record", async () => {
     const privateKey = new Uint8Array(32).fill(13);
     const ownerDid = `did:key:${bases.base58btc.encode(
