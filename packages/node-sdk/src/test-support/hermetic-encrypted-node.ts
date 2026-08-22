@@ -505,23 +505,33 @@ class LoopbackEncryptedNode {
           hasExactCapability(payload, resource, action, this.delegationCids);
       });
       if (writes.length > 0) {
-        const form = await request.formData();
         const written: string[] = [];
-        for (const write of writes) {
+        const contentType = request.headers.get("content-type") ?? "";
+        if (writes.length === 1 && !contentType.startsWith("multipart/form-data")) {
+          const write = writes[0]!;
           const separator = write.resource.lastIndexOf("/kv/");
           const targetSpace = write.resource.slice(0, separator).toLowerCase();
           const path = write.resource.slice(separator + 4);
-          const encodedPath = encodeURIComponent(path).replace(/[!'()*]/g, (character) =>
-            `%${character.charCodeAt(0).toString(16).toUpperCase()}`
-          );
-          const part = form.get(path) ?? form.get(encodedPath);
-          if (!(part instanceof Blob)) return new Response("missing batch value", { status: 400 });
-          const text = await part.text();
-          const value = part.type.includes("application/json") || /^(?:\{|\[)/.test(text.trimStart())
-            ? JSON.parse(text)
-            : text;
-          this.kvData.get(targetSpace)!.set(path, value);
+          this.kvData.get(targetSpace)!.set(path, new Uint8Array(await request.arrayBuffer()));
           written.push(path);
+        } else {
+          const form = await request.formData();
+          for (const write of writes) {
+            const separator = write.resource.lastIndexOf("/kv/");
+            const targetSpace = write.resource.slice(0, separator).toLowerCase();
+            const path = write.resource.slice(separator + 4);
+            const encodedPath = encodeURIComponent(path).replace(/[!'()*]/g, (character) =>
+              `%${character.charCodeAt(0).toString(16).toUpperCase()}`
+            );
+            const part = form.get(path) ?? form.get(encodedPath);
+            if (!(part instanceof Blob)) return new Response("missing batch value", { status: 400 });
+            const text = await part.text();
+            const value = part.type.includes("application/json") || /^(?:\{|\[)/.test(text.trimStart())
+              ? JSON.parse(text)
+              : text;
+            this.kvData.get(targetSpace)!.set(path, value);
+            written.push(path);
+          }
         }
         this.observed.signedInvocation = true;
         this.observed.kvWrites += written.length;
@@ -560,7 +570,11 @@ class LoopbackEncryptedNode {
             return this.json([...entries.keys()].filter((key) => key.startsWith(path)).sort());
           }
           if (!entries.has(path)) return new Response("not found", { status: 404 });
-          return this.json(entries.get(path));
+          const value = entries.get(path);
+          if (value instanceof Uint8Array) {
+            return new Response(value, { headers: { "content-type": "application/octet-stream" } });
+          }
+          return this.json(value);
         }
       }
 
@@ -836,6 +850,8 @@ export async function createHermeticEncryptedNode(
     delegateSignStrategy?: SignStrategy;
     secretPayloadValue?: string;
     secretPresent?: boolean;
+    /** Configure the authenticated owner for a single native KV bearer path. */
+    nativeBearerPath?: string;
   }> = {},
 ): Promise<HermeticEncryptedNode> {
   const transport = new LoopbackEncryptedNode();
@@ -889,10 +905,14 @@ export async function createHermeticEncryptedNode(
     "agents/sibling/private": { hidden: true },
   });
 
+  const ownerSessionSpaceId = options.nativeBearerPath === undefined ? spaceId : applicationsSpaceId;
+  const ownerSessionAbilities = options.nativeBearerPath === undefined
+    ? { kv: { [SECRET_PATH]: ["tinycloud.kv/get"] } }
+    : { kv: { [options.nativeBearerPath]: ["tinycloud.kv/get", "tinycloud.kv/put"] } };
   const ownerSession = await makeSession(ownerRuntime.node, ownerRuntime.signer, {
     address: ownerAddress,
-    spaceId,
-    abilities: { kv: { [SECRET_PATH]: ["tinycloud.kv/get"] } },
+    spaceId: ownerSessionSpaceId,
+    abilities: ownerSessionAbilities,
     rawAbilities: {
       [networkId]: ["tinycloud.encryption/decrypt"],
       [`${accountSpaceId}/kv/spaces/`]: ["tinycloud.kv/get", "tinycloud.kv/list"],
@@ -900,6 +920,10 @@ export async function createHermeticEncryptedNode(
     },
   });
   installSession(ownerRuntime.node, ownerSession);
+  // Native bearer owners write through their authenticated primary session
+  // before creating the child read delegation.  Treat that base proof as an
+  // accepted invocation proof just as a real node does.
+  if (options.nativeBearerPath !== undefined) transport.allowInvocationProof(ownerSession.delegationCid);
 
   const delegateAddress = await delegateRuntime.signer.getAddress();
   const delegateSession = await makeSession(delegateRuntime.node, delegateRuntime.signer, {
