@@ -1,134 +1,38 @@
-import { fromBase64Url, toBase64Url } from "@tinycloud/share-envelope";
+/** Fragment-only adapter for TinyCloud's public SharingService. */
+export const NATIVE_SHARE_FRAGMENT_PARAMETER = "tc1";
 
-/** The fragment-only link format for the TinyCloud-native bearer slice. */
-export const NATIVE_SHARE_FRAGMENT_PARAMETER = "tc-share";
-
-export interface NativeShareOwner {
-  readonly kv: {
-    put(path: string, value: Uint8Array): Promise<{ readonly ok: boolean }>;
-  };
-  createDelegation(params: {
-    readonly path: string;
-    readonly actions: string[];
-    readonly delegateDID: string;
-    readonly expiryMs: number;
-    readonly disableSubDelegation: boolean;
-    readonly includePublicSpace: boolean;
-  }): Promise<unknown>;
+export interface NativeSharingService {
+  generate(params: { readonly path: string; readonly actions: string[]; readonly expiry: Date }): Promise<{ readonly ok: true; readonly data: { readonly token: string } } | { readonly ok: false; readonly error: { readonly message: string } }>;
+  receive(token: string, options: { readonly autoSubdelegate: false; readonly useSessionKey: false }): Promise<unknown>;
 }
 
-export interface NativeShareRecipient {
-  readonly did: string;
-  /** Private receiver key material. Keep it in the URL fragment only. */
-  exportSessionKey(): object;
-  useDelegation(delegation: unknown): Promise<{
-    readonly kv: { get(path: string): Promise<{ readonly ok: boolean; readonly data?: { readonly data: unknown } }> };
-  }>;
-}
-
-/** Reconstitutes the ephemeral receiver from the fragment-only key material. */
-export interface NativeShareRecipientFactory {
-  fromSessionKey(sessionKey: object): Pick<NativeShareRecipient, "useDelegation">;
-}
-
-export interface NativeShareLink {
-  readonly version: 1;
-  /** The exact key covered by the bounded ordinary delegation. */
-  readonly path: string;
-  readonly delegation: unknown;
-  readonly recipientSessionKey: object;
-}
-
-function assertPath(path: string): void {
-  if (!path || path.startsWith("/") || path.endsWith("/") || path.includes("..") || path.includes("//")) {
-    throw new TypeError("native share path must be one canonical TinyCloud KV key");
-  }
-}
-
-function encodePayload(link: NativeShareLink): string {
-  return toBase64Url(new TextEncoder().encode(JSON.stringify(link)));
-}
-
-/**
- * Store bytes at the owner's node, then issue one bounded ordinary delegation
- * to a session-only recipient key. No Share API or registry is contacted.
- */
-export async function createNativeShare(
-  owner: NativeShareOwner,
-  recipient: NativeShareRecipient,
-  input: { readonly path: string; readonly bytes: Uint8Array; readonly expiresInMs: number },
-): Promise<NativeShareLink> {
-  assertPath(input.path);
-  if (!Number.isSafeInteger(input.expiresInMs) || input.expiresInMs <= 0) {
-    throw new TypeError("native share expiry must be a positive millisecond duration");
-  }
-  const written = await owner.kv.put(input.path, input.bytes.slice());
-  if (!written.ok) throw new Error("owner node rejected the shared bytes");
-  const delegation = await owner.createDelegation({
-    path: input.path,
-    actions: ["tinycloud.kv/get"],
-    delegateDID: recipient.did,
-    expiryMs: input.expiresInMs,
-    disableSubDelegation: true,
-    includePublicSpace: false,
-  });
-  return {
-    version: 1,
-    path: input.path,
-    delegation,
-    recipientSessionKey: recipient.exportSessionKey(),
-  };
-}
-
-/** Compose a viewer URL without ever putting the receiver key on the wire. */
-export function nativeShareUrl(viewerOrigin: string, link: NativeShareLink): string {
+function canonicalViewerUrl(viewerOrigin: string): URL {
   const url = new URL(viewerOrigin);
-  if (url.origin !== viewerOrigin || url.protocol !== "https:") {
-    throw new TypeError("viewer origin must be a canonical HTTPS origin");
-  }
-  url.hash = `${NATIVE_SHARE_FRAGMENT_PARAMETER}=${encodePayload(link)}`;
+  if (url.protocol !== "https:" || url.origin !== viewerOrigin || url.pathname !== "/" || url.search || url.hash) throw new TypeError("viewer origin must be a canonical HTTPS origin");
+  return url;
+}
+
+/** Generate exactly one read-only TinyCloud delegation and put its tc1 token in the fragment. */
+export async function createNativeShare(sharing: NativeSharingService, input: { readonly path: string; readonly expiresAt: Date; readonly viewerOrigin: string }): Promise<string> {
+  if (!input.path || input.path.startsWith("/") || input.path.endsWith("/") || input.path.includes("..") || input.path.includes("//")) throw new TypeError("native share path must be one canonical TinyCloud KV key");
+  const generated = await sharing.generate({ path: input.path, actions: ["tinycloud.kv/get"], expiry: input.expiresAt });
+  if (!generated.ok) throw new Error(generated.error.message);
+  const url = canonicalViewerUrl(input.viewerOrigin);
+  url.hash = `${NATIVE_SHARE_FRAGMENT_PARAMETER}=${encodeURIComponent(generated.data.token)}`;
   return url.toString();
 }
 
-/** Parse the fragment-only share payload. Servers only receive the URL before '#'. */
-export function parseNativeShareUrl(value: string): NativeShareLink {
+/** Extract only a single tc1 fragment. Path/query/mixed legacy forms are refused. */
+export function parseNativeShareUrl(value: string): string {
   const url = new URL(value);
-  const params = new URLSearchParams(url.hash.slice(1));
-  const encoded = params.get(NATIVE_SHARE_FRAGMENT_PARAMETER);
-  if (!encoded || params.size !== 1) throw new TypeError("missing native share fragment");
-  let parsed: unknown;
-  try { parsed = JSON.parse(new TextDecoder().decode(fromBase64Url(encoded))); } catch { throw new TypeError("invalid native share fragment"); }
-  if (!parsed || typeof parsed !== "object") throw new TypeError("invalid native share payload");
-  const payload = parsed as Record<string, unknown>;
-  if (
-    payload.version !== 1 ||
-    typeof payload.path !== "string" ||
-    !("delegation" in payload) ||
-    !payload.recipientSessionKey ||
-    typeof payload.recipientSessionKey !== "object"
-  ) {
-    throw new TypeError("invalid native share payload");
-  }
-  assertPath(payload.path);
-  return {
-    version: 1,
-    path: payload.path,
-    delegation: payload.delegation,
-    recipientSessionKey: payload.recipientSessionKey as object,
-  };
+  if (url.search || url.pathname !== "/") throw new TypeError("native shares must carry tc1 only in the URL fragment");
+  const fragment = new URLSearchParams(url.hash.slice(1));
+  const token = fragment.get(NATIVE_SHARE_FRAGMENT_PARAMETER);
+  if (!token || fragment.size !== 1 || !token.startsWith("tc1:")) throw new TypeError("missing native share fragment");
+  return token;
 }
 
-/** Read through the recipient's normal TinyCloud invocation path. */
-export async function openNativeShare(
-  recipientFactory: NativeShareRecipientFactory,
-  link: NativeShareLink,
-): Promise<Uint8Array> {
-  assertPath(link.path);
-  const recipient = recipientFactory.fromSessionKey(link.recipientSessionKey);
-  const access = await recipient.useDelegation(link.delegation);
-  const read = await access.kv.get(link.path);
-  if (!read.ok || !(read.data?.data instanceof Uint8Array)) {
-    throw new Error("owner node denied the shared read");
-  }
-  return read.data.data.slice();
+/** Receive through the public SDK without creating another transport protocol. */
+export async function openNativeShare(sharing: NativeSharingService, link: string): Promise<unknown> {
+  return sharing.receive(parseNativeShareUrl(link), { autoSubdelegate: false, useSessionKey: false });
 }

@@ -1,61 +1,26 @@
 import { describe, expect, it } from "bun:test";
-import { createNativeShare, nativeShareUrl, openNativeShare, parseNativeShareUrl } from "../src/native.js";
+import { createNativeShare, openNativeShare, parseNativeShareUrl } from "../src/native.js";
 
-describe("TinyCloud-native share", () => {
-  it("writes to the owner, invokes with an ordinary bounded delegation, and keeps its receiver key in the fragment", async () => {
-    const bytes = new Uint8Array([0, 1, 2, 255]);
-    const calls: string[] = [];
-    const recipient = {
-      did: "did:key:zRecipient",
-      exportSessionKey: () => ({ kty: "OKP", d: "private" }),
-      useDelegation: async (delegation: unknown) => {
-        calls.push(`invoke:${JSON.stringify(delegation)}`);
-        return { kv: { get: async (path: string) => {
-          calls.push(`get:${path}`);
-          return { ok: true, data: { data: bytes } };
-        } } };
-      },
+describe("TinyCloud-native share adapter", () => {
+  it("uses SharingService's tc1 token as the sole fragment-only bearer", async () => {
+    const calls: unknown[] = [];
+    const sharing = {
+      generate: async (params: unknown) => { calls.push(params); return { ok: true as const, data: { token: "tc1:private-receiver-key-and-delegation" } }; },
+      receive: async (token: string, options: unknown) => { calls.push({ token, options }); return { ok: true, data: { bytes: new Uint8Array([0, 1, 255]) } }; },
     };
-    const recipientFactory = {
-      fromSessionKey: (sessionKey: object) => {
-        calls.push(`restore:${JSON.stringify(sessionKey)}`);
-        return recipient;
-      },
-    };
-    const owner = {
-      kv: { put: async (path: string, value: Uint8Array) => {
-        calls.push(`put:${path}:${Array.from(value).join(",")}`);
-        return { ok: true };
-      } },
-      createDelegation: async (params: unknown) => {
-        calls.push(`delegate:${JSON.stringify(params)}`);
-        return { cid: "ordinary-delegation" };
-      },
-    };
-    const link = await createNativeShare(owner, recipient, { path: "shares/demo.bin", bytes, expiresInMs: 60_000 });
-    const url = nativeShareUrl("https://unrelated.example", link);
-    expect(url).not.toContain("private");
-    expect(new URL(url).hash).toContain("tc-share=");
-    const parsed = parseNativeShareUrl(url);
-    expect(await openNativeShare(recipientFactory, parsed)).toEqual(bytes);
+    const url = await createNativeShare(sharing, { path: "applications/demo.bin", expiresAt: new Date("2030-01-01T00:00:00Z"), viewerOrigin: "https://viewer.example" });
+    expect(url).toBe("https://viewer.example/#tc1=tc1%3Aprivate-receiver-key-and-delegation");
+    expect(url.split("#")[0]).not.toContain("private");
+    await expect(openNativeShare(sharing, url)).resolves.toEqual({ ok: true, data: { bytes: new Uint8Array([0, 1, 255]) } });
     expect(calls).toEqual([
-      "put:shares/demo.bin:0,1,2,255",
-      'delegate:{"path":"shares/demo.bin","actions":["tinycloud.kv/get"],"delegateDID":"did:key:zRecipient","expiryMs":60000,"disableSubDelegation":true,"includePublicSpace":false}',
-      'restore:{"kty":"OKP","d":"private"}',
-      'invoke:{"cid":"ordinary-delegation"}',
-      "get:shares/demo.bin",
+      { path: "applications/demo.bin", actions: ["tinycloud.kv/get"], expiry: new Date("2030-01-01T00:00:00Z") },
+      { token: "tc1:private-receiver-key-and-delegation", options: { autoSubdelegate: false, useSessionKey: false } },
     ]);
   });
 
-  it("rejects a fragment whose path is not a canonical owner-node key", () => {
-    const payload = btoa(JSON.stringify({
-      version: 1,
-      path: "../outside",
-      delegation: { cid: "ordinary-delegation" },
-      recipientSessionKey: { kty: "OKP" },
-    })).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-    expect(() => parseNativeShareUrl(`https://unrelated.example/#tc-share=${payload}`)).toThrow(
-      "native share path",
-    );
+  it("rejects path, query, mixed, and malformed legacy links", () => {
+    for (const link of ["https://viewer.example/share/tc1:secret", "https://viewer.example/?share=tc1:secret", "https://viewer.example/?share=tc1:secret#tc1=tc1:secret", "https://viewer.example/#tc1=tc1:secret&other=value", "https://viewer.example/#tc-share=tc1:secret"]) {
+      expect(() => parseNativeShareUrl(link)).toThrow("native share");
+    }
   });
 });
