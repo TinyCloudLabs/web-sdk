@@ -139,6 +139,7 @@ class LoopbackEncryptedNode {
   private spaceId?: string;
   private networkId?: string;
   private readonly delegationCids = new Set<string>();
+  private readonly revokedDelegationCids = new Set<string>();
   private readonly kvData = new Map<string, Map<string, unknown>>();
   private secretPresent = true;
   private browserCredentialBoundary?: {
@@ -163,6 +164,16 @@ class LoopbackEncryptedNode {
         );
         const response = await this.handle(request);
         outgoing.statusCode = response.status;
+        // The native-bearer browser smoke loads Share from a distinct local
+        // origin. Keep this fixture deliberately narrow: it only permits the
+        // caller's Origin and exposes no credentials.
+        const origin = incoming.headers.origin;
+        if (typeof origin === "string") {
+          outgoing.setHeader("access-control-allow-origin", origin);
+          outgoing.setHeader("vary", "Origin");
+          outgoing.setHeader("access-control-allow-headers", "authorization, content-type");
+          outgoing.setHeader("access-control-allow-methods", "GET, POST, OPTIONS");
+        }
         response.headers.forEach((value, name) => outgoing.setHeader(name, value));
         outgoing.end(Buffer.from(await response.arrayBuffer()));
       } catch (cause) {
@@ -414,6 +425,7 @@ class LoopbackEncryptedNode {
 
   private async handle(request: Request): Promise<Response> {
     const url = new URL(request.url);
+    if (request.method === "OPTIONS") return new Response(null, { status: 204 });
     if (url.pathname === "/info" && request.method === "GET") {
       return this.json({
         protocol: this.wasm.protocolVersion(),
@@ -447,6 +459,20 @@ class LoopbackEncryptedNode {
       return this.json({ activated: [cid], skipped: [] });
     }
 
+    if (url.pathname === "/revoke" && request.method === "POST") {
+      const authorization = request.headers.get("authorization");
+      if (!authorization) return new Response("missing authorization", { status: 401 });
+      const payload = verifiedCompactPayload(authorization);
+      const target = Object.entries(payload.att ?? {}).find(([, actions]) =>
+        Object.keys(actions).includes("tinycloud.delegation/revoke")
+      )?.[0];
+      if (!target?.startsWith("urn:cid:")) return new Response("delegation revoke proof required", { status: 403 });
+      const cid = target.slice("urn:cid:".length);
+      if (!this.delegationCids.has(cid)) return new Response("delegation not found", { status: 404 });
+      this.revokedDelegationCids.add(cid);
+      return this.json({ cid, revoked: true });
+    }
+
     const descriptorPrefix = "/encryption/networks/";
     if (
       url.pathname.startsWith(descriptorPrefix) &&
@@ -461,6 +487,9 @@ class LoopbackEncryptedNode {
       const authorization = request.headers.get("authorization");
       if (!authorization) return new Response("missing authorization", { status: 401 });
       const payload = verifiedCompactPayload(authorization);
+      if (payload.prf?.some((cid) => this.revokedDelegationCids.has(cid))) {
+        return new Response("delegation has been revoked", { status: 403 });
+      }
       if (this.targetsBrowserCredentials(payload) && !this.matchesBrowserSession(payload)) {
         return new Response("activated browser session proof required", { status: 403 });
       }
@@ -749,6 +778,8 @@ function installSession(node: TinyCloudNode, session: TinyCloudSession): void {
 
 export interface HermeticEncryptedNode {
   readonly host: string;
+  /** Authenticated owner used by cross-origin sharing smoke tests. */
+  readonly owner: TinyCloudNode;
   readonly delegate: TinyCloudNode;
   readonly restorableSession: {
     delegationHeader: { Authorization: string };
@@ -933,6 +964,7 @@ export async function createHermeticEncryptedNode(
 
   return {
     host: transport.host,
+    owner: ownerRuntime.node,
     delegate: delegateRuntime.node,
     restorableSession: {
       delegationHeader: delegateSession.delegationHeader,

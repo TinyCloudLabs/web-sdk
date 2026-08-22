@@ -7,9 +7,10 @@ describe("TinyCloud-native share adapter", () => {
     const sharing = {
       generate: async (params: unknown) => { calls.push(params); return { ok: true as const, data: { token: "private-receiver-key-and-delegation", delegation: { cid: "bafy-native-delegation" }, expiresAt: new Date("2030-01-01T00:00:00Z") } }; },
       receive: async (token: string, options: unknown) => { calls.push({ token, options }); return { ok: true, data: { bytes: new Uint8Array([0, 1, 255]) } }; },
+      decodeLink: () => ({ spaceId: "tinycloud:pkh:eip155:1:0xabc:applications", path: "applications/demo.bin" }),
     };
     const share = await createNativeShare(sharing, { path: "applications/demo.bin", expiresAt: new Date("2030-01-01T00:00:00Z"), viewerOrigin: "https://viewer.example" });
-    expect(share).toEqual({ url: "https://viewer.example/viewer#tc1=private-receiver-key-and-delegation", delegationCid: "bafy-native-delegation", expiresAt: new Date("2030-01-01T00:00:00Z") });
+    expect(share).toEqual({ url: "https://viewer.example/viewer#tc1=private-receiver-key-and-delegation", delegationCid: "bafy-native-delegation", expiresAt: new Date("2030-01-01T00:00:00Z"), spaceId: "tinycloud:pkh:eip155:1:0xabc:applications" });
     expect(share.url.split("#")[0]).not.toContain("private");
     await expect(openNativeShare(sharing, share.url)).resolves.toEqual({ ok: true, data: { bytes: new Uint8Array([0, 1, 255]) } });
     expect(calls).toEqual([
