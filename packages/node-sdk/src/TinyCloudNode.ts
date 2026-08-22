@@ -672,12 +672,6 @@ function ownerPermissionsToAbilities(
 export interface TinyCloudNodeConfig {
   /** Hex-encoded private key (with or without 0x prefix). Optional - only needed for wallet mode and signIn() */
   privateKey?: string;
-  /**
-   * A private Ed25519 session JWK for session-only delegation receiving.
-   * This caller-owned value may be restored from a share URL fragment; it
-   * must never be sent to a node, discovery registry, or any other server.
-   */
-  sessionKeyJwk?: object;
   /** Custom signer implementation. If provided, takes precedence over privateKey. */
   signer?: ISigner;
   /** Strategy for root signature requests. Defaults to auto-sign for local keys. */
@@ -1234,17 +1228,6 @@ export class TinyCloudNode {
       jwkStr = this.sessionManager.jwk(this.sessionKeyId);
     }
 
-    if (config.sessionKeyJwk !== undefined) {
-      if (config.privateKey !== undefined || config.signer !== undefined) {
-        throw new Error("sessionKeyJwk is only supported in session-only mode.");
-      }
-      if (!this.sessionManager.replaceSessionKey) {
-        throw new Error("WASM bindings do not support restoring a session key.");
-      }
-      this.sessionManager.replaceSessionKey(config.sessionKeyJwk, defaultKeyId);
-      jwkStr = this.sessionManager.jwk(defaultKeyId);
-    }
-
     if (!jwkStr) {
       throw new Error("Failed to get session key JWK");
     }
@@ -1313,18 +1296,6 @@ export class TinyCloudNode {
       this.signer = TinyCloudNode.nodeDefaults.createSigner(config.privateKey, this._chainId);
       this.setupAuth(config);
     }
-  }
-
-  /**
-   * Return a copy of this session-only receiver key for caller-owned transport.
-   * The returned value is private key material and belongs only in a URL
-   * fragment or another end-to-end protected channel.
-   */
-  exportSessionKey(): object {
-    if (!this.isSessionOnly) {
-      throw new Error("exportSessionKey() is only available in session-only mode.");
-    }
-    return JSON.parse(JSON.stringify(this.sessionKeyJwk));
   }
 
   /**

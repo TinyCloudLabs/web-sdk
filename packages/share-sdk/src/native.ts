@@ -28,8 +28,8 @@ export function parseNativeShareUrl(value: string): string {
   if (url.search || url.pathname !== "/") throw new TypeError("native shares must carry tc1 only in the URL fragment");
   const fragment = new URLSearchParams(url.hash.slice(1));
   const token = fragment.get(NATIVE_SHARE_FRAGMENT_PARAMETER);
-  // `token` is opaque output from SharingService.generate(). In particular it
-  // is not itself version-prefixed; `tc1` names this fragment format.
+  // `token` is opaque output from SharingService.generate(). `tc1` names this
+  // fragment format; the opaque token may itself begin with `tc1:`.
   if (!token || fragment.size !== 1) throw new TypeError("missing native share fragment");
   return token;
 }
