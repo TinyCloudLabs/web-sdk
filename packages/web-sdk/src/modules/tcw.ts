@@ -292,7 +292,7 @@ export interface ShareReceiveResult<T = unknown> {
   delegation: Delegation;
   path: string;
   spaceId: string;
-  /** Owner Node encoded in, and cryptographically bound by, the native delegation token. */
+  /** Owner Node named by the link; that node independently verifies the accompanying delegation. */
   host: string;
 }
 

@@ -3,7 +3,7 @@ import { Command } from "commander";
 import { mkdtemp, mkdir, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { registerShareCommand, parseShareTarget } from "./share.js";
+import { inspectShareInputOnce, registerShareCommand, parseShareTarget } from "./share.js";
 import { safeFilename, writeShareOutput } from "../share/io.js";
 
 describe("tc share command contract", () => {
@@ -22,6 +22,21 @@ describe("tc share command contract", () => {
     expect(share?.commands.map((command) => command.name())).toEqual([
       "publish", "inspect", "receive", "list", "show", "notify", "revoke",
     ]);
+  });
+
+  test("inspect consumes an addressed URL from stdin exactly once", async () => {
+    let reads = 0;
+    let inspected = "";
+    const result = await inspectShareInputOnce(undefined, true, "https://share.example", {
+      read: async () => { reads += 1; return "https://share.example/viewer?tc2=addressed"; },
+      inspect: (async (link) => {
+        inspected = link;
+        return { protocol: "tinycloud-share", version: 1 } as never;
+      }) as never,
+    });
+    expect(reads).toBe(1);
+    expect(inspected).toBe("https://share.example/viewer?tc2=addressed");
+    expect(result).toMatchObject({ protocol: "tinycloud-share", version: 1 });
   });
 });
 

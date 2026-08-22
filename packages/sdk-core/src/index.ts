@@ -923,6 +923,7 @@ export {
   validateLocationRecordPayload,
   verifyDidKeyEd25519Signature,
   verifyLocationRecord,
+  verifyOwnerNodeBinding,
   type DiscoverLocalTinyCloudNodeOptions,
   type DiscoveredLocalTinyCloudNode,
   type LocalNodeIdentityStore,
@@ -938,6 +939,8 @@ export {
   type ResolvedCloudLocation,
   type ResolvedTinyCloudHosts,
   type WebStorageLike,
+  type VerifiedOwnerNodeBinding,
+  type VerifyOwnerNodeBindingOptions,
 } from "./location";
 
 // Capability subset checking and recap parsing

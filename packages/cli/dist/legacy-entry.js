@@ -34076,6 +34076,15 @@ function inputUrl(value, stdin) {
   if (value === void 0 || value.length === 0) throw new CLIError("INVALID_ARGUMENT", "a share URL or - is required", 2);
   return Promise.resolve(value);
 }
+async function inspectShareInputOnce(value, stdin, expectedOrigin, dependencies = {}) {
+  const link2 = stdin || value === "-" ? await (dependencies.read ?? readBoundedUrlStdin)() : await inputUrl(value, false);
+  try {
+    parseNativeShareUrl(link2);
+  } catch {
+    return (dependencies.inspect ?? inspectShare)(link2, { expectedOrigin });
+  }
+  throw new CLIError("UNSUPPORTED_LINK", "native bearer links are opaque; receive the link to verify access", 2);
+}
 function jsonOutput(options, command) {
   return options.json === true || command.optsWithGlobals().json === true;
 }
@@ -34167,23 +34176,10 @@ function registerShareCommand(program) {
   share.command("inspect [url]").description("Verify a share link and print safe metadata").option("--stdin", "Read the complete URL from stdin").option("--json", "Print versioned redacted JSON").option("--viewer-origin <origin>", "Require this canonical Share origin", SHARE_ORIGIN).action(async (url, options, command) => {
     try {
       const json = jsonOutput(options, command);
-      const link2 = await inputUrl(url, options.stdin === true);
-      parseNativeShareUrl(link2);
-      throw new CLIError("UNSUPPORTED_LINK", "native bearer links are opaque; receive the link to verify access", 2);
+      const result = await inspectShareInputOnce(url, options.stdin === true, options.viewerOrigin);
+      if (json) writeJson2(result);
+      else inspectHuman(result);
     } catch (error) {
-      if (!(error instanceof CLIError)) {
-        try {
-          const json = jsonOutput(options, command);
-          const link2 = await inputUrl(url, options.stdin === true);
-          const result = await inspectShare(link2, { expectedOrigin: options.viewerOrigin });
-          if (json) writeJson2(result);
-          else inspectHuman(result);
-          return;
-        } catch (inspectionError) {
-          handleError(shareCliError(inspectionError));
-          return;
-        }
-      }
       handleError(shareCliError(error));
     }
   });

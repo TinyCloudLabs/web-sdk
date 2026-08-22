@@ -24,6 +24,26 @@ export interface LocationRecord extends LocationRecordPayload {
   signature: string;
 }
 
+export interface VerifyOwnerNodeBindingOptions {
+  /** Registry that serves the owner's signed location record. */
+  registryUrl: string;
+  /** Owner DID that signed both the location record and share policy. */
+  ownerDid: string;
+  /** Exact node origin carried by the share target. */
+  nodeOrigin: string;
+  /** Exact node DID carried by the node-attested share target. */
+  nodeDid: string;
+  /** Custom fetch implementation. Defaults to globalThis.fetch. */
+  fetch?: typeof fetch;
+  signal?: AbortSignal;
+}
+
+export interface VerifiedOwnerNodeBinding {
+  readonly record: LocationRecord;
+  readonly nodeOrigin: string;
+  readonly nodeDid: string;
+}
+
 /**
  * Where a resolved TinyCloud host came from, ordered highest to lowest
  * priority. `local-loopback` and `local-link` are probed + identity-verified
@@ -772,6 +792,82 @@ export function multiaddrToHttpUrl(input: string): string {
     );
   }
   return uri;
+}
+
+function exactHttpOrigin(value: string, label: string): string {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new LocationRecordValidationError(`${label} must be an absolute URL origin`);
+  }
+  const loopback = url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname === "[::1]";
+  if (url.protocol !== "https:" && !(url.protocol === "http:" && loopback)) {
+    throw new LocationRecordValidationError(`${label} must use HTTPS (or loopback HTTP)`);
+  }
+  if (url.username !== "" || url.password !== "" || url.pathname !== "/" || url.search !== "" || url.hash !== "") {
+    throw new LocationRecordValidationError(`${label} must be an origin without credentials, path, query, or fragment`);
+  }
+  return url.origin;
+}
+
+/**
+ * Proves that an addressed-share target is the owner's published TinyCloud.
+ *
+ * The share envelope alone can only prove that its keys agree with each
+ * other. This adds the external discovery anchor: the owner must have signed
+ * a registry record naming the exact target origin, and that origin must
+ * answer `/info` with the exact node DID attested in the share.
+ */
+export async function verifyOwnerNodeBinding(
+  options: VerifyOwnerNodeBindingOptions,
+): Promise<VerifiedOwnerNodeBinding> {
+  validateSubject(options.ownerDid);
+  validateSubject(options.nodeDid);
+  const registryUrl = exactHttpOrigin(options.registryUrl, "registry URL");
+  const nodeOrigin = exactHttpOrigin(options.nodeOrigin, "node origin");
+  const fetchFn = options.fetch ?? globalThis.fetch.bind(globalThis);
+  const record = await fetchLocationRecord(registryUrl, options.ownerDid, fetchFn);
+  if (record === null) {
+    throw new LocationRecordValidationError("owner has no published location record");
+  }
+  if (record.subject !== options.ownerDid || !(await verifyLocationRecord(record))) {
+    throw new LocationRecordValidationError("owner location record signature is invalid");
+  }
+  const publishedOrigins = record.multiaddrs.map((address) =>
+    exactHttpOrigin(multiaddrToHttpUrl(address), "published node URL"),
+  );
+  if (!publishedOrigins.includes(nodeOrigin)) {
+    throw new LocationRecordValidationError("share target is not in the owner's signed location record");
+  }
+
+  const response = await fetchFn(new URL("/info", nodeOrigin), {
+    redirect: "error",
+    headers: { accept: "application/json" },
+    ...(options.signal === undefined ? {} : { signal: options.signal }),
+  });
+  if (!response.ok) {
+    throw new LocationRecordValidationError(`target node /info returned HTTP ${response.status}`);
+  }
+  const declaredLength = response.headers.get("content-length");
+  if (declaredLength !== null && (!/^\d+$/.test(declaredLength) || Number(declaredLength) > 16 * 1024)) {
+    throw new LocationRecordValidationError("target node /info response is too large");
+  }
+  const text = await response.text();
+  if (new TextEncoder().encode(text).byteLength > 16 * 1024) {
+    throw new LocationRecordValidationError("target node /info response is too large");
+  }
+  let body: unknown;
+  try {
+    body = JSON.parse(text) as unknown;
+  } catch {
+    throw new LocationRecordValidationError("target node /info response is not JSON");
+  }
+  if (body === null || typeof body !== "object" || Array.isArray(body)
+    || (body as { nodeId?: unknown }).nodeId !== options.nodeDid) {
+    throw new LocationRecordValidationError("target node identity does not match the share attestation");
+  }
+  return Object.freeze({ record, nodeOrigin, nodeDid: options.nodeDid });
 }
 
 export function httpUrlToMultiaddr(input: string): string {

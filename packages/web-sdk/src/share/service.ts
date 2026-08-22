@@ -3,6 +3,7 @@ import {
   credentialRequirementDigest,
   createEmailCredentialRequirement,
   encodeBase64Url,
+  verifyOwnerNodeBinding,
   type CredentialRequirement,
   type UnifiedPolicyV2,
 } from "@tinycloud/sdk-core";
@@ -30,6 +31,8 @@ export interface ShareReceiverServiceOptions {
   readonly credentialDiscoveryUrl?: string;
   /** Out-of-band Share application origin allowed to supply invitation URLs. */
   readonly expectedShareOrigin: string;
+  /** Registry containing the share owner's signed TinyCloud location record. */
+  readonly registryOrigin: string;
   readonly fetch?: typeof fetch;
 }
 
@@ -293,6 +296,15 @@ export class ShareReceiverService {
     aborted(options.signal);
     if (envelope === undefined) throw new Error("accountless receive requires a verified v3 share");
     validateShareReceiverServiceTrust(envelope);
+    await verifyOwnerNodeBinding({
+      registryUrl: this.config.registryOrigin,
+      ownerDid: envelope.policy.ownerDid,
+      nodeOrigin: envelope.target.origin,
+      nodeDid: envelope.target.nodeAudience,
+      fetch: this.fetchFn,
+      signal: options.signal,
+    });
+    aborted(options.signal);
     const account = await selectShareReceiverAccountSession(this.client, options.identity);
     let identity: ShareReceiverIdentity;
     let credentials: CredentialsService;

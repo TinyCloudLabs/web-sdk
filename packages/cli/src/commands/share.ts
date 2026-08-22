@@ -95,6 +95,27 @@ function inputUrl(value: string | undefined, stdin: boolean): Promise<string> {
   return Promise.resolve(value);
 }
 
+/** @internal Command seam that guarantees stdin is consumed exactly once. */
+export async function inspectShareInputOnce(
+  value: string | undefined,
+  stdin: boolean,
+  expectedOrigin: string,
+  dependencies: {
+    readonly read?: () => Promise<string>;
+    readonly inspect?: typeof inspectShare;
+  } = {},
+): ReturnType<typeof inspectShare> {
+  const link = stdin || value === "-"
+    ? await (dependencies.read ?? readBoundedUrlStdin)()
+    : await inputUrl(value, false);
+  try {
+    parseNativeShareUrl(link);
+  } catch {
+    return (dependencies.inspect ?? inspectShare)(link, { expectedOrigin });
+  }
+  throw new CLIError("UNSUPPORTED_LINK", "native bearer links are opaque; receive the link to verify access", 2);
+}
+
 function jsonOutput(options: { readonly json?: boolean }, command: Command): boolean {
   return options.json === true || command.optsWithGlobals().json === true;
 }
@@ -214,20 +235,10 @@ export function registerShareCommand(program: Command): void {
     .action(async (url: string | undefined, options, command: Command) => {
       try {
         const json = jsonOutput(options, command);
-        const link = await inputUrl(url, options.stdin === true);
-        parseNativeShareUrl(link);
-        throw new CLIError("UNSUPPORTED_LINK", "native bearer links are opaque; receive the link to verify access", 2);
+        const result = await inspectShareInputOnce(url, options.stdin === true, options.viewerOrigin);
+        if (json) writeJson(result);
+        else inspectHuman(result);
       } catch (error) {
-        if (!(error instanceof CLIError)) {
-          try {
-            const json = jsonOutput(options, command);
-            const link = await inputUrl(url, options.stdin === true);
-            const result = await inspectShare(link, { expectedOrigin: options.viewerOrigin });
-            if (json) writeJson(result);
-            else inspectHuman(result);
-            return;
-          } catch (inspectionError) { handleError(shareCliError(inspectionError)); return; }
-        }
         handleError(shareCliError(error));
       }
     });

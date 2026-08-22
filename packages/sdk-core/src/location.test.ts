@@ -19,6 +19,7 @@ import {
   signLocationRecord,
   validateLocationRecord,
   verifyLocationRecord,
+  verifyOwnerNodeBinding,
   type LocationRecordPayload,
   type WebStorageLike,
 } from "./location";
@@ -134,6 +135,78 @@ describe("location records", () => {
     const ma = httpUrlToMultiaddr("https://node.tinycloud.xyz/");
     expect(ma).toBe("/dns/node.tinycloud.xyz/tcp/443/tls/http");
     expect(multiaddrToHttpUrl(ma)).toBe("https://node.tinycloud.xyz");
+  });
+
+  it("binds a share target to the owner's signed registry record and live node DID", async () => {
+    const privateKey = new Uint8Array(32).fill(9);
+    const ownerDid = `did:key:${bases.base58btc.encode(
+      Uint8Array.of(0xed, 0x01, ...ed25519.getPublicKey(privateKey)),
+    )}`;
+    const record = await signLocationRecord({
+      version: 1,
+      subject: ownerDid,
+      multiaddrs: [httpUrlToMultiaddr("https://owner-node.example")],
+      updated_at: "2026-04-28T16:00:00.000Z",
+      sequence: 1,
+    }, {
+      type: "did:key",
+      signBytes: async (bytes) => ed25519.sign(bytes, privateKey),
+    });
+    const requests: string[] = [];
+    const fetchFn = (async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      requests.push(url);
+      if (url.startsWith("https://registry.example/v1/locations/")) return Response.json({ record });
+      if (url === "https://owner-node.example/info") {
+        expect(init?.redirect).toBe("error");
+        return Response.json({ nodeId: NODE_DID });
+      }
+      return new Response(null, { status: 404 });
+    }) as typeof fetch;
+
+    await expect(verifyOwnerNodeBinding({
+      registryUrl: "https://registry.example",
+      ownerDid,
+      nodeOrigin: "https://owner-node.example",
+      nodeDid: NODE_DID,
+      fetch: fetchFn,
+    })).resolves.toMatchObject({ nodeOrigin: "https://owner-node.example", nodeDid: NODE_DID });
+    expect(requests).toEqual([
+      `https://registry.example/v1/locations/${encodeURIComponent(ownerDid)}`,
+      "https://owner-node.example/info",
+    ]);
+
+    await expect(verifyOwnerNodeBinding({
+      registryUrl: "https://registry.example",
+      ownerDid,
+      nodeOrigin: "https://unpublished-node.example",
+      nodeDid: NODE_DID,
+      fetch: fetchFn,
+    })).rejects.toThrow("not in the owner's signed location record");
+  });
+
+  it("rejects a registry-bound target when the live node DID does not match", async () => {
+    const privateKey = new Uint8Array(32).fill(10);
+    const ownerDid = `did:key:${bases.base58btc.encode(
+      Uint8Array.of(0xed, 0x01, ...ed25519.getPublicKey(privateKey)),
+    )}`;
+    const record = await signLocationRecord({
+      version: 1,
+      subject: ownerDid,
+      multiaddrs: [httpUrlToMultiaddr("https://owner-node.example")],
+      updated_at: "2026-04-28T16:00:00.000Z",
+      sequence: 1,
+    }, { type: "did:key", signBytes: async (bytes) => ed25519.sign(bytes, privateKey) });
+    const fetchFn = (async (input: string | URL | Request) => String(input).includes("/v1/locations/")
+      ? Response.json({ record })
+      : Response.json({ nodeId: OTHER_NODE_DID })) as typeof fetch;
+    await expect(verifyOwnerNodeBinding({
+      registryUrl: "https://registry.example",
+      ownerDid,
+      nodeOrigin: "https://owner-node.example",
+      nodeDid: NODE_DID,
+      fetch: fetchFn,
+    })).rejects.toThrow("does not match the share attestation");
   });
 });
 
