@@ -31,3 +31,5 @@ export type { ShareNodeTrust, SharePolicyChallenge, SharePresentationMaterial, S
 export { SHARE_V2_PROTOCOL, createShareV2HolderBindingArtifact } from "./protocol.js";
 export { publishPolicyShare, claimShare, resumeShareAuthorization } from "./policy.js";
 export type { SharePolicyPublishAdapter } from "./policy.js";
+export { NATIVE_SHARE_FRAGMENT_PARAMETER, createNativeShare, nativeShareUrl, openNativeShare, parseNativeShareUrl } from "./native.js";
+export type { NativeShareLink, NativeShareOwner, NativeShareRecipient } from "./native.js";
