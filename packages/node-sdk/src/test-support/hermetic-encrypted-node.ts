@@ -129,6 +129,9 @@ class LoopbackEncryptedNode {
     delegatedKvRead: false,
     delegatedDecrypt: false,
     delegatedKvResources: [] as string[],
+    delegations: 0,
+    revocations: 0,
+    revokedInvocations: 0,
     kvReads: 0,
     kvWrites: 0,
   };
@@ -454,6 +457,7 @@ class LoopbackEncryptedNode {
         return new Response("delegation chain rejected by loopback transport", { status: 403 });
       }
       this.observed.signedDelegation = true;
+      this.observed.delegations += 1;
       this.activations.add(cid);
       this.delegationCids.add(cid);
       return this.json({ activated: [cid], skipped: [] });
@@ -470,6 +474,7 @@ class LoopbackEncryptedNode {
       const cid = target.slice("urn:cid:".length);
       if (!this.delegationCids.has(cid)) return new Response("delegation not found", { status: 404 });
       this.revokedDelegationCids.add(cid);
+      this.observed.revocations += 1;
       return this.json({ cid, revoked: true });
     }
 
@@ -488,6 +493,7 @@ class LoopbackEncryptedNode {
       if (!authorization) return new Response("missing authorization", { status: 401 });
       const payload = verifiedCompactPayload(authorization);
       if (payload.prf?.some((cid) => this.revokedDelegationCids.has(cid))) {
+        this.observed.revokedInvocations += 1;
         return new Response("delegation has been revoked", { status: 403 });
       }
       if (this.targetsBrowserCredentials(payload) && !this.matchesBrowserSession(payload)) {
@@ -814,6 +820,13 @@ export interface HermeticEncryptedNode {
   readonly applicationsSpaceId: string;
   readonly permissions: readonly PermissionEntry[];
   readonly unrelatedAudience: string;
+  nativeBearerStats(): Readonly<{
+    delegations: number;
+    revocations: number;
+    revokedInvocations: number;
+    kvReads: number;
+    kvWrites: number;
+  }>;
   provisionKvSpace(spaceId: string): void;
   createRestoredDelegate(): TinyCloudNode;
   createRotatedRestorableSession(): Promise<HermeticEncryptedNode["restorableSession"]>;
@@ -1020,6 +1033,13 @@ export async function createHermeticEncryptedNode(
     applicationsSpaceId,
     permissions,
     unrelatedAudience,
+    nativeBearerStats: () => ({
+      delegations: transport.observed.delegations,
+      revocations: transport.observed.revocations,
+      revokedInvocations: transport.observed.revokedInvocations,
+      kvReads: transport.observed.kvReads,
+      kvWrites: transport.observed.kvWrites,
+    }),
     provisionKvSpace: (spaceId) => transport.provisionKv(spaceId),
     createRestoredDelegate: () =>
       new TinyCloudNode({ host: transport.host, wasmBindings: transport.wasm }),
