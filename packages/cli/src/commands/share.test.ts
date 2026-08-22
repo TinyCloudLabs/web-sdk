@@ -15,12 +15,12 @@ describe("tc share command contract", () => {
     expect(() => parseShareTarget("unknown-target")).toThrow();
   });
 
-  test("registers explicit lifecycle commands, including legacy migration", () => {
+  test("registers only the current native sharing lifecycle commands", () => {
     const program = new Command();
     registerShareCommand(program);
     const share = program.commands.find((command) => command.name() === "share");
     expect(share?.commands.map((command) => command.name())).toEqual([
-      "publish", "inspect", "receive", "migrate", "list", "show", "notify", "revoke",
+      "publish", "inspect", "receive", "list", "show", "notify", "revoke",
     ]);
   });
 });
