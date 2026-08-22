@@ -48,7 +48,8 @@ export interface SharePolicyChallenge {
 
 export interface ShareRecipientClientOptions {
   readonly nodeOrigin: string;
-  readonly trustedNode: ShareNodeTrust;
+  /** Required only by the retired v2 response-proof adapter. Policy/v3 trusts its signed attested binding. */
+  readonly trustedNode?: ShareNodeTrust;
   readonly holderDid: string;
   readonly envelope: ShareEnvelopeV2 | ShareEnvelopeV3;
   readonly fetchFn?: typeof fetch;
@@ -594,7 +595,7 @@ export function createAddressedAuthorization(input: Omit<ShareRecipientClientOpt
           response.bodyDigest !== await digestBytes(value.bytes)
         ) return false;
         const detached = object(wrapper.detached, "share read detached proof");
-        if (detached.alg !== "EdDSA" || detached.kid !== input.trustedNode.invitationKid) return false;
+        if (input.trustedNode === undefined || detached.alg !== "EdDSA" || detached.kid !== input.trustedNode.invitationKid) return false;
         const unsigned = { ...response };
         delete unsigned.proof;
         return ed25519.verify(bytes(detached.signature, "share read signature"), new TextEncoder().encode(`${SHARE_V2_PROTOCOL.readResponseDomain}${canonicalize(unsigned)}`), trustedPublicKey(input.trustedNode));

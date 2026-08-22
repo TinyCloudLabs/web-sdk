@@ -1,8 +1,7 @@
 import type { SenderShareRecord, SenderShareRecordStorage } from "./history.js";
 
 export type ShareRevocationResult =
-  | { readonly state: "revoked"; readonly target: "recipientDid" | "email" | "emailDomain"; readonly delegationCid: string; readonly revokedAt: string }
-  | { readonly state: "retention-only"; readonly target: "bearer"; readonly reason: "bearer-capability-cannot-be-revoked" }
+  | { readonly state: "revoked"; readonly target: "bearer" | "recipientDid" | "email" | "emailDomain"; readonly delegationCid: string; readonly revokedAt: string }
   | { readonly state: "unsupported"; readonly target: string; readonly reason: string; readonly code: "unsupported-target" };
 
 export interface ShareRevocationAdapter {
@@ -14,7 +13,7 @@ function targetKind(record: SenderShareRecord): string {
   return record.recipientMatcher.kind === "exactEmail" ? "email" : record.recipientMatcher.kind === "emailDomain" ? "emailDomain" : record.recipientMatcher.kind === "recipientDid" ? "recipientDid" : "bearer";
 }
 
-/** Report retention for bearer shares; only node-enforced targets are revokeable. */
+/** Revoke the exact node-enforced delegation retained in sender history. */
 export async function revokeShare(input: {
   readonly record: SenderShareRecord;
   /** Optional durable store; successful revocation is persisted before return. */
@@ -24,7 +23,6 @@ export async function revokeShare(input: {
   readonly now?: () => Date;
 }): Promise<ShareRevocationResult> {
   const target = targetKind(input.record);
-  if (target === "bearer") return { state: "retention-only", target, reason: "bearer-capability-cannot-be-revoked" };
   if (input.adapter === undefined) return { state: "unsupported", target, reason: "node revocation authority is required", code: "unsupported-target" };
   const scope = input.scope ?? "direct";
   const delegationCid = scope === "ancestor" ? input.record.ownerDelegationCid : input.record.enforcementDelegationCid;
@@ -32,7 +30,7 @@ export async function revokeShare(input: {
   await input.adapter.revokeDelegation({ delegationCid, scope });
   const revokedAt = (input.now?.() ?? new Date()).toISOString();
   if (input.records !== undefined) await input.records.put({ ...input.record, revokedAt });
-  return { state: "revoked", target: target as "recipientDid" | "email" | "emailDomain", delegationCid, revokedAt };
+  return { state: "revoked", target: target as "bearer" | "recipientDid" | "email" | "emailDomain", delegationCid, revokedAt };
 }
 
 export interface ShareHistoryView {
